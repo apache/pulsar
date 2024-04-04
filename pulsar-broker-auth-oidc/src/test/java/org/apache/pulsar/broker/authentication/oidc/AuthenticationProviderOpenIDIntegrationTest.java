@@ -73,6 +73,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     // These are the kid values for JWKs in the /keys endpoint
     String validJwk = "valid";
     String invalidJwk = "invalid";
+    String validJwkWithoutAlg = "valid_without_alg";
 
     // The valid issuer
     String issuer;
@@ -182,10 +183,16 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                                 "kty":"RSA",
                                                 "n":"invalid-key",
                                                 "e":"AQAB"
+                                                },
+                                                {
+                                                "kid":"%s",
+                                                "kty":"RSA",
+                                                "n":"%s",
+                                                "e":"%s"
                                                 }
                                             ]
                                         }
-                                        """.formatted(validJwk, n, e, invalidJwk))));
+                                        """.formatted(validJwk, n, e, invalidJwk, validJwkWithoutAlg, n, e))));
 
         server.stubFor(
                 get(urlEqualTo("/missing-kid/.well-known/openid-configuration"))
@@ -265,6 +272,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     public void testTokenWithValidJWK() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testTokenWithValidJWKWithoutAlg() throws Exception {
+        String role = "superuser";
+        // test with a key in JWK that does not have an "alg" field. "alg" is optional in the JWK spec
+        String token = generateToken(validJwkWithoutAlg, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
     }
 
