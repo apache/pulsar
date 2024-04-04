@@ -357,7 +357,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
         if (!isDurable()) {
-            this.cursorProperties = newProperties;
+            this.cursorProperties = Collections.unmodifiableMap(newProperties);
             updateCursorPropertiesResult.complete(null);
             return updateCursorPropertiesResult;
         }
