@@ -732,7 +732,7 @@ public abstract class PulsarWebResource {
                                             .host(webUrl.get().getHost())
                                             .port(webUrl.get().getPort())
                                             .replaceQueryParam("authoritative", newAuthoritative);
-                                    if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                                    if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
                                         uriBuilder.replaceQueryParam("destinationBroker", null);
                                     }
                                     URI redirect = uriBuilder.build();
@@ -1007,7 +1007,7 @@ public abstract class PulsarWebResource {
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
         // For extensible load manager, it doesn't have leader election service on pulsar broker.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return true;
         }
         return  pulsar.getLeaderElectionService().isLeader();

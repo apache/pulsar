@@ -968,13 +968,13 @@ public abstract class NamespacesBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return CompletableFuture.completedFuture(null);
                     }
                     return validateLeaderBrokerAsync();
                 })
                 .thenAccept(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return;
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
