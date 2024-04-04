@@ -304,7 +304,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return verifyIssuerAndGetJwk(jwt)
                 .thenCompose(jwk -> {
                     try {
-                        if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
+                        // verify the algorithm, if it is set ("alg" is optional in the JWK spec)
+                        if (jwk.getAlgorithm() != null && !jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
                             incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
                             return CompletableFuture.failedFuture(
                                     new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
