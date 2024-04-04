@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryTopicStats implements AutoCloseable {
@@ -374,6 +375,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributes);
             storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributes);
             storageOffloadedCounter.record(managedLedger.getOffloadedSize(), attributes);
+            storageInCounter.record(managedLedgerStats.getReadEntriesSucceededTotal(), attributes);
+            storageOutCounter.record(managedLedgerStats.getAddEntrySucceedTotal(), attributes);
 
             backlogQuotaLimit.record(
                     topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
@@ -406,14 +409,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                     .putAll(attributes)
                     .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
                     .build());
+
+            Optional.ofNullable(pulsar.getNullableCompactor())
+                    .map(Compactor::getStats)
+                    .flatMap(compactorMXBean -> compactorMXBean.getCompactionRecordForTopic(topic.getName()))
+                    .ifPresent(compactionRecord -> {
+                        compactionRemovedCounted.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
+                        compactionSucceededCounter.record(compactionRecord.getCompactionSucceedCount(), attributes);
+                        compactionFailedCounter.record(compactionRecord.getCompactionFailedCount(), attributes);
+                    });
         }
-
-        storageOutCounter.record(dummyValue, attributes);
-        storageInCounter.record(dummyValue, attributes);
-
-        compactionRemovedCounted.record(dummyValue, attributes);
-        compactionSucceededCounter.record(dummyValue, attributes);
-        compactionFailedCounter.record(dummyValue, attributes);
 
         delayedSubscriptionCounter.record(dummyValue, attributes);
     }
