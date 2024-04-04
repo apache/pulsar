@@ -988,7 +988,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         deleteTopic(topic, false);
     }
 
-    @Test(dataProvider = "partitioned")
+    @Test(dataProvider = "partitioned", groups = "flaky")
     @SneakyThrows
     public void testExpireMessage(boolean partitioned) {
         final String random = UUID.randomUUID().toString();

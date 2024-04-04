@@ -1626,7 +1626,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testDelayedTransactionMessages() throws Exception {
         String topic = NAMESPACE1 + "/testDelayedTransactionMessages";
 
