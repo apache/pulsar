@@ -61,7 +61,7 @@ public class CompactorTool {
         @Option(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
-        @Option(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
