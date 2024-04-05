@@ -145,11 +145,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                                             int retryCount,
                                             long intSleepTimeInMillis) throws Exception {
         assertTrue(retryStrategically((__) -> {
-            Object Actual = actual.get();
-            if (Actual.equals(expectedAndRetry)) {
+            Object actualObject = actual.get();
+            if (actualObject.equals(expectedAndRetry)) {
                 return false;
             }
-            assertEquals(Actual, expected);
+            assertEquals(actualObject, expected);
             return true;
         }, retryCount, intSleepTimeInMillis));
     }
