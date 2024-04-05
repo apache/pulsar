@@ -40,7 +40,7 @@ COPY scripts/install-pulsar-client.sh /pulsar/bin
 # container when gid=0 is prohibited. In that case, the container must be run with uid 10000 with
 # any group id != 0 (for example 10001).
 # The file permissions are preserved when copying files from this builder image to the target image.
-RUN for SUBDIRECTORY in conf data download logs; do \
+RUN for SUBDIRECTORY in bin conf data download logs; do \
      [ -d /pulsar/$SUBDIRECTORY ] || mkdir /pulsar/$SUBDIRECTORY; \
      chmod -R ug+w /pulsar/$SUBDIRECTORY; \
      chown -R 10000:0 /pulsar/$SUBDIRECTORY; \
