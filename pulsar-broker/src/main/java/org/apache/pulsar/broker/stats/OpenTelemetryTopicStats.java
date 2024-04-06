@@ -22,6 +22,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
@@ -420,6 +421,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         if (topic instanceof PersistentTopic persistentTopic) {
             var delayedMessages = topic.getSubscriptions().values().stream()
                     .map(Subscription::getDispatcher)
+                    .filter(Objects::nonNull)
                     .mapToLong(Dispatcher::getNumberOfDelayedMessages)
                     .sum();
             delayedSubscriptionCounter.record(delayedMessages, attributes);
