@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.compaction.CompactedTopicContext;
@@ -399,9 +400,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     }
 
     private void recordMetricsForTopic(Topic topic) {
-        var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
-                .build();
+        var topicName = TopicName.get(topic.getName());
+        var builder = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespacePortion())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicLocalName());
+        if (topicName.isPartitioned()) {
+            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+        }
+        var attributes = builder.build();
 
         if (topic instanceof AbstractTopic abstractTopic) {
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);

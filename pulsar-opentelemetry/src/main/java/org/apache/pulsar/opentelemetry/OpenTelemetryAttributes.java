@@ -31,14 +31,29 @@ public interface OpenTelemetryAttributes {
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
 
     /**
-     * The name of the Pulsar topic.
+     * The name of the Pulsar namespace.
      */
     AttributeKey<String> PULSAR_NAMESPACE = AttributeKey.stringKey("pulsar.namespace");
+
+    /**
+     * The name of the Pulsar tenant.
+     */
+    AttributeKey<String> PULSAR_TENANT = AttributeKey.stringKey("pulsar.tenant");
+
+    /**
+     * The Pulsar topic domain.
+     */
+    AttributeKey<String> PULSAR_DOMAIN = AttributeKey.stringKey("pulsar.domain");
 
     /**
      * The name of the Pulsar topic.
      */
     AttributeKey<String> PULSAR_TOPIC = AttributeKey.stringKey("pulsar.topic");
+
+    /**
+     * The partition index of a Pulsar topic.
+     */
+    AttributeKey<Long> PULSAR_PARTITION_INDEX = AttributeKey.longKey("pulsar.partition.index");
 
     /**
      * The type of the Pulsar storage.
