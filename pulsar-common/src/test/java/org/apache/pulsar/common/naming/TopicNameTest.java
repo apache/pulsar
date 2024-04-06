@@ -331,4 +331,10 @@ public class TopicNameTest {
         assertNotEquals(tp2.toString(), tp1.toString());
         assertEquals(tp2.toString(), "persistent://tenant1/namespace1/tp1-partition-0-DLQ-partition-0");
     }
+
+    @Test
+    public void testGetPartitionedTopicLocalName() {
+        assertEquals(TopicName.get("non-partitioned-topic").getPartitionedTopicLocalName(), "non-partitioned-topic");
+        assertEquals(TopicName.get("topic-partition-0").getPartitionedTopicLocalName(), "topic");
+    }
 }
