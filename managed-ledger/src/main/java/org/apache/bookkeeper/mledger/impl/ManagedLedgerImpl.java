@@ -192,8 +192,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
 
-    final ConcurrentLinkedQueue<ManagedCursorImpl> skipAddNonDurableToWaitingCursors;
-
     // Objects that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<WaitingEntryCallBack> waitingEntryCallBacks;
 
@@ -358,7 +356,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
-        this.skipAddNonDurableToWaitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = new HashMap();
         this.clock = config.getClock();
@@ -3813,19 +3810,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
 
     public void removeWaitingCursor(ManagedCursor cursor) {
-        final boolean removed = this.waitingCursors.remove(cursor);
-        if (cursor instanceof NonDurableCursorImpl && !removed) {
-            this.skipAddNonDurableToWaitingCursors.add((ManagedCursorImpl) cursor);
-        }
+        this.waitingCursors.remove(cursor);
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
         if (cursor instanceof NonDurableCursorImpl) {
-            final boolean skip = skipAddNonDurableToWaitingCursors.remove(cursor);
-            if (skip) {
-                return;
+            if (cursors.get(cursor.getName()) != null) {
+                this.waitingCursors.add(cursor);
             }
-            this.waitingCursors.add(cursor);
         } else {
             this.waitingCursors.add(cursor);
         }
