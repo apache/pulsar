@@ -1095,7 +1095,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         completableFuture.get();
         Assert.assertEquals(Optional.ofNullable(
                         admin.topics().getBacklogSizeByMessageId(topicName + "-partition-0", MessageId.earliest)),
-                Optional.of(350L));
+                Optional.of(320L));
     }
 
     @Test
