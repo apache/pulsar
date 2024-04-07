@@ -122,6 +122,7 @@ public class TenantsBase extends PulsarWebResource {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
+                .thenCompose(__ -> validateAdminRoleAsync(tenantInfo))
                 .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
                 .thenAccept(exist -> {
                     if (exist) {
@@ -167,6 +168,7 @@ public class TenantsBase extends PulsarWebResource {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
+                .thenCompose(__ -> validateAdminRoleAsync(newTenantAdmin))
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenCompose(tenantAdmin -> {
                     if (!tenantAdmin.isPresent()) {
@@ -281,5 +283,18 @@ public class TenantsBase extends PulsarWebResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
             }
         });
+    }
+
+    private CompletableFuture<Void> validateAdminRoleAsync(TenantInfoImpl info) {
+        // empty adminRole shouldn't be allowed
+        if (!info.getAdminRoles().isEmpty()) {
+            for (String adminRole : info.getAdminRoles()) {
+                if (StringUtils.isBlank(adminRole) || StringUtils.containsWhitespace(adminRole)) {
+                    log.warn("[{}] Failed to validate due to adminRole {} is blank or containsWhitespace", clientAppId(), adminRole);
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "AdminRole can not be blank or containsWhitespace"));
+                }
+            }
+        }
+        return CompletableFuture.completedFuture(null);
     }
 }
