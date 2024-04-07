@@ -1001,7 +1001,10 @@ public class KubernetesRuntimeTest {
     public void testGolangConstructor() throws Exception {
         InstanceConfig config = createGolangInstanceConfig();
 
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(),
+                null, null, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}").build());
 
         verifyGolangInstance(config);
     }
@@ -1065,6 +1068,8 @@ public class KubernetesRuntimeTest {
                 + ".TestSink\",\"topic\":\"container-output\",\"serDeClassName\":\"org.apache.pulsar.functions"
                 + ".runtime.serde.Utf8Serializer\",\"typeClassName\":\"java.lang.String\"},\"resources\":{\"cpu\":1"
                 + ".0,\"ram\":\"1000\",\"disk\":\"10000\"}}");
+        assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "com.MyAuth");
+        assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "{\"authParam1\": \"authParamValue1\"}");
 
         // check padding and xmx
         V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
