@@ -3944,9 +3944,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
         if (TxnAction.COMMIT_VALUE == txnAction) {
-            return transactionBuffer.commitTxn(txnID, lowWaterMark);
+            return transactionBuffer.commitTxn(txnID, lowWaterMark).thenRun(() -> {
+                lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+            });
         } else if (TxnAction.ABORT_VALUE == txnAction) {
-            return transactionBuffer.abortTxn(txnID, lowWaterMark);
+            return transactionBuffer.abortTxn(txnID, lowWaterMark).thenRun(() -> {
+                lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+            });
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
