@@ -80,6 +80,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -707,5 +708,53 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .untilAsserted(() -> {
                     assertEquals(ledger.getWaitingCursorsCount(), 0);
         });
+    }
+
+    @Test
+    public void testAddWaitingCursorsForNonDurable2() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testAddWaitingCursors2";
+        admin.topics().createNonPartitionedTopic(topicName);
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub-1").subscribe().close();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < 2_000; i ++) {
+            producer.send("test-" + i);
+        }
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub-2").subscribe();
+        int count = 0;
+        while(true) {
+            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 2000);
+        Thread.sleep(5_000);
+        for (int i = 0; i < 2_000; i ++) {
+            producer.send("test-" + i);
+        }
+        while(true) {
+            final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 4000);
     }
 }
