@@ -234,7 +234,7 @@ func (gi *goInstance) setupClient() error {
 		}
 	case authPluginOAuth2:
 		if ic.authParams == "" {
-			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
 		}
 		var authMap map[string]string
 		if err := json.Unmarshal([]byte(ic.authParams), &authMap); err != nil {
