@@ -443,5 +443,9 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
         Message<Integer> message = consumer.receive();
         consumer.reconsumeLater(message, 2, TimeUnit.SECONDS);
+        for (int i = 0; i < 9; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        assertTrue(consumer.receive(5, TimeUnit.SECONDS).getTopicName().contains("sub-RETRY"));
     }
 }
