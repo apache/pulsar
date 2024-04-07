@@ -23,6 +23,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+
+import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -321,6 +323,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         }
                         txnCommittedCounter.increment();
                         completableFuture.complete(null);
+                        // need to update the last data message published timestamp
+                        topic.setLastDataMessagePublishedTimestamp(Clock.systemUTC().millis());
                     }
 
                     @Override

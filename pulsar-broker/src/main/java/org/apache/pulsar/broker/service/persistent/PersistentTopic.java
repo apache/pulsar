@@ -54,6 +54,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.Value;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -269,6 +270,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     @Getter
+    @Setter
     private volatile long lastDataMessagePublishedTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
