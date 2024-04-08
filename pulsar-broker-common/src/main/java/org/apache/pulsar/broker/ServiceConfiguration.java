@@ -5064,10 +5064,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.exposingBrokerEntryMetadataToClientEnabled = exposingBrokerEntryMetadataToClientEnabled;
     }
 
+    @Deprecated
     public boolean isEnableNamespaceIsolationUpdateOnTime() {
         return enableNamespaceIsolationUpdateOnTime;
     }
 
+    @Deprecated
     public void setEnableNamespaceIsolationUpdateOnTime(boolean enableNamespaceIsolationUpdateOnTime) {
         this.enableNamespaceIsolationUpdateOnTime = enableNamespaceIsolationUpdateOnTime;
     }
