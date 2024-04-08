@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.Topic;
@@ -83,6 +84,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         getServiceConfiguration().setEnablePackagesManagement(true);
         getServiceConfiguration().setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         getServiceConfiguration().setDefaultNumberOfNamespaceBundles(1);
+        getServiceConfiguration().setForceDeleteNamespaceAllowed(true);
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
@@ -122,9 +124,11 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     }
 
     @AfterMethod
-    public void after() throws IllegalAccessException {
+    public void after() throws IllegalAccessException, PulsarAdminException {
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 orignalAuthorizationService, true);
+        superUserAdmin.namespaces().deleteNamespace("public/default", true);
+        superUserAdmin.namespaces().createNamespace("public/default");
     }
 
     private void setAuthorizationOperationChecker(String role, NamespaceOperation operation) {
@@ -219,7 +223,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         superUserAdmin.topics().delete(topic, true);
     }
 
-    @Test
+     @Test
     public void testTopics() throws Exception {
         final String random = UUID.randomUUID().toString();
         final String namespace = "public/default";
@@ -351,7 +355,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.namespaces().getBundles(namespace));
 
-        setAuthorizationOperationChecker(subject, NamespaceOperation.GET_TOPICS);
+        setAuthorizationOperationChecker(subject, NamespaceOperation.GET_BUNDLE);
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(action));
@@ -457,9 +461,6 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         }
 
         superUserAdmin.topics().delete(topic, true);
-
-        cleanup();
-        setup();
     }
 
     @Test
@@ -485,26 +486,25 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .create();
         producer.send("message".getBytes());
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             superUserAdmin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.LARGEST.toString(), false, null);
         }
 
         BundlesData bundles = superUserAdmin.namespaces().getBundles(namespace);
-        Assert.assertEquals(bundles.getNumBundles(), 3);
+        Assert.assertEquals(bundles.getNumBundles(), 4);
         List<String> boundaries = bundles.getBoundaries();
-        Assert.assertEquals(boundaries.size(), 4);
+        Assert.assertEquals(boundaries.size(), 5);
 
         List<String> bundleRanges = new ArrayList<>();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             String bundleRange = boundaries.get(i) + "_" + boundaries.get(i + 1);
-            List<Topic> allTopicsFromNamespaceBundle =
-                    getPulsarService().getBrokerService().getAllTopicsFromNamespaceBundle(namespace, bundleRange);
+            List<Topic> allTopicsFromNamespaceBundle = getPulsarService().getBrokerService()
+                            .getAllTopicsFromNamespaceBundle(namespace, namespace + "/" + bundleRange);
+            System.out.println(StringUtils.join(allTopicsFromNamespaceBundle));
             if (allTopicsFromNamespaceBundle.isEmpty()) {
                 bundleRanges.add(bundleRange);
             }
         }
-
-        System.out.println(bundleRanges);
 
         // test super admin
         superUserAdmin.namespaces().deleteNamespaceBundle(namespace, bundleRanges.get(0));
@@ -514,19 +514,16 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
 
         // test nobody
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().deleteNamespaceBundle(namespace, bundleRanges.get(2)));
+                () -> subAdmin.namespaces().deleteNamespaceBundle(namespace, bundleRanges.get(1)));
 
         setAuthorizationOperationChecker(subject, NamespaceOperation.DELETE_BUNDLE);
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(action));
             Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().deleteNamespaceBundle(namespace, bundleRanges.get(2)));
+                () -> subAdmin.namespaces().deleteNamespaceBundle(namespace, bundleRanges.get(1)));
             superUserAdmin.namespaces().revokePermissionsOnNamespace(namespace, subject);
         }
-
-        cleanup();
-        setup();
     }
 
     @Test
@@ -684,7 +681,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(action));
-            if (AuthAction.consume == action || AuthAction.produce == action) {
+            if (AuthAction.consume == action) {
                 subAdmin.namespaces().clearNamespaceBacklog(namespace);
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
@@ -977,7 +974,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
             PackageMetadata originalMetadata4 = PackageMetadata.builder().description("test").build();
             String downloadPath4 = new File(file3.getParentFile(), "package-api-test-download.package").getPath();
             if (AuthAction.packages == action) {
-                subAdmin.packages().upload(originalMetadata, packageName4, file.getPath());
+                subAdmin.packages().upload(originalMetadata4, packageName4, file.getPath());
 
                 // testing download api
                 subAdmin.packages().download(packageName4, downloadPath4);
@@ -1000,7 +997,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 PackageMetadata updatedMetadata4 = originalMetadata;
                 updatedMetadata4.setContact("test@apache.org");
                 updatedMetadata4.setProperties(Collections.singletonMap("key", "value"));
-                subAdmin.packages().updateMetadata(packageName, updatedMetadata);
+                subAdmin.packages().updateMetadata(packageName, updatedMetadata4);
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                         () -> subAdmin.packages().upload(originalMetadata4, packageName4, file4.getPath()));
