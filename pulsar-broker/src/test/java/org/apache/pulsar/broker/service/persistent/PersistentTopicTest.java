@@ -114,6 +114,11 @@ public class PersistentTopicTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @Override protected void doInitConf() throws Exception {
+        super.doInitConf();
+        this.conf.setManagedLedgerCursorBackloggedThreshold(10);
+    }
+
     /**
      * Test validates that broker cleans up topic which failed to unload while bundle unloading.
      *
@@ -682,7 +687,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
         final ManagedCursor spyCursor= spy(ledger.newNonDurableCursor(PositionImpl.LATEST, "sub-2"));
         doAnswer((invocation) -> {
-            Thread.sleep(10_000);
+            Thread.sleep(5_000);
             invocation.callRealMethod();
             return null;
         }).when(spyCursor).asyncReadEntriesOrWait(any(int.class), any(long.class),
@@ -722,9 +727,9 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub-1").subscribe().close();
         @Cleanup
-        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        for (int i = 0; i < 2_000; i ++) {
-            producer.send("test-" + i);
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
         }
         @Cleanup
         final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
@@ -742,10 +747,10 @@ public class PersistentTopicTest extends BrokerTestBase {
                 break;
             }
         }
-        Assert.assertEquals(count, 2000);
-        Thread.sleep(5_000);
-        for (int i = 0; i < 2_000; i ++) {
-            producer.send("test-" + i);
+        Assert.assertEquals(count, 100);
+        Thread.sleep(3_000);
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
         }
         while(true) {
             final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -756,6 +761,6 @@ public class PersistentTopicTest extends BrokerTestBase {
                 break;
             }
         }
-        Assert.assertEquals(count, 4000);
+        Assert.assertEquals(count, 200);
     }
 }
