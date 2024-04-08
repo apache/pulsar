@@ -22,8 +22,6 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocat
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -749,18 +747,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                         .hasName(metricName)
                         .hasLongSumSatisfying(
                                 sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
-    }
-
-    protected void assertOtelMetricLongSumValue(Collection<MetricData> metrics, String metricName, long value, Attributes attributes) {
-        assertThat(metrics)
-                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
-                        .hasName(metricName)
-                        .hasLongSumSatisfying(sum -> sum.satisfies(
-                                sumData -> assertThat(sumData.getPoints()).anySatisfy(
-                                        point -> {
-                                            OpenTelemetryAssertions.assertThat(point.getAttributes()).isEqualTo(attributes);
-                                            assertThat(point.getValue()).isEqualTo(value);
-                                        }))));
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

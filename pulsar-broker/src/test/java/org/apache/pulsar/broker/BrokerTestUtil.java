@@ -18,12 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
-import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
-import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Consumer;
-import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 import org.mockito.Mockito;
 
 /**
@@ -83,15 +78,4 @@ public class BrokerTestUtil {
                 .stubOnly());
     }
 
-    // Creates an OpenTelemetrySdkBuilder customizer for use in tests.
-    public static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getOpenTelemetrySdkBuilderConsumer(
-            InMemoryMetricReader reader) {
-        return sdkBuilder -> {
-            sdkBuilder.addMeterProviderCustomizer(
-                    (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
-            sdkBuilder.addPropertiesSupplier(
-                    () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
-                            "otel.java.enabled.resource.providers", "none"));
-        };
-    }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static java.util.Map.entry;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.destination_storage;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.message_age;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +31,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.net.URL;
 import java.time.Duration;
@@ -46,11 +48,12 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metrics;
@@ -73,6 +76,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -151,7 +155,7 @@ public class BacklogQuotaManagerTest {
 
             openTelemetryMetricReader = InMemoryMetricReader.create();
             pulsar = new PulsarService(config, new WorkerConfig(), Optional.empty(), exitCode -> {
-            }, BrokerTestUtil.getOpenTelemetrySdkBuilderConsumer(openTelemetryMetricReader));
+            }, BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(openTelemetryMetricReader));
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
@@ -715,16 +719,18 @@ public class BacklogQuotaManagerTest {
     public void testConsumerBacklogEvictionSizeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 new HashMap<>());
+        var backlogSizeLimit = 10 * 1024;
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitSize(10 * 1024)
+                        .limitSize(backlogSizeLimit)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build());
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic2" + UUID.randomUUID();
+        final String localTopicName = "topic2" + UUID.randomUUID();
+        final String topic1 = "persistent://prop/ns-quota/" + localTopicName;
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;
@@ -747,7 +753,20 @@ public class BacklogQuotaManagerTest {
         assertThat(evictionCountMetric("prop/ns-quota", topic1, "size")).isEqualTo(1);
         assertThat(evictionCountMetric("size")).isEqualTo(1);
 
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-quota")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, backlogSizeLimit,
+                attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, 1,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
+                        .build());
     }
 
     @Test
