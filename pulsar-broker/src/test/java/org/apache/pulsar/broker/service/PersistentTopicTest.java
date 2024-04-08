@@ -119,6 +119,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -322,11 +323,39 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 assertEquals(entryData.array(), payload.array());
             }
         };
-
         topic.publishMessage(payload, publishContext);
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
+
+    @Test
+    public void testUpdateLastDataMessagePublishedTimestampForNormalPublish() throws Exception {
+        doAnswer(invocationOnMock -> {
+            final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
+            final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[1];
+            final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[2];
+            callback.addComplete(PositionImpl.LATEST, payload, ctx);
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final Topic.PublishContext publishContext = new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                assertEquals(ledgerId, PositionImpl.LATEST.getLedgerId());
+                assertEquals(entryId, PositionImpl.LATEST.getEntryId());
+                latch.countDown();
+            }
+        };
+
+        long lastDataMessagePublishedTimestamp = topic.getLastDataMessagePublishedTimestamp();
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()), publishContext);
+        assertTrue(latch.await(1, TimeUnit.SECONDS));
+        assertTrue(topic.getLastDataMessagePublishedTimestamp() > lastDataMessagePublishedTimestamp);
+    }
+
 
     @Test
     public void testDispatcherMultiConsumerReadFailed() {
