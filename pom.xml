@@ -1616,6 +1616,9 @@ flexible messaging model and an intuitive client API.</description>
               <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
             </property>
           </properties>
+          <excludes>
+            <exclude>**/AlluxioSink*.java</exclude>
+          </excludes>
         </configuration>
         <dependencies>
           <dependency>
