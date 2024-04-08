@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
-import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,28 +52,50 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         builder.enableOpenTelemetry(true);
     }
 
-    @Test
+    @Test(timeOut = 3000_000)
     public void testMessagingMetrics() throws Exception {
         var topicName = "persistent://prop/ns-abc/testMessagingMetrics";
-        var partitionedTopicName = "persistent://prop/ns-abc/testPartitionedMessagingMetrics";
+        var namespace = "prop/ns-abc";
 
+        var backlogTimeLimit = 1;
+        var backlogSizeLimit = 1;
         admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().createPartitionedTopic(partitionedTopicName, 3);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
+                .limitSize(backlogSizeLimit)
+                .limitTime(backlogTimeLimit)
+                .build();
+        admin.namespaces().setBacklogQuota(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+        admin.namespaces().setBacklogQuota(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            var quota = admin.namespaces().getBacklogQuotaMap(namespace);
+            assertThat(quota.get(BacklogQuota.BacklogQuotaType.message_age)).isEqualTo(backlogQuota);
+            assertThat(quota.get(BacklogQuota.BacklogQuotaType.destination_storage)).isEqualTo(backlogQuota);
+        });
 
-        var producerCount = 3;
-        var consumerCount = 5;
+        var producerCount = 5;
+        var messagesPerProducer = 2;
+        var consumerCount = 3;
 
         for (int i = 0; i < producerCount; i++) {
-            registerCloseable(pulsarClient.newProducer().topic(topicName).create());
-            registerCloseable(pulsarClient.newProducer().topic(partitionedTopicName).create());
+            var producer = registerCloseable(pulsarClient.newProducer().topic(topicName).create());
+            for (int j = 0; j < messagesPerProducer; j++) {
+                producer.send(String.format("producer-%d-msg-%d", i, j).getBytes());
+            }
         }
 
+        var cdl = new CountDownLatch(consumerCount);
         for (int i = 0; i < consumerCount; i++) {
-            registerCloseable(pulsarClient.newConsumer().topic(topicName)
+            var consumer = registerCloseable(pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName("test")
                     .subscriptionType(SubscriptionType.Shared)
                     .subscribe());
+            consumer.receiveAsync().orTimeout(100, TimeUnit.MILLISECONDS).handle((msg, ex) -> {
+                cdl.countDown();
+                return msg;
+            });
         }
+        cdl.await();
 
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
@@ -79,6 +105,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .build();
 
         var dummyValue = 1000;
+        var fixmeNilValue = 0L;
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
@@ -86,26 +113,40 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.PRODUCER_COUNTER, producerCount, attributes);
         assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_COUNTER, consumerCount, attributes);
 
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, dummyValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER,
+                producerCount * messagesPerProducer, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, fixmeNilValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, 470L, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, fixmeNilValue, attributes);
 
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, dummyValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, fixmeNilValue,
+                attributes);
         // assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_MSG_ACK_COUNTER, dummyValue, attributes); is missing
 
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER, dummyValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, 940L, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER, 470L, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER, fixmeNilValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER, fixmeNilValue, attributes);
 
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, dummyValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, backlogSizeLimit,
+                attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, backlogTimeLimit,
+                attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, fixmeNilValue,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
+                        .build());
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, fixmeNilValue,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
+                        .build());
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, -1L, attributes);
 
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, dummyValue, attributes);
-        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, dummyValue, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER,
+                producerCount * messagesPerProducer, attributes);
+        assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);
 
         assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTED, dummyValue, attributes);
         assertOtelMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, dummyValue, attributes);

@@ -427,13 +427,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         }
 
         if (topic instanceof PersistentTopic persistentTopic) {
-            var delayedMessages = topic.getSubscriptions().values().stream()
-                    .map(Subscription::getDispatcher)
-                    .filter(Objects::nonNull)
-                    .mapToLong(Dispatcher::getNumberOfDelayedMessages)
-                    .sum();
-            delayedSubscriptionCounter.record(delayedMessages, attributes);
-
             var managedLedger = persistentTopic.getManagedLedger();
             var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
             storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
@@ -494,6 +487,13 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                                     compactionBytesCounter.record(ledger.getLength(), attributes);
                                 });
                     });
+
+            var delayedMessages = topic.getSubscriptions().values().stream()
+                    .map(Subscription::getDispatcher)
+                    .filter(Objects::nonNull)
+                    .mapToLong(Dispatcher::getNumberOfDelayedMessages)
+                    .sum();
+            delayedSubscriptionCounter.record(delayedMessages, attributes);
         }
     }
 }
