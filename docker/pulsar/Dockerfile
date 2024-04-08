@@ -118,5 +118,5 @@ ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 ARG DEFAULT_USERNAME=pulsar
-RUN adduser ${DEFAULT_USERNAME} -u 10000 -G root -D
+RUN adduser ${DEFAULT_USERNAME} -u 10000 -G root -D -H -h /pulsar/data
 USER 10000

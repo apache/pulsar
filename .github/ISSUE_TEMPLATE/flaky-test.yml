@@ -18,7 +18,7 @@
 name: Flaky test
 title: "Flaky-test: test_class.test_method"
 description: Report a flaky test failure
-labels: [ "component/test", "flaky-tests" ]
+labels: [ "area/test", "type/flaky-tests" ]
 body:
   - type: markdown
     attributes:

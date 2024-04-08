@@ -378,80 +378,83 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         pendingMessagesUpDownCounter.increment();
         pendingBytesUpDownCounter.add(msgSize);
 
-        sendAsync(interceptorMessage, new SendCallback() {
-            SendCallback nextCallback = null;
-            MessageImpl<?> nextMsg = null;
-            long createdAt = System.nanoTime();
-
-            @Override
-            public CompletableFuture<MessageId> getFuture() {
-                return future;
-            }
-
-            @Override
-            public SendCallback getNextSendCallback() {
-                return nextCallback;
-            }
-
-            @Override
-            public MessageImpl<?> getNextMessage() {
-                return nextMsg;
-            }
-
-            @Override
-            public void sendComplete(Exception e) {
-                long latencyNanos = System.nanoTime() - createdAt;
-                pendingMessagesUpDownCounter.decrement();
-                pendingBytesUpDownCounter.subtract(msgSize);
-
-                try {
-                    if (e != null) {
-                        latencyHistogram.recordFailure(latencyNanos);
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        latencyHistogram.recordSuccess(latencyNanos);
-                        publishedBytesCounter.add(msgSize);
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(latencyNanos);
-                    }
-                } finally {
-                    interceptorMessage.getDataBuffer().release();
-                }
-
-                while (nextCallback != null) {
-                    SendCallback sendCallback = nextCallback;
-                    MessageImpl<?> msg = nextMsg;
-                    // Retain the buffer used by interceptors callback to get message. Buffer will release after
-                    // complete interceptors.
-                    try {
-                        msg.getDataBuffer().retain();
-                        if (e != null) {
-                            stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
-                        } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
-                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                        }
-                        nextMsg = nextCallback.getNextMessage();
-                        nextCallback = nextCallback.getNextSendCallback();
-                    } finally {
-                        msg.getDataBuffer().release();
-                    }
-                }
-            }
-
-            @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-                nextMsg = msg;
-                nextCallback = scb;
-            }
-        });
+        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    private class DefaultSendMessageCallback implements SendCallback {
+
+        CompletableFuture<MessageId> sendFuture;
+        MessageImpl<?> currentMsg;
+        int msgSize;
+        long createdAt = System.nanoTime();
+        SendCallback nextCallback = null;
+        MessageImpl<?> nextMsg = null;
+
+        DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg, int msgSize) {
+            this.sendFuture = sendFuture;
+            this.currentMsg = currentMsg;
+            this.msgSize = msgSize;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getFuture() {
+            return sendFuture;
+        }
+
+        @Override
+        public SendCallback getNextSendCallback() {
+            return nextCallback;
+        }
+
+        @Override
+        public MessageImpl<?> getNextMessage() {
+            return nextMsg;
+        }
+
+        @Override
+        public void sendComplete(Exception e) {
+            SendCallback loopingCallback = this;
+            MessageImpl<?> loopingMsg = currentMsg;
+            while (loopingCallback != null) {
+                onSendComplete(e, loopingCallback, loopingMsg);
+                loopingMsg = loopingCallback.getNextMessage();
+                loopingCallback = loopingCallback.getNextSendCallback();
+            }
+        }
+
+        private void onSendComplete(Exception e, SendCallback sendCallback, MessageImpl<?> msg) {
+            long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
+                    ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
+            long latencyNanos = System.nanoTime() - createdAt;
+            pendingMessagesUpDownCounter.decrement();
+            pendingBytesUpDownCounter.subtract(msgSize);
+            ByteBuf payload = msg.getDataBuffer();
+            if (payload == null) {
+                log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
+                        topic, producerName);
+            } else {
+                ReferenceCountUtil.safeRelease(payload);
+            }
+            if (e != null) {
+                latencyHistogram.recordFailure(latencyNanos);
+                stats.incrementSendFailed();
+                onSendAcknowledgement(msg, null, e);
+                sendCallback.getFuture().completeExceptionally(e);
+            } else {
+                latencyHistogram.recordSuccess(latencyNanos);
+                publishedBytesCounter.add(msgSize);
+                stats.incrementNumAcksReceived(latencyNanos);
+                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                sendCallback.getFuture().complete(msg.getMessageId());
+            }
+        }
+
+        @Override
+        public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+            nextMsg = msg;
+            nextCallback = scb;
+        }
     }
 
     @Override

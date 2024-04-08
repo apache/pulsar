@@ -1453,11 +1453,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable or disable exposing broker entry metadata to client.")
     private boolean exposingBrokerEntryMetadataToClientEnabled = false;
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable namespaceIsolation policy update take effect ontime or not,"
-                + " if set to ture, then the related namespaces will be unloaded after reset policy to make it "
-                + "take effect."
+        doc = "This config never takes effect and will be removed in the next release"
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
@@ -1689,6 +1688,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_BK,
         doc = "Parameters for bookkeeper auth plugin"
     )
+    @ToString.Exclude
     private String bookkeeperClientAuthenticationParameters;
 
     @FieldContext(
@@ -3303,6 +3303,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Authentication parameters of the authentication plugin the broker is using to connect "
                     + "to other brokers"
     )
+    @ToString.Exclude
     private String brokerClientAuthenticationParameters = "";
     @FieldContext(
             category = CATEGORY_REPLICATION,
