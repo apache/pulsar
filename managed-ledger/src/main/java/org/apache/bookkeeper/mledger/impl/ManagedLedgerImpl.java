@@ -1034,6 +1034,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     + consumerName), ctx);
             return;
         } else if (!cursor.isDurable()) {
+            cursor.setState(ManagedCursorImpl.State.Closed);
             cursors.removeCursor(consumerName);
             deactivateCursorByName(consumerName);
             callback.deleteCursorComplete(ctx);
@@ -3851,13 +3852,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
-        if (cursor instanceof NonDurableCursorImpl) {
-            if (cursor.isActive()) {
-                this.waitingCursors.add(cursor);
-            }
-        } else {
-            this.waitingCursors.add(cursor);
-        }
+        this.waitingCursors.add(cursor);
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
