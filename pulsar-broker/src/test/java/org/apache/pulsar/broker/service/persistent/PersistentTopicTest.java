@@ -705,6 +705,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         Awaitility.await()
                 .pollDelay(5, TimeUnit.SECONDS)
                 .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     assertEquals(ledger.getWaitingCursorsCount(), 0);
         });
