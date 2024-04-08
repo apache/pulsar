@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.pulsar.opentelemetry.OpenTelemetryService;
+import org.assertj.core.api.AbstractLongAssert;
 
 public class BrokerOpenTelemetryTestUtil {
     // Creates an OpenTelemetrySdkBuilder customizer for use in tests.
@@ -52,6 +53,19 @@ public class BrokerOpenTelemetryTestUtil {
                                         point -> {
                                             OpenTelemetryAssertions.assertThat(point.getAttributes()).isEqualTo(attributes);
                                             assertThat(point.getValue()).isEqualTo(value);
+                                        }))));
+    }
+
+    public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName, Attributes attributes,
+                                                Consumer<Long> valueConsumer) {
+        assertThat(metrics)
+                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongSumSatisfying(sum -> sum.satisfies(
+                                sumData -> assertThat(sumData.getPoints()).anySatisfy(
+                                        point -> {
+                                            OpenTelemetryAssertions.assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            valueConsumer.accept(point.getValue());
                                         }))));
     }
 }

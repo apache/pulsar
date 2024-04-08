@@ -130,22 +130,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER, fixmeNilValue, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER, fixmeNilValue, attributes);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, backlogSizeLimit,
-                attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, backlogTimeLimit,
-                attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, fixmeNilValue,
-                Attributes.builder()
-                        .putAll(attributes)
-                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
-                        .build());
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, fixmeNilValue,
-                Attributes.builder()
-                        .putAll(attributes)
-                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
-                        .build());
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, -1L, attributes);
-
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER,
                 producerCount * messagesPerProducer, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);

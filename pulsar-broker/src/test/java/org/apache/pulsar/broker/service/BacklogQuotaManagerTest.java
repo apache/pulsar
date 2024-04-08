@@ -839,16 +839,18 @@ public class BacklogQuotaManagerTest {
     public void testConsumerBacklogEvictionTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 new HashMap<>());
+        var backlogTimeLimit = TIME_TO_CHECK_BACKLOG_QUOTA;
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
+                        .limitTime(backlogTimeLimit)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build(), message_age);
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic3" + UUID.randomUUID();
+        var localTopicName = "topic3" + UUID.randomUUID();
+        final String topic1 = "persistent://prop/ns-quota/" + localTopicName;
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 14;
@@ -871,7 +873,8 @@ public class BacklogQuotaManagerTest {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         Position slowConsumerReadPos = ml.getSlowestConsumer().getReadPosition();
 
-        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
+        var delaySeconds = backlogTimeLimit * 2;
+        Thread.sleep(delaySeconds * 1000);
         rolloverStats();
 
         TopicStats stats2 = getTopicStats(topic1);
@@ -883,6 +886,23 @@ public class BacklogQuotaManagerTest {
         });
 
         assertEquals(ml.getSlowestConsumer().getReadPosition(), slowConsumerReadPos);
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-quota")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .build();
+        var metrics = openTelemetryMetricReader.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, backlogTimeLimit,
+                attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, 1,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
+                        .build());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, attributes,
+                value -> assertThat(value).isGreaterThanOrEqualTo(delaySeconds));
     }
 
     @Test(timeOut = 60000)
