@@ -330,7 +330,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertTrue(topic.getLastDataMessagePublishedTimestamp() > lastDataMessagePublishedTimestamp);
     }
 
-
     @Test
     public void testDispatcherMultiConsumerReadFailed() {
         PersistentTopic topic =
