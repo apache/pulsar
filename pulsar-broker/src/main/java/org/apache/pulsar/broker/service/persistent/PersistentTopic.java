@@ -3875,9 +3875,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
-        // in order to avoid the opAddEntry retain
-
-        // in order to promise the publish txn message orderly, we should change the transactionCompletableFuture
 
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
