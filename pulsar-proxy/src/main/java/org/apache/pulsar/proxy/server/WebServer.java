@@ -298,7 +298,7 @@ public class WebServer {
                 excludedPaths.addAll(config.getHttpServerGzipCompressionExcludedPaths());
             }
             // exclude compression from /admin paths since they are passed through the proxy as is,
-            // without decompression
+            // without decompression. This logic can be found in AdminProxyHandler.createHttpClient method.
             excludedPaths.add("^/admin/.*");
             handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts, excludedPaths);
         }
