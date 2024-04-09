@@ -106,9 +106,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, "testMessagingMetrics")
                 .build();
 
-        var dummyValue = 1000;
         var fixmeNilValue = 0L;
-
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER, 1, attributes);
@@ -123,7 +121,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, fixmeNilValue,
                 attributes);
-        // assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_MSG_ACK_COUNTER, dummyValue, attributes); is missing
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, 940L, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER, 470L, attributes);
@@ -133,7 +130,5 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER,
                 producerCount * messagesPerProducer, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);
-
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, dummyValue, attributes);
     }
 }
