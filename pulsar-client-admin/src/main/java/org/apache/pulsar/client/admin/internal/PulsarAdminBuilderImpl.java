@@ -66,10 +66,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
         if (config.containsKey("acceptGzipCompression")) {
-            if (config.get("acceptGzipCompression") instanceof Boolean) {
-                acceptGzipCompression = (Boolean) config.get("acceptGzipCompression");
+            Object acceptGzipCompressionObj = config.get("acceptGzipCompression");
+            if (acceptGzipCompressionObj instanceof Boolean) {
+                acceptGzipCompression = (Boolean) acceptGzipCompressionObj;
             } else {
-                acceptGzipCompression = Boolean.parseBoolean(config.get("acceptGzipCompression").toString());
+                acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
             }
         }
         return this;
