@@ -998,11 +998,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private synchronized void createMetricsServlet() {
-        this.metricsServlet = new PulsarPrometheusMetricsServlet(
-                this, config.isExposeTopicLevelMetricsInPrometheus(),
-                config.isExposeConsumerLevelMetricsInPrometheus(),
-                config.isExposeProducerLevelMetricsInPrometheus(),
-                config.isSplitTopicAndPartitionLabelInPrometheus());
+        this.metricsServlet = new PulsarPrometheusMetricsServlet(this);
         if (pendingMetricsProviders != null) {
             pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
             this.pendingMetricsProviders = null;
