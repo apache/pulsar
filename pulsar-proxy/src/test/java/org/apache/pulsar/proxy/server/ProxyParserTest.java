@@ -42,6 +42,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -251,8 +252,8 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
                                                                           final EventLoopGroup eventLoopGroup)
             throws Exception {
 
-        ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
-            return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
+        ConnectionPool cnxPool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup, () -> {
+            return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
                 @Override
                 protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
                     throw new UnsupportedOperationException();

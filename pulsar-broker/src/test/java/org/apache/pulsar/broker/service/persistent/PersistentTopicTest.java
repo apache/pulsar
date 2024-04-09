@@ -59,10 +59,15 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -75,6 +80,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -105,6 +112,11 @@ public class PersistentTopicTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override protected void doInitConf() throws Exception {
+        super.doInitConf();
+        this.conf.setManagedLedgerCursorBackloggedThreshold(10);
     }
 
     /**
@@ -661,5 +673,93 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         subscribe.close();
         admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testAddWaitingCursorsForNonDurable() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testAddWaitingCursors";
+        admin.topics().createNonPartitionedTopic(topicName);
+        final Optional<Topic> topic = pulsar.getBrokerService().getTopic(topicName, false).join();
+        assertNotNull(topic.get());
+        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
+        final ManagedCursor spyCursor= spy(ledger.newNonDurableCursor(PositionImpl.LATEST, "sub-2"));
+        doAnswer((invocation) -> {
+            Thread.sleep(5_000);
+            invocation.callRealMethod();
+            return null;
+        }).when(spyCursor).asyncReadEntriesOrWait(any(int.class), any(long.class),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(Object.class), any(PositionImpl.class));
+        Field cursorField = ManagedLedgerImpl.class.getDeclaredField("cursors");
+        cursorField.setAccessible(true);
+        ManagedCursorContainer container = (ManagedCursorContainer) cursorField.get(ledger);
+        container.removeCursor("sub-2");
+        container.add(spyCursor, null);
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub-2").subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        producer.send("test");
+        producer.close();
+        final Message<String> receive = consumer.receive();
+        assertEquals("test", receive.getValue());
+        consumer.close();
+        Awaitility.await()
+                .pollDelay(5, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertEquals(ledger.getWaitingCursorsCount(), 0);
+        });
+    }
+
+    @Test
+    public void testAddWaitingCursorsForNonDurable2() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testAddWaitingCursors2";
+        admin.topics().createNonPartitionedTopic(topicName);
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub-1").subscribe().close();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
+        }
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub-2").subscribe();
+        int count = 0;
+        while(true) {
+            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 100);
+        Thread.sleep(3_000);
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
+        }
+        while(true) {
+            final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 200);
     }
 }

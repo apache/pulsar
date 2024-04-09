@@ -70,6 +70,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -149,6 +150,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final Clock clientClock;
 
+    private final InstrumentProvider instrumentProvider;
+
     @Getter
     private TransactionCoordinatorClientImpl tcClient;
 
@@ -176,6 +179,7 @@ public class PulsarClientImpl implements PulsarClient {
                              Timer timer, ExecutorProvider externalExecutorProvider,
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
+
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -193,10 +197,12 @@ public class PulsarClientImpl implements PulsarClient {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
             this.conf = conf;
+            this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             connectionPoolReference =
-                    connectionPool != null ? connectionPool : new ConnectionPool(conf, this.eventLoopGroup);
+                    connectionPool != null ? connectionPool :
+                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup);
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
@@ -205,7 +211,7 @@ public class PulsarClientImpl implements PulsarClient {
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
-                lookup = new HttpLookupService(conf, this.eventLoopGroup);
+                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
                         conf.isUseTls(), this.scheduledExecutorProvider.getExecutor());
@@ -1053,7 +1059,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(conf, eventLoopGroup);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup);
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
@@ -1230,6 +1236,11 @@ public class PulsarClientImpl implements PulsarClient {
     public ScheduledExecutorProvider getScheduledExecutorProvider() {
         return scheduledExecutorProvider;
     }
+
+    InstrumentProvider instrumentProvider() {
+        return instrumentProvider;
+    }
+
 
     //
     // Transaction related API

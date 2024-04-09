@@ -47,7 +47,7 @@ public class WebSocketServiceStarter {
         @Parameters(description = "config file", arity = "0..1")
         private String configFile = "";
 
-        @Option(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")

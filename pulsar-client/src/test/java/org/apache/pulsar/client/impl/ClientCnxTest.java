@@ -42,6 +42,7 @@ import java.util.function.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
@@ -63,7 +64,7 @@ public class ClientCnxTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -89,7 +90,7 @@ public class ClientCnxTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -127,7 +128,7 @@ public class ClientCnxTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -170,7 +171,7 @@ public class ClientCnxTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -196,7 +197,7 @@ public class ClientCnxTest {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -230,7 +231,7 @@ public class ClientCnxTest {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -276,7 +277,7 @@ public class ClientCnxTest {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseConsumer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         long consumerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
@@ -300,7 +301,7 @@ public class ClientCnxTest {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseProducer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
-        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         long producerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
@@ -393,7 +394,7 @@ public class ClientCnxTest {
         try {
 
             ClientConfigurationData conf = new ClientConfigurationData();
-            ClientCnx cnx = new ClientCnx(conf, eventLoop);
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
             ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
             Channel channel = mock(Channel.class);
