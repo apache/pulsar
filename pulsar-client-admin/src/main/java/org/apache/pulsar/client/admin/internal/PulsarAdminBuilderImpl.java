@@ -38,11 +38,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
-    private boolean gzipCompressionEnabled = true;
+    private boolean acceptGzipCompression = true;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, gzipCompressionEnabled);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -57,7 +57,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder clone() {
         PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone());
         pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
-        pulsarAdminBuilder.gzipCompressionEnabled = gzipCompressionEnabled;
+        pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
         return pulsarAdminBuilder;
     }
 
@@ -65,11 +65,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
-        if (config.containsKey("gzipCompressionEnabled")) {
-            if (config.get("gzipCompressionEnabled") instanceof Boolean) {
-                gzipCompressionEnabled = (Boolean) config.get("gzipCompressionEnabled");
+        if (config.containsKey("acceptGzipCompression")) {
+            if (config.get("acceptGzipCompression") instanceof Boolean) {
+                acceptGzipCompression = (Boolean) config.get("acceptGzipCompression");
             } else {
-                gzipCompressionEnabled = Boolean.parseBoolean(config.get("gzipCompressionEnabled").toString());
+                acceptGzipCompression = Boolean.parseBoolean(config.get("acceptGzipCompression").toString());
             }
         }
         return this;
@@ -240,8 +240,8 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
-    public PulsarAdminBuilder acceptGzipCompression(boolean gzipCompressionEnabled) {
-        this.gzipCompressionEnabled = gzipCompressionEnabled;
+    public PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression) {
+        this.acceptGzipCompression = acceptGzipCompression;
         return this;
     }
 }
