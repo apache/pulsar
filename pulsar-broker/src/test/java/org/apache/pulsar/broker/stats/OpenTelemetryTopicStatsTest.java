@@ -134,8 +134,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 producerCount * messagesPerProducer, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER, dummyValue, attributes);
-
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, dummyValue, attributes);
     }
 }
