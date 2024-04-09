@@ -56,8 +56,8 @@ public class BrokerOpenTelemetryTestUtil {
                                         }))));
     }
 
-    public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName, long expected,
-                                                Attributes attributes) {
+    public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName,
+                                                Attributes attributes, long expected) {
         assertMetricLongSumValue(metrics, metricName, attributes, actual -> assertThat(actual).isEqualTo(expected));
     }
 

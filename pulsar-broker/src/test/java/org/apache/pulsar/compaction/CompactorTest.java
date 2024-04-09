@@ -229,18 +229,18 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicLocalName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, 1, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, 1, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, 0, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, attributes, 1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, attributes, 0);
         assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,
-                actual -> assertThat(actual).isGreaterThan(0.0));
+                actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
+                actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER, attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, 1, attributes);
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, attributes, 1);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER, attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
+                actual -> assertThat(actual).isPositive());
 
         producer.newMessage().key("K1").value(null).sendAsync();
         producer.flush();

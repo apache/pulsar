@@ -760,13 +760,13 @@ public class BacklogQuotaManagerTest {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, backlogSizeLimit,
-                attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, 1,
-                Attributes.builder()
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, attributes,
+                backlogSizeLimit);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
-                        .build());
+                        .build(),
+                1);
     }
 
     @Test
@@ -894,13 +894,13 @@ public class BacklogQuotaManagerTest {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, backlogTimeLimit,
-                attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, 1,
-                Attributes.builder()
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, attributes,
+                backlogTimeLimit);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
-                        .build());
+                        .build(),
+                1);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, attributes,
                 value -> assertThat(value).isGreaterThanOrEqualTo(delaySeconds));
     }

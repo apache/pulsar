@@ -98,12 +98,12 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER, 1, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PRODUCER_COUNTER, producerCount, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_COUNTER, consumerCount, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER, attributes, 1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PRODUCER_COUNTER, attributes, producerCount);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_COUNTER, attributes, consumerCount);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, messageCount, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, messageCount, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, attributes, messageCount);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, attributes, messageCount);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, attributes,
                 actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, attributes,
@@ -116,8 +116,8 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER,  attributes,
                 actual -> assertThat(actual).isPositive());
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, messageCount, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, messageCount, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, attributes, messageCount);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, attributes, messageCount);
     }
 
     @Test(timeOut = 30_000)
@@ -142,6 +142,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .build();
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, 1, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, attributes, 1);
     }
 }

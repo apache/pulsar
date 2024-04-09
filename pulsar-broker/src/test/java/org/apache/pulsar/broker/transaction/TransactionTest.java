@@ -231,21 +231,24 @@ public class TransactionTest extends TransactionTestBase {
                 .build();
 
         var metrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER, 1,
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
-                        .build());
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER, 1,
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
-                        .build());
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER, 1,
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
-                        .build());
+                        .build(),
+                1);
     }
 
     @Test

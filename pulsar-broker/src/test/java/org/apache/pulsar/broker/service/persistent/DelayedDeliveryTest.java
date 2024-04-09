@@ -125,7 +125,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
-                OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, 10, attributes);
+                OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, attributes, 10);
 
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
