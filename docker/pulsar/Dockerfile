@@ -97,7 +97,8 @@ RUN apk add --no-cache \
             python3 \
             py3-pip \
             gcompat \
-            ca-certificates
+            ca-certificates \
+            procps
 
 # Install GLibc compatibility library
 COPY --from=glibc /root/packages /root/packages
@@ -105,6 +106,9 @@ RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
 
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
+
+# The default is /pulsat/bin and cannot be written.
+ENV PULSAR_PID_DIR=/pulsar/logs
 
 # Copy Python depedencies from the other stage
 COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
