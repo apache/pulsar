@@ -327,4 +327,13 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
 
+    /**
+     * Determines whether to include the "Accept-Encoding: gzip" header in HTTP requests.
+     * By default, the "Accept-Encoding: gzip" header is included in HTTP requests.
+     * If this is set to false, the "Accept-Encoding: gzip" header will not be included in the requests.
+     *
+     * @param acceptGzipCompression A flag that indicates whether to include the "Accept-Encoding: gzip" header in HTTP
+     *                              requests
+     */
+    PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression);
 }
