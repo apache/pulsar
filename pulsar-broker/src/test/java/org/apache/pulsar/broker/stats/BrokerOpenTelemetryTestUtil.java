@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.pulsar.opentelemetry.OpenTelemetryService;
-import org.assertj.core.api.AbstractLongAssert;
 
 public class BrokerOpenTelemetryTestUtil {
     // Creates an OpenTelemetrySdkBuilder customizer for use in tests.
