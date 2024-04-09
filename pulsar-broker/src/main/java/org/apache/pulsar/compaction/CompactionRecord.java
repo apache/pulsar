@@ -38,7 +38,7 @@ public class CompactionRecord {
     @Getter
     private volatile long lastCompactionDurationTimeInMills = 0L;
 
-    private final LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
+    private LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
     private volatile long lastCompactionStartTimeOp;
 
     private final LongAdder compactionRemovedEventCount = new LongAdder();
@@ -47,9 +47,17 @@ public class CompactionRecord {
     private final LongAdder compactionDurationTimeInMills = new LongAdder();
     private final LongAdder compactionReadBytes = new LongAdder();
     private final LongAdder compactionWriteBytes = new LongAdder();
-    private final StatsBuckets writeLatencyStats = new StatsBuckets(WRITE_LATENCY_BUCKETS_USEC);
-    private final Rate writeRate = new Rate();
-    private final Rate readRate = new Rate();
+    public final StatsBuckets writeLatencyStats = new StatsBuckets(WRITE_LATENCY_BUCKETS_USEC);
+    public final Rate writeRate = new Rate();
+    public final Rate readRate = new Rate();
+
+    public void reset() {
+        compactionRemovedEventCount.reset();
+        compactionSucceedCount.reset();
+        compactionFailedCount.reset();
+        compactionDurationTimeInMills.reset();
+        writeLatencyStats.reset();
+    }
 
     public void addCompactionRemovedEvent() {
         lastCompactionRemovedEventCountOp.increment();

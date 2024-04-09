@@ -77,5 +77,4 @@ public class BrokerTestUtil {
                 .defaultAnswer(Mockito.CALLS_REAL_METHODS)
                 .stubOnly());
     }
-
 }
