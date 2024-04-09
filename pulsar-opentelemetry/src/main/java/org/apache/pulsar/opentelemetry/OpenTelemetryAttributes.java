@@ -56,11 +56,6 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Long> PULSAR_PARTITION_INDEX = AttributeKey.longKey("pulsar.partition.index");
 
     /**
-     * The type of the Pulsar storage.
-     */
-    AttributeKey<String> PULSAR_STORAGE_TYPE = AttributeKey.stringKey("pulsar.storage.type");
-
-    /**
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
