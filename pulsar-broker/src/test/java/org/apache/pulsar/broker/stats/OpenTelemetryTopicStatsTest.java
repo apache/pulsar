@@ -21,14 +21,18 @@ package org.apache.pulsar.broker.stats;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,7 +57,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         builder.enableOpenTelemetry(true);
     }
 
-    @Test(timeOut = 3000_000)
+    @Test(timeOut = 30_000)
     public void testMessagingMetrics() throws Exception {
         var localTopicName = BrokerTestUtil.newUniqueName("testMessagingMetrics");
         var topicName = "persistent://prop/ns-abc/" + localTopicName;
@@ -92,7 +96,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
                 .build();
 
-        var fixmeNilValue = 0L;
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER, 1, attributes);
@@ -106,9 +109,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, attributes,
                 actual -> assertThat(actual).isPositive());
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, fixmeNilValue,
-                attributes);
-
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, attributes,
                 actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER,  attributes,
@@ -118,5 +118,30 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, messageCount, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, messageCount, attributes);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testPublishRateLimitMetric() throws Exception {
+        var localTopicName = BrokerTestUtil.newUniqueName("testPublishRateLimitMetric");
+        var topicName = "persistent://prop/ns-abc/" + localTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        var publishRate = new PublishRate(1, -1);
+        admin.topicPolicies().setPublishRate(topicName, publishRate);
+        Awaitility.await().until(() -> Objects.equals(publishRate, admin.topicPolicies().getPublishRate(topicName)));
+
+        @Cleanup
+        var producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send("msg".getBytes());
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-abc")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .build();
+
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, 1, attributes);
     }
 }
