@@ -318,8 +318,8 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	}
 
 	var dlqPolicy *pulsar.DLQPolicy
-	retryEnable := false
-	if retryDetails := gi.context.instanceConf.funcDetails.RetryDetails; retryDetails != nil {
+	retryDetails := gi.context.instanceConf.funcDetails.RetryDetails
+	if retryDetails != nil && retryDetails.DeadLetterTopic != "" {
 		dlqPolicy = &pulsar.DLQPolicy{
 			DeadLetterTopic: retryDetails.DeadLetterTopic,
 		}
@@ -327,7 +327,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if retryDetails.MaxMessageRetries >= 0 {
 			dlqPolicy.MaxDeliveries = uint32(retryDetails.MaxMessageRetries)
 		}
-		retryEnable = true
 	}
 
 	properties := getProperties(getDefaultSubscriptionName(
@@ -361,7 +360,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 					MessageChannel:              channel,
 					SubscriptionInitialPosition: subscriptionPosition,
 					DLQ:                         dlqPolicy,
-					RetryEnable:                 retryEnable,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
@@ -373,7 +371,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 					MessageChannel:              channel,
 					SubscriptionInitialPosition: subscriptionPosition,
 					DLQ:                         dlqPolicy,
-					RetryEnable:                 retryEnable,
 				})
 			}
 		} else {
@@ -386,7 +383,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 					MessageChannel:              channel,
 					SubscriptionInitialPosition: subscriptionPosition,
 					DLQ:                         dlqPolicy,
-					RetryEnable:                 retryEnable,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
@@ -397,7 +393,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 					MessageChannel:              channel,
 					SubscriptionInitialPosition: subscriptionPosition,
 					DLQ:                         dlqPolicy,
-					RetryEnable:                 retryEnable,
 				})
 
 			}
