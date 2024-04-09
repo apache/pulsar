@@ -229,7 +229,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicLocalName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTED, 1, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, 1, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, 1, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, 0, attributes);
         assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,

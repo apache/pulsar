@@ -121,8 +121,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     // Omitted: pulsar_entry_size_le_*
 
     // Replaces pulsar_compaction_removed_event_count
-    public static final String COMPACTION_REMOVED_COUNTED = "pulsar.broker.topic.compaction.removed.event.count";
-    private final ObservableLongMeasurement compactionRemovedCounted;
+    public static final String COMPACTION_REMOVED_COUNTER = "pulsar.broker.topic.compaction.removed.event.count";
+    private final ObservableLongMeasurement compactionRemovedCounter;
 
     // Replaces pulsar_compaction_succeed_count
     public static final String COMPACTION_SUCCEEDED_COUNTER = "pulsar.broker.topic.compaction.succeed.count";
@@ -296,8 +296,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total message batches (entries) read from the storage for this topic.")
                 .buildObserver();
 
-        compactionRemovedCounted = meter
-                .upDownCounterBuilder(COMPACTION_REMOVED_COUNTED)
+        compactionRemovedCounter = meter
+                .upDownCounterBuilder(COMPACTION_REMOVED_COUNTER)
                 .setUnit("{event}")
                 .setDescription("The total number of removed events of the compaction.")
                 .buildObserver();
@@ -382,7 +382,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 backlogQuotaAge,
                 storageOutCounter,
                 storageInCounter,
-                compactionRemovedCounted,
+                compactionRemovedCounter,
                 compactionSucceededCounter,
                 compactionFailedCounter,
                 compactionDurationSeconds,
@@ -473,7 +473,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                     .map(Compactor::getStats)
                     .flatMap(compactorMXBean -> compactorMXBean.getCompactionRecordForTopic(topic.getName()))
                     .ifPresent(compactionRecord -> {
-                        compactionRemovedCounted.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
+                        compactionRemovedCounter.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
                         compactionSucceededCounter.record(compactionRecord.getCompactionSucceedCount(), attributes);
                         compactionFailedCounter.record(compactionRecord.getCompactionFailedCount(), attributes);
                         compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
