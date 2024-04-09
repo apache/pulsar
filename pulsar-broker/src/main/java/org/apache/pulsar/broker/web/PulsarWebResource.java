@@ -81,7 +81,6 @@ import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -1280,8 +1279,7 @@ public abstract class PulsarWebResource {
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName,
                                                                TopicOperation operation, String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
-                && pulsar().getBrokerService().isAuthorizationEnabled()
-                && !SystemTopicNames.isTransactionCoordinatorAssign(topicName)) {
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
