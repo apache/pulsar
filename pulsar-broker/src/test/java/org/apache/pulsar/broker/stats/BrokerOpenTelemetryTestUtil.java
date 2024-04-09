@@ -42,11 +42,6 @@ public class BrokerOpenTelemetryTestUtil {
         };
     }
 
-    public static void assertMetricDoubleSumValue(Collection<MetricData> metrics, String metricName, double expected,
-                                                  Attributes attributes) {
-        assertMetricDoubleSumValue(metrics, metricName, attributes, actual -> assertThat(actual).isEqualTo(expected));
-    }
-
     public static void assertMetricDoubleSumValue(Collection<MetricData> metrics, String metricName,
                                                   Attributes attributes, Consumer<Double> valueConsumer) {
         assertThat(metrics)
@@ -55,7 +50,8 @@ public class BrokerOpenTelemetryTestUtil {
                         .hasDoubleSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            OpenTelemetryAssertions.assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            OpenTelemetryAssertions.assertThat(point.getAttributes())
+                                                    .isEqualTo(attributes);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
@@ -65,15 +61,16 @@ public class BrokerOpenTelemetryTestUtil {
         assertMetricLongSumValue(metrics, metricName, attributes, actual -> assertThat(actual).isEqualTo(expected));
     }
 
-    public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName, Attributes attributes,
-                                                Consumer<Long> valueConsumer) {
+    public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName,
+                                                Attributes attributes, Consumer<Long> valueConsumer) {
         assertThat(metrics)
                 .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
                         .hasName(metricName)
                         .hasLongSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            OpenTelemetryAssertions.assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            OpenTelemetryAssertions.assertThat(point.getAttributes())
+                                                    .isEqualTo(attributes);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }

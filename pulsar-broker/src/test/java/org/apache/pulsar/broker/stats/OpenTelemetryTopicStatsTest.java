@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.testng.annotations.AfterMethod;
@@ -61,6 +62,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         var producerCount = 5;
         var messagesPerProducer = 2;
         var consumerCount = 3;
+        var messageCount = producerCount * messagesPerProducer;
 
         for (int i = 0; i < producerCount; i++) {
             var producer = registerCloseable(pulsarClient.newProducer().topic(topicName).create());
@@ -73,11 +75,12 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         for (int i = 0; i < consumerCount; i++) {
             var consumer = registerCloseable(pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName("test")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscriptionType(SubscriptionType.Shared)
                     .subscribe());
-            consumer.receiveAsync().orTimeout(100, TimeUnit.MILLISECONDS).handle((msg, ex) -> {
+            consumer.receiveAsync().orTimeout(100, TimeUnit.MILLISECONDS).handle((__, ex) -> {
                 cdl.countDown();
-                return msg;
+                return null;
             });
         }
         cdl.await();
@@ -96,25 +99,24 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PRODUCER_COUNTER, producerCount, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.CONSUMER_COUNTER, consumerCount, attributes);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER,
-                producerCount * messagesPerProducer, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, fixmeNilValue, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, messageCount, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, messageCount, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, fixmeNilValue, attributes);
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, attributes,
+                actual -> assertThat(actual).isPositive());
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, fixmeNilValue,
                 attributes);
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
+                actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER,  attributes,
-                actual -> assertThat(actual).isGreaterThan(0L));
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER, fixmeNilValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER, fixmeNilValue, attributes);
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER,  attributes,
+                actual -> assertThat(actual).isPositive());
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER,
-                producerCount * messagesPerProducer, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, messageCount, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, messageCount, attributes);
     }
 }
