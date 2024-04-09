@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
-
+import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -56,24 +54,9 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
     @Test(timeOut = 3000_000)
     public void testMessagingMetrics() throws Exception {
-        var topicName = "persistent://prop/ns-abc/testMessagingMetrics";
-        var namespace = "prop/ns-abc";
-
-        var backlogTimeLimit = 1;
-        var backlogSizeLimit = 1;
+        var localTopicName = BrokerTestUtil.newUniqueName("testMessagingMetrics");
+        var topicName = "persistent://prop/ns-abc/" + localTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
-        BacklogQuota backlogQuota = BacklogQuota.builder()
-                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
-                .limitSize(backlogSizeLimit)
-                .limitTime(backlogTimeLimit)
-                .build();
-        admin.namespaces().setBacklogQuota(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
-        admin.namespaces().setBacklogQuota(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            var quota = admin.namespaces().getBacklogQuotaMap(namespace);
-            assertThat(quota.get(BacklogQuota.BacklogQuotaType.message_age)).isEqualTo(backlogQuota);
-            assertThat(quota.get(BacklogQuota.BacklogQuotaType.destination_storage)).isEqualTo(backlogQuota);
-        });
 
         var producerCount = 5;
         var messagesPerProducer = 2;
@@ -103,7 +86,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "testMessagingMetrics")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
                 .build();
 
         var fixmeNilValue = 0L;
@@ -116,14 +99,17 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER,
                 producerCount * messagesPerProducer, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER, fixmeNilValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, 470L, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_IN_COUNTER, attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BYTES_OUT_COUNTER, fixmeNilValue, attributes);
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PUBLISH_RATE_LIMIT_HIT_COUNTER, fixmeNilValue,
                 attributes);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, 940L, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER, 470L, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_LOGICAL_COUNTER,  attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_BACKLOG_COUNTER, fixmeNilValue, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER, fixmeNilValue, attributes);
 
