@@ -134,15 +134,6 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 producerCount * messagesPerProducer, attributes);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_IN_COUNTER, fixmeNilValue, attributes);
 
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTED, dummyValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, dummyValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, dummyValue, attributes);
-        // assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, dummyValue, attributes); is double
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, dummyValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER, dummyValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, dummyValue, attributes);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER, dummyValue, attributes);
-
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER, dummyValue, attributes);
 
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, dummyValue, attributes);

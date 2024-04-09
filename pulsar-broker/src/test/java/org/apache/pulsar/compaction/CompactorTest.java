@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleSumValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.Attributes;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -37,7 +41,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -45,9 +48,12 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -63,6 +69,7 @@ import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -104,6 +111,12 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         bk.close();
         compactionScheduler.shutdownNow();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -186,7 +199,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAllCompactedOut() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/testAllCompactedOut";
+        var topicLocalName = BrokerTestUtil.newUniqueName("testAllCompactedOut");
+        String topicName = "persistent://my-property/use/my-ns/" + topicLocalName;
         // set retain null key to true
         boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
@@ -207,6 +221,26 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(admin.topics().compactionStatus(topicName).status,
                     LongRunningProcessStatus.Status.SUCCESS);
         });
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicLocalName)
+                .build();
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTED, 1, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, 1, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, 0, attributes);
+        assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,
+                actual -> assertThat(actual).isGreaterThan(0.0));
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER, attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, 1, attributes);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER, attributes,
+                actual -> assertThat(actual).isGreaterThan(0L));
 
         producer.newMessage().key("K1").value(null).sendAsync();
         producer.flush();
@@ -229,6 +263,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Message<String> message = reader.readNext(3, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
+
         // set retain null key back to avoid affecting other tests
         pulsar.getConfig().setTopicCompactionRetainNullKey(oldRetainNullKey);
     }
