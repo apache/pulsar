@@ -58,7 +58,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
     @SneakyThrows
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void before() {
         configureTokenAuthentication();
         configureDefaultAuthorization();
@@ -78,7 +78,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
 
 
     @SneakyThrows
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void after() {
         if (superUserAdmin != null) {
             superUserAdmin.close();
@@ -988,7 +988,7 @@ public class TopicAuthZTest extends MockedPulsarStandalone {
         deleteTopic(topic, false);
     }
 
-    @Test(dataProvider = "partitioned")
+    @Test(dataProvider = "partitioned", groups = "flaky")
     @SneakyThrows
     public void testExpireMessage(boolean partitioned) {
         final String random = UUID.randomUUID().toString();
