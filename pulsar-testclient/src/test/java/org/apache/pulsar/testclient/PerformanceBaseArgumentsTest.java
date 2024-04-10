@@ -22,6 +22,8 @@ import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -31,28 +33,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import picocli.CommandLine;
 
 public class PerformanceBaseArgumentsTest {
 
     @Test
-    public void testReadFromConfigFile() {
-
-        AtomicBoolean called = new AtomicBoolean();
-
+    public void testReadFromConfigFile() throws Exception {
         final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
             @Override
             public void run() throws Exception {
 
             }
-
-            @Override
-            public void fillArgumentsFromProperties(Properties prop) {
-                called.set(true);
-            }
         };
-        args.confFile = "./src/test/resources/perf_client1.conf";
-        args.fillArgumentsFromProperties();
-        Assert.assertTrue(called.get());
+
+        String confFile = "./src/test/resources/perf_client1.conf";
+        Properties prop = new Properties(System.getProperties());
+        try (FileInputStream fis = new FileInputStream(confFile)) {
+            prop.load(fis);
+        }
+        args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+        args.parse(new String[]{});
+
+
         Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
         Assert.assertEquals(args.authPluginClassName,
                 "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
@@ -67,7 +69,6 @@ public class PerformanceBaseArgumentsTest {
     @Test
     public void testReadFromConfigFileWithoutProxyUrl() {
 
-        AtomicBoolean called = new AtomicBoolean();
 
         final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
             @Override
@@ -75,13 +76,10 @@ public class PerformanceBaseArgumentsTest {
 
             }
 
-            @Override
-            public void fillArgumentsFromProperties(Properties prop) {
-                called.set(true);
-            }
         };
+        String confFile = "./src/test/resources/performance_client2.conf";
 
-        File tempConfigFile = new File("./src/test/resources/performance_client2.conf");
+        File tempConfigFile = new File(confFile);
         if (tempConfigFile.exists()) {
             tempConfigFile.delete();
         }
@@ -99,10 +97,13 @@ public class PerformanceBaseArgumentsTest {
             FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
             out.close();
-            args.confFile = "./src/test/resources/performance_client2.conf";
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
 
-            args.fillArgumentsFromProperties();
-            Assert.assertTrue(called.get());
             Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
             Assert.assertEquals(args.authPluginClassName,
                     "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
@@ -122,7 +123,6 @@ public class PerformanceBaseArgumentsTest {
     @Test
     public void testReadFromConfigFileProxyProtocolException() {
 
-        AtomicBoolean calledVar1 = new AtomicBoolean();
         AtomicBoolean calledVar2 = new AtomicBoolean();
 
         final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
@@ -130,13 +130,9 @@ public class PerformanceBaseArgumentsTest {
             public void run() throws Exception {
 
             }
-
-            @Override
-            public void fillArgumentsFromProperties(Properties prop) {
-                calledVar1.set(true);
-            }
         };
-        File tempConfigFile = new File("./src/test/resources/performance_client3.conf");
+        String confFile = "./src/test/resources/performance_client3.conf";
+        File tempConfigFile = new File(confFile);
         if (tempConfigFile.exists()) {
             tempConfigFile.delete();
         }
@@ -156,15 +152,17 @@ public class PerformanceBaseArgumentsTest {
             FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
             out.close();
-            args.confFile = "./src/test/resources/performance_client3.conf";
-            PerfClientUtils.setExitProcedure(code -> {
-                calledVar2.set(true);
-                Assert.assertEquals(code, 1, "Incorrect exit code");
-            });
 
-            args.confFile = "./src/test/resources/performance_client3.conf";
-            args.fillArgumentsFromProperties();
-            Assert.assertTrue(calledVar1.get());
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            try {
+                args.parse(new String[]{});
+            }catch (CommandLine.ParameterException e){
+                calledVar2.set(true);
+            }
             Assert.assertTrue(calledVar2.get());
         } catch (IOException e) {
             e.printStackTrace();
@@ -184,7 +182,7 @@ public class PerformanceBaseArgumentsTest {
     }
 
     @Test(dataProvider = "memoryLimitCliArgumentProvider")
-    public void testMemoryLimitCliArgument(String[] cliArgs, long expectedMemoryLimit) {
+    public void testMemoryLimitCliArgument(String[] cliArgs, long expectedMemoryLimit) throws Exception {
         for (String cmd : List.of(
                 "pulsar-perf read",
                 "pulsar-perf produce",
@@ -192,19 +190,20 @@ public class PerformanceBaseArgumentsTest {
                 "pulsar-perf transaction"
         )) {
             // Arrange
-            AtomicBoolean called = new AtomicBoolean();
             final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
                 @Override
                 public void run() throws Exception {
 
                 }
 
-                @Override
-                public void fillArgumentsFromProperties(Properties prop) {
-                    called.set(true);
-                }
             };
-            baseArgument.confFile = "./src/test/resources/perf_client1.conf";
+            String confFile = "./src/test/resources/perf_client1.conf";
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            baseArgument.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            baseArgument.parse(new String[]{});
 
             // Act
             baseArgument.parseCLI();
@@ -225,7 +224,7 @@ public class PerformanceBaseArgumentsTest {
     }
 
     @Test
-    public void testMemoryLimitCliArgumentDefault() {
+    public void testMemoryLimitCliArgumentDefault() throws Exception {
         for (String cmd : List.of(
                 "pulsar-perf read",
                 "pulsar-perf produce",
@@ -233,19 +232,20 @@ public class PerformanceBaseArgumentsTest {
                 "pulsar-perf transaction"
         )) {
             // Arrange
-            AtomicBoolean called = new AtomicBoolean();
             final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
                 @Override
                 public void run() throws Exception {
 
                 }
 
-                @Override
-                public void fillArgumentsFromProperties(Properties prop) {
-                    called.set(true);
-                }
             };
-            baseArgument.confFile = "./src/test/resources/perf_client1.conf";
+            String confFile = "./src/test/resources/perf_client1.conf";
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            baseArgument.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            baseArgument.parse(new String[]{});
 
             // Act
             baseArgument.parseCLI();

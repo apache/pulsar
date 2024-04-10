@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import java.io.FileInputStream;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 
@@ -56,12 +60,19 @@ public class PulsarPerfTestTool {
             PerfClientUtils.exit(0);
         }
         String configFile = args[0];
+        Properties prop = new Properties(System.getProperties());
+        if (configFile != null) {
+            try (FileInputStream fis = new FileInputStream(configFile)) {
+                prop.load(fis);
+            }
+        }
 
         for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
             if (PerformanceBaseArguments.class.isAssignableFrom(c.getValue())){
-                Constructor<?> constructor = c.getValue().getDeclaredConstructor(String.class);
+                Constructor<?> constructor = c.getValue().getDeclaredConstructor();
                 constructor.setAccessible(true);
-                commander.addSubcommand(c.getKey(), constructor.newInstance(configFile));
+                commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+                commander.addSubcommand(c.getKey(), constructor.newInstance());
             } else {
                 Constructor<?> constructor = c.getValue().getDeclaredConstructor();
                 constructor.setAccessible(true);
@@ -96,4 +107,33 @@ public class PulsarPerfTestTool {
         return commander.execute(args) == 0;
     }
 
+}
+
+class PulsarPerfTestPropertiesProvider extends CommandLine.PropertiesDefaultProvider{
+    private static final String brokerServiceUrlKey = "brokerServiceUrl";
+    private static final String webServiceUrlKey = "webServiceUrl";
+    private final Properties properties;
+
+    public PulsarPerfTestPropertiesProvider(Properties properties) {
+        super(properties);
+        this.properties = properties;
+    }
+
+    static PulsarPerfTestPropertiesProvider create(Properties properties) {
+        if (isBlank(properties.getProperty(brokerServiceUrlKey))) {
+            String webServiceUrl = properties.getProperty("webServiceUrl");
+            if (isNotBlank(webServiceUrl)) {
+                properties.put(brokerServiceUrlKey, webServiceUrl);
+            } else if (isNotBlank(properties.getProperty("serviceUrl"))) {
+                properties.put(brokerServiceUrlKey, properties.getProperty("serviceUrl", "http://localhost:8080/"));
+            }
+        }
+
+        // Used for produce and transaction to fill parameters.
+        if (isBlank(properties.getProperty(webServiceUrlKey))) {
+            properties.put(webServiceUrlKey, properties.getProperty("adminURL", "http://localhost:8080/"));
+        }
+
+        return new PulsarPerfTestPropertiesProvider(properties);
+    }
 }

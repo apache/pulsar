@@ -65,7 +65,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
-@Command(description = "Write directly on managed-ledgers", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 public class ManagedLedgerWriter extends CmdBase{
 
     private static final ExecutorService executor = Executors
@@ -79,9 +79,6 @@ public class ManagedLedgerWriter extends CmdBase{
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
-
-    @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
     public int msgRate = 100;
@@ -143,10 +140,6 @@ public class ManagedLedgerWriter extends CmdBase{
     @Override
     public void run() throws Exception {
         CommandLine commander = super.getCommander();
-        if (this.help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
 
         if (this.metadataStoreUrl == null && this.zookeeperServers == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");

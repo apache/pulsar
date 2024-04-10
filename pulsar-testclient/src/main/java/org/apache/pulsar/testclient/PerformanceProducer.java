@@ -20,7 +20,6 @@ package org.apache.pulsar.testclient;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
@@ -40,7 +39,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -75,13 +73,12 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 import picocli.CommandLine.TypeConversionException;
 
 /**
  * A client program to test pulsar producer performance.
  */
-@Command(description = "Test pulsar producer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "produce", description = "Test pulsar producer performance.")
 public class PerformanceProducer extends PerformanceTopicListArguments{
 
     private static final ExecutorService executor = Executors
@@ -132,7 +129,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
     @Option(names = { "-pn", "--producer-name" }, description = "Producer Name")
     public String producerName = null;
 
-    @Option(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+    @Option(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
     public String adminURL;
 
     @Option(names = { "-ch",
@@ -219,7 +216,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
     public boolean exitOnFailure = false;
 
     @Option(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
-            + ", valid options are: [autoIncrement, random]")
+            + ", valid options are: [autoIncrement, random]", descriptionKey = "messageKeyGenerationMode")
     public String messageKeyGenerationMode = null;
 
     @Option(names = { "-am", "--access-mode" }, description = "Producer access mode")
@@ -251,20 +248,6 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
     @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
     public String histogramFile = null;
-
-    @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-        if (adminURL == null) {
-            adminURL = prop.getProperty("webServiceUrl");
-        }
-        if (adminURL == null) {
-            adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-        }
-
-        if (isBlank(messageKeyGenerationMode)) {
-            messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
-        }
-    }
 
     @Override
     public void run() throws Exception {
@@ -432,14 +415,8 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             oldTime = now;
         }
     }
-
-
-    public PerformanceProducer(String configFile) {
-        super("produce", configFile);
-    }
-
     public PerformanceProducer() {
-        super("produce", null);
+        super("produce");
     }
 
     private static void executorShutdownNow() {

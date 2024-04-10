@@ -55,15 +55,14 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Parameters;
-import picocli.CommandLine.ScopeType;
 
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
-@Command(description = "Provides a shell for the user to dictate how simulation clients should "
-        + "incur load.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "simulation-controller",
+        description = "Provides a shell for the user to dictate how simulation clients should "
+        + "incur load.")
 public class LoadSimulationController extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
 
@@ -81,10 +80,6 @@ public class LoadSimulationController extends CmdBase{
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // picocli arguments for starting a controller via main.
-
-
-    @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = { "--cluster" }, description = "Cluster to test on", required = true)
     String cluster;
@@ -697,10 +692,6 @@ public class LoadSimulationController extends CmdBase{
     @Override
     public void run() throws Exception {
         CommandLine commander = super.getCommander();
-        if (help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(0);
-        }
         random = new Random();
         clients = this.clientHostNames.split(",");
         final Socket[] sockets = new Socket[clients.length];

@@ -24,7 +24,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -46,9 +45,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
-@Command(description = "Test pulsar reader performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "read", description = "Test pulsar reader performance.")
 public class PerformanceReader extends PerformanceTopicListArguments {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
@@ -78,26 +76,16 @@ public class PerformanceReader extends PerformanceTopicListArguments {
     public long numMessages = 0;
 
     @Option(names = {
-            "--use-tls"}, description = "Use TLS encryption on the connection")
+            "--use-tls"}, description = "Use TLS encryption on the connection", descriptionKey = "useTls")
     public boolean useTls;
 
     @Option(names = {"-time",
             "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
     public long testTime = 0;
-
-    public PerformanceReader(String configFile) {
-        super("read", configFile);
-    }
     public PerformanceReader() {
-        super("read", null);
+        super("read");
     }
 
-    @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-        if (!useTls) {
-            useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-        }
-    }
     @Override
     public void validate() throws Exception {
         super.validate();

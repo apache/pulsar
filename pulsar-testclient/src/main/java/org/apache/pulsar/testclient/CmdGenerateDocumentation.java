@@ -31,12 +31,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
 @Slf4j
-@Command(description = "Generate documentation automatically.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "gen-doc", description = "Generate documentation automatically.")
 public class CmdGenerateDocumentation extends CmdBase{
-
-
-    @Option(names = {"-h", "--help"}, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = {"-n", "--command-names"}, description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
@@ -49,10 +45,6 @@ public class CmdGenerateDocumentation extends CmdBase{
     @Override
     public void run() throws Exception {
         CommandLine commander = super.getCommander();
-        if (this.help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
         cmdClassMap.put("produce", PerformanceProducer.class);

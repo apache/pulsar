@@ -64,7 +64,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(name=""websocket-producer", description = "Test pulsar websocket producer performance.")
+@Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
 public class PerformanceClient extends CmdBase {
 
     private static final LongAdder messagesSent = new LongAdder();
@@ -72,9 +72,6 @@ public class PerformanceClient extends CmdBase {
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
     private static IMessageFormatter messageFormatter = null;
-
-    @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = { "-cf", "--conf-file" }, description = "Configuration file")
     public String confFile;
@@ -141,11 +138,6 @@ public class PerformanceClient extends CmdBase {
 
     public void loadArguments() {
         CommandLine commander = super.getCommander();
-
-        if (this.help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
 
         if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
             this.authPluginClassName = this.deprecatedAuthPluginClassName;

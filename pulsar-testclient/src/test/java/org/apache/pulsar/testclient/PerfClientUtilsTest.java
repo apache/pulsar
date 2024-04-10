@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,10 +122,12 @@ public class PerfClientUtilsTest {
                     + "proxyProtocol=SNI");
 
             final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
-
-            args.confFile = testConf.toString();
-            args.fillArgumentsFromProperties();
-
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(testConf.toString())) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
             final ClientBuilderImpl builder =
                     (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -146,15 +149,18 @@ public class PerfClientUtilsTest {
                     + "proxyProtocol=");
 
             final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
-
-            args.confFile = testConf.toString();
-            args.fillArgumentsFromProperties();
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(testConf.toString())) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
 
             final ClientBuilderImpl builder =
                     (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
 
-            Assert.assertNull(conf.getProxyServiceUrl());
+            Assert.assertEquals(conf.getProxyServiceUrl(),"");
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);
@@ -167,9 +173,6 @@ class PerformanceArgumentsTestDefault extends PerformanceBaseArguments {
         super(cmdName);
     }
 
-    @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-    }
 
     @Override
     public void run() throws Exception {

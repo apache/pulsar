@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -64,9 +63,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
-@Command(description = "Test pulsar transaction performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "transaction", description = "Test pulsar transaction performance.")
 public class PerformanceTransaction extends PerformanceBaseArguments{
 
     private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
@@ -105,7 +103,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             + "thereby increasing the intensity of the stress test.")
     public int numTestThreads = 1;
 
-    @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
+    @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
     public String adminURL;
 
     @Option(names = {"-np",
@@ -166,23 +164,10 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
     @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
     public int openTxnRate = 0;
-
-    public PerformanceTransaction(String configFile) {
-        super("transaction", configFile);
-    }
     public PerformanceTransaction() {
-        super("transaction", null);
+        super("transaction");
     }
-
-    @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-        if (adminURL == null) {
-            adminURL = prop.getProperty("webServiceUrl");
-        }
-        if (adminURL == null) {
-            adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-        }
-    }
+    
 
     @Override
     public void run() throws Exception {

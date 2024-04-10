@@ -49,15 +49,14 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
  * counts, their message rates, and other metrics.
  */
-@Command(description = "Monitors brokers and prints to the console information about their system "
-        + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.",
-        showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "monitor-brokers",
+        description = "Monitors brokers and prints to the console information about their system "
+        + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
 public class BrokerMonitor extends CmdBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
@@ -438,8 +437,6 @@ public class BrokerMonitor extends CmdBase {
             log.info("\nBroker Data for {}:\n{}\n", broker, table);
         }
     }
-    @Option(names = {"-h", "--help"}, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = {"--connect-string"}, description = "Zookeeper or broker connect string", required = true)
     public String connectString = null;
@@ -548,10 +545,6 @@ public class BrokerMonitor extends CmdBase {
     @Override
     public void run() throws Exception {
         CommandLine commander = super.getCommander();
-        if (help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(0);
-        }
 
         if (this.extensions) {
             final BrokerMonitor monitor = new BrokerMonitor(this.connectString);

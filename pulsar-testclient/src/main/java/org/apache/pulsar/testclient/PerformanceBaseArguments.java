@@ -19,15 +19,8 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.testclient.PerfClientUtils.exit;
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.Properties;
-import lombok.SneakyThrows;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
-import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 /**
@@ -36,34 +29,34 @@ import picocli.CommandLine.Option;
  */
 public abstract class PerformanceBaseArguments extends CmdBase{
 
-    @Option(names = { "-h", "--help" }, description = "Print help message", help = true)
-    boolean help;
 
-    public String confFile;
-
-    @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
+    @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL", descriptionKey = "brokerServiceUrl")
     public String serviceURL;
 
-    @Option(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+    @Option(names = { "--auth-plugin" }, description = "Authentication plugin class name",
+            descriptionKey = "authPlugin")
     public String authPluginClassName;
 
     @Option(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "authParams")
     public String authParams;
 
     @Option(names = {
-            "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
+            "--trust-cert-file" }, description = "Path for the trusted TLS certificate file",
+            descriptionKey = "tlsTrustCertsFilePath")
     public String tlsTrustCertsFilePath = "";
 
     @Option(names = {
-            "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+            "--tls-allow-insecure" }, description = "Allow insecure TLS connection",
+            descriptionKey = "tlsAllowInsecureConnection")
     public Boolean tlsAllowInsecureConnection = null;
 
     @Option(names = {
-            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
+            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification",
+            descriptionKey = "tlsEnableHostnameVerification")
     public Boolean tlsHostnameVerificationEnable = null;
 
     @Option(names = { "-c",
@@ -93,10 +86,12 @@ public abstract class PerformanceBaseArguments extends CmdBase{
             + "on each broker connection to prevent overloading a broker")
     public int maxLookupRequest = 50000;
 
-    @Option(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    @Option(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.",
+            descriptionKey = "proxyServiceUrl")
     String proxyServiceURL = null;
 
-    @Option(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    @Option(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.",
+            descriptionKey = "proxyProtocol", converter = ProxyProtocolConverter.class)
     ProxyProtocol proxyProtocol = null;
 
     @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
@@ -105,85 +100,8 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
             + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
     public long memoryLimit;
-
-    public PerformanceBaseArguments(String cmdName, String configFile) {
-        super(cmdName);
-        this.confFile = configFile;
-    }
     public PerformanceBaseArguments(String cmdName) {
         super(cmdName);
-        this.confFile = null;
-    }
-
-    public abstract void fillArgumentsFromProperties(Properties prop);
-
-    @SneakyThrows
-    public void fillArgumentsFromProperties() {
-        if (confFile == null) {
-            return;
-        }
-
-        Properties prop = new Properties(System.getProperties());
-        try (FileInputStream fis = new FileInputStream(confFile)) {
-            prop.load(fis);
-        }
-
-        if (serviceURL == null) {
-            serviceURL = prop.getProperty("brokerServiceUrl");
-        }
-
-        if (serviceURL == null) {
-            serviceURL = prop.getProperty("webServiceUrl");
-        }
-
-        // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        if (serviceURL == null) {
-            serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-        }
-
-        if (authPluginClassName == null) {
-            authPluginClassName = prop.getProperty("authPlugin", null);
-        }
-
-        if (authParams == null) {
-            authParams = prop.getProperty("authParams", null);
-        }
-
-        if (isBlank(tlsTrustCertsFilePath)) {
-            tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-        }
-
-        if (tlsAllowInsecureConnection == null) {
-            tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                    .getProperty("tlsAllowInsecureConnection", ""));
-        }
-
-        if (tlsHostnameVerificationEnable == null) {
-            tlsHostnameVerificationEnable = Boolean.parseBoolean(prop
-                    .getProperty("tlsEnableHostnameVerification", ""));
-
-        }
-
-        if (proxyServiceURL == null) {
-            proxyServiceURL = StringUtils.trimToNull(prop.getProperty("proxyServiceUrl"));
-        }
-
-        if (proxyProtocol == null) {
-            String proxyProtocolString = null;
-            try {
-                proxyProtocolString = StringUtils.trimToNull(prop.getProperty("proxyProtocol"));
-                if (proxyProtocolString != null) {
-                    proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
-                }
-            } catch (IllegalArgumentException e) {
-                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
-                e.printStackTrace();
-                exit(1);
-            }
-
-        }
-
-        fillArgumentsFromProperties(prop);
     }
 
     /**
@@ -192,15 +110,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
      * @throws Exception
      */
     public void validate() throws Exception {
-        if (confFile != null && !confFile.isBlank()) {
-            File configFile = new File(confFile);
-            if (!configFile.exists()) {
-                throw new Exception("config file '" + confFile + "', does not exist");
-            }
-            if (configFile.isDirectory()) {
-                throw new Exception("config file '" + confFile + "', is a directory");
-            }
-        }
     }
 
     /**
@@ -208,14 +117,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
      * @throws ParameterException If there is a problem parsing the arguments
      */
     public void parseCLI() {
-        CommandLine commander = super.getCommander();
-        if (help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(0);
-        }
-
-        fillArgumentsFromProperties();
-
         if (isBlank(authPluginClassName) && !isBlank(deprecatedAuthPluginClassName)) {
             authPluginClassName = deprecatedAuthPluginClassName;
         }

@@ -29,7 +29,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -57,9 +56,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
-@Command(description = "Test pulsar consumer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "consume", description = "Test pulsar consumer performance.")
 public class PerformanceConsumer extends PerformanceTopicListArguments{
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
@@ -184,17 +182,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
     public String histogramFile = null;
 
-    public PerformanceConsumer(String configFile) {
-        super("consume", configFile);
-    }
-
     public PerformanceConsumer() {
-        super("consume", null);
+        super("consume");
     }
 
-    @Override
-    public void fillArgumentsFromProperties(Properties prop) {
-    }
 
     @Override
     public void validate() throws Exception {

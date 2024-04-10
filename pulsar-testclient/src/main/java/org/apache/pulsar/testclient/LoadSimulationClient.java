@@ -48,14 +48,13 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
  * this class are controlled across a network via LoadSimulationController.
  */
-@Command(description = "Simulate client load by maintaining producers and consumers for topics.",
-        showDefaultValues = true, scope = ScopeType.INHERIT)
+@Command(name = "simulation-client",
+        description = "Simulate client load by maintaining producers and consumers for topics.")
 public class LoadSimulationClient extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
@@ -172,10 +171,6 @@ public class LoadSimulationClient extends CmdBase{
     }
 
     // picocli arguments for starting a LoadSimulationClient.
-
-
-    @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-    boolean help;
 
     @Option(names = { "--port" }, description = "Port to listen on for controller", required = true)
     public int port;
@@ -327,10 +322,7 @@ public class LoadSimulationClient extends CmdBase{
     @Override
     public void run() throws Exception {
         CommandLine commander = super.getCommander();
-        if (help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(0);
-        }
+
         admin = PulsarAdmin.builder()
                 .serviceHttpUrl(this.serviceURL)
                 .build();
