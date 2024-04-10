@@ -2669,7 +2669,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             long totalSizeToDelete = 0;
             Map<Long, LedgerInfo> ledgerInfos = ledgers.headMap(slowestReaderLedgerId, false);
-            final long totalSizeOfConsumedLedgers = getTotalSize(ledgerInfos.values());
+            final long totalSizeOfConsumedLedgers = getTotalSizeOfLedgers(ledgerInfos.values());
             // skip ledger if retention constraint met
             Iterator<LedgerInfo> ledgerInfoIterator = ledgerInfos.values().iterator();
             while (ledgerInfoIterator.hasNext()) {
@@ -2812,12 +2812,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
 
     /**
-     *  Get the total size of the ledgers
+     *  Get the total size of the ledgers.
      *
      * @param ledgers
      * @return
      */
-    private static long getTotalSize(Collection<LedgerInfo> ledgers) {
+    private static long getTotalSizeOfLedgers(Collection<LedgerInfo> ledgers) {
         long totalSize = 0;
         for (LedgerInfo ls : ledgers) {
             totalSize += ls.getSize();
