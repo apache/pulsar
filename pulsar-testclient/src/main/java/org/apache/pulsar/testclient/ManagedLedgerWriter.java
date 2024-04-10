@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 public class ManagedLedgerWriter extends CmdBase{

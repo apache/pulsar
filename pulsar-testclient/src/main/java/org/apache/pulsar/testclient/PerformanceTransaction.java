@@ -167,7 +167,6 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     public PerformanceTransaction() {
         super("transaction");
     }
-    
 
     @Override
     public void run() throws Exception {
