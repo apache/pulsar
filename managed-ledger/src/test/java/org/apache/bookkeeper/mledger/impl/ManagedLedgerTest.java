@@ -2233,6 +2233,45 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.getTotalSize() > "shortmessage".getBytes().length);
     }
 
+    @Test
+    public void testRetentionInMB() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(2);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+
+        @Cleanup
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("retention_test_ledger", config);
+        @Cleanup
+        ManagedCursor c1 = ml.openCursor("c1");
+
+        // 512K per entry, 2 entries per ledger, 1 ledger has 1MB data.
+        byte[] content = new byte[1024 * 512];
+        for (int i = 0; i < 21; i++) {
+            ml.addEntry(content);
+        }
+
+        // should be 11 ledgers.
+        assertEquals(ml.ledgers.size(), (21 / 2) + 1);
+        long firstKey = ml.ledgers.firstKey();
+
+        // ack 5 ledgers.
+        c1.markDelete(new PositionImpl(firstKey + 5, 0));
+
+        // trigger trim ledgers manually
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        ml.trimConsumedLedgersInBackground(false, f);
+        f.get();
+
+        // should delete 3 ledgers: total acked 5 ledgers, since retentionSize=2MB, retention 2 ledgers.
+        NavigableMap<Long, LedgerInfo> infoNavigableMap = ml.getLedgersInfo();
+        assertEquals(infoNavigableMap.size(), 11 - 3);
+        assertEquals(infoNavigableMap.headMap(firstKey + 5, false).size(), 2);
+    }
+
     @Test(enabled = true)
     public void testNoRetention() throws Exception {
         @Cleanup("shutdown")

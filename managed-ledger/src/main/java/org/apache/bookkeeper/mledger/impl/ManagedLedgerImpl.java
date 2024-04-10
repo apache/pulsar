@@ -34,6 +34,7 @@ import io.netty.util.Recycler.Handle;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -2636,7 +2637,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     new LazyLoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
             final long retentionSizeInMB = config.getRetentionSizeInMB();
             final long retentionTimeMs = config.getRetentionTimeMillis();
-            final long totalSizeOfML = TOTAL_SIZE_UPDATER.get(this);
+
             if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
@@ -2667,10 +2668,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long totalSizeToDelete = 0;
+            Map<Long, LedgerInfo> ledgerInfos = ledgers.headMap(slowestReaderLedgerId, false);
+            final long totalSizeOfConsumedLedgers = getTotalSize(ledgerInfos.values());
             // skip ledger if retention constraint met
-            Iterator<LedgerInfo> ledgerInfoIterator =
-                    ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
-            while (ledgerInfoIterator.hasNext()){
+            Iterator<LedgerInfo> ledgerInfoIterator = ledgerInfos.values().iterator();
+            while (ledgerInfoIterator.hasNext()) {
                 LedgerInfo ls = ledgerInfoIterator.next();
                 // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
@@ -2691,8 +2693,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 totalSizeToDelete += ls.getSize();
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(retentionSizeInMB, totalSizeOfML,
-                        totalSizeToDelete);
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(
+                        retentionSizeInMB, totalSizeOfConsumedLedgers, totalSizeToDelete);
                 boolean expired = hasLedgerRetentionExpired(retentionTimeMs, ls.getTimestamp());
                 if (log.isDebugEnabled()) {
                     log.debug(
@@ -2806,6 +2808,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             });
         }
+    }
+
+
+    /**
+     *  Get the total size of the ledgers
+     *
+     * @param ledgers
+     * @return
+     */
+    private static long getTotalSize(Collection<LedgerInfo> ledgers) {
+        long totalSize = 0;
+        for (LedgerInfo ls : ledgers) {
+            totalSize += ls.getSize();
+        }
+        return totalSize;
     }
 
     /**
