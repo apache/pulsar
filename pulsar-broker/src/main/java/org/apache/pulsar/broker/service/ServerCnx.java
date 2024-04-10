@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newCloseConsumer;
@@ -1291,7 +1292,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .schemaType(schema == null ? null : schema.getType())
                                                 .build();
                                         if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
-                                            return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                            return ignoreUnrecoverableBKException
+                                                    (topic.addSchemaIfIdleOrCheckCompatible(schema))
                                                     .thenCompose(v -> topic.subscribe(option));
                                         } else {
                                             return topic.subscribe(option);
