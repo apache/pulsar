@@ -103,6 +103,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
     private final AbortedTxnProcessor.SnapshotType snapshotType;
+    private final MaxReadPositionCallBack maxReadPositionCallBack;
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
@@ -120,6 +121,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
             snapshotType = AbortedTxnProcessor.SnapshotType.Single;
         }
+        this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.recover();
     }
 
@@ -290,7 +292,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             // max read position is less than first ongoing transaction message position
-            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(firstPosition));
+            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(firstPosition), false);
         }
     }
 
@@ -452,21 +454,27 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         ongoingTxns.remove(txnID);
         if (!ongoingTxns.isEmpty()) {
             PositionImpl position = ongoingTxns.get(ongoingTxns.firstKey());
-            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(position));
+            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(position), false);
         } else {
-            updateMaxReadPosition((PositionImpl) topic.getManagedLedger().getLastConfirmedEntry());
+            updateMaxReadPosition((PositionImpl) topic.getManagedLedger().getLastConfirmedEntry(), false);
         }
     }
 
     /**
      * update the max read position.
      * @param newPosition new max read position
+     * @param disableCallback whether trigger the callback
      */
-    void updateMaxReadPosition(PositionImpl newPosition) {
+    void updateMaxReadPosition(PositionImpl newPosition, boolean disableCallback) {
         PositionImpl preMaxReadPosition = this.maxReadPosition;
         this.maxReadPosition = newPosition;
         if (preMaxReadPosition.compareTo(this.maxReadPosition) < 0) {
-            this.changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+            if (!checkIfNoSnapshot()) {
+                this.changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+            }
+            if (!disableCallback) {
+                maxReadPositionCallBack.moveForward(preMaxReadPosition, this.maxReadPosition);
+            }
         }
     }
 
@@ -491,16 +499,22 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
+    /**
+     * Sync max read position for normal publish.
+     * @param position {@link PositionImpl} the position to sync.
+     * @param isMakerMessage whether the message is marker message, in such case, we
+     *                       don't need to trigger the callback to update lastDataMessagePublishedTimestamp.
+     */
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMakerMessage) {
         // when ongoing transaction is empty, proved that lastAddConfirm is can read max position, because callback
         // thread is the same tread, in this time the lastAddConfirm don't content transaction message.
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
-                updateMaxReadPosition(position);
+                updateMaxReadPosition(position, isMakerMessage);
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
-                    updateMaxReadPosition(position);
+                    updateMaxReadPosition(position, isMakerMessage);
                 }
             }
         }
@@ -683,6 +697,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 return null;
             });
         }
+    }
+
+    public interface MaxReadPositionCallBack {
+        void moveForward(PositionImpl oldPosition, PositionImpl newPosition);
     }
 
     static class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {

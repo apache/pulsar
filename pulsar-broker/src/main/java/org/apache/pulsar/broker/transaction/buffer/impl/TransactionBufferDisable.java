@@ -91,7 +91,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMakerMessage) {
         //no-op
     }
 

@@ -129,6 +129,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -266,6 +267,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     protected final TransactionBuffer transactionBuffer;
+    @Getter
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack = (oldPosition, newPosition) -> {
+        updateLastDataMessagePublishedTimestamp();
+    };
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     @Getter
@@ -357,7 +362,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), false);
         if (ledger instanceof ShadowManagedLedgerImpl) {
             shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
@@ -665,6 +670,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private void updateLastDataMessagePublishedTimestamp() {
+        lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+    }
+
     @Override
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
@@ -673,12 +682,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
-        if (!publishContext.isMarkerMessage()) {
-            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
-        }
-
         // in order to sync the max position when cursor read entries
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), publishContext.isMarkerMessage());
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
@@ -3942,13 +3947,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
         if (TxnAction.COMMIT_VALUE == txnAction) {
-            return transactionBuffer.commitTxn(txnID, lowWaterMark).thenRun(() -> {
-                lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
-            });
+            return transactionBuffer.commitTxn(txnID, lowWaterMark);
         } else if (TxnAction.ABORT_VALUE == txnAction) {
-            return transactionBuffer.abortTxn(txnID, lowWaterMark).thenRun(() -> {
-                lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
-            });
+            return transactionBuffer.abortTxn(txnID, lowWaterMark);
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }

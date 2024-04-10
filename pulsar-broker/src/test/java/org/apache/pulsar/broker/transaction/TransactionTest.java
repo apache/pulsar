@@ -1087,7 +1087,7 @@ public class TransactionTest extends TransactionTestBase {
         });
         Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
 
-        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
+        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1), false);
         Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
 
     }
