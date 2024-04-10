@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
@@ -32,6 +33,8 @@ type LogAppender struct {
 	logTopic     string
 	fqn          string
 	producer     pulsar.Producer
+	mutex        sync.Mutex
+	stopChan     chan struct{}
 }
 
 func NewLogAppender(client pulsar.Client, logTopic, fqn string) *LogAppender {
@@ -39,6 +42,8 @@ func NewLogAppender(client pulsar.Client, logTopic, fqn string) *LogAppender {
 		pulsarClient: client,
 		logTopic:     logTopic,
 		fqn:          fqn,
+		mutex:        sync.Mutex{},
+		stopChan:     make(chan struct{}),
 	}
 	return logAppender
 }
@@ -77,6 +82,8 @@ func (la *LogAppender) GetName() string {
 }
 
 func (la *LogAppender) Stop() {
+	close(la.stopChan)
+	time.Sleep(10 * time.Millisecond)
 	la.producer.Close()
 	la.producer = nil
 }

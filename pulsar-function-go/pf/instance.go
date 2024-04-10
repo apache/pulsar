@@ -161,7 +161,7 @@ CLOSE:
 				gi.ackInputMessage(msgInput)
 			}
 			gi.stats.incrTotalReceived()
-			gi.addLogTopicHandler()
+			gi.flushLogsToTopicHandler()
 
 			gi.stats.setLastInvocation()
 			gi.stats.processTimeStart()
@@ -476,12 +476,27 @@ func (gi *goInstance) setupLogHandler() error {
 				gi.context.instanceConf.funcDetails.Namespace,
 				gi.context.instanceConf.funcDetails.Name),
 		)
-		return gi.context.logAppender.Start()
+		if err := gi.context.logAppender.Start(); err != nil {
+			return err
+		}
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					gi.flushLogsToTopicHandler()
+				case <-gi.context.logAppender.stopChan:
+					gi.flushLogsToTopicHandler()
+					return
+				}
+			}
+		}()
 	}
 	return nil
 }
 
-func (gi *goInstance) addLogTopicHandler() {
+func (gi *goInstance) flushLogsToTopicHandler() {
 	// Clear StrEntry regardless gi.context.logAppender is set or not
 	defer func() {
 		log.StrEntry = nil
@@ -491,9 +506,11 @@ func (gi *goInstance) addLogTopicHandler() {
 		return
 	}
 
+	gi.context.logAppender.mutex.Lock()
 	for _, logByte := range log.StrEntry {
 		gi.context.logAppender.Append([]byte(logByte))
 	}
+	gi.context.logAppender.mutex.Unlock()
 }
 
 func (gi *goInstance) closeLogTopic() {
