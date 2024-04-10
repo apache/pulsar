@@ -64,7 +64,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(description = "Test pulsar websocket producer performance.")
+@Command(name=""websocket-producer", description = "Test pulsar websocket producer performance.")
 public class PerformanceClient extends CmdBase {
 
     private static final LongAdder messagesSent = new LongAdder();
