@@ -503,19 +503,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     /**
      * Sync max read position for normal publish.
      * @param position {@link PositionImpl} the position to sync.
-     * @param isMakerMessage whether the message is marker message, in such case, we
+     * @param isMarkerMessage whether the message is marker message, in such case, we
      *                       don't need to trigger the callback to update lastDataMessagePublishedTimestamp.
      */
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMakerMessage) {
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
         // when ongoing transaction is empty, proved that lastAddConfirm is can read max position, because callback
         // thread is the same tread, in this time the lastAddConfirm don't content transaction message.
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
-                updateMaxReadPosition(position, isMakerMessage);
+                updateMaxReadPosition(position, isMarkerMessage);
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
-                    updateMaxReadPosition(position, isMakerMessage);
+                    updateMaxReadPosition(position, isMarkerMessage);
                 }
             }
         }
