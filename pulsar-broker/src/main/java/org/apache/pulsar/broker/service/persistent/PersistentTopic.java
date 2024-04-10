@@ -268,9 +268,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Getter
     protected final TransactionBuffer transactionBuffer;
     @Getter
-    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack = (oldPosition, newPosition) -> {
-        updateLastDataMessagePublishedTimestamp();
-    };
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
+            (oldPosition, newPosition) -> updateLastDataMessagePublishedTimestamp();
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     @Getter
@@ -683,7 +682,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
         // in order to sync the max position when cursor read entries
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), publishContext.isMarkerMessage());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(),
+                publishContext.isMarkerMessage());
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
