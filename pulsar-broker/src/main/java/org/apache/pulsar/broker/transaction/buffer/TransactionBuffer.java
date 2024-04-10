@@ -151,6 +151,7 @@ public interface TransactionBuffer {
     /**
      * Sync max read position for normal publish.
      * @param position {@link PositionImpl} the position to sync.
+     * @param isMakerMessage whether the message is maker message.
      */
     void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMakerMessage);
 

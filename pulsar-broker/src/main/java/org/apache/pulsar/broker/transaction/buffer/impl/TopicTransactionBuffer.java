@@ -463,7 +463,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     /**
      * update the max read position.
      * @param newPosition new max read position
-     * @param disableCallback whether trigger the callback
+     * @param disableCallback whether disable the callback.
      */
     void updateMaxReadPosition(PositionImpl newPosition, boolean disableCallback) {
         PositionImpl preMaxReadPosition = this.maxReadPosition;
