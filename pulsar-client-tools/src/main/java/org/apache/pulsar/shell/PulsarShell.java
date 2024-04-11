@@ -126,6 +126,17 @@ public class PulsarShell {
         IDLE,
         RUNNING
     }
+    enum ShellMode {
+        ADMIN("admin"),
+        CLIENT("client"),
+        DEFAULT("");
+
+        final String command;
+
+        ShellMode(String command) {
+            this.command = command;
+        }
+    }
     private Properties properties;
     @Getter
     private final ConfigStore configStore;
@@ -137,6 +148,9 @@ public class PulsarShell {
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
     private ExecState execState = ExecState.IDLE;
+    private ShellMode shellMode = ShellMode.DEFAULT;
+    private String prompt;
+    private String promptMessage;
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -282,14 +296,13 @@ public class PulsarShell {
                             new AttributedStringBuilder().style(AttributedStyle.BOLD).append("exit").toAnsi(),
                             new AttributedStringBuilder().style(AttributedStyle.BOLD).append("quit").toAnsi());
             output(welcomeMessage, terminal);
-            String promptMessage;
             if (configShell.getCurrentConfig() != null) {
                 promptMessage = String.format("%s(%s)",
                         configShell.getCurrentConfig(), getHostFromUrl(serviceUrl));
             } else {
                 promptMessage = getHostFromUrl(serviceUrl);
             }
-            final String prompt = createPrompt(promptMessage);
+            prompt = createPrompt(promptMessage);
             return new InteractiveLineReader() {
                 @Override
                 public String readLine() {
@@ -429,16 +442,36 @@ public class PulsarShell {
                 return;
             }
             execState = ExecState.RUNNING;
-            final String line = words.stream().collect(Collectors.joining(" "));
-            if (StringUtils.isBlank(line)) {
+            final String inputLine = words.stream().collect(Collectors.joining(" "));
+            if (StringUtils.isBlank(inputLine)) {
                 continue;
             }
-            if (isQuitCommand(line)) {
+            if (isQuitCommand(inputLine)) {
                 exit(0);
                 return;
             }
+            if (isExitModeCommand(inputLine)) {
+                if (shellMode == ShellMode.DEFAULT){
+                    output("Cant exit from default shell mode", terminal);
+                }
+                promptMessage = promptMessage.substring(0, promptMessage.lastIndexOf(shellMode.command) - 1);
+                prompt = createPrompt(promptMessage);
+                shellMode = ShellMode.DEFAULT;
+                continue;
+            }
+            if (shellMode != ShellMode.DEFAULT) {
+                words.add(0, shellMode.command);
+            }
+            final String line = words.stream().collect(Collectors.joining(" "));
             if (shellOptions.help) {
+                //TODO update usage?
                 shellCommander.usage();
+                continue;
+            }
+            if (isChangeModeCommand(line)){
+                shellMode = line.compareToIgnoreCase("admin") == 0 ? ShellMode.ADMIN : ShellMode.CLIENT;
+                promptMessage = promptMessage.concat(" ").concat(shellMode.command);
+                prompt = createPrompt(promptMessage);
                 continue;
             }
 
@@ -565,6 +598,14 @@ public class PulsarShell {
 
     private static boolean isQuitCommand(String line) {
         return line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit");
+    }
+
+    private static boolean isExitModeCommand(String line) {
+        return line.equalsIgnoreCase("exitmode");
+    }
+
+    private static boolean isChangeModeCommand(String line) {
+        return line.equalsIgnoreCase("admin") || line.equalsIgnoreCase("client");
     }
 
     private static String[] extractAndConvertArgs(List<String> words) {
