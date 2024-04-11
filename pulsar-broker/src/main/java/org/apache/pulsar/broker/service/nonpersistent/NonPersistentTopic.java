@@ -996,6 +996,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         Optional<ClusterUrl> url = getMigratedClusterUrl();
         if (url.isPresent()) {
             this.migrated = true;
