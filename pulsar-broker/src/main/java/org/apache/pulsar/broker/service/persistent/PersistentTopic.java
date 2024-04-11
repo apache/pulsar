@@ -208,7 +208,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile List<String> shadowTopics;
     private final TopicName shadowSourceTopic;
 
-    public static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+    static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
 
     public static boolean isDedupCursorName(String name) {
         return DEDUPLICATION_CURSOR_NAME.equals(name);
