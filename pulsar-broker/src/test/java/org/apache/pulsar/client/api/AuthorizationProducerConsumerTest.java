@@ -368,6 +368,83 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testSubscriberPermissionRequired() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        // Simplify test by skipping configuration of topic level policies
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        conf.setGrantImplicitPermissionOnSubscription(false);
+        setup();
+
+        final String tenantRole = "tenant-role";
+        final String subscriptionRole = "sub-role";
+        final String subscriptionName = "sub";
+        final String namespace = "my-property/ns-sub-auth-req";
+        final String topicName = "persistent://" + namespace + "/my-topic";
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+
+        clientAuthProviderSupportedRoles.add(subscriptionRole);
+
+        @Cleanup
+        PulsarAdmin superAdmin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
+
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
+        Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
+        @Cleanup
+        PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(subAdminAuthentication).build());
+
+        Authentication authentication = new ClientAuthentication(subscriptionRole);
+
+        superAdmin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+
+        // Initialize cluster and create namespace and topic
+        superAdmin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
+        superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        tenantAdmin.topics().createNonPartitionedTopic(topicName);
+        tenantAdmin.topics().grantPermission(topicName, subscriptionRole,
+                Collections.singleton(AuthAction.consume));
+        assertNull(superAdmin.namespaces().getPublishRate(namespace));
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication));
+
+        // Cluster is initialized; the subscriptionRole has permission consume on the topic, but doesn't have
+        // explicit subscription permission. Verify that several operations which rely on subscription permission fail.
+        try {
+            sub1Admin.topics().resetCursor(topicName, subscriptionName, 0);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith(
+                    "Unauthorized to validateTopicOperation for operation [RESET_CURSOR]"));
+        }
+        try {
+            pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Client is not authorized to subscribe"), e.getMessage());
+        }
+
+        // Grant the role permission.
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName, Set.of(subscriptionRole));
+
+        // Verify the role now has permission to consume (reset cursor second to avoid 404 on subscription)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
+        consumer.close();
+        sub1Admin.topics().resetCursor(topicName, subscriptionName, 0);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();

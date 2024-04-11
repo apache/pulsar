@@ -29,8 +29,8 @@ import com.google.common.collect.Sets;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -38,18 +38,23 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
-import org.testng.annotations.AfterClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+/**
+ * Class that initializes the WebSocketService disabling {@link WebSocketProxyConfiguration#setGrantImplicitPermissionOnSubscription(boolean)}.
+ * We must have this class on its own because the WebSocketProxyConfiguration is converted to the ServiceConfiguration
+ * on start up, so it is not a dynamic property that we can change after the service has started.
+ */
+
 @Test(groups = "websocket")
-public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
+public class ProxyAuthorizationWithoutImplicitPermissionOnSubscriptionTest extends ProducerConsumerBase {
+    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);
     private WebSocketService service;
     private final String configClusterName = "c1";
-
-    public ProxyAuthorizationTest() {
-        super();
-    }
 
     @BeforeClass
     @Override
@@ -64,23 +69,25 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setClusterName("c1");
         config.setWebServicePort(Optional.of(0));
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        config.setGrantImplicitPermissionOnSubscription(false);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         service.start();
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        internalCleanup();
+        super.internalCleanup();
         if (service != null) {
             service.close();
         }
+        log.info("Finished Cleaning Up Test setup");
     }
 
+
     @Test
-    public void test() throws Exception {
+    public void testAuthorizationServiceDirectly() throws Exception {
         AuthorizationService auth = service.getAuthorizationService();
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
@@ -106,18 +113,18 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertFalse(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
-        // Include a subscription name. The subscription doesn't need to exist for the purpose of this test, but this
-        // tests the case when service.getConfig().isGrantImplicitPermissionOnSubscription() is true because we
-        // have not granted permission for this role on the subscription named "sub".
+
+        // Expect false because we disabled the implicit permission on subscription
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,"sub"));
+
+        // Grant permission
+        admin.namespaces().grantPermissionOnSubscription("p1/c1/ns1", "sub", Set.of("other-role"));
+
+        // Expect only true for "other-role" because we granted permission for only that one
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
         assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,"sub"));
 
-        // Grant permission to a different role for sub and expect failure
-        admin.namespaces().grantPermissionOnSubscription("p1/c1/ns1", "sub", Set.of("no-ones-role"));
-        // Even though other-role has permission to consume from the topic, the "sub" subscription is locked down and
-        // only roles with permission granted via grantPermissionOnSubscription have permission to consume from that
-        // subscription.
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, "sub"));
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null));
 

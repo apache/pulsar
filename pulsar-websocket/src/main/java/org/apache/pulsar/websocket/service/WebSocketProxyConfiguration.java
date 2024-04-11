@@ -120,6 +120,15 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
+    @FieldContext(
+            doc = """
+                    If a namespace has no roles configured in the subscription permission for a given subscription name,
+                    allow all roles that have permission to consume a the topic to consume from the subscription.
+                    See Namespaces#grantPermissionOnSubscription in the Java Admin API Client for details on granting
+                    permission.
+                    """)
+    private boolean grantImplicitPermissionOnSubscription = true;
+
     @FieldContext(doc = "Proxy authentication settings used to connect to brokers")
     private String brokerClientAuthenticationPlugin;
 

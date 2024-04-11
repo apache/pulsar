@@ -1577,6 +1577,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(
+            category = CATEGORY_AUTHORIZATION,
+            doc = """
+                    If a namespace has no roles configured in the subscription permission for a given subscription name,
+                    allow all roles that have permission to consume a the topic to consume from the subscription.
+                    See Namespaces#grantPermissionOnSubscription in the Java Admin API Client for details on granting
+                    permission.
+                    """)
+    private boolean grantImplicitPermissionOnSubscription = true;
+
+    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
