@@ -50,6 +50,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -998,6 +999,20 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                                     pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
                         }
                     }
+                    // Check if the broker is available
+                    var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
+                    var loadManager4 = spy((ExtensibleLoadManagerImpl)
+                            FieldUtils.readField(wrapper, "loadManager", true));
+                    loadManager4.getBrokerRegistry().unregister();
+
+                    NamespaceName slaMonitorNamespace =
+                            getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
+                    String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+                    String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(result);
+                    assertNotEquals(result, pulsar4.getBrokerServiceUrl());
+
+                    loadManager4.getBrokerRegistry().register();
                 }
             }
     }
