@@ -182,7 +182,7 @@ public class MessageDeduplication {
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
                     producerRemoved(producerName);
-                    snapshotCounter += md.getNumMessagesInBatch();
+                    snapshotCounter++;
                     entry.release();
                 }
 
