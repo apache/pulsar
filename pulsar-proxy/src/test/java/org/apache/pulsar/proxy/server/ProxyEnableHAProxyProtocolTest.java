@@ -60,6 +60,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setHaProxyProtocolEnabled(true);
+        proxyConfig.setClusterName(configClusterName);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig))));

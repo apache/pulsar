@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -1778,5 +1779,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .get();
         assertTrue(namespaces.contains(ns1V2));
         assertTrue(namespaces.contains(ns1V1));
+    }
+
+    @Test
+    public void testCreateMissingPartitions() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testCreateMissingPartitions";
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics().createMissedPartitions(topicName));
     }
 }

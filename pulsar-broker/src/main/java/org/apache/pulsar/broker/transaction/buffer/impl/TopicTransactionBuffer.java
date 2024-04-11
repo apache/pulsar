@@ -170,13 +170,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         if (msgMetadata != null && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                             TxnID txnID = new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
                             PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                            if (Markers.isTxnMarker(msgMetadata)) {
-                                if (Markers.isTxnAbortMarker(msgMetadata)) {
-                                    snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
+                            synchronized (TopicTransactionBuffer.this) {
+                                if (Markers.isTxnMarker(msgMetadata)) {
+                                    if (Markers.isTxnAbortMarker(msgMetadata)) {
+                                        snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, position);
+                                    }
+                                    updateMaxReadPosition(txnID);
+                                } else {
+                                    handleTransactionMessage(txnID, position);
                                 }
-                                updateMaxReadPosition(txnID);
-                            } else {
-                                handleTransactionMessage(txnID, position);
                             }
                         }
                     }
@@ -287,8 +289,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .checkAbortedTransaction(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
-            //max read position is less than first ongoing transaction message position, so entryId -1
-            maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
+            // max read position is less than first ongoing transaction message position
+            maxReadPosition = ((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(firstPosition);
         }
     }
 
@@ -362,10 +364,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
+                            txnAbortedCounter.increment();
+                            completableFuture.complete(null);
+                            handleLowWaterMark(txnID, lowWaterMark);
                         }
-                        txnAbortedCounter.increment();
-                        completableFuture.complete(null);
-                        handleLowWaterMark(txnID, lowWaterMark);
                     }
 
                     @Override
@@ -473,7 +475,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+    public synchronized boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
@@ -510,9 +512,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         TransactionInBufferStats transactionInBufferStats = new TransactionInBufferStats();
-        transactionInBufferStats.aborted = isTxnAborted(txnID, null);
-        if (ongoingTxns.containsKey(txnID)) {
-            transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
+        synchronized (this) {
+            transactionInBufferStats.aborted = isTxnAborted(txnID, null);
+            if (ongoingTxns.containsKey(txnID)) {
+                transactionInBufferStats.startPosition = ongoingTxns.get(txnID).toString();
+            }
         }
         return transactionInBufferStats;
     }

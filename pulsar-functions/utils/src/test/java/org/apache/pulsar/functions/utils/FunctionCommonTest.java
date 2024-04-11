@@ -30,16 +30,17 @@ import static org.testng.Assert.assertEquals;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import java.io.File;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.pool.TypePool;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.assertj.core.util.Files;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -47,41 +48,6 @@ import org.testng.annotations.Test;
  * Unit test of {@link Exceptions}.
  */
 public class FunctionCommonTest {
-
-    @Test
-    public void testValidateLocalFileUrl() throws Exception {
-        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        try {
-            // eg: fileLocation : /dir/fileName.jar (invalid)
-            FunctionCommon.extractClassLoader(fileLocation);
-            Assert.fail("should fail with invalid url: without protocol");
-        } catch (IllegalArgumentException ie) {
-            // Ok.. expected exception
-        }
-        String fileLocationWithProtocol = "file://" + fileLocation;
-        // eg: fileLocation : file:///dir/fileName.jar (valid)
-        FunctionCommon.extractClassLoader(fileLocationWithProtocol);
-        // eg: fileLocation : file:/dir/fileName.jar (valid)
-        fileLocationWithProtocol = "file:" + fileLocation;
-        FunctionCommon.extractClassLoader(fileLocationWithProtocol);
-    }
-
-    @Test
-    public void testValidateHttpFileUrl() throws Exception {
-
-        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
-        FunctionCommon.extractClassLoader(jarHttpUrl);
-
-        jarHttpUrl = "http://_invalidurl_.com";
-        try {
-            // eg: fileLocation : /dir/fileName.jar (invalid)
-            FunctionCommon.extractClassLoader(jarHttpUrl);
-            Assert.fail("should fail with invalid url: without protocol");
-        } catch (Exception ie) {
-            // Ok.. expected exception
-        }
-    }
-
     @Test
     public void testDownloadFile() throws Exception {
         final String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
@@ -151,6 +117,14 @@ public class FunctionCommonTest {
                 }, false
             },
             {
+                new Function<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> process(String input, Context context) throws Exception {
+                        return null;
+                    }
+                }, false
+            },
+            {
                 new java.util.function.Function<String, Integer>() {
                     @Override
                     public Integer apply(String s) {
@@ -162,6 +136,14 @@ public class FunctionCommonTest {
                 new java.util.function.Function<String, Record<Integer>>() {
                     @Override
                     public Record<Integer> apply(String s) {
+                        return null;
+                    }
+                }, false
+            },
+            {
+                new java.util.function.Function<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> apply(String s) {
                         return null;
                     }
                 }, false
@@ -183,6 +165,14 @@ public class FunctionCommonTest {
                 }, true
             },
             {
+                new WindowFunction<String, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> process(Collection<Record<String>> input, WindowContext context) throws Exception {
+                        return null;
+                    }
+                }, true
+            },
+            {
                 new java.util.function.Function<Collection<String>, Integer>() {
                     @Override
                     public Integer apply(Collection<String> strings) {
@@ -197,15 +187,26 @@ public class FunctionCommonTest {
                         return null;
                     }
                 }, true
+            },
+            {
+                new java.util.function.Function<Collection<String>, CompletableFuture<Integer>>() {
+                    @Override
+                    public CompletableFuture<Integer> apply(Collection<String> strings) {
+                        return null;
+                    }
+                }, true
             }
         };
     }
 
     @Test(dataProvider = "function")
     public void testGetFunctionTypes(Object function, boolean isWindowConfigPresent) {
-        Class<?>[] types = FunctionCommon.getFunctionTypes(function.getClass(), isWindowConfigPresent);
+        TypePool typePool = TypePool.Default.of(function.getClass().getClassLoader());
+        TypeDefinition[] types =
+                FunctionCommon.getFunctionTypes(typePool.describe(function.getClass().getName()).resolve(),
+                        isWindowConfigPresent);
         assertEquals(types.length, 2);
-        assertEquals(types[0], String.class);
-        assertEquals(types[1], Integer.class);
+        assertEquals(types[0].asErasure().getTypeName(), String.class.getName());
+        assertEquals(types[1].asErasure().getTypeName(), Integer.class.getName());
     }
 }

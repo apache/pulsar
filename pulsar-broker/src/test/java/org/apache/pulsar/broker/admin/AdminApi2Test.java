@@ -3389,4 +3389,61 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // cleanup.
         admin.namespaces().deleteNamespace(ns);
     }
+
+    @Test
+    private void testAnalyzeSubscriptionBacklogNotCauseStuck() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        // Send 10 messages.
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription)
+                .receiverQueueSize(0).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send(i + "");
+        }
+
+        // Verify consumer can receive all messages after calling "analyzeSubscriptionBacklog".
+        admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.of(MessageIdImpl.earliest));
+        for (int i = 0; i < 10; i++) {
+            Awaitility.await().untilAsserted(() -> {
+                Message m = consumer.receive();
+                assertNotNull(m);
+                consumer.acknowledge(m);
+            });
+        }
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topic);
+    }
+
+    @Test
+    public void testGetStatsIfPartitionNotExists() throws Exception {
+        // create topic.
+        final String partitionedTp = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
+        admin.topics().createPartitionedTopic(partitionedTp, 1);
+        TopicName partition0 = TopicName.get(partitionedTp).getPartition(0);
+        boolean topicExists1 = pulsar.getBrokerService().getTopic(partition0.toString(), false).join().isPresent();
+        assertTrue(topicExists1);
+        // Verify topics-stats works.
+        TopicStats topicStats = admin.topics().getStats(partition0.toString());
+        assertNotNull(topicStats);
+
+        // Delete partition and call topic-stats again.
+        admin.topics().delete(partition0.toString());
+        boolean topicExists2 = pulsar.getBrokerService().getTopic(partition0.toString(), false).join().isPresent();
+        assertFalse(topicExists2);
+        // Verify: respond 404.
+        try {
+            admin.topics().getStats(partition0.toString());
+            fail("Should respond 404 after the partition was deleted");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Topic partitions were not yet created"));
+        }
+
+        // cleanup.
+        admin.topics().deletePartitionedTopic(partitionedTp);
+    }
 }

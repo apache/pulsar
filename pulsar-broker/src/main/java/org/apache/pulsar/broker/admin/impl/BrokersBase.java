@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -80,6 +82,12 @@ public class BrokersBase extends AdminResource {
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
+    // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
+    // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
+    // or we can't propagate the server timeout exception to the client.
+    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
+    private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
     private volatile long threadDumpLoggedTimestamp;
 
     @GET
@@ -434,7 +442,10 @@ public class BrokersBase extends AdminResource {
                                     });
                                     throw FutureUtil.wrapToCompletionException(createException);
                                 }).thenCompose(reader -> producer.sendAsync(messageStr)
-                                        .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                        .thenCompose(__ -> FutureUtil.addTimeoutHandling(
+                                                healthCheckRecursiveReadNext(reader, messageStr),
+                                                HEALTH_CHECK_READ_TIMEOUT, pulsar().getBrokerService().executor(),
+                                                () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
                                         .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
                                                     .whenComplete((unused, innerEx) -> {
@@ -515,7 +526,7 @@ public class BrokersBase extends AdminResource {
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
         if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
-            throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+            throw new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
                 if (old != null) {

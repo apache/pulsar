@@ -52,6 +52,20 @@
         <module>latest-version-image</module>
         <module>java-test-image</module>
       </modules>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <injectAllReactorProjects>true</injectAllReactorProjects>
+              <runOnlyOnce>true</runOnlyOnce>
+              <skipPoms>false</skipPoms>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

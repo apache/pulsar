@@ -32,9 +32,9 @@ import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -727,14 +727,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         //check value
         field = PersistentSubscription.class.getDeclaredField("expiryMonitor");
         field.setAccessible(true);
-        NumberFormat nf = NumberFormat.getNumberInstance();
-        nf.setMaximumFractionDigits(3);
-        nf.setRoundingMode(RoundingMode.DOWN);
         for (int i = 0; i < topicList.size(); i++) {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicIfExists(topicList.get(i)).get().get().getSubscription(subName);
             PersistentMessageExpiryMonitor monitor = (PersistentMessageExpiryMonitor) field.get(subscription);
-            assertEquals(Double.valueOf(nf.format(monitor.getMessageExpiryRate())).doubleValue(), cm.get(i).value);
+            BigDecimal bigDecimal = BigDecimal.valueOf(monitor.getMessageExpiryRate());
+            bigDecimal = bigDecimal.setScale(3, RoundingMode.DOWN);
+            assertEquals(bigDecimal.doubleValue(), cm.get(i).value);
         }
 
         cm = (List<Metric>) metrics.get("pulsar_subscription_total_msg_expired");

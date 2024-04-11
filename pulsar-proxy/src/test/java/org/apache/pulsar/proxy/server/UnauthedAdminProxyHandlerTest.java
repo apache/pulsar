@@ -75,6 +75,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
 
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));

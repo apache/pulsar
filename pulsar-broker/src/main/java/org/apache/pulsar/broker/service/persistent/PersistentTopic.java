@@ -350,7 +350,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(topicName)
-                && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+                && !NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
@@ -951,8 +952,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 lock.readLock().unlock();
             }
 
-            CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                    getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
+            CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
+                    ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
@@ -2664,6 +2665,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     stats.schemaLedgers.add(schemaLedgerInfo);
                                     completableFuture.complete(null);
                                 }).exceptionally(e -> {
+                                    log.error("[{}] Failed to get ledger metadata for the schema ledger {}",
+                                            topic, ledgerId, e);
                                     completableFuture.completeExceptionally(e);
                                     return null;
                                 });
@@ -2750,7 +2753,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     ledger.asyncMigrate();
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("{} has replication backlog and applied migraiton", topic);
+                    log.debug("{} has replication backlog and applied migration", topic);
                 }
                 return CompletableFuture.completedFuture(null);
             }
@@ -2967,7 +2970,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false))
-                    .thenApply((res) -> tryToDeletePartitionedMetadata())
+                    .thenCompose((res) -> tryToDeletePartitionedMetadata())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -2975,6 +2978,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Did not delete busy topic: {}", topic, e.getCause().getMessage());
                             }
+                        } else if (e.getCause() instanceof UnsupportedOperationException) {
+                            log.info("[{}] Skip to delete partitioned topic: {}", topic, e.getCause().getMessage());
                         } else {
                             log.warn("[{}] Inactive topic deletion failed", topic, e);
                         }
@@ -3019,7 +3024,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                         .filter(topicExist -> topicExist)
                                                         .findAny();
                                                 if (anyExistPartition.isPresent()) {
-                                                    log.error("[{}] Delete topic metadata failed because"
+                                                    log.info("[{}] Delete topic metadata failed because"
                                                             + " another partition exist.", topicName);
                                                     throw new UnsupportedOperationException(
                                                             String.format("Another partition exists for [%s].",

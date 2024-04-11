@@ -25,6 +25,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
@@ -97,10 +100,12 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
@@ -146,18 +151,37 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
+    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
+    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_ATTRIBUTE =
+            AttributeKey.stringKey("pulsar.lookup.response");
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "broker")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "redirect")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "failure")
+            .build();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
 
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)
             .quantile(0.999)
             .quantile(1.0)
             .register();
-
+    private final DoubleHistogram lookupLatencyHistogram;
 
     /**
      * Default constructor.
@@ -175,6 +199,12 @@ public class NamespaceService implements AutoCloseable {
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.redirectManager = new RedirectManager(pulsar);
+
+        this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                .setDescription("The duration of topic lookup requests (either binary or HTTP)")
+                .setUnit("s")
+                .build();
     }
 
     public void initialize() {
@@ -204,18 +234,28 @@ public class NamespaceService implements AutoCloseable {
                     });
                 });
 
-        future.thenAccept(optResult -> {
-            lookupLatency.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            if (optResult.isPresent()) {
-                if (optResult.get().isRedirect()) {
-                    lookupRedirects.inc();
+        future.whenComplete((lookupResult, throwable) -> {
+            var latencyNs = System.nanoTime() - startTime;
+            lookupLatency.observe(latencyNs, TimeUnit.NANOSECONDS);
+            Attributes attributes;
+            if (throwable == null) {
+                if (lookupResult.isPresent()) {
+                    if (lookupResult.get().isRedirect()) {
+                        lookupRedirects.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES;
+                    } else {
+                        lookupAnswers.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES;
+                    }
                 } else {
-                    lookupAnswers.inc();
+                    // No lookup result, default to reporting as failure.
+                    attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
                 }
+            } else {
+                lookupFailures.inc();
+                attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
             }
-        }).exceptionally(ex -> {
-            lookupFailures.inc();
-            return null;
+            lookupLatencyHistogram.record(MetricsUtil.convertToSeconds(latencyNs, TimeUnit.NANOSECONDS), attributes);
         });
 
         return future;
@@ -1432,6 +1472,9 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
     }

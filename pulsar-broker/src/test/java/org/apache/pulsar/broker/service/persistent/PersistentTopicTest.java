@@ -59,10 +59,15 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -75,6 +80,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -296,7 +302,8 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
         pulsar.getBrokerService().getTopicIfExists(topicName).get();
-        assertTrue(pulsar.getBrokerService().getTopics().containsKey(topicName));
+        // The map topics should only contain partitions, does not contain partitioned topic.
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
 
         // ref of partitioned-topic name should be empty
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -634,5 +641,71 @@ public class PersistentTopicTest extends BrokerTestBase {
         persistentTopic.onUpdate(policies);
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(1));
+    }
+
+    @Test
+    public void testDynamicConfigurationAutoSkipNonRecoverableData() throws Exception {
+        pulsar.getConfiguration().setAutoSkipNonRecoverableData(false);
+        final String topicName = "persistent://prop/ns-abc/testAutoSkipNonRecoverableData";
+        final String subName = "test_sub";
+
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(subName);
+
+        assertFalse(persistentTopic.ledger.getConfig().isAutoSkipNonRecoverableData());
+        assertFalse(subscription.getExpiryMonitor().isAutoSkipNonRecoverableData());
+
+        String key = "autoSkipNonRecoverableData";
+        admin.brokers().updateDynamicConfiguration(key, "true");
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin.brokers().getAllDynamicConfigurations().get(key), "true"));
+
+        assertTrue(persistentTopic.ledger.getConfig().isAutoSkipNonRecoverableData());
+        assertTrue(subscription.getExpiryMonitor().isAutoSkipNonRecoverableData());
+
+        subscribe.close();
+        admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testAddWaitingCursorsForNonDurable() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testAddWaitingCursors";
+        admin.topics().createNonPartitionedTopic(topicName);
+        final Optional<Topic> topic = pulsar.getBrokerService().getTopic(topicName, false).join();
+        assertNotNull(topic.get());
+        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
+        final ManagedCursor spyCursor= spy(ledger.newNonDurableCursor(PositionImpl.LATEST, "sub-2"));
+        doAnswer((invocation) -> {
+            Thread.sleep(10_000);
+            invocation.callRealMethod();
+            return null;
+        }).when(spyCursor).asyncReadEntriesOrWait(any(int.class), any(long.class),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(Object.class), any(PositionImpl.class));
+        Field cursorField = ManagedLedgerImpl.class.getDeclaredField("cursors");
+        cursorField.setAccessible(true);
+        ManagedCursorContainer container = (ManagedCursorContainer) cursorField.get(ledger);
+        container.removeCursor("sub-2");
+        container.add(spyCursor, null);
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub-2").subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        producer.send("test");
+        producer.close();
+        final Message<String> receive = consumer.receive();
+        assertEquals("test", receive.getValue());
+        consumer.close();
+        Awaitility.await()
+                .pollDelay(5, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertEquals(ledger.getWaitingCursorsCount(), 0);
+        });
     }
 }

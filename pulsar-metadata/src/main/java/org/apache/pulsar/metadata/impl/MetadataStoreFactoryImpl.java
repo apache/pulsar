@@ -22,6 +22,7 @@ import static org.apache.pulsar.metadata.impl.EtcdMetadataStore.ETCD_SCHEME_IDEN
 import static org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider.OXIA_SCHEME_IDENTIFIER;
 import com.google.common.base.Splitter;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +32,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider;
 
 @Slf4j
 public class MetadataStoreFactoryImpl {
@@ -66,6 +68,7 @@ public class MetadataStoreFactoryImpl {
         providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());
         providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
         providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
+        providers.put(OXIA_SCHEME_IDENTIFIER, new OxiaMetadataStoreProvider());
         providers.put(ZK_SCHEME_IDENTIFIER, new ZkMetadataStoreProvider());
 
         String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY, "");

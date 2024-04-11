@@ -33,12 +33,6 @@
   <profiles>
     <profile>
       <id>docker</id>
-      <properties>
-        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
-        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
-        <docker.buildArg.UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</docker.buildArg.UBUNTU_SECURITY_MIRROR>
-        <docker.buildArg.JDK_MAJOR_VERSION>${env.IMAGE_JDK_MAJOR_VERSION}</docker.buildArg.JDK_MAJOR_VERSION>
-      </properties>
       <activation>
         <property>
           <name>integrationTests</name>
@@ -149,12 +143,16 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
+                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
                     <image>
                       <name>${docker.organization}/java-test-image</name>
                       <build>
+                        <args>
+                          <PULSAR_IMAGE>${docker.organization}/pulsar:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                        </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>

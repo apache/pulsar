@@ -18,28 +18,28 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicVersion;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-@Parameters(commandDescription = "Operations about brokers")
+@Command(description = "Operations about brokers")
 public class CmdBrokers extends CmdBase {
 
-    @Parameters(commandDescription = "List active brokers of the cluster")
+    @Command(description = "List active brokers of the cluster")
     private class List extends CliCommand {
-        @Parameter(description = "cluster-name")
-        private java.util.List<String> params;
+        @Parameters(description = "cluster-name", arity = "1")
+        private String cluster;
 
         @Override
         void run() throws Exception {
-            String cluster = params == null ? null : getOneArgument(params);
             print(getAdmin().brokers().getActiveBrokers(cluster));
         }
     }
 
-    @Parameters(commandDescription = "Get the information of the leader broker")
+    @Command(description = "Get the information of the leader broker")
     private class LeaderBroker extends CliCommand {
 
         @Override
@@ -48,25 +48,25 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "List namespaces owned by the broker")
+    @Command(description = "List namespaces owned by the broker")
     private class Namespaces extends CliCommand {
-        @Parameter(description = "cluster-name", required = true)
-        private java.util.List<String> params;
-        @Parameter(names = {"-u", "--url"}, description = "broker-url", required = true)
+        @Parameters(description = "cluster-name", arity = "1")
+        private String cluster;
+
+        @Option(names = {"-u", "--url"}, description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override
         void run() throws Exception {
-            String cluster = getOneArgument(params);
             print(getAdmin().brokers().getOwnedNamespaces(cluster, brokerUrl));
         }
     }
 
-    @Parameters(commandDescription = "Update dynamic-serviceConfiguration of broker")
+    @Command(description = "Update dynamic-serviceConfiguration of broker")
     private class UpdateConfigurationCmd extends CliCommand {
-        @Parameter(names = {"-c", "--config"}, description = "service-configuration name", required = true)
+        @Option(names = {"-c", "--config"}, description = "service-configuration name", required = true)
         private String configName;
-        @Parameter(names = {"-v", "--value"}, description = "service-configuration value", required = true)
+        @Option(names = {"-v", "--value"}, description = "service-configuration value", required = true)
         private String configValue;
 
         @Override
@@ -75,9 +75,9 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete dynamic-serviceConfiguration of broker")
+    @Command(description = "Delete dynamic-serviceConfiguration of broker")
     private class DeleteConfigurationCmd extends CliCommand {
-        @Parameter(names = {"-c", "--config"}, description = "service-configuration name", required = true)
+        @Option(names = {"-c", "--config"}, description = "service-configuration name", required = true)
         private String configName;
 
         @Override
@@ -86,7 +86,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get all overridden dynamic-configuration values")
+    @Command(description = "Get all overridden dynamic-configuration values")
     private class GetAllConfigurationsCmd extends CliCommand {
 
         @Override
@@ -95,7 +95,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get list of updatable configuration name")
+    @Command(description = "Get list of updatable configuration name")
     private class GetUpdatableConfigCmd extends CliCommand {
 
         @Override
@@ -104,7 +104,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get runtime configuration values")
+    @Command(description = "Get runtime configuration values")
     private class GetRuntimeConfigCmd extends CliCommand {
 
         @Override
@@ -113,7 +113,7 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get internal configuration information")
+    @Command(description = "Get internal configuration information")
     private class GetInternalConfigurationCmd extends CliCommand {
 
         @Override
@@ -123,10 +123,10 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Run a health check against the broker")
+    @Command(description = "Run a health check against the broker")
     private class HealthcheckCmd extends CliCommand {
 
-        @Parameter(names = {"-tv", "--topic-version"}, description = "topic version V1 is default")
+        @Option(names = {"-tv", "--topic-version"}, description = "topic version V1 is default")
         private TopicVersion topicVersion;
 
         @Override
@@ -137,15 +137,15 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Shutdown broker gracefully.")
+    @Command(description = "Shutdown broker gracefully.")
     private class ShutDownBrokerGracefully extends CliCommand {
 
-        @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
+        @Option(names = {"--max-concurrent-unload-per-sec", "-m"},
                 description = "Max concurrent unload per second, "
                         + "if the value absent(value=0) means no concurrent limitation")
         private int maxConcurrentUnloadPerSec;
 
-        @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
+        @Option(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
         private boolean forcedTerminateTopic;
 
         @Override
@@ -156,7 +156,7 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Manually trigger backlogQuotaCheck")
+    @Command(description = "Manually trigger backlogQuotaCheck")
     private class BacklogQuotaCheckCmd extends CliCommand {
 
         @Override
@@ -167,7 +167,7 @@ public class CmdBrokers extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "Get the version of the currently connected broker")
+    @Command(description = "Get the version of the currently connected broker")
     private class PulsarVersion extends CliCommand {
 
         @Override
@@ -178,18 +178,18 @@ public class CmdBrokers extends CmdBase {
 
     public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
-        jcommander.addCommand("list", new List());
-        jcommander.addCommand("leader-broker", new LeaderBroker());
-        jcommander.addCommand("namespaces", new Namespaces());
-        jcommander.addCommand("update-dynamic-config", new UpdateConfigurationCmd());
-        jcommander.addCommand("delete-dynamic-config", new DeleteConfigurationCmd());
-        jcommander.addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
-        jcommander.addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
-        jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
-        jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
-        jcommander.addCommand("healthcheck", new HealthcheckCmd());
-        jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
-        jcommander.addCommand("version", new PulsarVersion());
-        jcommander.addCommand("shutdown", new ShutDownBrokerGracefully());
+        addCommand("list", new List());
+        addCommand("leader-broker", new LeaderBroker());
+        addCommand("namespaces", new Namespaces());
+        addCommand("update-dynamic-config", new UpdateConfigurationCmd());
+        addCommand("delete-dynamic-config", new DeleteConfigurationCmd());
+        addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
+        addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
+        addCommand("get-internal-config", new GetInternalConfigurationCmd());
+        addCommand("get-runtime-config", new GetRuntimeConfigCmd());
+        addCommand("healthcheck", new HealthcheckCmd());
+        addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
+        addCommand("version", new PulsarVersion());
+        addCommand("shutdown", new ShutDownBrokerGracefully());
     }
 }

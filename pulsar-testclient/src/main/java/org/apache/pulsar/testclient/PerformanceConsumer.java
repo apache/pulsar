@@ -19,8 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -47,7 +45,6 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -58,6 +55,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -83,105 +83,107 @@ public class PerformanceConsumer {
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
-    @Parameters(commandDescription = "Test pulsar consumer performance.")
+    @Command(description = "Test pulsar consumer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
     static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
+        @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
                 + "one consumer is allowed when subscriptionType is Exclusive",
-                validateWith = PositiveNumberParameterValidator.class)
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
-                validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        @Option(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName;
 
-        @Parameter(names = { "-ss", "--subscriptions" },
+        @Option(names = { "-ss", "--subscriptions" },
                 description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
+        @Option(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+        @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
         private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
+        @Option(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" },
+        @Option(names = { "-p", "--receiver-queue-size-across-partitions" },
                 description = "Max total size of the receiver queue across partitions")
         public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
-        @Parameter(names = {"-aq", "--auto-scaled-receiver-queue-size"},
+        @Option(names = {"-aq", "--auto-scaled-receiver-queue-size"},
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
 
-        @Parameter(names = {"-rs", "--replicated" },
+        @Option(names = {"-rs", "--replicated" },
                 description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
+        @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
-        @Parameter(names = {"-m",
+        @Option(names = {"-m",
                 "--num-messages"},
                 description = "Number of messages to consume in total. If <= 0, it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChunkedMessage = 0;
 
-        @Parameter(names = { "-ac",
+        @Option(names = { "-ac",
                 "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
         private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-        @Parameter(names = { "-e",
+        @Option(names = { "-e",
                 "--expire_time_incomplete_chunked_messages" },
                 description = "Expire time in ms for incomplete chunk messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
-        @Parameter(names = { "-v",
+        @Option(names = { "-v",
                 "--encryption-key-value-file" },
                 description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
-        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+        @Option(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+        @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
         private boolean poolMessages = true;
 
-        @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
+        @Option(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 10;
 
-        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
+        @Option(names = {"-nmt", "--numMessage-perTransaction"},
                 description = "The number of messages acknowledged by a transaction. "
                 + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
         public int numMessagesPerTransaction = 50;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
+        @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
+        @Option(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
                 + "(After --txn-enable setting to true, -ntxn takes effect.)")
         public long totalNumTxn = 0;
 
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+        @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
                 + "setting to true, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
-        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
         @Override
@@ -230,7 +232,6 @@ public class PerformanceConsumer {
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .enableTransaction(arguments.isEnableTransaction);
 
         PulsarClient pulsarClient = clientBuilder.build();

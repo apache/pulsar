@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
 
@@ -137,6 +138,10 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             }
             recordValueGetter = (k) -> data.get(k);
         } else {
+            SchemaType schemaType = message.getSchema().getSchemaInfo().getType();
+            if (schemaType.isPrimitive()) {
+                throw new UnsupportedOperationException("Primitive schema is not supported: " + schemaType);
+            }
             recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
         }
         String action = message.getProperties().get(ACTION_PROPERTY);

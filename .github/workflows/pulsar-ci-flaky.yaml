@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - master
+      - branch-*
+      - pulsar-*
   schedule:
     # scheduled job with JDK 17
     - cron: '0 12 * * *'
@@ -68,6 +70,7 @@ env:
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   preconditions:
@@ -187,7 +190,7 @@ jobs:
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Build core-modules
