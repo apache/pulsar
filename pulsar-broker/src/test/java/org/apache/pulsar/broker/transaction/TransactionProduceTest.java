@@ -186,8 +186,8 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     @Test
-    public void testUpdateLastDataMessagePublishedTimestampForTransactionalPublish() throws Exception {
-        final String topic = NAMESPACE1 + "/testUpdateLastDataMessagePublishedTimestampForTransactionalPublish";
+    public void testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish() throws Exception {
+        final String topic = NAMESPACE1 + "/testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish";
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -199,15 +199,15 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
         PersistentTopic persistentTopic = getTopic(topic);
-        long lastDataMessagePublishedTimestamp = persistentTopic.getLastDataMessagePublishedTimestamp();
+        long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
 
-        // transactional publish will not update lastDataMessagePublishedTimestamp
+        // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
         producer.newMessage(txn).value("hello world".getBytes()).send();
-        assertTrue(persistentTopic.getLastDataMessagePublishedTimestamp() == lastDataMessagePublishedTimestamp);
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() == lastMaxReadPositionMovedForwardTimestamp);
 
-        // commit transaction will update lastDataMessagePublishedTimestamp
+        // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
         txn.commit().get();
-        assertTrue(persistentTopic.getLastDataMessagePublishedTimestamp() > lastDataMessagePublishedTimestamp);
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
     }
 
     private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {

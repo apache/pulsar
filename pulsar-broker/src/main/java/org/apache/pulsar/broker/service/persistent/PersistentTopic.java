@@ -269,11 +269,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final TransactionBuffer transactionBuffer;
     @Getter
     private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
-            (oldPosition, newPosition) -> updateLastDataMessagePublishedTimestamp();
+            (oldPosition, newPosition) -> updateMaxReadPositionMovedForwardTimestamp();
 
-    // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
+    // Record the last time max read position is moved forward, unless it's a marker message.
     @Getter
-    private volatile long lastDataMessagePublishedTimestamp = 0;
+    private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
 
@@ -361,7 +361,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), false);
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), true);
         if (ledger instanceof ShadowManagedLedgerImpl) {
             shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
@@ -669,8 +669,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private void updateLastDataMessagePublishedTimestamp() {
-        lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+    private void updateMaxReadPositionMovedForwardTimestamp() {
+        lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
     }
 
     @Override

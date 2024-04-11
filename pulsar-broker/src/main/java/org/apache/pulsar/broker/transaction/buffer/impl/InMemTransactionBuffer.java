@@ -378,7 +378,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
         if (!isMarkerMessage && maxReadPositionCallBack != null) {
-            maxReadPositionCallBack.moveForward(null, position);
+            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
         }
     }
 

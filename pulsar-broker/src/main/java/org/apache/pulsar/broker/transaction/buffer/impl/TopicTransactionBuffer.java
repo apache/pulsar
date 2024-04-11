@@ -462,8 +462,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     /**
-     * update the max read position.
-     * @param newPosition new max read position
+     * update the max read position. if the new position is greater than the current max read position,
+     * we will trigger the callback, unless the disableCallback is true.
+     * Currently, we only use the callback to update the lastMaxReadPositionMovedForwardTimestamp.
+     * For non-transactional production, some marker messages will be sent to the topic, in which case we don't need
+     * to trigger the callback.
+     * @param newPosition new max read position to update.
      * @param disableCallback whether disable the callback.
      */
     void updateMaxReadPosition(PositionImpl newPosition, boolean disableCallback) {
@@ -474,7 +478,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 this.changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
             }
             if (!disableCallback) {
-                maxReadPositionCallBack.moveForward(preMaxReadPosition, this.maxReadPosition);
+                maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
             }
         }
     }
@@ -504,7 +508,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      * Sync max read position for normal publish.
      * @param position {@link PositionImpl} the position to sync.
      * @param isMarkerMessage whether the message is marker message, in such case, we
-     *                       don't need to trigger the callback to update lastDataMessagePublishedTimestamp.
+     *                       don't need to trigger the callback to update lastMaxReadPositionMovedForwardTimestamp.
      */
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
@@ -700,8 +704,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    /**
+     * A functional interface to handle the max read position move forward.
+     */
     public interface MaxReadPositionCallBack {
-        void moveForward(PositionImpl oldPosition, PositionImpl newPosition);
+        /**
+         * callback method when max read position move forward.
+         * @param oldPosition the old max read position.
+         * @param newPosition the new max read position.
+         */
+        void maxReadPositionMovedForward(PositionImpl oldPosition, PositionImpl newPosition);
     }
 
     static class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {

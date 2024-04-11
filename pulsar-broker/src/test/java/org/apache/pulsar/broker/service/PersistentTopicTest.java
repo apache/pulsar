@@ -298,7 +298,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        long lastDataMessagePublishedTimestamp = topic.getLastDataMessagePublishedTimestamp();
+        long lastMaxReadPositionMovedForwardTimestamp = topic.getLastMaxReadPositionMovedForwardTimestamp();
 
         /*
          * MessageMetadata.Builder messageMetadata = MessageMetadata.newBuilder();
@@ -327,7 +327,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.publishMessage(payload, publishContext);
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
-        assertTrue(topic.getLastDataMessagePublishedTimestamp() > lastDataMessagePublishedTimestamp);
+        assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
     }
 
     @Test
