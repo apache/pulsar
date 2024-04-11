@@ -642,9 +642,6 @@ public class BrokerService implements Closeable {
             deduplicationSnapshotMonitor.scheduleAtFixedRate(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot)
                     , interval, interval, TimeUnit.SECONDS);
-        } else {
-            throw new IllegalArgumentException("The config brokerDeduplicationSnapshotFrequencyInSeconds should be"
-                    + " greater than 0");
         }
     }
 
