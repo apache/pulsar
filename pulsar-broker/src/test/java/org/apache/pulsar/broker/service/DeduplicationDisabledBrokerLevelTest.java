@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -74,7 +75,8 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         // So it is enabled.
         admin.topicPolicies().setDeduplicationStatus(topic, true);
         Awaitility.await().untilAsserted(() -> {
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
+            ManagedCursorImpl cursor =
+                    (ManagedCursorImpl) ml.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
             assertNotNull(cursor);
         });
 
@@ -110,7 +112,8 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         final ManagedLedgerImpl ml1 = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
         admin.topicPolicies().setDeduplicationStatus(topic, true);
         Awaitility.await().untilAsserted(() -> {
-            ManagedCursorImpl cursor1 = (ManagedCursorImpl) ml1.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
+            ManagedCursorImpl cursor1 =
+                    (ManagedCursorImpl) ml1.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
             assertNotNull(cursor1);
         });
         final MessageDeduplication deduplication1 = persistentTopic1.getMessageDeduplication();
@@ -133,23 +136,19 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         MessageDeduplication deduplication2 = persistentTopic2.getMessageDeduplication();
         admin.topicPolicies().setDeduplicationStatus(topic, true);
         Awaitility.await().untilAsserted(() -> {
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ml2.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
+            ManagedCursorImpl cursor =
+                    (ManagedCursorImpl) ml2.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
             assertNotNull(cursor);
         });
-        // step 2.
-        // Note: repeat read will make the counter is larger than expected.
-        int snapshotCounter2 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");
-        assertTrue(snapshotCounter2 >= brokerDeduplicationEntriesInterval - 1);
         // step 3.
-        producer.send((brokerDeduplicationEntriesInterval - 1) + "");
+        producer.send("last message");
+        ml2.trimConsumedLedgersInBackground(new CompletableFuture<>());
         // step 4.
-        final ManagedCursorImpl cursor2 = (ManagedCursorImpl) ml2.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
         Awaitility.await().untilAsserted(() -> {
             int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");
-            assertTrue(snapshotCounter3 < snapshotCounter2);
-            PositionImpl LAC = (PositionImpl) ml2.getLastConfirmedEntry();
-            PositionImpl cursorMD = (PositionImpl) cursor2.getMarkDeletedPosition();
-            assertTrue(LAC.compareTo(cursorMD) <= 0);
+            assertTrue(snapshotCounter3 < brokerDeduplicationEntriesInterval);
+            // Verify: the previous ledger will be removed because all messages have been acked.
+            assertEquals(ml2.getLedgersInfo().size(), 1);
         });
 
         // cleanup.
