@@ -35,6 +35,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -54,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "cluster-migration")
@@ -87,9 +89,7 @@ public class ClusterMigrationTest {
     PulsarService pulsar4;
     PulsarAdmin admin4;
 
-    protected String testLoadBalancer() {
-        return ModularLoadManagerImpl.class.getName();
-    }
+    String loadManagerClassName;
 
     @DataProvider(name="NamespaceMigrationTopicSubscriptionTypes")
     public Object[][] namespaceMigrationSubscriptionTypes() {
@@ -100,15 +100,28 @@ public class ClusterMigrationTest {
         };
     }
 
+    @DataProvider(name = "loadManagerClassName")
+    public static Object[][] loadManagerClassName() {
+        return new Object[][]{
+                {ModularLoadManagerImpl.class.getName()},
+                {ExtensibleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    @Factory(dataProvider = "loadManagerClassName")
+    public ClusterMigrationTest(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
     @BeforeMethod(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
 
         log.info("--- Starting ReplicatorTestBase::setup ---");
 
-        broker1 = new TestBroker("r1", testLoadBalancer());
-        broker2 = new TestBroker("r2", testLoadBalancer());
-        broker3 = new TestBroker("r3", testLoadBalancer());
-        broker4 = new TestBroker("r4", testLoadBalancer());
+        broker1 = new TestBroker("r1", loadManagerClassName);
+        broker2 = new TestBroker("r2", loadManagerClassName);
+        broker3 = new TestBroker("r3", loadManagerClassName);
+        broker4 = new TestBroker("r4", loadManagerClassName);
 
         pulsar1 = broker1.getPulsarService();
         url1 = new URL(pulsar1.getWebServiceAddress());
