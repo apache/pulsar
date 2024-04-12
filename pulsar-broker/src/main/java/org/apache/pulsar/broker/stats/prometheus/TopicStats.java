@@ -507,7 +507,8 @@ class TopicStats {
     static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        int baseLabelCount = splitTopicAndPartitionIndexLabel ? 8 : 6;
+        String[] labelsAndValues = new String[baseLabelCount + extraLabelsAndValues.length];
         labelsAndValues[0] = "cluster";
         labelsAndValues[1] = cluster;
         labelsAndValues[2] = "namespace";
@@ -527,7 +528,9 @@ class TopicStats {
         } else {
             labelsAndValues[5] = topic;
         }
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
+        for (int i = 0; i < extraLabelsAndValues.length; i++) {
+            labelsAndValues[baseLabelCount + i] = extraLabelsAndValues[i];
+        }
+        stream.writeSample(metricName, value, labelsAndValues);
     }
 }
