@@ -32,7 +32,6 @@ import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
-import org.apache.pulsar.broker.web.GzipHandlerUtil;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
@@ -289,21 +288,8 @@ public class WebServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
-        Handler handlerForContexts;
-        if (GzipHandlerUtil.isGzipCompressionCompletelyDisabled(config.getHttpServerGzipCompressionExcludedPaths())) {
-            handlerForContexts = contexts;
-        } else {
-            List<String> excludedPaths = new ArrayList<>();
-            if (config.getHttpServerGzipCompressionExcludedPaths() != null) {
-                excludedPaths.addAll(config.getHttpServerGzipCompressionExcludedPaths());
-            }
-            // exclude compression from /admin paths since they are passed through the proxy as is,
-            // without decompression. This logic can be found in AdminProxyHandler.createHttpClient method.
-            excludedPaths.add("^/admin/.*");
-            handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts, excludedPaths);
-        }
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { handlerForContexts, new DefaultHandler(), requestLogHandler });
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
 
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
