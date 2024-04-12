@@ -1013,6 +1013,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
                     loadManager4.getBrokerRegistry().register();
+
+                    result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(result);
+                    assertEquals(result, pulsar4.getBrokerServiceUrl());
                 }
             }
     }

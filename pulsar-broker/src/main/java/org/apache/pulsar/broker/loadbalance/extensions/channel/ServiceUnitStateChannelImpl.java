@@ -1224,6 +1224,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         broker, cleanupJobs.size());
             }
         }
+        // TODO: Unload the current SLA Monitor bundle own by other broker.
     }
 
     private void handleBrokerDeletionEvent(String broker) {

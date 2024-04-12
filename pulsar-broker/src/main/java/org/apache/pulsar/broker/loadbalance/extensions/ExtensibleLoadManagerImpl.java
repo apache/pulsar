@@ -521,11 +521,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         if (candidateBroker != null) {
             // Check if the broker is available
             final String finalCandidateBroker = candidateBroker;
-            return brokerRegistry.getAvailableBrokersAsync().thenApply(brokers -> {
-                if (brokers.contains(finalCandidateBroker)) {
-                    return finalCandidateBroker;
+            return brokerRegistry.lookupAsync(candidateBroker).thenApply(brokerLookupData -> {
+                if (brokerLookupData.isEmpty()) {
+                    if (debug(conf, log)) {
+                        log.info("The SLA Monitor broker {} is not available.", finalCandidateBroker);
+                    }
+                    return null;
                 }
-                return null;
+                return finalCandidateBroker;
             });
         }
         return CompletableFuture.completedFuture(null);
