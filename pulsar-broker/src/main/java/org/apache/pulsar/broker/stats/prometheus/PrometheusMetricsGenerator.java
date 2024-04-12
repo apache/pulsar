@@ -24,6 +24,7 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
@@ -67,8 +68,8 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  */
 @Slf4j
 public class PrometheusMetricsGenerator implements AutoCloseable {
-    private static final int DEFAULT_INITIAL_BUFFER_SIZE = 128 * 1024; // 128kB
-    private static final int MAX_COMPONENTS = 64;
+    private static final int DEFAULT_INITIAL_BUFFER_SIZE = 1024 * 1024; // 1MB
+    private static final int MINIMUM_FOR_MAX_COMPONENTS = 64;
 
     static {
         DefaultExports.initialize();
@@ -153,6 +154,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
     private final boolean splitTopicAndPartitionIndexLabel;
     private final Clock clock;
 
+    private volatile int initialBufferSize = DEFAULT_INITIAL_BUFFER_SIZE;
+
     public PrometheusMetricsGenerator(PulsarService pulsar, boolean includeTopicMetrics,
                                       boolean includeConsumerMetrics, boolean includeProducerMetrics,
                                       boolean splitTopicAndPartitionIndexLabel, Clock clock) {
@@ -207,14 +210,31 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             //if exception happens, release buffer
             if (exceptionHappens) {
                 buf.release();
+            } else {
+                // for the next time, the initial buffer size will be suggested by the last buffer size
+                initialBufferSize = Math.max(DEFAULT_INITIAL_BUFFER_SIZE, buf.readableBytes());
             }
         }
     }
 
     private ByteBuf allocateMultipartCompositeDirectBuffer() {
+        // use composite buffer with pre-allocated buffers to ensure that the pooled allocator can be used
+        // for allocating the buffers
         ByteBufAllocator byteBufAllocator = PulsarByteBufAllocator.DEFAULT;
-        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(MAX_COMPONENTS);
-        buf.addComponent(false, byteBufAllocator.directBuffer(DEFAULT_INITIAL_BUFFER_SIZE));
+        long chunkSize;
+        if (byteBufAllocator instanceof PooledByteBufAllocator) {
+            PooledByteBufAllocator pooledByteBufAllocator = (PooledByteBufAllocator) byteBufAllocator;
+            chunkSize = Math.max(pooledByteBufAllocator.metric().chunkSize(), DEFAULT_INITIAL_BUFFER_SIZE);
+        } else {
+            chunkSize = DEFAULT_INITIAL_BUFFER_SIZE;
+        }
+        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
+                Math.max(MINIMUM_FOR_MAX_COMPONENTS, (int) (initialBufferSize / chunkSize) + 1));
+        int totalLen = 0;
+        while (totalLen < initialBufferSize) {
+            totalLen += chunkSize;
+            buf.addComponent(false, byteBufAllocator.directBuffer((int) chunkSize));
+        }
         return buf;
     }
 
@@ -273,6 +293,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                         continue;
                     }
                 } else {
+
+
                     String name = entry.getKey();
                     if (!names.contains(name)) {
                         stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
