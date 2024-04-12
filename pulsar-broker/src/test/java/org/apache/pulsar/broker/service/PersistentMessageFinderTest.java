@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -402,10 +401,14 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalEntries; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i));
         }
-        retryStrategically((test) -> ledger.getState() == ManagedLedgerImpl.State.LedgerOpened,10, 200); 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened));
 
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
         LedgerInfo lastLedgerInfo = ledgers.get(ledgers.size() - 1);
+        // The `lastLedgerInfo` should be newly opened, and it does not contain any entries. 
+        // Please refer to: https://github.com/apache/pulsar/pull/22034
+        assertEquals(lastLedgerInfo.getEntries(), 0);
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
         // this will make sure that all entries should be deleted
@@ -420,23 +423,13 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
 
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
-        Position previousMarkDelete = null;
-        for (int i = 0; i < totalEntries; i++) {
-            monitor.expireMessages(1);
-            Position previousPos = previousMarkDelete;
-            retryStrategically(
-                    (test) -> c1.getMarkDeletedPosition() != null && !c1.getMarkDeletedPosition().equals(previousPos),
-                    5, 100);
-            previousMarkDelete = c1.getMarkDeletedPosition();
-        }
-
-        PositionImpl markDeletePosition = (PositionImpl) c1.getMarkDeletedPosition();
-        // The `lastLedgerInfo` should be newly opened, and it does not contain any entries. 
-        // Please refer to: https://github.com/apache/pulsar/pull/22034
-        assertEquals(lastLedgerInfo.getEntries(), 0);
-        // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
-        assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
-        assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+        assertTrue(monitor.expireMessages(ttlSeconds));
+        Awaitility.await().untilAsserted(() -> {
+            PositionImpl markDeletePosition = (PositionImpl) c1.getMarkDeletedPosition();
+            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
+            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1); 
+        });
 
         c1.close();
         ledger.close();
