@@ -383,7 +383,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
      *
      * @throws Exception
      */
-    @Test(groups = "flaky")
+    @Test
     void testMessageExpiryWithTimestampNonRecoverableException() throws Exception {
 
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";
@@ -402,11 +402,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalEntries; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i));
         }
+        retryStrategically((test) -> ledger.getState() == ManagedLedgerImpl.State.LedgerOpened,10, 200); 
 
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
         LedgerInfo lastLedgerInfo = ledgers.get(ledgers.size() - 1);
-
-        assertEquals(ledgers.size(), totalEntries / entriesPerLedger);
+        assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
         // this will make sure that all entries should be deleted
         Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
@@ -431,8 +431,12 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         }
 
         PositionImpl markDeletePosition = (PositionImpl) c1.getMarkDeletedPosition();
-        assertEquals(lastLedgerInfo.getLedgerId(), markDeletePosition.getLedgerId());
-        assertEquals(lastLedgerInfo.getEntries() - 1, markDeletePosition.getEntryId());
+        // The `lastLedgerInfo` should be newly opened, and it does not contain any entries. 
+        // Please refer to: https://github.com/apache/pulsar/pull/22034
+        assertEquals(lastLedgerInfo.getEntries(), 0);
+        // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
+        assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
+        assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
 
         c1.close();
         ledger.close();
