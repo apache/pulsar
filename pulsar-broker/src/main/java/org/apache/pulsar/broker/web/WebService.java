@@ -44,7 +44,6 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -269,9 +268,7 @@ public class WebService implements AutoCloseable {
         }
         filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
 
-        GzipHandler gzipHandler = new GzipHandler();
-        gzipHandler.setHandler(servletContextHandler);
-        handlers.add(gzipHandler);
+        handlers.add(servletContextHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
@@ -295,8 +292,10 @@ public class WebService implements AutoCloseable {
             ContextHandlerCollection contexts = new ContextHandlerCollection();
             contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
+            Handler handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts,
+                    pulsar.getConfig().getHttpServerGzipCompressionExcludedPaths());
             HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+            handlerCollection.setHandlers(new Handler[] {handlerForContexts, new DefaultHandler(), requestLogHandler});
 
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
@@ -307,7 +306,6 @@ public class WebService implements AutoCloseable {
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
-            handlers.add(stats);
 
             server.setHandler(stats);
             server.start();
