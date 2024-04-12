@@ -86,7 +86,7 @@ public abstract class BookKeeperClusterTestCase {
 
     protected String testName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void handleTestMethodName(Method method) {
         testName = method.getName();
     }
@@ -148,7 +148,7 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @BeforeTest
+    @BeforeTest(alwaysRun = true)
     public void setUp() throws Exception {
         setUp(getLedgersRootPath());
     }
@@ -222,7 +222,9 @@ public abstract class BookKeeperClusterTestCase {
             tearDownException = e;
         }
 
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+        }
 
         LOG.info("Tearing down test {} in {} ms.", testName, sw.elapsed(TimeUnit.MILLISECONDS));
         if (tearDownException != null) {
