@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -47,6 +48,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
@@ -60,6 +62,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,8 +114,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
     })
-    public void getInternalStats(
-            @Suspended final AsyncResponse asyncResponse,
+    public StreamingOutput getInternalStats(
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -123,21 +125,28 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
-                .thenCompose(__ -> {
-                    Topic topic = getTopicReference(topicName);
-                    boolean includeMetadata = metadata && hasSuperUserAccess();
-                    return topic.getInternalStats(includeMetadata);
-                })
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
-                    }
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        return output -> {
+            validateTopicOwnershipAsync(topicName, authoritative)
+                    .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+                    .thenCompose(__ -> {
+                        Topic topic = getTopicReference(topicName);
+                        boolean includeMetadata = metadata && hasSuperUserAccess();
+                        return topic.getInternalStats(includeMetadata);
+                    })
+                    .thenAccept(stats -> {
+                        try {
+                            ObjectMapperFactory.getMapper().getObjectMapper().writeValue(output, stats);
+                        } catch (Throwable e) {
+                            throw new CompletionException(e);
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        if (isNot307And404Exception(ex)) {
+                            log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                        }
+                        throw translateToWebApplicationException(ex);
+                    });
+        };
     }
 
     @PUT

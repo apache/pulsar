@@ -1317,6 +1317,23 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected static WebApplicationException translateToWebApplicationException(Throwable exception) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(exception);
+        if (realCause instanceof WebApplicationException) {
+            return (WebApplicationException) realCause;
+        } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
+            return new RestException(Status.CONFLICT, realCause);
+        } else if (realCause instanceof MetadataStoreException.NotFoundException) {
+            return new RestException(Status.NOT_FOUND, realCause);
+        } else if (realCause instanceof MetadataStoreException.BadVersionException) {
+            return new RestException(Status.CONFLICT, "Concurrent modification");
+        } else if (realCause instanceof PulsarAdminException) {
+            return new RestException(((PulsarAdminException) realCause));
+        } else {
+            return new RestException(realCause);
+        }
+    }
+
     protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
         Throwable realCause = FutureUtil.unwrapCompletionException(exception);
         if (realCause instanceof WebApplicationException) {

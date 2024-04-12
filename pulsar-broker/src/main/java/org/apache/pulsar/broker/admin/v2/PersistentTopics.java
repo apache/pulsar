@@ -19,16 +19,20 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
+import static org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -42,8 +46,10 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -85,6 +91,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1130,7 +1137,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalDeleteTopicAsync(authoritative, force)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    Throwable t = unwrapCompletionException(ex);
                     if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
                                 t.getMessage());
@@ -1232,6 +1239,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 });
     }
 
+    @Context HttpServletRequest servletRequest;
+
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.", response = PersistentTopicInternalStats.class)
@@ -1243,8 +1252,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public void getInternalStats(
-            @Suspended final AsyncResponse asyncResponse,
+    public StreamingOutput getInternalStats(
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1255,15 +1263,22 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetInternalStatsAsync(authoritative, metadata)
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
-                    }
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        return output -> {
+            internalGetInternalStatsAsync(authoritative, metadata)
+                    .thenAccept(stats -> {
+                        try {
+                            ObjectMapperFactory.getMapper().getObjectMapper().writeValue(output, stats);
+                        } catch (IOException error) {
+                            throw new CompletionException(error);
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        if (isNot307And404Exception(ex)) {
+                            log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                        }
+                        throw translateToWebApplicationException(ex);
+                    });
+        };
     }
 
     @GET
