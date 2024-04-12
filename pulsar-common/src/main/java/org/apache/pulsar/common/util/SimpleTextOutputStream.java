@@ -56,7 +56,7 @@ public class SimpleTextOutputStream {
         return this;
     }
 
-    public SimpleTextOutputStream write(String s) {
+    public SimpleTextOutputStream write(CharSequence s) {
         if (s == null) {
             return this;
         }

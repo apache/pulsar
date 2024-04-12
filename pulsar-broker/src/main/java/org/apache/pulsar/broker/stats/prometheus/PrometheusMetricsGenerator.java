@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Collection;
@@ -247,12 +248,13 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                         String name = key.substring(0, nameIndex);
                         value = key.substring(nameIndex + 1);
                         if (!names.contains(name)) {
-                            stream.write("# TYPE ").write(name.replace("brk_", "pulsar_")).write(' ')
-                                    .write(getTypeStr(metricType)).write("\n");
+                            stream.write("# TYPE ");
+                            writeNameReplacingBrkPrefix(stream, name);
+                            stream.write(' ').write(getTypeStr(metricType)).write("\n");
                             names.add(name);
                         }
-                        stream.write(name.replace("brk_", "pulsar_"))
-                                .write("{cluster=\"").write(cluster).write('"');
+                        writeNameReplacingBrkPrefix(stream, name);
+                        stream.write("{cluster=\"").write(cluster).write('"');
                     } catch (Exception e) {
                         continue;
                     }
@@ -261,12 +263,13 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
                     String name = entry.getKey();
                     if (!names.contains(name)) {
-                        stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
-                                .write(getTypeStr(metricType)).write('\n');
+                        stream.write("# TYPE ");
+                        writeNameReplacingBrkPrefix(stream, entry.getKey());
+                        stream.write(' ').write(getTypeStr(metricType)).write('\n');
                         names.add(name);
                     }
-                    stream.write(name.replace("brk_", "pulsar_"))
-                            .write("{cluster=\"").write(cluster).write('"');
+                    writeNameReplacingBrkPrefix(stream, name);
+                    stream.write("{cluster=\"").write(cluster).write('"');
                 }
 
                 //to avoid quantile label duplicated
@@ -283,6 +286,14 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                 }
                 stream.write("} ").write(String.valueOf(entry.getValue())).write("\n");
             }
+        }
+    }
+
+    private static SimpleTextOutputStream writeNameReplacingBrkPrefix(SimpleTextOutputStream stream, String name) {
+        if (name.startsWith("brk_")) {
+            return stream.write("pulsar_").write(CharBuffer.wrap(name).position("brk_".length()));
+        } else {
+            return stream.write(name);
         }
     }
 
