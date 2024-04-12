@@ -227,7 +227,7 @@ public class NamespaceService implements AutoCloseable {
                             return CompletableFuture.completedFuture(optResult);
                         }
                         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
+                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle, options);
                         } else {
                             // TODO: Add unit tests cover it.
                             return findBrokerServiceUrl(bundle, options);
@@ -353,7 +353,7 @@ public class NamespaceService implements AutoCloseable {
             }
             CompletableFuture<Optional<LookupResult>> future =
                     ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
-                    ? loadManager.get().findBrokerServiceUrl(Optional.ofNullable(topic), bundle) :
+                    ? loadManager.get().findBrokerServiceUrl(Optional.ofNullable(topic), bundle, options) :
                     findBrokerServiceUrl(bundle, options);
 
             return future.thenApply(lookupResult -> {
