@@ -114,6 +114,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -130,6 +131,7 @@ import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -1010,13 +1012,36 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
                     String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                     assertNotNull(result);
+                    log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
                     assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
+                    Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                    producer.send("t1");
+
+                    // Test re-register broker and check the lookup result
                     loadManager4.getBrokerRegistry().register();
 
                     result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                     assertNotNull(result);
+                    log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
                     assertEquals(result, pulsar4.getBrokerServiceUrl());
+
+                    producer.send("t2");
+                    Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                    producer1.send("t3");
+
+                    producer.close();
+                    producer1.close();
+                    @Cleanup
+                    Consumer<String> consumer = pulsar.getClient().newConsumer(Schema.STRING)
+                            .topic(slaMonitorTopic)
+                            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                            .subscriptionName("test")
+                            .subscribe();
+                    // receive message t1 t2 t3
+                    assertEquals(consumer.receive().getValue(), "t1");
+                    assertEquals(consumer.receive().getValue(), "t2");
+                    assertEquals(consumer.receive().getValue(), "t3");
                 }
             }
     }
