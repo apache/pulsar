@@ -2915,7 +2915,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "If true, export buffered metrics"
+            doc = "Set to true to enable the broker to cache the metrics response, default is false. "
+                    + "For scraping metrics more than once per scrape period, the broker generates metrics at the first "
+                    + "scrape and returns the same response for the rest of the scrape period. "
     )
     private boolean metricsBufferResponse = false;
     @FieldContext(
