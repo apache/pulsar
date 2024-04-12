@@ -347,7 +347,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         CompletableFuture<MessageId> sendFuture;
         MessageImpl<?> currentMsg;
-        int msgSize;
         long createdAt = System.nanoTime();
         SendCallback nextCallback = null;
         MessageImpl<?> nextMsg = null;
@@ -355,7 +354,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg, int msgSize) {
             this.sendFuture = sendFuture;
             this.currentMsg = currentMsg;
-            this.msgSize = msgSize;
         }
 
         @Override
