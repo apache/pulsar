@@ -46,6 +46,11 @@ public class SimpleTextOutputStream {
     }
 
     public SimpleTextOutputStream write(char c) {
+        //  In UTF-8, any character from U+0000 to U+007F is encoded in one byte
+        if (c <= '\u007F') {
+            buffer.writeByte((byte) c);
+            return this;
+        }
         singleCharBuffer.put(0, c);
         buffer.writeCharSequence(singleCharBuffer, CharsetUtil.UTF_8);
         return this;
