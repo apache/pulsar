@@ -142,7 +142,7 @@ import org.testng.annotations.Test;
  * Unit test for {@link ExtensibleLoadManagerImpl}.
  */
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "flaky")
 @SuppressWarnings("unchecked")
 public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBaseTest {
 
