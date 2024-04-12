@@ -113,8 +113,9 @@ public class PrometheusMetricsServlet extends HttpServlet {
 
     private void handleAsyncMetricsRequest(AsyncContext context) {
         long start = System.currentTimeMillis();
+        HttpServletResponse res = (HttpServletResponse) context.getResponse();
         try {
-            generateMetricsSynchronously((HttpServletResponse) context.getRequest());
+            generateMetricsSynchronously(res);
         } catch (Exception e) {
             long end = System.currentTimeMillis();
             long time = end - start;
@@ -126,7 +127,6 @@ public class PrometheusMetricsServlet extends HttpServlet {
             } else {
                 log.error("Failed to generate prometheus stats, {} ms elapsed", time, e);
             }
-            HttpServletResponse res = (HttpServletResponse) context.getResponse();
             if (!res.isCommitted()) {
                 res.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
             }
