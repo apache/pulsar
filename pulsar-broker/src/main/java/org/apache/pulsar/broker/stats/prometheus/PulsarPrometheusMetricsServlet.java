@@ -45,6 +45,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                                           boolean splitTopicAndPartitionLabel) {
         super(pulsar.getConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName(),
                 EXECUTOR_MAX_THREADS);
+        MetricsExports.initialize();
         prometheusMetricsGenerator =
                 new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
                         includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC());

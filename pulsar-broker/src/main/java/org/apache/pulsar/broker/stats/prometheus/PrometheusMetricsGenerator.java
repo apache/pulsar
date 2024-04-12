@@ -20,16 +20,11 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.generateSystemMetrics;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.getTypeStr;
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Gauge.Child;
-import io.prometheus.client.hotspot.DefaultExports;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -50,14 +45,12 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -70,35 +63,6 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 public class PrometheusMetricsGenerator implements AutoCloseable {
     private static final int DEFAULT_INITIAL_BUFFER_SIZE = 1024 * 1024; // 1MB
     private static final int MINIMUM_FOR_MAX_COMPONENTS = 64;
-
-    static {
-        DefaultExports.initialize();
-
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
-
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
-
-        // metric to export pulsar version info
-        Gauge.build("pulsar_version_info", "-")
-                .labelNames("version", "commit").create()
-                .setChild(new Child() {
-                    @Override
-                    public double get() {
-                        return 1.0;
-                    }
-                }, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
-                .register(CollectorRegistry.defaultRegistry);
-    }
 
     private volatile MetricsBuffer metricsBuffer;
     private static AtomicReferenceFieldUpdater<PrometheusMetricsGenerator, MetricsBuffer> metricsBufferFieldUpdater =
