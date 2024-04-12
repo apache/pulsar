@@ -2740,6 +2740,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         Optional<ClusterUrl> clusterUrl = getMigratedClusterUrl();
 
         if (!clusterUrl.isPresent()) {
