@@ -89,6 +89,12 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
         });
         PrometheusMetricsGenerator.MetricsBuffer metricsBuffer =
                 prometheusMetricsGenerator.renderToBuffer(executor, metricsProviders);
+        if (metricsBuffer == null) {
+            log.info("Service is closing, skip writing metrics.");
+            response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+            context.complete();
+            return;
+        }
         metricsBuffer.getBufferFuture().whenComplete((buffer, ex) -> executor.execute(() -> {
             try {
                 if (skipWritingResponse.get()) {
