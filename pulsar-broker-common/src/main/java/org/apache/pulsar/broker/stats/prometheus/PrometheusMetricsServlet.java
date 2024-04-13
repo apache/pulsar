@@ -71,7 +71,9 @@ public class PrometheusMetricsServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         AsyncContext context = request.startAsync();
         // set hard timeout to 2 * timeout
-        context.setTimeout(metricsServletTimeoutMs * 2);
+        if (metricsServletTimeoutMs > 0) {
+            context.setTimeout(metricsServletTimeoutMs * 2);
+        }
         long startNanos = System.nanoTime();
         AtomicBoolean taskStarted = new AtomicBoolean(false);
         Future<?> future = executor.submit(() -> {
@@ -79,7 +81,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
             long elapsedNanos = System.nanoTime() - startNanos;
             // check if the request has been timed out, implement a soft timeout
             // so that response writing can continue to up to 2 * timeout
-            if (elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
+            if (metricsServletTimeoutMs > 0 && elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
                 log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
                         TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
                 if (!response.isCommitted()) {
