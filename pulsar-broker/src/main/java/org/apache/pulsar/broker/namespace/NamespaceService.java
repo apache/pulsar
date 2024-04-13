@@ -34,6 +34,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1479,7 +1480,7 @@ public class NamespaceService implements AutoCloseable {
                     } else {
                         // Non-persistent topics don't have managed ledgers. So we have to retrieve them from local
                         // cache.
-                        List<String> topics = new ArrayList<>();
+                        Set<String> topics = new HashSet<>();
                         synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
                             if (pulsar.getBrokerService().getMultiLayerTopicMap()
                                     .containsKey(namespaceName.toString())) {
@@ -1493,8 +1494,16 @@ public class NamespaceService implements AutoCloseable {
                             }
                         }
 
-                        topics.sort(null);
-                        return CompletableFuture.completedFuture(topics);
+                        return pulsar.getPulsarResources()
+                                .getNamespaceResources()
+                                .getPartitionedTopicResources()
+                                .listPartitionedTopicsAsync(namespaceName, TopicDomain.non_persistent)
+                                .thenApply(topicsFromMetadataStore -> {
+                                    topics.addAll(topicsFromMetadataStore);
+                                    ArrayList<String> allTopics = new ArrayList<>(topics);
+                                    allTopics.sort(null);
+                                    return allTopics;
+                                });
                     }
                 });
     }
