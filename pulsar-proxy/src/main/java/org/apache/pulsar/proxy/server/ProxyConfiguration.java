@@ -356,6 +356,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean authenticateMetricsEndpoint = true;
 
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "Time in milliseconds that metrics endpoint would time out. Default is 30s.\n"
+                    + " Set it to 0 to disable timeout."
+    )
+    private long metricsServletTimeoutMs = 30000;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,

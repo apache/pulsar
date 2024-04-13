@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -477,7 +476,9 @@ class TopicStats {
     static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        int baseLabelCount = splitTopicAndPartitionIndexLabel ? 8 : 6;
+        String[] labelsAndValues =
+                new String[baseLabelCount + (extraLabelsAndValues != null ? extraLabelsAndValues.length : 0)];
         labelsAndValues[0] = "cluster";
         labelsAndValues[1] = cluster;
         labelsAndValues[2] = "namespace";
@@ -497,7 +498,11 @@ class TopicStats {
         } else {
             labelsAndValues[5] = topic;
         }
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
+        if (extraLabelsAndValues != null) {
+            for (int i = 0; i < extraLabelsAndValues.length; i++) {
+                labelsAndValues[baseLabelCount + i] = extraLabelsAndValues[i];
+            }
+        }
+        stream.writeSample(metricName, value, labelsAndValues);
     }
 }

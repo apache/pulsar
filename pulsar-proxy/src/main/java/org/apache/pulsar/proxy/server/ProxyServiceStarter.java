@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
@@ -208,21 +209,36 @@ public class ProxyServiceStarter {
 
         // Setup metrics
         DefaultExports.initialize();
+            CollectorRegistry registry = CollectorRegistry.defaultRegistry;
 
         // Report direct memory from Netty counters
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
+            Collector jvmMemoryDirectBytesUsed =
+                    Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return getJvmDirectMemoryUsed();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesUsed);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug("Failed to register jvm_memory_direct_bytes_used metric: {}", e.getMessage());
             }
-        }).register(CollectorRegistry.defaultRegistry);
 
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return DirectMemoryUtils.jvmMaxDirectMemory();
+            Collector jvmMemoryDirectBytesMax =
+                    Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return DirectMemoryUtils.jvmMaxDirectMemory();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesMax);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug("Failed to register jvm_memory_direct_bytes_max metric: {}", e.getMessage());
             }
-        }).register(CollectorRegistry.defaultRegistry);
 
         addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
 

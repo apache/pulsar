@@ -32,9 +32,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -108,7 +108,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getTransactionMetadataStoreService().getStores()
                 .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         Collection<Metric> metric = metrics.get("pulsar_txn_active_count");
@@ -177,7 +177,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getBrokerService().updateRates();
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -207,7 +207,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         });
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
 
@@ -264,7 +264,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         producer.send("hello pulsar".getBytes());
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -282,7 +282,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
         metric = metrics.get("pulsar_storage_size");
@@ -328,7 +328,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         producer.send("hello pulsar".getBytes());
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -353,7 +353,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
         metric = metrics.get("pulsar_storage_size");
@@ -388,7 +388,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                     .send();
         }
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
         Map<String, String> typeDefs = new HashMap<>();

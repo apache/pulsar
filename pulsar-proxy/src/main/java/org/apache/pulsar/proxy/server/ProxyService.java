@@ -285,7 +285,8 @@ public class ProxyService implements Closeable {
     }
 
     private synchronized void createMetricsServlet() {
-        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        this.metricsServlet =
+                new PrometheusMetricsServlet(proxyConfig.getMetricsServletTimeoutMs(), proxyConfig.getClusterName());
         if (pendingMetricsProviders != null) {
             pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
             this.pendingMetricsProviders = null;
