@@ -118,11 +118,6 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Message<byte[]> sourceMessage = sourceConsumer.receive();
         Assert.assertEquals(sourceMessage.getMessageId(), sourceMessageId);
 
-        //Wait until msg is replicated to shadow topic.
-        Awaitility.await().until(() -> {
-            replicator.msgOut.calculateRate();
-            return replicator.msgOut.getCount() >= 1;
-        });
         Awaitility.await().until(() -> PersistentReplicator.PENDING_MESSAGES_UPDATER.get(replicator) == 0);
 
         PersistentTopic shadowTopic =
