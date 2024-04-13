@@ -327,8 +327,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             MetricsBuffer currentMetricsBuffer = metricsBuffer;
             if (currentMetricsBuffer == null || currentMetricsBuffer.getBufferFuture().isCompletedExceptionally()
                     || (currentMetricsBuffer.getBufferFuture().isDone()
-                    && (currentMetricsBuffer.getCreateTimeslot() == 0
-                    || currentTimeSlot > currentMetricsBuffer.getCreateTimeslot()))) {
+                    && (currentMetricsBuffer.getCreateTimeslot() != 0
+                    && currentTimeSlot > currentMetricsBuffer.getCreateTimeslot()))) {
                 MetricsBuffer newMetricsBuffer = new MetricsBuffer(currentTimeSlot);
                 if (metricsBufferFieldUpdater.compareAndSet(this, currentMetricsBuffer, newMetricsBuffer)) {
                     if (currentMetricsBuffer != null) {
@@ -340,6 +340,12 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                             bufferFuture.complete(generate0(metricsProviders));
                         } catch (Exception e) {
                             bufferFuture.completeExceptionally(e);
+                        } finally {
+                            if (currentTimeSlot == 0) {
+                                // if the buffer is not cached, release it after the future is completed
+                                metricsBufferFieldUpdater.compareAndSet(this, newMetricsBuffer, null);
+                                newMetricsBuffer.release();
+                            }
                         }
                     });
                     // no need to retain before returning since the new buffer starts with refCnt 2
