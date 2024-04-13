@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -536,6 +537,38 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /**
+     * Check if this is Heartbeat or SLAMonitor namespace and return the broker id.
+     *
+     * @param serviceUnit the service unit
+     * @param isBrokerActive the function to check if the broker is active
+     * @return the broker id
+     */
+    public CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(
+            ServiceUnitId serviceUnit, Function<String, CompletableFuture<Boolean>> isBrokerActive) {
+        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
+        if (candidateBroker != null) {
+            // Check if the broker is available
+            final String finalCandidateBroker = candidateBroker;
+            return isBrokerActive.apply(candidateBroker).thenApply(isActive -> {
+                if (isActive) {
+                    return finalCandidateBroker;
+                } else {
+                    return null;
+                }
+            });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
@@ -563,17 +596,9 @@ public class NamespaceService implements AutoCloseable {
 
         try {
             // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = checkHeartbeatNamespace(bundle);
-            if (candidateBroker == null) {
-                candidateBroker = checkHeartbeatNamespaceV2(bundle);
-            }
-            if (candidateBroker == null) {
-                String broker = getSLAMonitorBrokerName(bundle);
-                // checking if the broker is up and running
-                if (broker != null && isBrokerActive(broker)) {
-                    candidateBroker = broker;
-                }
-            }
+            candidateBroker = getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
+                    CompletableFuture.completedFuture(isBrokerActive(cb)))
+                    .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
 
             if (candidateBroker == null) {
                 Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();

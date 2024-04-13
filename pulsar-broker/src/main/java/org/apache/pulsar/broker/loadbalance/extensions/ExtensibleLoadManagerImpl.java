@@ -508,30 +508,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     private CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
-        // Check if this is Heartbeat or SLAMonitor namespace
-        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
-        if (candidateBroker != null) {
-            return CompletableFuture.completedFuture(candidateBroker);
-        }
-        candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
-        if (candidateBroker != null) {
-            return CompletableFuture.completedFuture(candidateBroker);
-        }
-        candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
-        if (candidateBroker != null) {
-            // Check if the broker is available
-            final String finalCandidateBroker = candidateBroker;
-            return brokerRegistry.lookupAsync(candidateBroker).thenApply(brokerLookupData -> {
-                if (brokerLookupData.isEmpty()) {
-                    if (debug(conf, log)) {
-                        log.info("The SLA Monitor broker {} is not available.", finalCandidateBroker);
-                    }
-                    return null;
-                }
-                return finalCandidateBroker;
-            });
-        }
-        return CompletableFuture.completedFuture(null);
+        return pulsar.getNamespaceService().getHeartbeatOrSLAMonitorBrokerId(serviceUnit,
+                cb -> brokerRegistry.lookupAsync(cb).thenApply(Optional::isPresent));
     }
 
     private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
