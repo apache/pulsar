@@ -432,13 +432,13 @@ public class MessageDeduplication {
         }
     }
 
-    private void takeSnapshot(Position position) {
+    private CompletableFuture<Void> takeSnapshot(Position position) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -448,22 +448,30 @@ public class MessageDeduplication {
             }
         });
 
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
+        final var future = new CompletableFuture<Void>();
+        try {
+            getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
+                    }
+                    lastSnapshotTimestamp = System.currentTimeMillis();
+                    snapshotTaking.set(false);
+                    future.complete(null);
                 }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-            }
 
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
-                snapshotTaking.set(false);
-            }
-        }, null);
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                    snapshotTaking.set(false);
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+        } catch (Throwable ex) {
+            future.completeExceptionally(ex);
+        }
+        return future;
     }
 
     private boolean isDeduplicationEnabled() {
@@ -534,26 +542,44 @@ public class MessageDeduplication {
         return sequenceId != null ? sequenceId : -1;
     }
 
-    public void takeSnapshot() {
+    /**
+     * Taking the deduplication snapshot to avoid replaying very large logs.
+     *
+     * @return The completable future of snapshot taking task
+     */
+    public CompletableFuture<Void> takeSnapshot() {
+        return takeSnapshot(false);
+    }
+
+
+    /**
+     * Taking the deduplication snapshot to avoid replaying very large logs.
+     *
+     * @param force Force taking snapshot without interval check
+     * @return The completable future of snapshot taking task
+     */
+    public CompletableFuture<Void> takeSnapshot(boolean force) {
         if (!isEnabled()) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
-        Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
-        long currentTimeStamp = System.currentTimeMillis();
-        if (interval == null || interval <= 0
+        if (!force) {
+            Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
+            long currentTimeStamp = System.currentTimeMillis();
+            if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
-            return;
+                return CompletableFuture.completedFuture(null);
+            }
         }
         PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
         if (position == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
         if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        takeSnapshot(position);
+        return takeSnapshot(position);
     }
 
     @VisibleForTesting

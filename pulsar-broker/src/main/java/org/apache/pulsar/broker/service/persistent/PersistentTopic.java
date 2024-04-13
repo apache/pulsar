@@ -1609,7 +1609,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 ? CompletableFuture.completedFuture(null)
                 : FutureUtil.waitForAll(futures);
 
-        clientCloseFuture.thenRun(() -> {
+        clientCloseFuture
+        // taking snapshots when closing the topic to avoid replying very large logs to delay topic loading
+        // system ignore exception here because we can't do anything.
+        .thenCompose(__ -> messageDeduplication.takeSnapshot(true).exceptionally(ex -> null))
+        .thenRun(() -> {
             // After having disconnected all producers/consumers, close the managed ledger
             ledger.asyncClose(new CloseCallback() {
                 @Override
