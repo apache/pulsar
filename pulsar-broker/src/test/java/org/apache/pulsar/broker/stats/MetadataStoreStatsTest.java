@@ -28,10 +28,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -99,7 +99,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
@@ -189,7 +189,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
