@@ -22,6 +22,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -60,7 +61,9 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         AsyncContext context = request.startAsync();
-        context.setTimeout(metricsServletTimeoutMs);
+        // set hard timeout to 2 * timeout
+        context.setTimeout(metricsServletTimeoutMs * 2);
+        long startNanos = System.nanoTime();
         AtomicBoolean skipWritingResponse = new AtomicBoolean(false);
         context.addListener(new AsyncListener() {
             @Override
@@ -97,6 +100,17 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
         }
         metricsBuffer.getBufferFuture().whenComplete((buffer, ex) -> executor.execute(() -> {
             try {
+                long elapsedNanos = System.nanoTime() - startNanos;
+                // check if the request has been timed out, implement a soft timeout
+                // so that response writing can continue to up to 2 * timeout
+                if (elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
+                    log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
+                            TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                    if (!response.isCommitted() && !skipWritingResponse.get()) {
+                        response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+                    }
+                    return;
+                }
                 if (skipWritingResponse.get()) {
                     log.warn("Response has timed or failed, skip writing metrics.");
                     return;

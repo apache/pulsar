@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
@@ -69,10 +70,24 @@ public class PrometheusMetricsServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         AsyncContext context = request.startAsync();
-        context.setTimeout(metricsServletTimeoutMs);
+        // set hard timeout to 2 * timeout
+        context.setTimeout(metricsServletTimeoutMs * 2);
+        long startNanos = System.nanoTime();
         AtomicBoolean taskStarted = new AtomicBoolean(false);
         Future<?> future = executor.submit(() -> {
             taskStarted.set(true);
+            long elapsedNanos = System.nanoTime() - startNanos;
+            // check if the request has been timed out, implement a soft timeout
+            // so that response writing can continue to up to 2 * timeout
+            if (elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
+                log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
+                        TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                if (!response.isCommitted()) {
+                    response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+                }
+                context.complete();
+                return;
+            }
             handleAsyncMetricsRequest(context);
         });
         context.addListener(new AsyncListener() {
