@@ -29,6 +29,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -37,6 +38,7 @@ import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,18 +64,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.admin.NamespacesTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -106,10 +113,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
@@ -572,7 +576,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                     topicLoadTimesDimensionFound = true;
                 }
             } catch (Exception e) {
-                /* it's possible there's no dimensions */ }
+                /* it's possible there's no dimensions */
+            }
         }
 
         assertTrue(namespaceDimensionFound && topicLoadTimesDimensionFound);
@@ -1000,42 +1005,42 @@ public class BrokerServiceTest extends BrokerTestBase {
         latchRef.set(new CountDownLatch(1));
         try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
                 () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
-            @Override
-            protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
-                try {
-                    latchRef.get().await();
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                super.handleLookupResponse(lookupResult);
-            }
+                    @Override
+                    protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+                        try {
+                            latchRef.get().await();
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                        super.handleLookupResponse(lookupResult);
+                    }
 
-            @Override
-            protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
-                try {
-                    latchRef.get().await();
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                super.handlePartitionResponse(lookupResult);
-            }
-        })) {
+                    @Override
+                    protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
+                        try {
+                            latchRef.get().await();
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                        super.handlePartitionResponse(lookupResult);
+                    }
+                })) {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
             ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
             long reqId2 = reqId++;
             ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1045,21 +1050,21 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
 
             long reqId4 = reqId++;
             ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
 
             long reqId5 = reqId++;
             ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
                     });
 
             f1.get();
@@ -1073,7 +1078,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     rootCause = rootCause.getCause();
                 }
                 if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1084,17 +1089,17 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
 
             long reqId7 = reqId++;
             ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1104,22 +1109,22 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
 
             long reqId9 = reqId++;
             ByteBuf request9 = Commands.newLookup(topicName, true, reqId9);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
 
             long reqId10 = reqId++;
             ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
             f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1132,7 +1137,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     rootCause = rootCause.getCause();
                 }
                 if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1273,7 +1278,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Field currentCompaction = PersistentTopic.class.getDeclaredField("currentCompaction");
         currentCompaction.setAccessible(true);
-        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>)currentCompaction.get(topic);
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) currentCompaction.get(topic);
 
         compactionFuture.get();
 
@@ -1302,7 +1307,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
-     *
      */
     @Test(timeOut = 3000)
     public void testTopicFailureShouldNotHaveDeadLock() {
@@ -1477,7 +1481,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BufferedReader reader = new BufferedReader(isReader);
         StringBuffer sb = new StringBuffer();
         String str;
-        while((str = reader.readLine()) != null){
+        while ((str = reader.readLine()) != null) {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
@@ -1572,7 +1576,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         setup();
         admin.brokers()
                 .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().untilAsserted(() -> {
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
     }
@@ -1584,7 +1588,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         setup();
         admin.brokers()
                 .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().untilAsserted(() -> {
             assertTrue(conf.isForceDeleteTenantAllowed());
         });
     }
@@ -1726,4 +1730,92 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("Unsubscribe failed");
         }
     }
+
+
+    @Test
+    public void testOffloadConfShouldNotAppliedForSystemTopic() throws PulsarAdminException {
+        final String driver = "aws-s3";
+        final String region = "test-region";
+        final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
+        final String endPoint = "test-endpoint";
+        final Integer maxBlockSizeInBytes = 5;
+        final Integer readBufferSizeInBytes = 2;
+        final Long offloadThresholdInBytes = 10L;
+        final Long offloadThresholdInSeconds = 1000L;
+        final Long offloadDeletionLagInMillis = 5L;
+
+        final OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                driver,
+                region,
+                bucket,
+                endPoint,
+                role,
+                roleSessionName,
+                credentialId,
+                credentialSecret,
+                maxBlockSizeInBytes,
+                readBufferSizeInBytes,
+                offloadThresholdInBytes,
+                offloadThresholdInSeconds,
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
+        );
+
+        var fakeOffloader = new LedgerOffloader() {
+            @Override
+            public String getOffloadDriverName() {
+                return driver;
+            }
+
+            @Override
+            public CompletableFuture<Void> offload(ReadHandle ledger, UUID uid, Map<String, String> extraMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public OffloadPolicies getOffloadPolicies() {
+                return offloadPolicies;
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+
+        final BrokerService brokerService = pulsar.getBrokerService();
+        final String namespace = "public/" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
+
+        // Inject the cache to avoid real load off-loader jar
+        final Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = pulsar.getLedgerOffloaderMap();
+        ledgerOffloaderMap.put(NamespaceName.get(namespace), fakeOffloader);
+
+        // (1) test normal topic
+        final String normalTopic = "persistent://" + namespace + "/" + UUID.randomUUID();
+        var managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(normalTopic)).join();
+
+        Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), fakeOffloader);
+
+        // (2) test system topic
+        for (String eventTopicName : SystemTopicNames.EVENTS_TOPIC_NAMES) {
+            managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
+            Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+        }
+    }
 }
+
