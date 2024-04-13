@@ -69,6 +69,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
     private static AtomicReferenceFieldUpdater<PrometheusMetricsGenerator, MetricsBuffer> metricsBufferFieldUpdater =
             AtomicReferenceFieldUpdater.newUpdater(PrometheusMetricsGenerator.class, MetricsBuffer.class,
                     "metricsBuffer");
+    private volatile boolean closed;
 
     public static class MetricsBuffer {
         private final CompletableFuture<ByteBuf> bufferFuture;
@@ -322,7 +323,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
     public MetricsBuffer renderToBuffer(Executor executor, List<PrometheusRawMetricsProvider> metricsProviders) {
         boolean cacheMetricsResponse = pulsar.getConfiguration().isMetricsBufferResponse();
-        while (!Thread.currentThread().isInterrupted()) {
+        while (!closed && !Thread.currentThread().isInterrupted()) {
             long currentTimeSlot = cacheMetricsResponse ? calculateCurrentTimeSlot() : 0;
             MetricsBuffer currentMetricsBuffer = metricsBuffer;
             if (currentMetricsBuffer == null || currentMetricsBuffer.getBufferFuture().isCompletedExceptionally()
@@ -352,15 +353,11 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     return newMetricsBuffer;
                 } else {
                     currentMetricsBuffer = metricsBuffer;
-                    if (currentMetricsBuffer == null) {
-                        // close has been called, return null
-                        return null;
-                    }
                 }
             }
             // retain the buffer before returning
             // if the buffer is already released, retaining won't succeed, retry in that case
-            if (currentMetricsBuffer.retain()) {
+            if (currentMetricsBuffer != null && currentMetricsBuffer.retain()) {
                 return currentMetricsBuffer;
             }
         }
@@ -381,6 +378,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
     @Override
     public void close() {
+        closed = true;
         MetricsBuffer buffer = metricsBufferFieldUpdater.getAndSet(this, null);
         if (buffer != null) {
             buffer.release();
