@@ -187,7 +187,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         // use composite buffer with pre-allocated buffers to ensure that the pooled allocator can be used
         // for allocating the buffers
         ByteBufAllocator byteBufAllocator = PulsarByteBufAllocator.DEFAULT;
-        long chunkSize;
+        int chunkSize;
         if (byteBufAllocator instanceof PooledByteBufAllocator) {
             PooledByteBufAllocator pooledByteBufAllocator = (PooledByteBufAllocator) byteBufAllocator;
             chunkSize = Math.max(pooledByteBufAllocator.metric().chunkSize(), DEFAULT_INITIAL_BUFFER_SIZE);
@@ -195,11 +195,11 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             chunkSize = DEFAULT_INITIAL_BUFFER_SIZE;
         }
         CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
-                Math.max(MINIMUM_FOR_MAX_COMPONENTS, (int) (initialBufferSize / chunkSize) + 1));
+                Math.max(MINIMUM_FOR_MAX_COMPONENTS, (initialBufferSize / chunkSize) + 1));
         int totalLen = 0;
         while (totalLen < initialBufferSize) {
             totalLen += chunkSize;
-            buf.addComponent(false, byteBufAllocator.directBuffer((int) chunkSize));
+            buf.addComponent(false, byteBufAllocator.directBuffer(chunkSize));
         }
         return buf;
     }
