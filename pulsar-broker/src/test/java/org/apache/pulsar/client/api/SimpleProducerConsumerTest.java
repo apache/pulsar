@@ -4329,6 +4329,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
+
         final String topic = "persistent://my-property/my-ns/accessSchema";
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
@@ -4344,37 +4348,43 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(payload);
         producer.close();
 
-        GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
-        consumer.close();
-        assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
-        JsonNode nativeJsonRecord = null;
-        if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
-            assertNotNull(nativeAvroRecord);
-        } else {
-            nativeJsonRecord = (JsonNode) res.getNativeObject();
-            assertNotNull(nativeJsonRecord);
-        }
-        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
-            log.info("field {} {}", f.getName(), res.getField(f));
-            assertEquals("field", f.getName());
-            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-
-            if (nativeAvroRecord != null) {
-                // test that the native schema is accessible
-                org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
-                // a nullable string is an UNION
-                assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+        try {
+            GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
+            consumer.close();
+            assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
+            org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
+            JsonNode nativeJsonRecord = null;
+            if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+                assertNotNull(nativeAvroRecord);
             } else {
-                assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                nativeJsonRecord = (JsonNode) res.getNativeObject();
+                assertNotNull(nativeJsonRecord);
             }
-        }
-        assertEquals(1, res.getFields().size());
+            for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+                log.info("field {} {}", f.getName(), res.getField(f));
+                assertEquals("field", f.getName());
+                assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
 
-        admin.schemas().deleteSchema(topic);
+                if (nativeAvroRecord != null) {
+                    // test that the native schema is accessible
+                    org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
+                    // a nullable string is an UNION
+                    assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+                } else {
+                    assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                }
+            }
+            assertEquals(1, res.getFields().size());
+        } catch (Exception e) {
+            fail();
+        } finally {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+            admin.schemas().deleteSchema(topic);
+        }
     }
 
     @Test(timeOut = 100000)
