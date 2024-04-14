@@ -182,7 +182,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private final ConcurrentOpenHashMap<String, Replicator> replicators;
 
-    static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+    public static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
 
     public static boolean isDedupCursorName(String name) {
         return DEDUPLICATION_CURSOR_NAME.equals(name);
