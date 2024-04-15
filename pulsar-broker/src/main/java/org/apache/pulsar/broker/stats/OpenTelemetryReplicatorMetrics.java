@@ -20,23 +20,13 @@ package org.apache.pulsar.broker.stats;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
-import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.AbstractTopic;
-import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.stats.MetricsUtil;
-import org.apache.pulsar.compaction.CompactedTopicContext;
-import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
