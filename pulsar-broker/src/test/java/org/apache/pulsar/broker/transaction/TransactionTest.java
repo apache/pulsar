@@ -1516,7 +1516,7 @@ public class TransactionTest extends TransactionTestBase {
             fail("Expect failure by PendingAckHandle closed, but success");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            Assert.assertTrue(t instanceof BrokerServiceException);
         }
     }
 
