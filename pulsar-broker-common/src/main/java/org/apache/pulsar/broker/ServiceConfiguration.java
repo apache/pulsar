@@ -2916,7 +2916,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Set to true to enable the broker to cache the metrics response, default is false. "
-                    + "For scraping metrics more than once per scrape period, the broker generates metrics at the first "
+                    + "For scraping metrics more than once per scrape period(defined by " +
+                    "`managedLedgerStatsPeriodSeconds`, please make sure `managedLedgerStatsPeriodSeconds`" +
+                    " same with your time series DB scrape interval.), the broker generates metrics at the first "
                     + "scrape and returns the same response for the rest of the scrape period. "
     )
     private boolean metricsBufferResponse = false;
