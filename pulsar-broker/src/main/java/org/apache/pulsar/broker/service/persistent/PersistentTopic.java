@@ -421,55 +421,34 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Void> initialize() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(brokerService.getPulsar().newTopicCompactionService(topic).thenAccept(service -> {
-            PersistentTopic.this.topicCompactionService = service;
-            this.createPersistentSubscriptions();
-        }));
-
-        for (ManagedCursor cursor : ledger.getCursors()) {
-            if (cursor.getName().startsWith(replicatorPrefix)) {
-                String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                futures.add(addReplicationCluster(remoteCluster, cursor, localCluster));
-            }
-        }
-        return FutureUtil.waitForAll(futures).thenCompose(__ ->
-            brokerService.pulsar().getPulsarResources().getNamespaceResources()
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAcceptAsync(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
-                        isEncryptionRequired = false;
-                        updatePublishRateLimiter();
-                        updateResourceGroupLimiter(new Policies());
-                        initializeDispatchRateLimiterIfNeeded();
-                        updateSubscribeRateLimiter();
-                        return;
-                    }
-
-                    Policies policies = optPolicies.get();
-
-                    this.updateTopicPolicyByNamespacePolicy(policies);
-
-                    initializeDispatchRateLimiterIfNeeded();
-
-                    updateSubscribeRateLimiter();
-
-                    updatePublishRateLimiter();
-
-                    updateResourceGroupLimiter(policies);
-
-                    this.isEncryptionRequired = policies.encryption_required;
-
-                    isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                }, getOrderedExecutor())
-                .thenCompose(ignore -> initTopicPolicy())
+                .thenAcceptAsync(optPolicies -> optPolicies.ifPresent(this::updateTopicPolicyByNamespacePolicy),
+                        getOrderedExecutor())
+                .thenCompose(ignore -> initTopicPolicyAndApply())
                 .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
                     isEncryptionRequired = false;
                     return null;
-                }));
+                })
+                .thenCompose(ignore -> {
+                    List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    for (ManagedCursor cursor : ledger.getCursors()) {
+                        if (cursor.getName().startsWith(replicatorPrefix)) {
+                            String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+                            String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
+                            futures.add(addReplicationCluster(remoteCluster, cursor, localCluster));
+                        }
+                    }
+                    return FutureUtil.waitForAll(futures);
+                })
+                .thenCompose(ignore -> brokerService.getPulsar().newTopicCompactionService(topic)
+                        .thenAccept(service -> {
+                            PersistentTopic.this.topicCompactionService = service;
+                            this.createPersistentSubscriptions();
+                        })
+                );
     }
 
     // for testing purposes
@@ -3316,13 +3295,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicyByNamespacePolicy(data);
         checkReplicatedSubscriptionControllerState();
-        isEncryptionRequired = data.encryption_required;
-        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         // Apply policies for components.
-        List<CompletableFuture<Void>> applyPolicyTasks = applyUpdatedTopicPolicies();
-        applyPolicyTasks.add(applyUpdatedNamespacePolicies(data));
-        return FutureUtil.waitForAll(applyPolicyTasks)
+        return FutureUtil.waitForAll(applyUpdatedTopicPolicies())
             .thenAccept(__ -> log.info("[{}] namespace-level policies updated successfully", topic))
             .exceptionally(ex -> {
                 log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
@@ -3330,12 +3305,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
     }
 
-    private CompletableFuture<Void> applyUpdatedNamespacePolicies(Policies namespaceLevelPolicies) {
-        return FutureUtil.runWithCurrentThread(() -> updateResourceGroupLimiter(namespaceLevelPolicies));
-    }
-
     private List<CompletableFuture<Void>> applyUpdatedTopicPolicies() {
         List<CompletableFuture<Void>> applyPoliciesFutureList = new ArrayList<>();
+
+        Boolean encryptionRequired = topicPolicies.getEncryptionRequired().get();
+        isEncryptionRequired = encryptionRequired != null ? encryptionRequired : false;
+        Boolean allowAutoUpdateSchema = topicPolicies.getAllowAutoUpdateSchema().get();
+        isAllowAutoUpdateSchema = allowAutoUpdateSchema != null ? allowAutoUpdateSchema : false;
 
         // Client permission check.
         subscriptions.forEach((subName, sub) -> {
@@ -3350,6 +3326,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateDispatchRateLimiter()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateSubscribeRateLimiter()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updatePublishRateLimiter()));
+        applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateResourceGroupLimiter()));
 
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(() -> updateSubscriptionsDispatcherRateLimiter()));
         applyPoliciesFutureList.add(FutureUtil.runWithCurrentThread(
@@ -4225,16 +4202,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    protected CompletableFuture<Void> initTopicPolicy() {
+    protected CompletableFuture<Void> initTopicPolicyAndApply() {
         if (brokerService.pulsar().getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
             brokerService.getPulsar().getTopicPoliciesService()
                     .registerListener(TopicName.getPartitionedTopicName(topic), this);
-            return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
-                            brokerService.getPulsar().getTopicPoliciesService()
-                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
-                    brokerService.getTopicOrderedExecutor());
+            TopicPolicies topicPolicies = brokerService.getPulsar().getTopicPoliciesService()
+                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic));
+            if (topicPolicies != null) {
+                onUpdate(topicPolicies);
+                return CompletableFuture.completedFuture(null);
+            }
         }
-        return CompletableFuture.completedFuture(null);
+
+        return FutureUtil.waitForAll(applyUpdatedTopicPolicies());
     }
 
     @VisibleForTesting

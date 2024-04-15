@@ -318,6 +318,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateNamespaceValue(
                 namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled);
+        topicPolicies.getResourceGroup().updateNamespaceValue(namespacePolicies.resource_group_name);
+        topicPolicies.getEncryptionRequired().updateNamespaceValue(namespacePolicies.encryption_required);
+        topicPolicies.getAllowAutoUpdateSchema().updateNamespaceValue(namespacePolicies.is_allow_auto_update_schema);
 
         updateEntryFilters();
     }
@@ -1107,7 +1110,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * @deprecated Avoid using the deprecated method
      * #{@link org.apache.pulsar.broker.resources.NamespaceResources#getPoliciesIfCached(NamespaceName)} and we can use
-     * #{@link AbstractTopic#updateResourceGroupLimiter(Policies)} to instead of it.
+     * #{@link AbstractTopic#updateResourceGroupLimiter()} to instead of it.
      */
     @Deprecated
     public void updateResourceGroupLimiter(Optional<Policies> optPolicies) {
@@ -1123,13 +1126,24 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
             policies = new Policies();
         }
-        updateResourceGroupLimiter(policies);
+        updateResourceGroupLimiter(policies.resource_group_name);
     }
 
+    /**
+     * @deprecated Use {@link #updateResourceGroupLimiter()} instead.
+     */
+    @Deprecated
     public void updateResourceGroupLimiter(@Nonnull Policies namespacePolicies) {
         requireNonNull(namespacePolicies);
+        updateResourceGroupLimiter(namespacePolicies.resource_group_name);
+    }
+
+    protected void updateResourceGroupLimiter() {
+        updateResourceGroupLimiter(this.topicPolicies.getResourceGroup().get());
+    }
+
+    private void updateResourceGroupLimiter(String rgName) {
         // attach the resource-group level rate limiters, if set
-        String rgName = namespacePolicies.resource_group_name;
         if (rgName != null) {
             final ResourceGroup resourceGroup =
                     brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);

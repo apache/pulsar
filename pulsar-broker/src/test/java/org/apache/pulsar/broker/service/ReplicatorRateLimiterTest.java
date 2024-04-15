@@ -24,16 +24,18 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertFalse;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +80,47 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @DataProvider(name = "dispatchRateType")
     public Object[][] dispatchRateProvider() {
         return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
+    }
+
+    @Test
+    public void testReLoadReplicator() throws Exception {
+        final String namespace = "pulsar/" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/" + System.currentTimeMillis();
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setReplicatorDispatchRate(namespace,
+                DispatchRate.builder().relativeToPublishRate(true)
+                        .dispatchThrottlingRateInMsg(10)
+                        .dispatchThrottlingRateInByte(1000)
+                        .build());
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
+
+        // Activate the replicator.
+        client1.newProducer().topic(topicName).create().close();
+        Optional<Topic> topicReference = pulsar1.getBrokerService().getTopicReference(topicName);
+        assertTrue(topicReference.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicReference.get();
+        List<Replicator> replicators = persistentTopic.getReplicators().values();
+        assertFalse(replicators.isEmpty());
+        Replicator replicator = replicators.get(0);
+        assertTrue(replicator.getRateLimiter().isPresent());
+
+        // Reload the replicator.
+        // 1. Clean the topic from the broker cache
+        // 2. Create the producer, and then the replicator will be reloaded.
+        pulsar1.getBrokerService().removeTopicFromCache(topicReference.get());
+        client1.newProducer().topic(topicName).create().close();
+        topicReference = pulsar1.getBrokerService().getTopicReference(topicName);
+        assertTrue(topicReference.isPresent());
+
+        persistentTopic = (PersistentTopic) topicReference.get();
+        replicators = persistentTopic.getReplicators().values();
+        assertFalse(replicators.isEmpty());
+        replicator = replicators.get(0);
+        assertTrue(replicator.getRateLimiter().isPresent());
     }
 
     @Test
