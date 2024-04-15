@@ -263,7 +263,7 @@ public class KafkaAbstractSourceTest {
             fail("Should throw exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof RuntimeException);
-            assertTrue(e.getCause().getMessage().contains("Failed to process record with key"));
+            assertTrue(e.getCause().getMessage().contains("Failed to process record with kafka topic"));
         }
     }
 
