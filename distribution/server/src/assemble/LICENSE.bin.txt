@@ -579,10 +579,10 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-ext-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-jdk18on-1.75.jar
-    - org.bouncycastle-bcutil-jdk18on-1.75.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.78.jar
+    - org.bouncycastle-bcprov-ext-jdk18on-1.78.jar
+    - org.bouncycastle-bcprov-jdk18on-1.78.jar
+    - org.bouncycastle-bcutil-jdk18on-1.78.jar
 
 Datastax
     - com.datastax.oss-managed-ledger-3.1.3.2-SNAPSHOT.jar
