@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -63,6 +64,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
+    private long maxPollIntervalMs;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -126,6 +128,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaSourceConfig.getAutoOffsetReset());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
+        // init DefaultMaxPollInterval
+        if (props.containsKey(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)) {
+            maxPollIntervalMs = Long.parseLong(props.get(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG).toString());
+        } else {
+            maxPollIntervalMs = Long.parseLong(
+                    ConsumerConfig.configDef().defaultValues().get(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)
+                            .toString());
+        }
         try {
             consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
         } catch (Exception ex) {
@@ -175,7 +185,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                         index++;
                     }
                     if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                        CompletableFuture.allOf(futures).get();
+                        // Wait about two-thirds of the time of maxPollIntervalMs.
+                        // so as to avoid waiting for the timeout to be kicked out of the consumer group.
+                        CompletableFuture.allOf(futures).get(maxPollIntervalMs * 2 / 3, TimeUnit.MILLISECONDS);
                         consumer.commitSync();
                     }
                 } catch (Exception e) {
@@ -251,6 +263,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Override
         public void ack() {
             completableFuture.complete(null);
+        }
+
+        @Override
+        public void fail() {
+            completableFuture.completeExceptionally(
+               new RuntimeException("Failed to process record with key: " + getKey() + " and value: " + getValue()));
         }
 
         @Override
