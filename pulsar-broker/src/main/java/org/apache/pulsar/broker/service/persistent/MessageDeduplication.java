@@ -27,7 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -133,8 +133,9 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
-
-    private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
+    private volatile CompletableFuture<Void> snapshotFuture;
+    private static final AtomicReferenceFieldUpdater<MessageDeduplication, CompletableFuture> SNAPSHOT_FUTURE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(MessageDeduplication.class, CompletableFuture.class, "snapshotFuture");
 
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
@@ -436,9 +437,15 @@ public class MessageDeduplication {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
-
-        if (!snapshotTaking.compareAndSet(false, true)) {
-            return CompletableFuture.completedFuture(null);
+        final var future = new CompletableFuture<Void>();
+        // conditional optimistic locking implementation
+        while (!SNAPSHOT_FUTURE_UPDATER.compareAndSet(this, null, future)) {
+            // if we have a current snapshot future, return it then
+            final CompletableFuture<Void> currentFuture = SNAPSHOT_FUTURE_UPDATER.get(this);
+            if (currentFuture != null) {
+                return currentFuture;
+            }
+            Thread.onSpinWait();
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -448,7 +455,6 @@ public class MessageDeduplication {
             }
         });
 
-        final var future = new CompletableFuture<Void>();
         try {
             getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
                 @Override
@@ -457,14 +463,14 @@ public class MessageDeduplication {
                         log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
                     }
                     lastSnapshotTimestamp = System.currentTimeMillis();
-                    snapshotTaking.set(false);
+                    SNAPSHOT_FUTURE_UPDATER.set(MessageDeduplication.this, null);
                     future.complete(null);
                 }
 
                 @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                     log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
-                    snapshotTaking.set(false);
+                    SNAPSHOT_FUTURE_UPDATER.set(MessageDeduplication.this, null);
                     future.completeExceptionally(exception);
                 }
             }, null);
