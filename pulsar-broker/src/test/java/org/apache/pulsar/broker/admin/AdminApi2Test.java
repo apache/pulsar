@@ -2902,8 +2902,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
-            String expectMsg = "Topic '" + topic + "' reached max producers limit";
-            assertTrue(e.getMessage().contains(expectMsg));
+            assertTrue(e.getMessage().contains("Topic reached max producers limit"));
         }
 
         //clean up
