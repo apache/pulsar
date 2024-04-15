@@ -448,14 +448,14 @@ public class MessageDeduplication {
             Thread.onSpinWait();
         }
 
-        Map<String, Long> snapshot = new TreeMap<>();
-        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
-                snapshot.put(producerName, sequenceId);
-            }
-        });
-
         try {
+            Map<String, Long> snapshot = new TreeMap<>();
+            highestSequencedPersisted.forEach((producerName, sequenceId) -> {
+                if (snapshot.size() < maxNumberOfProducers) {
+                    snapshot.put(producerName, sequenceId);
+                }
+            });
+
             getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
