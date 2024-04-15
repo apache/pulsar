@@ -32,6 +32,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
@@ -129,6 +130,7 @@ public class PulsarShell {
     enum ShellMode {
         ADMIN("admin"),
         CLIENT("client"),
+        CONFIG("config"),
         DEFAULT("");
 
         final String command;
@@ -453,6 +455,7 @@ public class PulsarShell {
             if (isExitModeCommand(inputLine)) {
                 if (shellMode == ShellMode.DEFAULT){
                     output("Cant exit from default shell mode", terminal);
+                    continue;
                 }
                 promptMessage = promptMessage.substring(0, promptMessage.lastIndexOf(shellMode.command) - 1);
                 prompt = createPrompt(promptMessage);
@@ -464,12 +467,11 @@ public class PulsarShell {
             }
             final String line = words.stream().collect(Collectors.joining(" "));
             if (shellOptions.help) {
-                //TODO update usage?
                 shellCommander.usage();
                 continue;
             }
             if (isChangeModeCommand(line)){
-                shellMode = line.compareToIgnoreCase("admin") == 0 ? ShellMode.ADMIN : ShellMode.CLIENT;
+                shellMode = ShellMode.valueOf(line.toUpperCase(Locale.ROOT));
                 promptMessage = promptMessage.concat(" ").concat(shellMode.command);
                 prompt = createPrompt(promptMessage);
                 continue;
@@ -605,7 +607,7 @@ public class PulsarShell {
     }
 
     private static boolean isChangeModeCommand(String line) {
-        return line.equalsIgnoreCase("admin") || line.equalsIgnoreCase("client");
+        return line.equalsIgnoreCase("admin") || line.equalsIgnoreCase("client") || line.equalsIgnoreCase("config");
     }
 
     private static String[] extractAndConvertArgs(List<String> words) {
