@@ -1612,7 +1612,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         clientCloseFuture
         // taking snapshots when closing the topic to avoid replying very large logs to delay topic loading
         // system ignore exception here because we can't do anything.
-        .thenCompose(__ -> messageDeduplication.takeSnapshot(true).exceptionally(ex -> null))
+        .thenCompose(__ -> messageDeduplication.takeSnapshot(true)
+                /*
+                  Why we call it twice?
+
+                  Because the current implementation of take snapshot may return the snapshotting future,
+                  but we need to force a new position here. So, we can suppose the first call always returns the
+                  old future and calls it twice to snapshot a new position. plus, the method has a snapshot position
+                  check and we already disconnected producers, the second call will return fast if the first is
+                  not an old future. (same snapshot position)
+                 */
+                .thenCompose(unused -> messageDeduplication.takeSnapshot(true))
+                .exceptionally(ex -> null))
         .thenRun(() -> {
             // After having disconnected all producers/consumers, close the managed ledger
             ledger.asyncClose(new CloseCallback() {

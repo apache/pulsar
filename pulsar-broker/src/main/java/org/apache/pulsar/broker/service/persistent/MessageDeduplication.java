@@ -441,9 +441,9 @@ public class MessageDeduplication {
         // conditional optimistic locking implementation
         while (!SNAPSHOT_FUTURE_UPDATER.compareAndSet(this, null, future)) {
             // if we have a current snapshot future, return it then
-            final CompletableFuture<Void> currentFuture = SNAPSHOT_FUTURE_UPDATER.get(this);
-            if (currentFuture != null) {
-                return currentFuture;
+            final CompletableFuture<Void> oldFuture = SNAPSHOT_FUTURE_UPDATER.get(this);
+            if (oldFuture != null) {
+                return oldFuture;
             }
             Thread.onSpinWait();
         }
@@ -548,6 +548,7 @@ public class MessageDeduplication {
         return sequenceId != null ? sequenceId : -1;
     }
 
+
     /**
      * Taking the deduplication snapshot to avoid replaying very large logs.
      *
@@ -557,9 +558,10 @@ public class MessageDeduplication {
         return takeSnapshot(false);
     }
 
-
     /**
      * Taking the deduplication snapshot to avoid replaying very large logs.
+     * Note: this method may return the snapshotting future to support concurrent control,
+     *       which means this method does not ensure you trigger a new position for snapshotting.
      *
      * @param force Force taking snapshot without interval check
      * @return The completable future of snapshot taking task
