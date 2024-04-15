@@ -437,20 +437,25 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void testIncorrectClientClock() throws Exception {
         final String ledgerAndCursorName = "testIncorrectClientClock";
         int maxTTLSeconds = 1;
+        int entriesNum = 10;
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
         // set client clock to 10 days later
         long incorrectPublishTimestamp = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10);
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < entriesNum; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i, incorrectPublishTimestamp));
         }
-        assertEquals(ledger.getLedgersInfoAsList().size(), 10);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened));
+        // The number of ledgers should be (entriesNum / MaxEntriesPerLedger) + 1
+        // Please refer to: https://github.com/apache/pulsar/pull/22034
+        assertEquals(ledger.getLedgersInfoAsList().size(), entriesNum + 1);
         PersistentTopic mock = mock(PersistentTopic.class);
         when(mock.getName()).thenReturn("topicname");
         when(mock.getLastPosition()).thenReturn(PositionImpl.EARLIEST);
