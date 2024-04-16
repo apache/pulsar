@@ -23,10 +23,14 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/apache/pulsar-client-go/pulsar"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func testProcessSpawnerHealthCheckTimer(
@@ -114,4 +118,30 @@ func Test_goInstance_handlerMsg(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "output", string(output))
 	assert.Equal(t, message, fc.record)
+}
+
+func Test_goInstance_setupLogHandlerTicker(t *testing.T) {
+	mockProd := &MockPulsarProducer{}
+	fc := NewFuncContext()
+	fc.logAppender = &LogAppender{
+		producer: mockProd,
+		mutex:    sync.Mutex{},
+		stopChan: make(chan struct{}),
+	}
+	defer close(fc.logAppender.stopChan)
+	instance := &goInstance{
+		context: fc,
+	}
+
+	logString := "Hello from Test_goInstance_setupLogHandlerTicker"
+	log.Info(logString)
+	mockProd.On("SendAsync", context.Background(), mock.Anything, mock.Anything).Return()
+	instance.setupLogHandlerTicker()
+	time.Sleep(150 * time.Millisecond)
+
+	// Check that the message argument from the last SendAsync call is as expected
+	mockProd.AssertExpectations(t)
+	pulsarMsg, ok := mockProd.Calls[len(mockProd.Calls)-1].Arguments[1].(*pulsar.ProducerMessage)
+	assert.True(t, ok)
+	assert.Regexp(t, fmt.Sprintf(".*%s", logString), string(pulsarMsg.Payload))
 }

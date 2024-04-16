@@ -479,38 +479,42 @@ func (gi *goInstance) setupLogHandler() error {
 		if err := gi.context.logAppender.Start(); err != nil {
 			return err
 		}
-		go func() {
-			ticker := time.NewTicker(100 * time.Millisecond)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					gi.flushLogsToTopicHandler()
-				case <-gi.context.logAppender.stopChan:
-					gi.flushLogsToTopicHandler()
-					return
-				}
-			}
-		}()
+		gi.setupLogHandlerTicker()
 	}
 	return nil
 }
 
+func (gi *goInstance) setupLogHandlerTicker() {
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				gi.flushLogsToTopicHandler()
+			case <-gi.context.logAppender.stopChan:
+				gi.flushLogsToTopicHandler()
+				return
+			}
+		}
+	}()
+}
+
 func (gi *goInstance) flushLogsToTopicHandler() {
 	// Clear StrEntry regardless gi.context.logAppender is set or not
+	gi.context.logAppender.mutex.Lock()
 	defer func() {
 		log.StrEntry = nil
+		gi.context.logAppender.mutex.Unlock()
 	}()
 
 	if gi.context.logAppender == nil {
 		return
 	}
 
-	gi.context.logAppender.mutex.Lock()
 	for _, logByte := range log.StrEntry {
 		gi.context.logAppender.Append([]byte(logByte))
 	}
-	gi.context.logAppender.mutex.Unlock()
 }
 
 func (gi *goInstance) closeLogTopic() {
