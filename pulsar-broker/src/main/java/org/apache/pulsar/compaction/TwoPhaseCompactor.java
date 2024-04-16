@@ -61,9 +61,9 @@ import org.slf4j.LoggerFactory;
 */
 public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
-    private static final int MAX_OUTSTANDING = 500;
-    private final Duration phaseOneLoopReadTimeout;
-    private final boolean topicCompactionRetainNullKey;
+    protected static final int MAX_OUTSTANDING = 500;
+    protected final Duration phaseOneLoopReadTimeout;
+    protected final boolean topicCompactionRetainNullKey;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
@@ -88,7 +88,7 @@ public class TwoPhaseCompactor extends Compactor {
                 });
     }
 
-    private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
+    protected CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
         Map<String, MessageId> latestForKey = new HashMap<>();
         CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
 
@@ -450,7 +450,7 @@ public class TwoPhaseCompactor extends Compactor {
         return RawBatchConverter.rebatchMessage(msg, filter, retainNullKey);
     }
 
-    private static class PhaseOneResult {
+    protected static class PhaseOneResult {
         final MessageId from;
         final MessageId to; // last undeleted messageId
         final MessageId lastReadId; // last read messageId
