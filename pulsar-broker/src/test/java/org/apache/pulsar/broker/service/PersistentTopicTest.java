@@ -1742,6 +1742,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                                 brokerService.pulsar().getPulsarResources().getClusterResources()
                                         .getCluster(remoteCluster))));
         replicatorMap.put(remoteReplicatorName, replicator);
+        String cursorName = PersistentReplicator.getReplicatorName(topic.getReplicatorPrefix(), remoteReplicatorName);
 
         // step-1 remove replicator : it will disconnect the producer but it will wait for callback to be completed
         Method removeMethod = PersistentTopic.class.getDeclaredMethod("removeReplicator", String.class);
@@ -1757,7 +1758,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // step-3 : complete the callback to remove replicator from the list
         ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);
-        Mockito.verify(ledgerMock).asyncDeleteCursor(any(), captor.capture(), any());
+        Mockito.verify(ledgerMock).asyncDeleteCursor(eq(cursorName), captor.capture(), any());
         DeleteCursorCallback callback = captor.getValue();
         callback.deleteCursorComplete(null);
     }
