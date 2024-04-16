@@ -20,11 +20,9 @@ package org.apache.pulsar.compaction;
 
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -34,17 +32,13 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EventTimeCompactor extends TwoPhaseCompactor {
+public class EventTimeCompactor extends AbstractTwoPhaseCompactor<Pair<MessageId, Long>> {
 
   private static final Logger log = LoggerFactory.getLogger(EventTimeCompactor.class);
 
@@ -56,144 +50,93 @@ public class EventTimeCompactor extends TwoPhaseCompactor {
   }
 
   @Override
-  protected CompletableFuture<TwoPhaseCompactor.PhaseOneResult> phaseOne(RawReader reader) {
-    Map<String, Pair<MessageId, Long>> latestForKey = new HashMap<>();
-    CompletableFuture<TwoPhaseCompactor.PhaseOneResult> loopPromise = new CompletableFuture<>();
-
-    reader.getLastMessageIdAsync()
-        .thenAccept(lastMessageId -> {
-          log.info("Commencing phase one of compaction for {}, reading to {}",
-              reader.getTopic(), lastMessageId);
-          // Each entry is processed as a whole, discard the batchIndex part deliberately.
-          MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
-          MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(),
-              lastImpl.getEntryId(),
-              lastImpl.getPartitionIndex());
-          phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
-              loopPromise);
-        }).exceptionally(ex -> {
-          loopPromise.completeExceptionally(ex);
-          return null;
-        });
-
-    return loopPromise;
+  protected Map<String, MessageId> toLatestMessageIdForKey(
+      Map<String, Pair<MessageId, Long>> latestForKey) {
+    return latestForKey.entrySet()
+        .stream()
+        .collect(Collectors.toMap(
+            Map.Entry::getKey,
+            entry -> entry.getValue().getLeft()));
   }
 
-  private void phaseOneLoop(RawReader reader,
-      Optional<MessageId> firstMessageId,
-      Optional<MessageId> toMessageId,
-      MessageId lastMessageId,
-      Map<String, Pair<MessageId, Long>> latestForKey,
-      CompletableFuture<TwoPhaseCompactor.PhaseOneResult> loopPromise) {
-    if (loopPromise.isDone()) {
-      return;
-    }
-    CompletableFuture<RawMessage> future = reader.readNextAsync();
-    FutureUtil.addTimeoutHandling(future,
-        phaseOneLoopReadTimeout, scheduler,
-        () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
+  @Override
+  protected boolean compactMessage(String topic, Map<String, Pair<MessageId, Long>> latestForKey,
+      RawMessage m, MessageId id) {
+    boolean deletedMessage = false;
+    boolean replaceMessage = false;
+    MessageCompactionData mcd = extractMessageCompactionData(m);
 
-    future.thenAcceptAsync(m -> {
-      try (m) {
-        MessageId id = m.getMessageId();
-        boolean deletedMessage = false;
-        boolean replaceMessage = false;
-        mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
-        MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
-        if (Markers.isServerOnlyMarker(metadata)) {
-          mxBean.addCompactionRemovedEvent(reader.getTopic());
+    if (mcd != null) {
+      boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
+          .map(Pair::getRight)
+          .map(latestEventTime -> mcd.eventTime() != null
+              && mcd.eventTime() > latestEventTime).orElse(true);
+      if (newer) {
+        if (mcd.payloadSize() > 0) {
+          Pair<MessageId, Long> old = latestForKey.put(mcd.key(),
+              new ImmutablePair<>(mcd.messageId(), mcd.eventTime()));
+          replaceMessage = old != null;
+        } else {
           deletedMessage = true;
-        } else if (RawBatchConverter.isReadableBatch(metadata)) {
-          try {
-            int numMessagesInBatch = metadata.getNumMessagesInBatch();
-            int deleteCnt = 0;
-
-            for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m)) {
-              if (mcd.key() == null) {
-                if (!topicCompactionRetainNullKey) {
-                  // record delete null-key message event
-                  deleteCnt++;
-                  mxBean.addCompactionRemovedEvent(reader.getTopic());
-                }
-                continue;
-              }
-
-              boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
-                  .map(Pair::getRight)
-                      .map(latestEventTime -> mcd.eventTime() != null
-                      && mcd.eventTime() > latestEventTime).orElse(true);
-              if (newer) {
-                if (mcd.payloadSize() > 0) { //message from batch has payload (is not null)
-                  Pair<MessageId, Long> old = latestForKey.put(mcd.key(),
-                      new ImmutablePair<>(mcd.messageId(), mcd.eventTime()));
-                  if (old != null) {
-                    mxBean.addCompactionRemovedEvent(reader.getTopic());
-                  }
-                } else { //handling null message from batch
-                  latestForKey.remove(mcd.key());
-                  deleteCnt++;
-                  mxBean.addCompactionRemovedEvent(reader.getTopic());
-                }
-              }
-            }
-
-            if (deleteCnt == numMessagesInBatch) {
-              deletedMessage = true;
-            }
-          } catch (IOException ioe) {
-            log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                id, ioe);
-          }
-        } else {
-          MessageCompactionData mcd = extractMessageCompactionData(m);
-
-          if (mcd != null) {
-            boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
-                .map(Pair::getRight)
-                .map(latestEventTime -> mcd.eventTime() != null
-                    && mcd.eventTime() > latestEventTime).orElse(true);
-            if (newer) {
-              if (mcd.payloadSize() > 0) {
-                Pair<MessageId, Long> old = latestForKey.put(mcd.key(),
-                    new ImmutablePair<>(mcd.messageId(), mcd.eventTime()));
-                replaceMessage = old != null;
-              } else {
-                deletedMessage = true;
-                latestForKey.remove(mcd.key());
-              }
-            }
-          } else {
-            if (!topicCompactionRetainNullKey) {
-              deletedMessage = true;
-            }
-          }
-          if (replaceMessage || deletedMessage) {
-            mxBean.addCompactionRemovedEvent(reader.getTopic());
-          }
-        }
-        MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
-        MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
-        if (id.compareTo(lastMessageId) == 0) {
-          Map<String, MessageId> latestIdForKey = latestForKey.entrySet().stream()
-              .collect(Collectors.toMap(
-                  Map.Entry::getKey,
-                  entry -> entry.getValue().getLeft()
-              ));
-          loopPromise.complete(
-              new TwoPhaseCompactor.PhaseOneResult(first == null ? id : first, to == null ? id : to,
-                  lastMessageId, latestIdForKey));
-        } else {
-          phaseOneLoop(reader,
-              Optional.ofNullable(first),
-              Optional.ofNullable(to),
-              lastMessageId,
-              latestForKey, loopPromise);
+          latestForKey.remove(mcd.key());
         }
       }
-    }, scheduler).exceptionally(ex -> {
-      loopPromise.completeExceptionally(ex);
-      return null;
-    });
+    } else {
+      if (!topicCompactionRetainNullKey) {
+        deletedMessage = true;
+      }
+    }
+    if (replaceMessage || deletedMessage) {
+      mxBean.addCompactionRemovedEvent(topic);
+    }
+    return deletedMessage;
+  }
+
+  @Override
+  protected boolean compactBatchMessage(String topic, Map<String, Pair<MessageId, Long>> latestForKey, RawMessage m,
+      MessageMetadata metadata, MessageId id) {
+    boolean deletedMessage = false;
+    try {
+      int numMessagesInBatch = metadata.getNumMessagesInBatch();
+      int deleteCnt = 0;
+
+      for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m)) {
+        if (mcd.key() == null) {
+          if (!topicCompactionRetainNullKey) {
+            // record delete null-key message event
+            deleteCnt++;
+            mxBean.addCompactionRemovedEvent(topic);
+          }
+          continue;
+        }
+
+        boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
+            .map(Pair::getRight)
+            .map(latestEventTime -> mcd.eventTime() != null
+                && mcd.eventTime() > latestEventTime).orElse(true);
+        if (newer) {
+          if (mcd.payloadSize() > 0) {
+            Pair<MessageId, Long> old = latestForKey.put(mcd.key(),
+                new ImmutablePair<>(mcd.messageId(), mcd.eventTime()));
+            if (old != null) {
+              mxBean.addCompactionRemovedEvent(topic);
+            }
+          } else {
+            latestForKey.remove(mcd.key());
+            deleteCnt++;
+            mxBean.addCompactionRemovedEvent(topic);
+          }
+        }
+      }
+
+      if (deleteCnt == numMessagesInBatch) {
+        deletedMessage = true;
+      }
+    } catch (IOException ioe) {
+      log.info("Error decoding batch for message {}. Whole batch will be included in output",
+          id, ioe);
+    }
+    return deletedMessage;
   }
 
   protected MessageCompactionData extractMessageCompactionData(RawMessage m) {
@@ -211,7 +154,7 @@ public class EventTimeCompactor extends TwoPhaseCompactor {
     }
   }
 
-  protected List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg)
+  private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg)
       throws IOException {
     return RawBatchConverter.extractMessageCompactionData(msg);
   }

@@ -94,7 +94,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor = new NaturalOrderTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
 
@@ -320,7 +320,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
-        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, mockClient,
+        NaturalOrderTwoPhaseCompactor compactor = new NaturalOrderTwoPhaseCompactor(configuration, mockClient,
                 Mockito.mock(BookKeeper.class), compactionScheduler);
         Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
     }
