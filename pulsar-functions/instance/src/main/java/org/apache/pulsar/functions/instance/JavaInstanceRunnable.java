@@ -288,12 +288,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.deathException = throwable;
             currentThread.interrupt();
         };
-        Thread.currentThread().setContextClassLoader(functionClassLoader);
-        ContextImpl contextImpl = new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-            collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-            pulsarAdmin, clientBuilder, fatalHandler);
-        Thread.currentThread().setContextClassLoader(clsLoader);
-        return contextImpl;
+        try {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
+                pulsarAdmin, clientBuilder, fatalHandler);
+        } finally {
+            Thread.currentThread().setContextClassLoader(clsLoader);
+        }
     }
 
     public interface AsyncResultConsumer {
