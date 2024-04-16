@@ -855,7 +855,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             }
 
         } catch (Exception e) {
-            log.error("Encountered unexpected error during exclusive producer creation", e);
+            log.error("[{}] Encountered unexpected error during exclusive producer creation", topic, e);
             return FutureUtil.failedFuture(new BrokerServiceException(e));
         } finally {
             lock.writeLock().unlock();
@@ -929,14 +929,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected CompletableFuture<Void> internalAddProducer(Producer producer) {
         if (isProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-            return CompletableFuture.failedFuture(
-                    new BrokerServiceException.ProducerBusyException("Topic reached max producers limit"));
+            return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
+                    "Topic '" + topic + "' reached max producers limit"));
         }
 
         if (isSameAddressProducersExceeded(producer)) {
             log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
-            return CompletableFuture.failedFuture(
-                    new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit"));
+            return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
+                    "Topic '" + topic + "' reached max same address producers limit"));
         }
 
         if (log.isDebugEnabled()) {
@@ -971,7 +971,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     if (previousIsActive) {
                         return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
                                 "Producer with name '" + newProducer.getProducerName()
-                                        + "' is already connected to topic"));
+                                        + "' is already connected to topic '" + topic + "'"));
                     } else {
                         // If the connection of the previous producer is not active, the method
                         // "cnx().checkConnectionLiveness()" will trigger the close for it and kick off the previous
@@ -984,7 +984,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 });
             }
             return CompletableFuture.failedFuture(new BrokerServiceException.NamingException(
-                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic"));
+                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic '"
+                            + topic + "'"));
         }
     }
 
@@ -1329,7 +1330,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             return getMigratedClusterUrlAsync(pulsar, topic)
                     .get(pulsar.getPulsarResources().getClusterResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.warn("Failed to get migration cluster URL", e);
+            log.warn("[{}] Failed to get migration cluster URL", topic, e);
         }
         return Optional.empty();
     }
