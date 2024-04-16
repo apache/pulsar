@@ -3452,7 +3452,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = "Enable or disable replace producer stats with topic stats"
+            doc = "Enable or disable replace producer stats with topic stats when calculating topic production rate"
     )
     private boolean enableReplaceProducerStatsWithTopicStats = false;
 
