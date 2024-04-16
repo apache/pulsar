@@ -3449,6 +3449,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Enable or disable replace producer stats with topic stats"
+    )
+    private boolean enableReplaceProducerStatsWithTopicStats = false;
+
     /**
      * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
      */

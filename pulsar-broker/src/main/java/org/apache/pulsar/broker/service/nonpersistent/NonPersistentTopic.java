@@ -749,6 +749,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         bundleStats.producerCount += producers.size();
         topicStatsStream.startObject(topic);
 
+        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
+            rateIn.calculateRate();
+        }
+
         topicStatsStream.startList("publishers");
         producers.values().forEach(producer -> {
             producer.updateRates();
@@ -932,6 +936,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 stats.addPublisher(publisherStats);
             }
         });
+
+        // Replace producer stats with topic-level stats
+        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
+            stats.msgRateIn = rateIn.getRate();
+            stats.msgThroughputIn = rateIn.getValueRate();
+        }
 
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();

@@ -80,6 +80,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
+    protected Rate rateIn = new Rate();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -883,6 +885,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
 
         PUBLISH_LATENCY.observe(latency, unit);
+    }
+
+    @Override
+    public void recordRateIn(long events, long totalValue) {
+        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
+            rateIn.recordMultipleEvents(events, totalValue);
+        }
     }
 
     @Override

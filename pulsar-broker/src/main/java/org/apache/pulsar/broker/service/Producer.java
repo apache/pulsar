@@ -542,6 +542,7 @@ public class Producer {
 
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
+            producer.topic.recordRateIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
                     ledgerId, entryId);
