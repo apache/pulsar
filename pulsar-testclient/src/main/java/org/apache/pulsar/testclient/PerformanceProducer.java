@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileOutputStream;
@@ -74,6 +72,11 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
+import picocli.CommandLine.TypeConversionException;
 
 /**
  * A client program to test pulsar producer performance.
@@ -102,156 +105,153 @@ public class PerformanceProducer {
 
     private static IMessageFormatter messageFormatter = null;
 
-    @Parameters(commandDescription = "Test pulsar producer performance.")
-    static class Arguments extends PerformanceBaseArguments {
+    @Command(description = "Test pulsar producer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+    static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topics;
-
-        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",
-                validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numTestThreads = 1;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
+        @Option(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
+        @Option(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
-
-        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)",
-                validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)",
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numProducers = 1;
 
-        @Parameter(names = {"--separator"}, description = "Separator between the topic and topic number")
+        @Option(names = {"--separator"}, description = "Separator between the topic and topic number")
         public String separator = "-";
 
-        @Parameter(names = {"--send-timeout"}, description = "Set the sendTimeout value default 0 to keep "
+        @Option(names = {"--send-timeout"}, description = "Set the sendTimeout value default 0 to keep "
                 + "compatibility with previous version of pulsar-perf")
         public int sendTimeout = 0;
 
-        @Parameter(names = { "-pn", "--producer-name" }, description = "Producer Name")
+        @Option(names = { "-pn", "--producer-name" }, description = "Producer Name")
         public String producerName = null;
 
-        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        @Option(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
         public String adminURL;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
-
-        @Parameter(names = { "-ch",
+        @Option(names = { "-ch",
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is "
                 + "larger than allowed max size")
         private boolean chunkingAllowed = false;
 
-        @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
+        @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
 
-        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding "
+        @Option(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding "
                 + "messages across partitions")
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
-        @Parameter(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number "
+        @Option(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number "
                 + "of partitions, set 0 to not try to create the topic")
         public Integer partitions = null;
 
-        @Parameter(names = { "-m",
+        @Option(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
                 + "publishing")
         public long numMessages = 0;
 
-        @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
+        @Option(names = { "-z", "--compression" }, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and "
+        @Option(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and "
                 + "a payload will be randomly selected when publishing messages")
         public String payloadFilename = null;
 
-        @Parameter(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when "
+        @Option(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when "
                 + "using payload from a file")
         // here escaping \n since default value will be printed with the help text
         public String payloadDelimiter = "\\n";
 
-        @Parameter(names = { "-b",
+        @Option(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
 
-        @Parameter(names = { "-db",
+        @Option(names = { "-db",
                 "--disable-batching" }, description = "Disable batching if true")
         public boolean disableBatching;
 
-        @Parameter(names = {
+        @Option(names = {
             "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
         public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
 
-        @Parameter(names = {
+        @Option(names = {
             "-bb", "--batch-max-bytes"
         }, description = "Maximum number of bytes per batch")
         public int batchMaxBytes = 4 * 1024 * 1024;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
 
-        @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
+        @Option(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
         public double warmupTimeSeconds = 1.0;
 
-        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+        @Option(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
         public String encKeyName = null;
 
-        @Parameter(names = { "-v",
+        @Option(names = { "-v",
                 "--encryption-key-value-file" },
                 description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
 
-        @Parameter(names = { "-d",
+        @Option(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
 
-        @Parameter(names = { "-set",
+        @Option(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random"
+                + " number of seconds. this value between the specified origin (inclusive) and the specified bound"
+                + " (exclusive). e.g. 1,300", converter = RangeConvert.class)
+        public Range<Long> delayRange = null;
+
+        @Option(names = { "-set",
                 "--set-event-time" }, description = "Set the eventTime on messages")
         public boolean setEventTime = false;
 
-        @Parameter(names = { "-ef",
+        @Option(names = { "-ef",
                 "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
         public boolean exitOnFailure = false;
 
-        @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
+        @Option(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
                 + ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
 
-        @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
+        @Option(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
 
-        @Parameter(names = { "-fp", "--format-payload" },
-                description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
+        @Option(names = { "-fp", "--format-payload" },
+                description = "Format %%i as a message index in the stream from producer and/or %%t as the timestamp"
                         + " nanoseconds.")
         public boolean formatPayload = false;
 
-        @Parameter(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
+        @Option(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
         public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
 
-        @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
+        @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 10;
 
-        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
+        @Option(names = {"-nmt", "--numMessage-perTransaction"},
                 description = "The number of messages sent by a transaction. "
                         + "(After --txn-enable setting to true, -nmt takes effect)")
         public int numMessagesPerTransaction = 50;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
+        @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+        @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
                 + "setting to true, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
-        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
         @Override
@@ -272,52 +272,7 @@ public class PerformanceProducer {
     public static void main(String[] args) throws Exception {
 
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf produce");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
-        }
-
-        for (String arg : arguments.topics) {
-            if (arg.startsWith("-")) {
-                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
-                        + "please use a fully qualified topic name\n", arg, arg);
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topics.size() == 1) {
-                String prefixTopicName = arguments.topics.get(0);
-                List<String> defaultTopics = new ArrayList<>();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s%s%d", prefixTopicName, arguments.separator, i));
-                }
-                arguments.topics = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topic");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf produce", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -480,6 +435,7 @@ public class PerformanceProducer {
 
             oldTime = now;
         }
+        PerfClientUtils.exit(0);
     }
 
     private static void executorShutdownNow() {
@@ -553,6 +509,7 @@ public class PerformanceProducer {
                                     byte[] payloadBytes,
                                     CountDownLatch doneLatch) {
         PulsarClient client = null;
+        boolean produceEnough = false;
         try {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
@@ -613,28 +570,31 @@ public class PerformanceProducer {
                 }
             }
             // Send messages on all topics/producers
-            long totalSent = 0;
+            AtomicLong totalSent = new AtomicLong(0);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
+                if (produceEnough) {
+                    break;
+                }
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
 
                     if (numMessages > 0) {
-                        if (totalSent++ >= numMessages) {
+                        if (totalSent.get() >= numMessages) {
                             log.info("------------- DONE (reached the maximum number: {} of production) --------------"
                                     , numMessages);
                             doneLatch.countDown();
-                            Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
+                            produceEnough = true;
+                            break;
                         }
                     }
                     rateLimiter.acquire();
@@ -646,7 +606,7 @@ public class PerformanceProducer {
 
                     if (arguments.payloadFilename != null) {
                         if (messageFormatter != null) {
-                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent,
+                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent.get(),
                                     payloadByteList.get(ThreadLocalRandom.current().nextInt(payloadByteList.size())));
                         } else {
                             payloadData = payloadByteList.get(
@@ -672,6 +632,10 @@ public class PerformanceProducer {
                     }
                     if (arguments.delay > 0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    } else if (arguments.delayRange != null) {
+                        final long deliverAfter = ThreadLocalRandom.current()
+                                .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
+                        messageBuilder.deliverAfter(deliverAfter, TimeUnit.SECONDS);
                     }
                     if (arguments.setEventTime) {
                         messageBuilder.eventTime(System.currentTimeMillis());
@@ -680,13 +644,13 @@ public class PerformanceProducer {
                     if (msgKeyMode == MessageKeyGenerationMode.random) {
                         messageBuilder.key(String.valueOf(ThreadLocalRandom.current().nextInt()));
                     } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
-                        messageBuilder.key(String.valueOf(totalSent));
+                        messageBuilder.key(String.valueOf(totalSent.get()));
                     }
                     PulsarClient pulsarClient = client;
                     messageBuilder.sendAsync().thenRun(() -> {
                         bytesSent.add(payloadData.length);
                         messagesSent.increment();
-
+                        totalSent.incrementAndGet();
                         totalMessagesSent.increment();
                         totalBytesSent.add(payloadData.length);
 
@@ -763,10 +727,12 @@ public class PerformanceProducer {
         } catch (Throwable t) {
             log.error("Got error", t);
         } finally {
+            if (!produceEnough) {
+                doneLatch.countDown();
+            }
             if (null != client) {
                 try {
                     client.close();
-                    PerfClientUtils.exit(1);
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }
@@ -831,4 +797,21 @@ public class PerformanceProducer {
     public enum MessageKeyGenerationMode {
         autoIncrement, random
     }
+
+    static class RangeConvert implements ITypeConverter<Range<Long>> {
+        @Override
+        public Range<Long> convert(String rangeStr) {
+            try {
+                requireNonNull(rangeStr);
+                final String[] facts = rangeStr.split(",");
+                final long min = Long.parseLong(facts[0].trim());
+                final long max = Long.parseLong(facts[1].trim());
+                return Range.closedOpen(min, max);
+            } catch (Throwable ex) {
+                throw new TypeConversionException("Unknown delay range interval,"
+                        + " the format should be \"<origin>,<bound>\". error message: " + rangeStr);
+            }
+        }
+    }
+
 }

@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.function.BiConsumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
@@ -29,11 +30,23 @@ import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrategy<ServiceUnitStateData> {
 
     private final Schema<ServiceUnitStateData> schema;
+    private BiConsumer<String, ServiceUnitStateData> skippedMsgHandler;
 
     private boolean checkBrokers = true;
 
     public ServiceUnitStateCompactionStrategy() {
         schema = Schema.JSON(ServiceUnitStateData.class);
+    }
+
+    public void setSkippedMsgHandler(BiConsumer<String, ServiceUnitStateData> skippedMsgHandler) {
+        this.skippedMsgHandler = skippedMsgHandler;
+    }
+
+    @Override
+    public void handleSkippedMessage(String key, ServiceUnitStateData cur) {
+        if (skippedMsgHandler != null) {
+            skippedMsgHandler.accept(key, cur);
+        }
     }
 
     @Override

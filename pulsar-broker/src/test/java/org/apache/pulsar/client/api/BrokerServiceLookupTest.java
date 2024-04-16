@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.namespace.NamespaceService.LOOKUP_REQUEST_DURATION_METRIC_NAME;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -27,11 +30,12 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -41,10 +45,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +53,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,10 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -77,9 +75,17 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.OwnedBundle;
+import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -91,6 +97,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.zookeeper.KeeperException;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -102,6 +109,7 @@ import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -127,6 +135,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
+    }
+
     /**
      * Usecase Multiple Broker => Lookup Redirection test
      *
@@ -137,7 +151,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 30_000)
     public void testMultipleBrokerLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -153,7 +167,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2,
+                builder -> builder.enableOpenTelemetry(true));
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -169,22 +184,76 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // mock: return Broker2 as a Least-loaded broker when leader receives request [3]
         doReturn(true).when(loadManager1).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getBrokerId(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
-        /**** started broker-2 ****/
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+        var lookupRequestSemaphoreField = BrokerService.class.getDeclaredField("lookupRequestSemaphore");
+        lookupRequestSemaphoreField.setAccessible(true);
+        var lookupRequestSemaphoreSpy = spy(pulsar.getBrokerService().getLookupRequestSemaphore());
+        var cdlAfterLookupSemaphoreAcquire = new CountDownLatch(1);
+        var cdlLookupSemaphoreVerification = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            var ret = invocation.callRealMethod();
+            if (Boolean.TRUE.equals(ret)) {
+                cdlAfterLookupSemaphoreAcquire.countDown();
+                cdlLookupSemaphoreVerification.await();
+            }
+            return ret;
+        }).doCallRealMethod().when(lookupRequestSemaphoreSpy).tryAcquire();
+        lookupRequestSemaphoreField.set(pulsar.getBrokerService(), new AtomicReference<>(lookupRequestSemaphoreSpy));
 
+        var topicLoadRequestSemaphoreField = BrokerService.class.getDeclaredField("topicLoadRequestSemaphore");
+        topicLoadRequestSemaphoreField.setAccessible(true);
+        var topicLoadRequestSemaphoreSpy = spy(pulsar2.getBrokerService().getTopicLoadRequestSemaphore().get());
+
+        var cdlAfterTopicLoadSemaphoreAcquire = new CountDownLatch(1);
+        var cdlTopicLoadSemaphoreVerification = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            var ret = invocation.callRealMethod();
+            if (Boolean.TRUE.equals(ret)) {
+                cdlAfterTopicLoadSemaphoreAcquire.countDown();
+                cdlTopicLoadSemaphoreVerification.await();
+            }
+            return ret;
+        }).doCallRealMethod().when(topicLoadRequestSemaphoreSpy).tryAcquire();
+        topicLoadRequestSemaphoreField.set(pulsar2.getBrokerService(),
+                new AtomicReference<>(topicLoadRequestSemaphoreSpy));
+
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric).hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME));
+
+        /**** started broker-2 ****/
         @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(pulsar2.getBrokerServiceUrl()).build();
 
+        var consumerFuture = pulsarClient2.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribeAsync();
+
+        cdlAfterLookupSemaphoreAcquire.await();
+        assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(BrokerService.TOPIC_LOOKUP_USAGE_METRIC_NAME)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+        cdlLookupSemaphoreVerification.countDown();
+
+        cdlAfterTopicLoadSemaphoreAcquire.await();
+        assertThat(pulsarTestContext2.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(BrokerService.TOPIC_LOAD_USAGE_METRIC_NAME)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(1))));
+        cdlTopicLoadSemaphoreVerification.countDown();
+
         // load namespace-bundle by calling Broker2
-        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-            .topic("persistent://my-property/my-ns/my-topic1")
-            .create();
+        @Cleanup
+        var consumer = consumerFuture.get();
+        @Cleanup
+        var producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1").create();
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -200,11 +269,21 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
+        var metrics = metricReader.collectAllMetrics();
+        assertThat(metrics)
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES)
+                                        .hasCount(1),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES)
+                                        .hasCount(1))));
+
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
-        consumer.close();
-        producer.close();
-
     }
 
     @Test
@@ -302,7 +381,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // mock: return Broker2 as a Least-loaded broker when leader receives request
         doReturn(true).when(loadManager2).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getBrokerId(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager2));
         /**** started broker-2 ****/
@@ -427,10 +506,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Test
     public void testWebserviceServiceTls() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-        final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-        final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-        final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -443,12 +518,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setWebServicePortTls(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
-        conf2.setTlsAllowInsecureConnection(true);
-        conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf2.setTlsRequireTrustedClientCertOnConnect(true);
+        conf2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
         conf2.setMetadataStoreUrl("zk:localhost:2181");
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf2.setSystemTopicEnabled(false);
 
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -457,10 +535,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // restart broker1 with tls enabled
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf.setSystemTopicEnabled(false);
         stopBroker();
         startBroker();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -480,7 +561,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // request [3]
         doReturn(true).when(loadManager1).isCentralized();
         doReturn(true).when(loadManager2).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
 
@@ -494,18 +575,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
-        KeyManager[] keyManagers = null;
-        Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
-        PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(TLS_CLIENT_KEY_FILE_PATH);
-        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-        ks.load(null, null);
-        ks.setKeyEntry("private", tlsKey, "".toCharArray(), tlsCert);
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(ks, "".toCharArray());
-        keyManagers = kmf.getKeyManagers();
-        TrustManager[] trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
-        sslCtx.init(keyManagers, trustManagers, new SecureRandom());
+        SSLContext sslCtx = SecurityUtility.createSslContext(false, CA_CERT_FILE_PATH,
+                getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"), "");
         HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
 
         // hit broker2 url
@@ -523,6 +594,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         loadManager1 = null;
         loadManager2 = null;
+
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
     }
 
     /**
@@ -581,7 +655,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
         // mock: return Broker1 as a Least-loaded broker when leader receives request [3]
         doReturn(true).when(loadManager1).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
@@ -696,7 +770,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
             // mock: return Broker1 as a Least-loaded broker when leader receives request [3]
             doReturn(true).when(loadManager1).isCentralized();
-            SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
+            SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
             Optional<ResourceUnit> res = Optional.of(resourceUnit);
             doReturn(res).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
             doReturn(res).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
@@ -762,7 +836,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             });
 
             // Unload the NamespacePolicies and AntiAffinity check.
-            String currentBroker = String.format("%s:%d", "localhost", pulsar.getListenPortHTTP().get());
+            String currentBroker = pulsar.getBrokerId();
             assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,"0x00000000_0xffffffff", currentBroker));
             assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,"0x00000000_0xffffffff", currentBroker));
 
@@ -839,6 +913,104 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testMergeGetPartitionedMetadataRequests() throws Exception {
+        // Assert the lookup service is a "BinaryProtoLookupService".
+        final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final int topicPartitions = 10;
+        admin.topics().createPartitionedTopic(tpName, topicPartitions);
+
+        // Verify the request is works after merge the requests.
+        List<CompletableFuture<PartitionedTopicMetadata>> futures = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName)));
+        }
+        for (CompletableFuture<PartitionedTopicMetadata> future : futures) {
+            assertEquals(future.join().partitions, topicPartitions);
+        }
+
+        // cleanup.
+        admin.topics().deletePartitionedTopic(tpName);
+    }
+
+    @Test
+    public void testMergeLookupRequests() throws Exception {
+        // Assert the lookup service is a "BinaryProtoLookupService".
+        final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+
+        // Create 1 producer and 100 consumers.
+        List<Producer<String>> producers = new ArrayList<>();
+        List<Consumer<String>> consumers = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            producers.add(pulsarClient.newProducer(Schema.STRING).topic(tpName).create());
+        }
+        for (int i = 0; i < 20; i++) {
+            consumers.add(pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName("s" + i).subscribe());
+        }
+
+        // Verify the lookup count will be smaller than before improve.
+        int lookupCountBeforeUnload = calculateLookupRequestCount();
+        admin.namespaces().unload(TopicName.get(tpName).getNamespace());
+        Awaitility.await().untilAsserted(() -> {
+            for (Producer p : producers) {
+                assertEquals(WhiteboxImpl.getInternalState(p, "state").toString(), "Ready");
+            }
+            for (Consumer c : consumers) {
+                assertEquals(WhiteboxImpl.getInternalState(c, "state").toString(), "Ready");
+            }
+        });
+        int lookupCountAfterUnload = calculateLookupRequestCount();
+        log.info("lookup count before unload: {}, after unload: {}", lookupCountBeforeUnload, lookupCountAfterUnload);
+        assertTrue(lookupCountAfterUnload < lookupCountBeforeUnload * 2,
+                "the lookup count should be smaller than before improve");
+
+        // Verify the producers and consumers is still works.
+        List<String> messagesSent = new ArrayList<>();
+        int index = 0;
+        for (Producer producer: producers) {
+            String message = Integer.valueOf(index++).toString();
+            producer.send(message);
+            messagesSent.add(message);
+        }
+        HashSet<String> messagesReceived = new HashSet<>();
+        for (Consumer<String> consumer : consumers) {
+            while (true) {
+                Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+                if (msg == null) {
+                    break;
+                }
+                messagesReceived.add(msg.getValue());
+            }
+        }
+        assertEquals(messagesReceived.size(), producers.size());
+
+        // cleanup.
+        for (Producer producer: producers) {
+            producer.close();
+        }
+        for (Consumer consumer : consumers) {
+            consumer.close();
+        }
+        admin.topics().delete(tpName);
+    }
+
+    private int calculateLookupRequestCount() throws Exception {
+        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures_total")
+                .intValue();
+        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers_total")
+                .intValue();
+        return failures + answers;
+    }
+
     @Test(timeOut = 10000)
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
@@ -856,6 +1028,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         stopBroker();
+        conf.setBrokerServicePortTls(Optional.empty());
+        conf.setWebServicePortTls(Optional.empty());
         conf.setClientLibraryVersionCheckEnabled(true);
         startBroker();
 
@@ -1011,6 +1185,161 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return "invalid";
+        }
+    }
+
+    @Test
+    public void testLookupConnectionNotCloseIfGetUnloadingExOrMetadataEx() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        Producer<String> producer = pulsarClientImpl.newProducer(Schema.STRING).topic(tpName).create();
+        Consumer<String> consumer = pulsarClientImpl.newConsumer(Schema.STRING).topic(tpName)
+                .subscriptionName("s1").isAckReceiptEnabled(true).subscribe();
+        LookupService lookupService = pulsarClientImpl.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
+
+        var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
+        assertThat(metricReader.collectAllMetrics())
+                .noneSatisfy(metric -> assertThat(metric)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
+
+        // Verify the socket will not be closed if the bundle is unloading.
+        BundleOfTopic bundleOfTopic = new BundleOfTopic(tpName);
+        bundleOfTopic.setBundleIsUnloading();
+        try {
+            lookupService.getBroker(TopicName.get(tpName)).get();
+            fail("It should failed due to the namespace bundle is unloading.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("is being unloaded"));
+        }
+
+        assertThat(metricReader.collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES)
+                                        .hasCount(1),
+                                point -> point
+                                        .hasAttributes(NamespaceService.PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES))));
+        // Do unload topic, trigger producer & consumer reconnection.
+        pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
+        assertTrue(lookupConnection.ctx().channel().isActive());
+        bundleOfTopic.setBundleIsNotUnloading();
+        //  Assert producer & consumer could reconnect successful.
+        producer.send("1");
+        HashSet<String> messagesReceived = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            messagesReceived.add(msg.getValue());
+        }
+        assertTrue(messagesReceived.contains("1"));
+
+        // Verify the socket will not be closed if get a metadata ex.
+        bundleOfTopic.releaseBundleLockAndMakeAcquireFail();
+        try {
+            lookupService.getBroker(TopicName.get(tpName)).get();
+            fail("It should failed due to the acquire bundle lock fail.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("OperationTimeout"));
+        }
+        // Do unload topic, trigger producer & consumer reconnection.
+        pulsar.getBrokerService().getTopic(tpName, false).join().get().close(true);
+        assertTrue(lookupConnection.ctx().channel().isActive());
+        bundleOfTopic.makeAcquireBundleLockSuccess();
+        // Assert producer could reconnect successful.
+        producer.send("2");
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            messagesReceived.add(msg.getValue());
+        }
+        assertTrue(messagesReceived.contains("2"));
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(tpName);
+    }
+
+    private class BundleOfTopic {
+
+        private NamespaceBundle namespaceBundle;
+        private OwnershipCache ownershipCache;
+        private AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
+
+        public BundleOfTopic(String tpName) {
+            namespaceBundle = pulsar.getNamespaceService().getBundle(TopicName.get(tpName));
+            ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
+            ownedBundlesCache = WhiteboxImpl.getInternalState(ownershipCache, "ownedBundlesCache");
+        }
+
+        private void setBundleIsUnloading() {
+            ownedBundlesCache.get(namespaceBundle).join().setActive(false);
+        }
+
+        private void setBundleIsNotUnloading() {
+            ownedBundlesCache.get(namespaceBundle).join().setActive(true);
+        }
+
+        private void releaseBundleLockAndMakeAcquireFail() throws Exception {
+            ownedBundlesCache.synchronous().invalidateAll();
+            mockZooKeeper.delete(ServiceUnitUtils.path(namespaceBundle), -1);
+            mockZooKeeper.setAlwaysFail(KeeperException.Code.OPERATIONTIMEOUT);
+        }
+
+        private void makeAcquireBundleLockSuccess() throws Exception {
+            mockZooKeeper.unsetAlwaysFail();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testLookupConnectionNotCloseIfFailedToAcquireOwnershipOfBundle() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        final var pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        final var cache = pulsar.getNamespaceService().getOwnershipCache();
+        final var bundle = pulsar.getNamespaceService().getBundle(TopicName.get(tpName));
+        final var value = cache.getOwnerAsync(bundle).get().orElse(null);
+        assertNotNull(value);
+
+        cache.invalidateLocalOwnerCache();
+        final var lock = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class)
+                .acquireLock(ServiceUnitUtils.path(bundle), new NamespaceEphemeralData()).join();
+        lock.updateValue(null);
+        log.info("Updated bundle {} with null", bundle.getBundleRange());
+
+        // wait for the system topic reader to __change_events is closed, otherwise the test will be affected
+        Thread.sleep(500);
+
+        final var future = pulsarClientImpl.getLookup().getBroker(TopicName.get(tpName));
+        final var cnx = pulsarClientImpl.getCnxPool().getConnections().stream().findAny()
+                .map(CompletableFuture::join).orElse(null);
+        assertNotNull(cnx);
+
+        try {
+            future.get();
+            fail();
+        } catch (ExecutionException e) {
+            log.info("getBroker failed with {}: {}", e.getCause().getClass().getName(), e.getMessage());
+            assertTrue(e.getCause() instanceof PulsarClientException.BrokerMetadataException);
+            assertTrue(cnx.ctx().channel().isActive());
+            lock.updateValue(value);
+            lock.release();
+            assertTrue(e.getMessage().contains("Failed to acquire ownership"));
+            pulsarClientImpl.getLookup().getBroker(TopicName.get(tpName)).get();
         }
     }
 }

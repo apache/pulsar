@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -606,18 +607,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         .build()
                 , locatorEntry.version
         ).thenApply(ignore -> nextVersion).whenComplete((__, ex) -> {
-            Throwable cause = FutureUtil.unwrapCompletionException(ex);
-            log.warn("[{}] Failed to update schema locator with position {}", schemaId, position, cause);
-            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
-                bookKeeper.asyncDeleteLedger(position.getLedgerId(), new AsyncCallback.DeleteCallback() {
-                    @Override
-                    public void deleteComplete(int rc, Object ctx) {
-                        if (rc != BKException.Code.OK) {
-                            log.warn("[{}] Failed to delete ledger {} after updating schema locator failed, rc: {}",
+            if (ex != null) {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                log.warn("[{}] Failed to update schema locator with position {}", schemaId, position, cause);
+                if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                    bookKeeper.asyncDeleteLedger(position.getLedgerId(), new AsyncCallback.DeleteCallback() {
+                        @Override
+                        public void deleteComplete(int rc, Object ctx) {
+                            if (rc != BKException.Code.OK) {
+                                log.warn("[{}] Failed to delete ledger {} after updating schema locator failed, rc: {}",
                                     schemaId, position.getLedgerId(), rc);
+                            }
                         }
-                    }
-                }, null);
+                    }, null);
+                }
             }
         });
     }
@@ -852,8 +855,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return source.exceptionally(t -> {
             if (t.getCause() != null
                     && (t.getCause() instanceof SchemaException)
+                    && !(t.getCause() instanceof IncompatibleSchemaException)
                     && !((SchemaException) t.getCause()).isRecoverable()) {
-                // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
+                // Meeting NoSuchLedgerExistsException, NoSuchEntryException or
+                // NoSuchLedgerExistsOnMetadataServerException when reading schemas in
                 // bookkeeper. This also means that the data has already been deleted by other operations
                 // in deleting schema.
                 if (log.isDebugEnabled()) {

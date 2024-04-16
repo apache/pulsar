@@ -68,7 +68,7 @@
                     <basePath>${sys:pulsar.function.log.dir}</basePath>
                     <maxDepth>2</maxDepth>
                     <IfFileName>
-                        <glob>*/${sys:pulsar.function.log.file}*log.gz</glob>
+                        <glob>${sys:pulsar.function.log.file}*log.gz</glob>
                     </IfFileName>
                     <IfLastModified>
                         <age>30d</age>
@@ -101,7 +101,7 @@
                     <basePath>${sys:pulsar.function.log.dir}</basePath>
                     <maxDepth>2</maxDepth>
                     <IfFileName>
-                        <glob>*/${sys:pulsar.function.log.file}.bk*log.gz</glob>
+                        <glob>${sys:pulsar.function.log.file}.bk*log.gz</glob>
                     </IfFileName>
                     <IfLastModified>
                         <age>30d</age>

@@ -20,79 +20,93 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.testclient.PerfClientUtils.exit;
-import com.beust.jcommander.Parameter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
 
-
+/**
+ * PerformanceBaseArguments contains common CLI arguments and parsing logic available to all sub-commands.
+ * Sub-commands should create Argument subclasses and override the `validate` method as necessary.
+ */
 public abstract class PerformanceBaseArguments {
 
-    @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+    @Option(names = { "-h", "--help" }, description = "Print help message", help = true)
     boolean help;
 
-    @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
+    @Option(names = { "-cf", "--conf-file" }, description = "Pulsar configuration file")
     public String confFile;
 
-    @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
+    @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
     public String serviceURL;
 
-    @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+    @Option(names = { "--auth-plugin" }, description = "Authentication plugin class name")
     public String authPluginClassName;
 
-    @Parameter(
+    @Option(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
     public String authParams;
 
-    @Parameter(names = {
+    @Option(names = {
             "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
     public String tlsTrustCertsFilePath = "";
 
-    @Parameter(names = {
+    @Option(names = {
             "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
     public Boolean tlsAllowInsecureConnection = null;
 
-    @Parameter(names = {
+    @Option(names = {
             "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
     public Boolean tlsHostnameVerificationEnable = null;
 
-    @Parameter(names = { "-c",
+    @Option(names = { "-c",
             "--max-connections" }, description = "Max number of TCP connections to a single broker")
     public int maxConnections = 1;
 
-    @Parameter(names = { "-i",
+    @Option(names = { "-i",
             "--stats-interval-seconds" },
             description = "Statistics Interval Seconds. If 0, statistics will be disabled")
     public long statsIntervalSeconds = 0;
 
-    @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
+    @Option(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
             + "used for handling connections to brokers. The default value is 1.")
     public int ioThreads = 1;
 
-    @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+    @Option(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
     public boolean enableBusyWait = false;
 
-    @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+    @Option(names = { "--listener-name" }, description = "Listener name for the broker.")
     public String listenerName = null;
 
-    @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
+    @Option(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
             + " to be used for message listeners")
     public int listenerThreads = 1;
 
-    @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
+    @Option(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
             + "on each broker connection to prevent overloading a broker")
     public int maxLookupRequest = 50000;
 
-    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    @Option(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
     String proxyServiceURL = null;
 
-    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    @Option(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
     ProxyProtocol proxyProtocol = null;
+
+    @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+    public String deprecatedAuthPluginClassName;
+
+    @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+    public long memoryLimit;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 
@@ -163,6 +177,59 @@ public abstract class PerformanceBaseArguments {
         }
 
         fillArgumentsFromProperties(prop);
+    }
+
+    /**
+     * Validate the CLI arguments.  Default implementation provides validation for the common arguments.
+     * Each subclass should call super.validate() and provide validation code specific to the sub-command.
+     * @throws Exception
+     */
+    public void validate() throws Exception {
+        if (confFile != null && !confFile.isBlank()) {
+            File configFile = new File(confFile);
+            if (!configFile.exists()) {
+                throw new Exception("config file '" + confFile + "', does not exist");
+            }
+            if (configFile.isDirectory()) {
+                throw new Exception("config file '" + confFile + "', is a directory");
+            }
+        }
+    }
+
+    /**
+     * Parse the command line args.
+     * @param cmdName used for the help message
+     * @param args String[] of CLI args
+     * @throws ParameterException If there is a problem parsing the arguments
+     */
+    public void parseCLI(String cmdName, String[] args) {
+        CommandLine commander = new CommandLine(this);
+        commander.setCommandName(cmdName);
+        try {
+            commander.parseArgs(args);
+        } catch (ParameterException e) {
+            System.out.println(e.getMessage());
+            commander.usage(commander.getOut());
+            PerfClientUtils.exit(1);
+        }
+
+        if (help) {
+            commander.usage(commander.getOut());
+            PerfClientUtils.exit(0);
+        }
+
+        fillArgumentsFromProperties();
+
+        if (isBlank(authPluginClassName) && !isBlank(deprecatedAuthPluginClassName)) {
+            authPluginClassName = deprecatedAuthPluginClassName;
+        }
+
+        try {
+            validate();
+        } catch (Exception e) {
+            System.out.println("error: " + e.getMessage());
+            PerfClientUtils.exit(1);
+        }
     }
 
 }

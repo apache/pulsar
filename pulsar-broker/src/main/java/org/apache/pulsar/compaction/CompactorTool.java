@@ -20,8 +20,6 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -41,27 +39,32 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
+@Command(name = "compact-topic", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class CompactorTool {
 
     private static class Arguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        @Option(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
+        @Option(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -107,13 +110,11 @@ public class CompactorTool {
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander(arguments);
-        jcommander.setProgramName("PulsarTopicCompactor");
-
-        // parse args by JCommander
-        jcommander.parse(args);
+        CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("PulsarTopicCompactor");
+        commander.parseArgs(args);
         if (arguments.help) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             System.exit(0);
         }
 
@@ -126,7 +127,7 @@ public class CompactorTool {
 
         // init broker config
         if (isBlank(arguments.brokerConfigFile)) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         }
 

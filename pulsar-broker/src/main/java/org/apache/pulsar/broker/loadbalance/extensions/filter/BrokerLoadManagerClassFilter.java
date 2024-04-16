@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -33,18 +34,19 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
     }
 
     @Override
-    public Map<String, BrokerLookupData> filter(
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
             Map<String, BrokerLookupData> brokers,
             ServiceUnitId serviceUnit,
-            LoadManagerContext context)
-            throws BrokerFilterException {
+            LoadManagerContext context) {
         if (brokers.isEmpty()) {
-            return brokers;
+            return CompletableFuture.completedFuture(brokers);
         }
         brokers.entrySet().removeIf(entry -> {
             BrokerLookupData v = entry.getValue();
-            return !v.getLoadManagerClassName().equals(context.brokerConfiguration().getLoadManagerClassName());
+            // The load manager class name can be null if the cluster has old version of broker.
+            return !Objects.equals(v.getLoadManagerClassName(),
+                    context.brokerConfiguration().getLoadManagerClassName());
         });
-        return brokers;
+        return CompletableFuture.completedFuture(brokers);
     }
 }

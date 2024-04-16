@@ -37,11 +37,11 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
@@ -62,48 +62,33 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     private final OrderedExecutor executor;
 
     private static final int MAGIC_MANAGED_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
-    private final CompressionType ledgerInfoCompressionType;
-    private final CompressionType cursorInfoCompressionType;
+    private final MetadataCompressionConfig ledgerInfoCompressionConfig;
+    private final MetadataCompressionConfig cursorInfoCompressionConfig;
 
     private final Map<String, UpdateCallback<ManagedLedgerInfo>> managedLedgerInfoUpdateCallbackMap;
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
         this.executor = executor;
-        this.ledgerInfoCompressionType = CompressionType.NONE;
-        this.cursorInfoCompressionType = CompressionType.NONE;
+        this.ledgerInfoCompressionConfig = MetadataCompressionConfig.noCompression;
+        this.cursorInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
         if (store != null) {
             store.registerListener(this);
         }
     }
 
-    public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String ledgerInfoCompressionType,
-                         String cursorInfoCompressionType) {
+    public MetaStoreImpl(MetadataStore store, OrderedExecutor executor,
+                         MetadataCompressionConfig ledgerInfoCompressionConfig,
+                         MetadataCompressionConfig cursorInfoCompressionConfig) {
         this.store = store;
         this.executor = executor;
-        this.ledgerInfoCompressionType = parseCompressionType(ledgerInfoCompressionType);
-        this.cursorInfoCompressionType = parseCompressionType(cursorInfoCompressionType);
+        this.ledgerInfoCompressionConfig = ledgerInfoCompressionConfig;
+        this.cursorInfoCompressionConfig = cursorInfoCompressionConfig;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
         if (store != null) {
             store.registerListener(this);
         }
-    }
-
-    private CompressionType parseCompressionType(String value) {
-        if (StringUtils.isEmpty(value)) {
-            return CompressionType.NONE;
-        }
-
-        CompressionType compressionType;
-        try {
-            compressionType = CompressionType.valueOf(value);
-        } catch (Exception e) {
-            log.error("Failed to get compression type {} error msg: {}.", value, e.getMessage());
-            throw e;
-        }
-
-        return compressionType;
     }
 
     @Override
@@ -421,29 +406,43 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     }
 
     public byte[] compressLedgerInfo(ManagedLedgerInfo managedLedgerInfo) {
-        if (ledgerInfoCompressionType.equals(CompressionType.NONE)) {
+        CompressionType compressionType = ledgerInfoCompressionConfig.getCompressionType();
+        if (compressionType.equals(CompressionType.NONE)) {
             return managedLedgerInfo.toByteArray();
         }
-        MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata
-                .newBuilder()
-                .setCompressionType(ledgerInfoCompressionType)
-                .setUncompressedSize(managedLedgerInfo.getSerializedSize())
-                .build();
-        return compressManagedInfo(managedLedgerInfo.toByteArray(), mlInfoMetadata.toByteArray(),
-                mlInfoMetadata.getSerializedSize(), ledgerInfoCompressionType);
+
+        int uncompressedSize = managedLedgerInfo.getSerializedSize();
+        if (uncompressedSize > ledgerInfoCompressionConfig.getCompressSizeThresholdInBytes()) {
+            MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata
+                    .newBuilder()
+                    .setCompressionType(compressionType)
+                    .setUncompressedSize(uncompressedSize)
+                    .build();
+            return compressManagedInfo(managedLedgerInfo.toByteArray(), mlInfoMetadata.toByteArray(),
+                    mlInfoMetadata.getSerializedSize(), compressionType);
+        }
+
+        return managedLedgerInfo.toByteArray();
     }
 
     public byte[] compressCursorInfo(ManagedCursorInfo managedCursorInfo) {
-        if (cursorInfoCompressionType.equals(CompressionType.NONE)) {
+        CompressionType compressionType = cursorInfoCompressionConfig.getCompressionType();
+        if (compressionType.equals(CompressionType.NONE)) {
             return managedCursorInfo.toByteArray();
         }
-        MLDataFormats.ManagedCursorInfoMetadata metadata = MLDataFormats.ManagedCursorInfoMetadata
-                .newBuilder()
-                .setCompressionType(cursorInfoCompressionType)
-                .setUncompressedSize(managedCursorInfo.getSerializedSize())
-                .build();
-        return compressManagedInfo(managedCursorInfo.toByteArray(), metadata.toByteArray(),
-                metadata.getSerializedSize(), cursorInfoCompressionType);
+
+        int uncompressedSize = managedCursorInfo.getSerializedSize();
+        if (uncompressedSize > cursorInfoCompressionConfig.getCompressSizeThresholdInBytes()) {
+            MLDataFormats.ManagedCursorInfoMetadata metadata = MLDataFormats.ManagedCursorInfoMetadata
+                    .newBuilder()
+                    .setCompressionType(compressionType)
+                    .setUncompressedSize(uncompressedSize)
+                    .build();
+            return compressManagedInfo(managedCursorInfo.toByteArray(), metadata.toByteArray(),
+                    metadata.getSerializedSize(), compressionType);
+        }
+
+        return managedCursorInfo.toByteArray();
     }
 
     public ManagedLedgerInfo parseManagedLedgerInfo(byte[] data) throws InvalidProtocolBufferException {

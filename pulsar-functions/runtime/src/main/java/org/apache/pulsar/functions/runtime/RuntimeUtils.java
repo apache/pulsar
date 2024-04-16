@@ -37,6 +37,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.text.Normalizer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -129,14 +130,31 @@ public class RuntimeUtils {
      */
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
+                                                AuthenticationConfig authConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
+                                                String stateStorageServiceUrl,
+                                                String pulsarWebServiceUrl,
                                                 boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
+        // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails`
+        // manually in Go instance
+        String functionDetails =
+                JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails());
+        goInstanceConfig.setFunctionDetails(functionDetails);
+
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
+        }
+
+        if (null != stateStorageServiceUrl) {
+            goInstanceConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
+        }
+
+        if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+            goInstanceConfig.setPulsarWebServiceUrl(pulsarWebServiceUrl);
         }
 
         if (instanceConfig.getInstanceId() != 0) {
@@ -185,6 +203,23 @@ public class RuntimeUtils {
         }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
+        }
+
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                goInstanceConfig.setClientAuthenticationPlugin(authConfig.getClientAuthenticationPlugin());
+                goInstanceConfig.setClientAuthenticationParameters(authConfig.getClientAuthenticationParameters());
+            }
+            goInstanceConfig.setTlsAllowInsecureConnection(
+                    authConfig.isTlsAllowInsecureConnection());
+            goInstanceConfig.setTlsHostnameVerificationEnable(
+                    authConfig.isTlsHostnameVerificationEnable());
+            if (isNotBlank(authConfig.getTlsTrustCertsFilePath())){
+                goInstanceConfig.setTlsTrustCertsFilePath(
+                        authConfig.getTlsTrustCertsFilePath());
+            }
+
         }
 
         if (instanceConfig.getMaxBufferedTuples() != 0) {
@@ -292,7 +327,9 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, authConfig, originalCodeFileName,
+                    pulsarServiceUrl, stateStorageServiceUrl, pulsarWebServiceUrl,
+                    k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -528,5 +565,16 @@ public class RuntimeUtils {
         new ThreadExports().register(registry);
         new ClassLoadingExports().register(registry);
         new VersionInfoExports().register(registry);
+    }
+
+    public static String sanitizeFileName(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        // converts a unicode string to plain ascii
+        String asciiFileName = Normalizer.normalize(fileName, Normalizer.Form.NFD)
+                .replaceAll("[^\\p{ASCII}]", "");
+        // replaces all non-alphanumeric characters (excluding -_.) with _
+        return asciiFileName.replaceAll("[^a-zA-Z0-9-_.]", "_");
     }
 }

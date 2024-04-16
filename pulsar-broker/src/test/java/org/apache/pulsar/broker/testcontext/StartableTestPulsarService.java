@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -28,7 +30,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -39,14 +41,15 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
     private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
 
     public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                      MetadataStoreExtended localMetadataStore,
-                                      MetadataStoreExtended configurationMetadataStore,
-                                      Compactor compactor,
-                                      BrokerInterceptor brokerInterceptor,
-                                      BookKeeperClientFactory bookKeeperClientFactory,
-                                      Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory);
+                                  MetadataStoreExtended localMetadataStore,
+                                  MetadataStoreExtended configurationMetadataStore,
+                                  CompactionServiceFactory compactionServiceFactory,
+                                  BrokerInterceptor brokerInterceptor,
+                                  BookKeeperClientFactory bookKeeperClientFactory,
+                                  Function<BrokerService, BrokerService> brokerServiceCustomizer,
+                                  Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
+                brokerInterceptor, bookKeeperClientFactory, openTelemetrySdkBuilderCustomizer);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
     }
 

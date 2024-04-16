@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -70,6 +71,8 @@ public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
         Assert.assertTrue(topics.contains(TopicName.get(topicName).getPartition(0).toString()));
         Assert.assertTrue(partitionedTopicList.contains(topicName));
         consumer.close();
+        PartitionedTopicStats stats = admin.topics().getPartitionedStats(topicName, false);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
         admin.topics().deletePartitionedTopic(topicName);
         topics = admin.topics().getList("public/default");
         partitionedTopicList = admin.topics().getPartitionedTopicList("public/default");

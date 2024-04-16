@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -53,7 +55,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
@@ -81,12 +82,18 @@ public class BrokersBase extends AdminResource {
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
+    // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
+    // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
+    // or we can't propagate the server timeout exception to the client.
+    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
+    private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
     private volatile long threadDumpLoggedTimestamp;
 
     @GET
     @Path("/{cluster}")
     @ApiOperation(
-        value = "Get the list of active brokers (web service addresses) in the cluster."
+        value = "Get the list of active brokers (broker ids) in the cluster."
                 + "If authorization is not enabled, any cluster name is valid.",
         response = String.class,
         responseContainer = "Set")
@@ -116,7 +123,7 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @ApiOperation(
-            value = "Get the list of active brokers (web service addresses) in the local cluster."
+            value = "Get the list of active brokers (broker ids) in the local cluster."
                     + "If authorization is not enabled",
             response = String.class,
             responseContainer = "Set")
@@ -142,7 +149,9 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync().thenAccept(__ -> {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    BrokerInfo brokerInfo = BrokerInfo.builder()
+                            .serviceUrl(leaderBroker.getServiceUrl())
+                            .brokerId(leaderBroker.getBrokerId()).build();
                     LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
@@ -154,8 +163,8 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+    @Path("/{clusterName}/{brokerId}/ownedNamespaces")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker id",
             response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
@@ -163,9 +172,9 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
                                    @PathParam("clusterName") String cluster,
-                                   @PathParam("broker-webserviceurl") String broker) {
+                                   @PathParam("brokerId") String brokerId) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> maybeRedirectToBroker(brokerId))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(asyncResponse::resume)
@@ -173,7 +182,7 @@ public class BrokersBase extends AdminResource {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
-                                clientAppId(), cluster, broker);
+                                clientAppId(), cluster, brokerId);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -254,7 +263,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getDynamicConfiguration()))
                 .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -287,11 +296,11 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue) {
-        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
-        if (BrokerService.isDynamicConfiguration(configName)) {
+        if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                 Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
                 configurationMap.put(configName, configValue);
@@ -397,9 +406,10 @@ public class BrokersBase extends AdminResource {
 
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
+        String brokerId = pulsar().getBrokerId();
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar().getConfiguration());
         final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
@@ -432,7 +442,10 @@ public class BrokersBase extends AdminResource {
                                     });
                                     throw FutureUtil.wrapToCompletionException(createException);
                                 }).thenCompose(reader -> producer.sendAsync(messageStr)
-                                        .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                        .thenCompose(__ -> FutureUtil.addTimeoutHandling(
+                                                healthCheckRecursiveReadNext(reader, messageStr),
+                                                HEALTH_CHECK_READ_TIMEOUT, pulsar().getBrokerService().executor(),
+                                                () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
                                         .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
                                                     .whenComplete((unused, innerEx) -> {
@@ -512,8 +525,8 @@ public class BrokersBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
-        if (!BrokerService.isDynamicConfiguration(configName)) {
-            throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
                 if (old != null) {
@@ -546,16 +559,26 @@ public class BrokersBase extends AdminResource {
             @ApiParam(name = "maxConcurrentUnloadPerSec",
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
-            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
+            @Suspended final AsyncResponse asyncResponse
     ) {
         validateSuperUserAccess();
-        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic)
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully shutdown broker gracefully", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+            LOG.error("[{}] Failed to shutdown broker gracefully", clientAppId(), ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
-    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
-                                            boolean forcedTerminateTopic) {
+    private CompletableFuture<Void> doShutDownBrokerGracefullyAsync(int maxConcurrentUnloadPerSec,
+                                                                    boolean forcedTerminateTopic) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-        pulsar().closeAsync();
+        return pulsar().closeAsync();
     }
 }
 

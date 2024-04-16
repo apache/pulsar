@@ -123,18 +123,6 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                if (msg.isExpired(messageTTLInSeconds)) {
-                    msgExpired.recordEvent(0 /* no value stat */);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
-                                replicatorId, entry.getPosition(), msg.getReplicateTo());
-                    }
-                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
-                    msg.recycle();
-                    continue;
-                }
-
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
@@ -148,10 +136,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
-
-                msgOut.recordEvent(headersAndPayload.readableBytes());
-
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
                 msg.setReplicatedFrom(localCluster);
 
                 headersAndPayload.retain();
@@ -181,6 +166,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
+                    msgOut.recordEvent(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));

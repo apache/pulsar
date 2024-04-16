@@ -44,6 +44,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.kafka.KafkaAbstractSource.KafkaRecord;
+import org.apache.pulsar.io.kafka.KafkaAbstractSource.KeyValueKafkaRecord;
 import org.bouncycastle.util.encoders.Base64;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
@@ -88,24 +90,25 @@ public class KafkaBytesSourceTest {
 
     }
 
-    private void validateSchemaNoKeyValue(String keyDeserializationClass, Schema expectedKeySchema,
-                                          String valueDeserializationClass, Schema expectedValueSchema) throws Exception {
-        KafkaBytesSource source = new KafkaBytesSource();
-        Map<String, Object> config = new HashMap<>();
-        config.put("topic","test");
-        config.put("bootstrapServers","localhost:9092");
-        config.put("groupId", "test");
-        config.put("valueDeserializationClass", valueDeserializationClass);
-        config.put("keyDeserializationClass", keyDeserializationClass);
-        config.put("consumerConfigProperties", ImmutableMap.builder()
-                .put("schema.registry.url", "http://localhost:8081")
-                .build());
-        source.open(config, Mockito.mock(SourceContext.class));
-        assertFalse(source.isProduceKeyValue());
-        Schema keySchema  = source.getKeySchema();
-        Schema valueSchema = source.getValueSchema();
-        assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
-        assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
+    private void validateSchemaNoKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
+                                          String valueDeserializationClass, Schema<?> expectedValueSchema) throws Exception {
+        try (KafkaBytesSource source = new KafkaBytesSource()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("topic", "test");
+            config.put("bootstrapServers", "localhost:9092");
+            config.put("groupId", "test");
+            config.put("valueDeserializationClass", valueDeserializationClass);
+            config.put("keyDeserializationClass", keyDeserializationClass);
+            config.put("consumerConfigProperties", ImmutableMap.builder()
+                    .put("schema.registry.url", "http://localhost:8081")
+                    .build());
+            source.open(config, Mockito.mock(SourceContext.class));
+            assertFalse(source.isProduceKeyValue());
+            Schema<ByteBuffer> keySchema = source.getKeySchema();
+            Schema<ByteBuffer> valueSchema = source.getValueSchema();
+            assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
+            assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
+        }
     }
 
     @Test
@@ -120,96 +123,98 @@ public class KafkaBytesSourceTest {
     public void testCopyKafkaHeadersEnabled() throws Exception {
         ByteBuffer key = ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10));
         ByteBuffer value = ByteBuffer.wrap(new StringSerializer().serialize("test", "test"));
-        KafkaBytesSource source = new KafkaBytesSource();
-        Map<String, Object> config = new HashMap<>();
-        config.put("copyHeadersEnabled", true);
-        config.put("topic","test");
-        config.put("bootstrapServers","localhost:9092");
-        config.put("groupId", "test");
-        config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
-        config.put("keyDeserializationClass", StringDeserializer.class.getName());
-        config.put("consumerConfigProperties", ImmutableMap.builder()
-                .put("schema.registry.url", "http://localhost:8081")
-                .build());
-        source.open(config, Mockito.mock(SourceContext.class));
-        ConsumerRecord record = new ConsumerRecord<Object, Object>("test", 88, 99, key, value);
-        record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
-        record.headers().add("k2", new byte[]{0xF});
+        try (KafkaBytesSource source = new KafkaBytesSource()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("copyHeadersEnabled", true);
+            config.put("topic", "test");
+            config.put("bootstrapServers", "localhost:9092");
+            config.put("groupId", "test");
+            config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
+            config.put("keyDeserializationClass", StringDeserializer.class.getName());
+            config.put("consumerConfigProperties", ImmutableMap.builder()
+                    .put("schema.registry.url", "http://localhost:8081")
+                    .build());
+            source.open(config, Mockito.mock(SourceContext.class));
+            ConsumerRecord<Object, Object> record = new ConsumerRecord<>("test", 88, 99, key, value);
+            record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
+            record.headers().add("k2", new byte[]{0xF});
 
-        Map<String, String> props = source.copyKafkaHeaders(record);
-        assertEquals(props.size(), 5);
-        assertTrue(props.containsKey("__kafka_topic"));
-        assertTrue(props.containsKey("__kafka_partition"));
-        assertTrue(props.containsKey("__kafka_offset"));
-        assertTrue(props.containsKey("k1"));
-        assertTrue(props.containsKey("k2"));
+            Map<String, String> props = source.copyKafkaHeaders(record);
+            assertEquals(props.size(), 5);
+            assertTrue(props.containsKey("__kafka_topic"));
+            assertTrue(props.containsKey("__kafka_partition"));
+            assertTrue(props.containsKey("__kafka_offset"));
+            assertTrue(props.containsKey("k1"));
+            assertTrue(props.containsKey("k2"));
 
-        assertEquals(props.get("__kafka_topic"), "test");
-        assertEquals(props.get("__kafka_partition"), "88");
-        assertEquals(props.get("__kafka_offset"), "99");
-        assertEquals(Base64.decode(props.get("k1")), "v1".getBytes(StandardCharsets.UTF_8));
-        assertEquals(Base64.decode(props.get("k2")), new byte[]{0xF});
+            assertEquals(props.get("__kafka_topic"), "test");
+            assertEquals(props.get("__kafka_partition"), "88");
+            assertEquals(props.get("__kafka_offset"), "99");
+            assertEquals(Base64.decode(props.get("k1")), "v1".getBytes(StandardCharsets.UTF_8));
+            assertEquals(Base64.decode(props.get("k2")), new byte[]{0xF});
+        }
     }
 
     @Test
     public void testCopyKafkaHeadersDisabled() throws Exception {
         ByteBuffer key = ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10));
         ByteBuffer value = ByteBuffer.wrap(new StringSerializer().serialize("test", "test"));
-        KafkaBytesSource source = new KafkaBytesSource();
-        Map<String, Object> config = new HashMap<>();
-        config.put("topic","test");
-        config.put("bootstrapServers","localhost:9092");
-        config.put("groupId", "test");
-        config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
-        config.put("keyDeserializationClass", StringDeserializer.class.getName());
-        config.put("consumerConfigProperties", ImmutableMap.builder()
-                .put("schema.registry.url", "http://localhost:8081")
-                .build());
-        source.open(config, Mockito.mock(SourceContext.class));
-        ConsumerRecord record = new ConsumerRecord<Object, Object>("test", 88, 99, key, value);
-        record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
-        record.headers().add("k2", new byte[]{0xF});
+        try (KafkaBytesSource source = new KafkaBytesSource()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("topic", "test");
+            config.put("bootstrapServers", "localhost:9092");
+            config.put("groupId", "test");
+            config.put("valueDeserializationClass", IntegerDeserializer.class.getName());
+            config.put("keyDeserializationClass", StringDeserializer.class.getName());
+            config.put("consumerConfigProperties", ImmutableMap.builder()
+                    .put("schema.registry.url", "http://localhost:8081")
+                    .build());
+            source.open(config, Mockito.mock(SourceContext.class));
+            ConsumerRecord<Object, Object> record = new ConsumerRecord<>("test", 88, 99, key, value);
+            record.headers().add("k1", "v1".getBytes(StandardCharsets.UTF_8));
+            record.headers().add("k2", new byte[]{0xF});
 
-        Map<String, String> props = source.copyKafkaHeaders(record);
-        assertTrue(props.isEmpty());
+            Map<String, String> props = source.copyKafkaHeaders(record);
+            assertTrue(props.isEmpty());
+        }
     }
 
-    private void validateSchemaKeyValue(String keyDeserializationClass, Schema expectedKeySchema,
-                                          String valueDeserializationClass, Schema expectedValueSchema,
+    private void validateSchemaKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
+                                          String valueDeserializationClass, Schema<?> expectedValueSchema,
                                           ByteBuffer key,
                                         ByteBuffer value) throws Exception {
-        KafkaBytesSource source = new KafkaBytesSource();
-        Map<String, Object> config = new HashMap<>();
-        config.put("topic","test");
-        config.put("bootstrapServers","localhost:9092");
-        config.put("groupId", "test");
-        config.put("valueDeserializationClass", valueDeserializationClass);
-        config.put("keyDeserializationClass", keyDeserializationClass);
-        config.put("consumerConfigProperties", ImmutableMap.builder()
-                .put("schema.registry.url", "http://localhost:8081")
-                .build());
-        source.open(config, Mockito.mock(SourceContext.class));
-        assertTrue(source.isProduceKeyValue());
-        Schema keySchema  = source.getKeySchema();
-        Schema valueSchema = source.getValueSchema();
-        assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
-        assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
+        try (KafkaBytesSource source = new KafkaBytesSource()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("topic", "test");
+            config.put("bootstrapServers", "localhost:9092");
+            config.put("groupId", "test");
+            config.put("valueDeserializationClass", valueDeserializationClass);
+            config.put("keyDeserializationClass", keyDeserializationClass);
+            config.put("consumerConfigProperties", ImmutableMap.builder()
+                    .put("schema.registry.url", "http://localhost:8081")
+                    .build());
+            source.open(config, Mockito.mock(SourceContext.class));
+            assertTrue(source.isProduceKeyValue());
+            Schema<ByteBuffer> keySchema = source.getKeySchema();
+            Schema<ByteBuffer> valueSchema = source.getValueSchema();
+            assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
+            assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
 
-        KafkaAbstractSource.KafkaRecord record = source.buildRecord(new ConsumerRecord<Object, Object>("test", 0, 0, key, value));
-        assertThat(record, instanceOf(KafkaAbstractSource.KeyValueKafkaRecord.class));
-        KafkaAbstractSource.KeyValueKafkaRecord kvRecord = (KafkaAbstractSource.KeyValueKafkaRecord) record;
-        assertSame(keySchema, kvRecord.getKeySchema());
-        assertSame(valueSchema, kvRecord.getValueSchema());
-        assertEquals(KeyValueEncodingType.SEPARATED, kvRecord.getKeyValueEncodingType());
-        KeyValue kvValue = (KeyValue) kvRecord.getValue();
-        log.info("key {}", Arrays.toString(toArray(key)));
-        log.info("value {}", Arrays.toString(toArray(value)));
+            KafkaRecord<ByteBuffer> record = source.buildRecord(new ConsumerRecord<>("test", 0, 0, key, value));
+            assertThat(record, instanceOf(KeyValueKafkaRecord.class));
+            KeyValueKafkaRecord<ByteBuffer, ByteBuffer> kvRecord = (KeyValueKafkaRecord<ByteBuffer, ByteBuffer>) record;
+            assertSame(keySchema, kvRecord.getKeySchema());
+            assertSame(valueSchema, kvRecord.getValueSchema());
+            assertEquals(KeyValueEncodingType.SEPARATED, kvRecord.getKeyValueEncodingType());
+            KeyValue<ByteBuffer, ByteBuffer> kvValue = (KeyValue<ByteBuffer, ByteBuffer>) kvRecord.getValue();
+            log.info("key {}", Arrays.toString(toArray(key)));
+            log.info("value {}", Arrays.toString(toArray(value)));
+            log.info("key {}", Arrays.toString(toArray(kvValue.getKey())));
+            log.info("value {}", Arrays.toString(toArray(kvValue.getValue())));
 
-        log.info("key {}", Arrays.toString(toArray((ByteBuffer) kvValue.getKey())));
-        log.info("value {}", Arrays.toString(toArray((ByteBuffer) kvValue.getValue())));
-
-        assertEquals(ByteBuffer.wrap(toArray(key)).compareTo((ByteBuffer) kvValue.getKey()), 0);
-        assertEquals(ByteBuffer.wrap(toArray(value)).compareTo((ByteBuffer) kvValue.getValue()), 0);
+            assertEquals(ByteBuffer.wrap(toArray(key)).compareTo(kvValue.getKey()), 0);
+            assertEquals(ByteBuffer.wrap(toArray(value)).compareTo(kvValue.getValue()), 0);
+        }
     }
 
     private static byte[] toArray(ByteBuffer b) {

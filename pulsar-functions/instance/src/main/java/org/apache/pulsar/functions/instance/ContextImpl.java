@@ -137,12 +137,14 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final Function.FunctionDetails.ComponentType componentType;
 
+    private final java.util.function.Consumer<Throwable> fatalHandler;
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
-            throws PulsarClientException {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
+                       java.util.function.Consumer<Throwable> fatalHandler) {
         this.config = config;
         this.logger = logger;
         this.clientBuilder = clientBuilder;
@@ -150,6 +152,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.pulsarAdmin = pulsarAdmin;
         this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
+        this.fatalHandler = fatalHandler;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
@@ -534,6 +537,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         return clientBuilder;
     }
 
+    @Override
+    public void fatal(Throwable t) {
+        fatalHandler.accept(t);
+    }
+
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
         Producer<T> producer;
         if (tlPublishProducers != null) {
@@ -603,12 +611,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             String metricName = userMetricsLabelsEntry.getKey();
             String[] labels = userMetricsLabelsEntry.getValue();
             Summary.Child.Value summary = userMetricsSummary.labels(labels).get();
-            metricsMap.put(String.format("%s%s_sum", USER_METRIC_PREFIX, metricName), summary.sum);
-            metricsMap.put(String.format("%s%s_count", USER_METRIC_PREFIX, metricName), summary.count);
+            String prefix = USER_METRIC_PREFIX + metricName + "_";
+            metricsMap.put(prefix + "sum", summary.sum);
+            metricsMap.put(prefix + "count", summary.count);
             for (Map.Entry<Double, Double> entry : summary.quantiles.entrySet()) {
                 Double quantile = entry.getKey();
                 Double value = entry.getValue();
-                metricsMap.put(String.format("%s%s_%s", USER_METRIC_PREFIX, metricName, quantile), value);
+                metricsMap.put(prefix + quantile, value);
             }
         }
         return metricsMap;

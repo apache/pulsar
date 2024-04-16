@@ -85,15 +85,12 @@ public class TransactionMetadataStoreService {
     private final Timer transactionOpRetryTimer;
     // this semaphore for loading one transaction coordinator with the same tc id on the same time
     private final ConcurrentLongHashMap<Semaphore> tcLoadSemaphores;
-    // one connect request open the transactionMetaStore the other request will add to the queue, when the open op
-    // finished the request will be poll and complete the future
+    // one connect request opens the transactionMetaStore the other request will add to the queue, when the open op
+    // finishes the request will be polled and will complete the future
     private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
     private final ExecutorService internalPinnedExecutor;
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
-
-    private final ThreadFactory threadFactory =
-            new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
 
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
@@ -108,6 +105,8 @@ public class TransactionMetadataStoreService {
         this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
         this.pendingConnectRequests =
                 ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
+        ThreadFactory threadFactory =
+                new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
@@ -169,7 +168,8 @@ public class TransactionMetadataStoreService {
                                     tcLoadSemaphore.release();
                                 })).exceptionally(e -> {
                             internalPinnedExecutor.execute(() -> {
-                                completableFuture.completeExceptionally(e.getCause());
+                                Throwable realCause = FutureUtil.unwrapCompletionException(e);
+                                completableFuture.completeExceptionally(realCause);
                                 // release before handle request queue,
                                 //in order to client reconnect infinite loop
                                 tcLoadSemaphore.release();
@@ -180,7 +180,7 @@ public class TransactionMetadataStoreService {
                                         CompletableFuture<Void> future = deque.poll();
                                         if (future != null) {
                                             // this means that this tc client connection connect fail
-                                            future.completeExceptionally(e);
+                                            future.completeExceptionally(realCause);
                                         } else {
                                             break;
                                         }
@@ -199,7 +199,7 @@ public class TransactionMetadataStoreService {
                         // then handle the requests witch in the queue
                         deque.add(completableFuture);
                         if (LOG.isDebugEnabled()) {
-                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
+                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
                         }
                     }
                 })).exceptionally(ex -> {
@@ -366,17 +366,11 @@ public class TransactionMetadataStoreService {
 
     private CompletionStage<Void> fakeAsyncCheckTxnStatus(TxnStatus txnStatus, int txnAction,
                                                           TxnID txnID, TxnStatus expectStatus) {
-        boolean isLegal;
-        switch (txnStatus) {
-            case COMMITTING:
-                isLegal =  (txnAction == TxnAction.COMMIT.getValue());
-                break;
-            case ABORTING:
-                isLegal =  (txnAction == TxnAction.ABORT.getValue());
-                break;
-            default:
-                isLegal = false;
-        }
+        boolean isLegal = switch (txnStatus) {
+            case COMMITTING -> (txnAction == TxnAction.COMMIT.getValue());
+            case ABORTING -> (txnAction == TxnAction.ABORT.getValue());
+            default -> false;
+        };
         if (!isLegal) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("EndTxnInTransactionBuffer op retry! TxnId : {}, TxnAction : {}", txnID, txnAction);
@@ -501,15 +495,14 @@ public class TransactionMetadataStoreService {
 
     public void close () {
         this.internalPinnedExecutor.shutdown();
-        stores.forEach((tcId, metadataStore) -> {
+        stores.forEach((tcId, metadataStore) ->
             metadataStore.closeAsync().whenComplete((v, ex) -> {
                 if (ex != null) {
                     LOG.error("Close transaction metadata store with id " + tcId, ex);
                 } else {
                     LOG.info("Removed and closed transaction meta store {}", tcId);
                 }
-            });
-        });
+        }));
         stores.clear();
     }
 }

@@ -87,13 +87,13 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .build();
         lookupUrl = new URI(pulsarContainer.getPlainTextPulsarBrokerUrl());
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
                 TenantInfo.builder().adminRoles(new HashSet<>(Arrays.asList("appid1", "appid2")))
                 .allowedClusters(Collections.singleton("standalone")).build());
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
-        admin.close();
     }
 
     @Override

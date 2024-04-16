@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -48,6 +44,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 public class PerformanceReader {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -61,38 +60,30 @@ public class PerformanceReader {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-    @Parameters(commandDescription = "Test pulsar reader performance.")
-    static class Arguments extends PerformanceBaseArguments {
+    @Command(description = "Test pulsar reader performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+    static class Arguments extends PerformanceTopicListArguments {
 
-
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topic;
-
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
-
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
+        @Option(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-m",
+        @Option(names = { "-m",
                 "--start-message-id" }, description = "Start message id. This can be either 'earliest', "
                 + "'latest' or a specific message id by using 'lid:eid'")
         public String startMessageId = "earliest";
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-n",
+        @Option(names = {"-n",
                 "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
                 + "it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = {
+        @Option(names = {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
@@ -102,51 +93,21 @@ public class PerformanceReader {
                 useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
             }
         }
+        @Override
+        public void validate() throws Exception {
+            super.validate();
+            if (startMessageId != "earliest" && startMessageId != "latest"
+                    && (startMessageId.split(":")).length != 2) {
+                String errMsg = String.format("invalid start message ID '%s', must be either either 'earliest', "
+                        + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
+                throw new Exception(errMsg);
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf read");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        for (String arg : arguments.topic) {
-            if (arg.startsWith("-")) {
-                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
-                        + "please use a fully qualified topic name\n", arg, arg);
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topic.size() == 1) {
-                String prefixTopicName = arguments.topic.get(0);
-                List<String> defaultTopics = new ArrayList<>();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
-                }
-                arguments.topic = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topics");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf read", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -202,7 +163,7 @@ public class PerformanceReader {
                 .startMessageId(startMessageId);
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topic.get(i));
+            final TopicName topicName = TopicName.get(arguments.topics.get(i));
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
@@ -229,7 +190,6 @@ public class PerformanceReader {
             Timer timer = new Timer();
             timer.schedule(timoutTask, arguments.testTime * 1000);
         }
-
 
         long oldTime = System.nanoTime();
         Histogram reportHistogram = null;

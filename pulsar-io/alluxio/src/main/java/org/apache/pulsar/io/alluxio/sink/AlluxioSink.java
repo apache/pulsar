@@ -22,12 +22,13 @@ import alluxio.AlluxioURI;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileOutStream;
 import alluxio.client.file.FileSystem;
+import alluxio.conf.Configuration;
 import alluxio.conf.InstancedConfiguration;
 import alluxio.conf.PropertyKey;
 import alluxio.exception.AlluxioException;
 import alluxio.grpc.CreateFilePOptions;
 import alluxio.grpc.WritePType;
-import alluxio.util.FileSystemOptions;
+import alluxio.util.FileSystemOptionsUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -78,7 +79,7 @@ public class AlluxioSink implements Sink<GenericObject> {
     private AlluxioSinkConfig alluxioSinkConfig;
     private AlluxioState alluxioState;
 
-    private InstancedConfiguration configuration = InstancedConfiguration.defaults();
+    private InstancedConfiguration configuration = Configuration.modifiableGlobal();
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -205,7 +206,7 @@ public class AlluxioSink implements Sink<GenericObject> {
 
     private void createTmpFile() throws AlluxioException, IOException {
         CreateFilePOptions.Builder optionsBuilder =
-                FileSystemOptions.createFileDefaults(configuration).toBuilder();
+                FileSystemOptionsUtils.createFileDefaults(configuration).toBuilder();
         UUID id = UUID.randomUUID();
         String fileExtension = alluxioSinkConfig.getFileExtension();
         tmpFilePath = tmpFileDirPath + "/" + id.toString() + "_tmp" + fileExtension;

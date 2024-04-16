@@ -39,6 +39,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -49,6 +51,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -67,6 +70,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,22 +88,27 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
-import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerBase;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -2156,7 +2165,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
@@ -2235,7 +2244,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: Consumer starts consuming only after all messages have been produced. So, consumer consumes total
      * receiver-queue-size number messages => ask for redelivery and receives all messages again.
@@ -3902,11 +3911,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2");
 
         @Cleanup
-        Producer<byte[]> producer = producerBuilder.create();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>)producerBuilder.create();
         List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
-        byte[] message = new byte[ClientCnx.getMaxMessageSize() + 1];
+        byte[] message = new byte[producer.getConnectionHandler().getMaxMessageSize() + 1];
         for (int i = 0; i < maxPendingMessages + 10; i++) {
             Future<MessageId> future = producer.sendAsync(message);
             try {
@@ -4109,6 +4118,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
+    @Test(timeOut = 100000)
+    public void testMessageListenerGetStats() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testGetStats" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final int receiveQueueSize = 100;
+        @Cleanup
+        PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                .messageListener((MessageListener<String>) (consumer1, msg) -> {
+                    try {
+                        TimeUnit.SECONDS.sleep(10);
+                    } catch (InterruptedException igr) {
+                    }
+                })
+                .topic(topicName).receiverQueueSize(receiveQueueSize).subscriptionName(subName).subscribe();
+        Assert.assertNull(consumer.getStats().getMsgNumInSubReceiverQueue());
+        Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), 0);
+
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.sendAsync("msg" + i);
+        }
+        //Give some time to consume
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
+        consumer.close();
+        producer.close();
+    }
 
     @Test(timeOut = 100000)
     public void testGetStatsForPartitionedTopic() throws Exception {
@@ -4291,6 +4329,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
+
         final String topic = "persistent://my-property/my-ns/accessSchema";
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
@@ -4306,37 +4348,43 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(payload);
         producer.close();
 
-        GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
-        consumer.close();
-        assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
-        JsonNode nativeJsonRecord = null;
-        if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
-            assertNotNull(nativeAvroRecord);
-        } else {
-            nativeJsonRecord = (JsonNode) res.getNativeObject();
-            assertNotNull(nativeJsonRecord);
-        }
-        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
-            log.info("field {} {}", f.getName(), res.getField(f));
-            assertEquals("field", f.getName());
-            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-
-            if (nativeAvroRecord != null) {
-                // test that the native schema is accessible
-                org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
-                // a nullable string is an UNION
-                assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+        try {
+            GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
+            consumer.close();
+            assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
+            org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
+            JsonNode nativeJsonRecord = null;
+            if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+                assertNotNull(nativeAvroRecord);
             } else {
-                assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                nativeJsonRecord = (JsonNode) res.getNativeObject();
+                assertNotNull(nativeJsonRecord);
             }
-        }
-        assertEquals(1, res.getFields().size());
+            for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+                log.info("field {} {}", f.getName(), res.getField(f));
+                assertEquals("field", f.getName());
+                assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
 
-        admin.schemas().deleteSchema(topic);
+                if (nativeAvroRecord != null) {
+                    // test that the native schema is accessible
+                    org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
+                    // a nullable string is an UNION
+                    assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+                } else {
+                    assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                }
+            }
+            assertEquals(1, res.getFields().size());
+        } catch (Exception e) {
+            fail();
+        } finally {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+            admin.schemas().deleteSchema(topic);
+        }
     }
 
     @Test(timeOut = 100000)
@@ -4612,5 +4660,190 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         client.close();
+    }
+
+    @Test
+    public void testConsumeWhenDeliveryFailedByIOException() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "subscription1";
+        final int messagesCount = 100;
+        final int receiverQueueSize = 1;
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subscriptionName).receiverQueueSize(receiverQueueSize).subscribe();
+        for (int i = 0; i < messagesCount; i++) {
+            producer.send(i + "");
+        }
+        // Wait incoming queue of the consumer is full.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.getIncomingMessageSize(), receiverQueueSize);
+        });
+
+        // Mock an io error for sending messages out.
+        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(topic, false).join().get()
+                .getSubscription(subscriptionName).getDispatcher().getConsumers().iterator().next().cnx();
+        serverCnx.ctx().channel().pipeline().addFirst(new ChannelDuplexHandler() {
+
+            @Override
+            public void flush(ChannelHandlerContext ctx) throws Exception {
+                throw new IOException("Mocked error");
+            }
+        });
+
+        // Verify all messages will be consumed.
+        Set<String> receivedMessages = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg != null) {
+                receivedMessages.add(msg.getValue());
+                consumer.acknowledge(msg);
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(receivedMessages.size(), messagesCount);
+
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @DataProvider(name = "enableBatchSend")
+    public Object[][] enableBatchSend() {
+        return new Object[][]{
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "enableBatchSend")
+    public void testPublishWithCreateMessageManually(boolean enableBatchSend) throws Exception {
+        final int messageCount = 10;
+        final List<MessageImpl> messageArrayBeforeSend = Collections.synchronizedList(new ArrayList<>());
+        final List<MessageImpl> messageArrayOnSendAcknowledgement = Collections.synchronizedList(new ArrayList<>());
+        // Create an interceptor to verify the ref count of Message.payload is as expected.
+        AtomicBoolean payloadWasReleasedWhenIntercept = new AtomicBoolean(false);
+        ProducerInterceptor interceptor = new ProducerInterceptor(){
+
+            @Override
+            public void close() {
+
+            }
+            @Override
+            public Message beforeSend(Producer producer, Message message) {
+                MessageImpl msgImpl = (MessageImpl) message;
+                log.info("payload.refCnf before send: {}", msgImpl.getDataBuffer().refCnt());
+                if (msgImpl.getDataBuffer().refCnt() < 1) {
+                    payloadWasReleasedWhenIntercept.set(true);
+                }
+                messageArrayBeforeSend.add(msgImpl);
+                return message;
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                              Throwable exception) {
+                MessageImpl msgImpl = (MessageImpl) message;
+                log.info("payload.refCnf on send acknowledgement: {}", msgImpl.getDataBuffer().refCnt());
+                if (msgImpl.getDataBuffer().refCnt() < 1) {
+                    payloadWasReleasedWhenIntercept.set(true);
+                }
+                messageArrayOnSendAcknowledgement.add(msgImpl);
+            }
+        };
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        ProducerBase producerBase = (ProducerBase) pulsarClient.newProducer().topic(topic).intercept(interceptor)
+                .enableBatching(enableBatchSend).create();
+
+        // Publish message.
+        // Note: "ProducerBase.sendAsync" is not equals to "Producer.sendAsync".
+        final MessageImpl[] messageArraySent = new MessageImpl[messageCount];
+        final ByteBuf[] payloads = new ByteBuf[messageCount];
+        List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
+        List<CompletableFuture> releaseFutureList = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            // Create message payload, refCnf = 1 now.
+            ByteBuf payload = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
+            payloads[i] = payload;
+            log.info("payload_{}.refCnf 1st: {}", i,  payload.refCnt());
+            payload.writeByte(i);
+            // refCnf = 2 now.
+            payload.retain();
+            log.info("payload_{}.refCnf 2nd: {}", i,  payload.refCnt());
+            MessageMetadata messageMetadata = new MessageMetadata();
+            messageMetadata.setUncompressedSize(1);
+            MessageImpl<byte[]> message1 = MessageImpl.create(topic, null, messageMetadata, payload, Optional.empty(),
+                    null, Schema.BYTES, 0, true, 0);
+            messageArraySent[i] = message1;
+            // Release ByteBuf the first time, refCnf = 1 now.
+            CompletableFuture<MessageId> future = producerBase.sendAsync(message1);
+            sendFutureList.add(future);
+            final int indexForLog = i;
+            future.whenComplete((v, ex) -> {
+                message1.release();
+                log.info("payload_{}.refCnf 3rd after_complete_refCnf: {}, ex: {}", indexForLog, payload.refCnt(),
+                        ex == null ? "null" : ex.getMessage());
+            });
+        }
+        sendFutureList.get(messageCount - 1).join();
+
+        // Left 2 seconds to wait the code in the finally-block, which is using to avoid this test to be flaky.
+        Thread.sleep(1000 * 2);
+
+        // Verify: payload's refCnf.
+        for (int i = 0; i < messageCount; i++) {
+            log.info("payload_{}.refCnf 4th: {}", i, payloads[i].refCnt());
+            assertEquals(payloads[i].refCnt(), 1);
+        }
+
+        // Verify: the messages has not been released when calling interceptor.
+        assertFalse(payloadWasReleasedWhenIntercept.get());
+
+        // Verify: the order of send complete event.
+        MessageIdImpl messageIdPreviousOne = null;
+        for (int i = 0; i < messageCount; i++) {
+            MessageIdImpl messageId = (MessageIdImpl) sendFutureList.get(i).get();
+            if (messageIdPreviousOne != null) {
+                assertTrue(compareMessageIds(messageIdPreviousOne, messageId) > 0);
+            }
+            messageIdPreviousOne = messageId;
+        }
+
+        // Verify: the order of interceptor events.
+        for (int i = 0; i < messageCount; i++) {
+            assertTrue(messageArraySent[i] == messageArrayBeforeSend.get(i));
+            assertTrue(messageArraySent[i] == messageArrayOnSendAcknowledgement.get(i));
+        }
+
+        // cleanup.
+        for (int i = 0; i < messageCount; i++) {
+            payloads[i].release();
+        }
+        producerBase.close();
+        admin.topics().delete(topic, false);
+    }
+
+    private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {
+        if (messageId2.getLedgerId() < messageId1.getLedgerId()) {
+            return -1;
+        }
+        if (messageId2.getLedgerId() > messageId1.getLedgerId()) {
+            return 1;
+        }
+        if (messageId2.getEntryId() < messageId1.getEntryId()) {
+            return -1;
+        }
+        if (messageId2.getEntryId() > messageId1.getEntryId()) {
+            return 1;
+        }
+        if (messageId2 instanceof BatchMessageIdImpl && messageId1 instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl batchMessageId1 = (BatchMessageIdImpl) messageId1;
+            BatchMessageIdImpl batchMessageId2 = (BatchMessageIdImpl) messageId2;
+            return batchMessageId2.getBatchIndex() - batchMessageId1.getBatchIndex();
+        } else {
+            return 0;
+        }
     }
 }

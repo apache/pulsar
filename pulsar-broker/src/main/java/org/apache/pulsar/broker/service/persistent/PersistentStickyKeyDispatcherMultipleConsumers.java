@@ -30,13 +30,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
@@ -71,17 +74,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
 
-    private final Set<Consumer> stuckConsumers;
-    private final Set<Consumer> nextStuckConsumers;
-
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
-        this.stuckConsumers = new HashSet<>();
-        this.nextStuckConsumers = new HashSet<>();
         this.keySharedMode = ksm.getKeySharedMode();
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
@@ -170,6 +168,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
             };
 
+    private static final FastThreadLocal<Map<Consumer, List<PositionImpl>>> localGroupedPositions =
+            new FastThreadLocal<Map<Consumer, List<PositionImpl>>>() {
+                @Override
+                protected Map<Consumer, List<PositionImpl>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
+
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
@@ -226,8 +232,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
 
-        nextStuckConsumers.clear();
-
         final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
         groupedEntries.clear();
         final Map<Consumer, Set<Integer>> consumerStickyKeyHashesMap = new HashMap<>();
@@ -255,15 +259,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             assert consumer != null; // checked when added to groupedEntries
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
-            if (consumer.getMaxUnackedMessages() > 0) {
-                int remainUnAckedMessages =
-                        // Avoid negative number
-                        Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
-                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
-            }
-            int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
-            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
+            int availablePermits = getAvailablePermits(consumer);
+            int messagesForC = getRestrictedMaxEntriesForConsumer(consumer,
+                    entriesWithSameKey.stream().map(Entry::getPosition).collect(Collectors.toList()), availablePermits,
                     readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
@@ -296,7 +294,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
-
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -318,14 +315,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // acquire message-dispatch permits for already delivered messages
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
-        stuckConsumers.clear();
-
         if (totalMessagesSent == 0 && (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:
             //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)
             //  2. All keys in the current set of messages are routing to consumers that are currently busy
-            //     and stuck is not caused by stuckConsumers
             //
             // The solution here is to move on and read next batch of messages which might hopefully contain
             // also keys meant for other consumers.
@@ -334,10 +328,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // ahead in the stream while the new consumers are not ready to accept the new messages,
             // therefore would be most likely only increase the distance between read-position and mark-delete
             // position.
-            if (!nextStuckConsumers.isEmpty()) {
-                isDispatcherStuckOnReplays = true;
-                stuckConsumers.addAll(nextStuckConsumers);
-            }
+            isDispatcherStuckOnReplays = true;
             return true;
         }  else if (currentThreadKeyNumber == 0) {
             return true;
@@ -345,11 +336,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages,
-            ReadType readType, Set<Integer> stickyKeyHashes) {
+    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<? extends Position> entries,
+           int availablePermits, ReadType readType, Set<Integer> stickyKeyHashes) {
+        int maxMessages = Math.min(entries.size(), availablePermits);
         if (maxMessages == 0) {
-            // the consumer was stuck
-            nextStuckConsumers.add(consumer);
             return 0;
         }
         if (readType == ReadType.Normal && stickyKeyHashes != null
@@ -366,13 +356,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // At this point, all the old messages were already consumed and this consumer
         // is now ready to receive any message
         if (maxReadPosition == null) {
-            // stop to dispatch by stuckConsumers
-            if (stuckConsumers.contains(consumer)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] stop to dispatch by stuckConsumers, consumer: {}", name, consumer);
-                }
-                return 0;
-            }
             // The consumer has not recently joined, so we can send all messages
             return maxMessages;
         }
@@ -400,7 +383,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
         for (int i = 0; i < maxMessages; i++) {
-            if (((PositionImpl) entries.get(i).getPosition()).compareTo(maxReadPosition) >= 0) {
+            if (((PositionImpl) entries.get(i)).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
                 return i;
@@ -427,6 +410,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
+        if (MapUtils.isEmpty(recentlyJoinedConsumers)) {
+            return false;
+        }
         Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
@@ -457,6 +443,76 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         } else {
             return super.getMessagesToReplayNow(maxMessagesToRead);
         }
+    }
+
+    private int getAvailablePermits(Consumer c) {
+        int availablePermits = Math.max(c.getAvailablePermits(), 0);
+        if (c.getMaxUnackedMessages() > 0) {
+            // Avoid negative number
+            int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+            availablePermits = Math.min(availablePermits, remainUnAckedMessages);
+        }
+        return availablePermits;
+    }
+
+    @Override
+    protected synchronized NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+        if (src.isEmpty()) {
+            return src;
+        }
+        NavigableSet<PositionImpl> res = new TreeSet<>();
+        // Group positions.
+        final Map<Consumer, List<PositionImpl>> groupedPositions = localGroupedPositions.get();
+        groupedPositions.clear();
+        for (PositionImpl pos : src) {
+            Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
+            if (stickyKeyHash == null) {
+                res.add(pos);
+                continue;
+            }
+            Consumer c = selector.select(stickyKeyHash.intValue());
+            if (c == null) {
+                // Maybe using HashRangeExclusiveStickyKeyConsumerSelector.
+                continue;
+            }
+            groupedPositions.computeIfAbsent(c, k -> new ArrayList<>()).add(pos);
+        }
+        // Filter positions by the Recently Joined Position rule.
+        for (Map.Entry<Consumer, List<PositionImpl>> item : groupedPositions.entrySet()) {
+            int availablePermits = getAvailablePermits(item.getKey());
+            if (availablePermits == 0) {
+                continue;
+            }
+            int posCountToRead = getRestrictedMaxEntriesForConsumer(item.getKey(), item.getValue(), availablePermits,
+                    ReadType.Replay, null);
+            if (posCountToRead > 0) {
+                res.addAll(item.getValue().subList(0, posCountToRead));
+            }
+        }
+        return res;
+    }
+
+    /**
+     * In Key_Shared mode, the consumer will not receive any entries from a normal reading if it is included in
+     * {@link #recentlyJoinedConsumers}, they can only receive entries from replay reads.
+     * If all entries in {@link #redeliveryMessages} have been filtered out due to the order guarantee mechanism,
+     * Broker need a normal read to make the consumers not included in @link #recentlyJoinedConsumers} will not be
+     * stuck. See https://github.com/apache/pulsar/pull/7105.
+     */
+    @Override
+    protected boolean hasConsumersNeededNormalRead() {
+        for (Consumer consumer : consumerList) {
+            if (consumer == null || consumer.isBlocked()) {
+                continue;
+            }
+            if (recentlyJoinedConsumers.containsKey(consumer)) {
+                continue;
+            }
+            if (consumer.getAvailablePermits() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

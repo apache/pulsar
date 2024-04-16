@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -28,13 +34,6 @@ import org.jose4j.json.internal.json_simple.JSONObject;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-
-import static org.testng.AssertJUnit.assertTrue;
 
 @Slf4j
 public class RuntimeUtilsTest {
@@ -73,6 +72,13 @@ public class RuntimeUtilsTest {
         instanceConfig.setPort(1337);
         instanceConfig.setMetricsPort(60000);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationToken")
+                .clientAuthenticationParameters("file:///secret/token.jwt")
+                .tlsTrustCertsFilePath("/secret/ca.cert.pem")
+                .tlsHostnameVerificationEnable(true)
+                .tlsAllowInsecureConnection(false)
+                .build();
 
         JSONObject userConfig = new JSONObject();
         userConfig.put("word-of-the-day", "der Weltschmerz");
@@ -115,8 +121,9 @@ public class RuntimeUtilsTest {
                 .build();
 
         instanceConfig.setFunctionDetails(functionDetails);
+        instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -144,6 +151,8 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("autoAck"), true);
         Assert.assertEquals(goInstanceConfig.get("regexPatternSubscription"), false);
         Assert.assertEquals(goInstanceConfig.get("pulsarServiceURL"), "pulsar://localhost:6650");
+        Assert.assertEquals(goInstanceConfig.get("stateStorageServiceUrl"), "bk://localhost:4181");
+        Assert.assertEquals(goInstanceConfig.get("pulsarWebServiceUrl"), "http://localhost:8080");
         Assert.assertEquals(goInstanceConfig.get("runtime"), 3);
         Assert.assertEquals(goInstanceConfig.get("cpu"), 2.0);
         Assert.assertEquals(goInstanceConfig.get("funcID"), "func-7734");
@@ -160,6 +169,11 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "file:///secret/token.jwt");
+        Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
+        Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
+        Assert.assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
     }
 
     @DataProvider(name = "k8sRuntime")
@@ -219,5 +233,13 @@ public class RuntimeUtilsTest {
         assertTrue(indexJavaClass > 0);
         assertTrue(indexAdditionalArguments > 0);
         assertTrue(indexAdditionalArguments < indexJavaClass);
+    }
+
+    @Test
+    public void testSanitizeFileName() {
+        assertEquals(RuntimeUtils.sanitizeFileName("file(1).jar"), "file_1_.jar");
+        assertEquals(RuntimeUtils.sanitizeFileName("äöå.txt"), "aoa.txt");
+        assertEquals(RuntimeUtils.sanitizeFileName("ÄÖÅ.txt"), "AOA.txt");
+        assertNull(RuntimeUtils.sanitizeFileName(null));
     }
 }

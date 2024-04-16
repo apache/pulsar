@@ -24,12 +24,15 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -39,20 +42,30 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -152,6 +165,93 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // assert that all messages have been received
         assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received " +
                 "messages don't match.");
+    }
+
+    @Test
+    public void testReplicatedSubscribeAndSwitchToStandbyCluster() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/ns_");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
+        final String subscriptionName = "s1";
+        final boolean isReplicatedSubscription = true;
+        final int messagesCount = 20;
+        final LinkedHashSet<String> sentMessages = new LinkedHashSet<>();
+        final Set<String> receivedMessages = Collections.synchronizedSet(new LinkedHashSet<>());
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest, isReplicatedSubscription);
+        final PersistentTopic topic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // Send messages
+        // Wait for the topic created on the cluster2.
+        // Wait for the snapshot created.
+        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        Consumer<String> consumer1 = client1.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
+        for (int i = 0; i < messagesCount / 2; i++) {
+            String msg = i + "";
+            producer1.send(msg);
+            sentMessages.add(msg);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
+            assertTrue(replicators != null && replicators.size() == 1, "Replicator should started");
+            assertTrue(replicators.values().iterator().next().isConnected(), "Replicator should be connected");
+            assertTrue(topic1.getReplicatedSubscriptionController().get().getLastCompletedSnapshotId().isPresent(),
+                    "One snapshot should be finished");
+        });
+        final PersistentTopic topic2 =
+                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(topic2.getReplicatedSubscriptionController().isPresent(),
+                    "Replicated subscription controller should created");
+        });
+        for (int i = messagesCount / 2; i < messagesCount; i++) {
+            String msg = i + "";
+            producer1.send(msg);
+            sentMessages.add(msg);
+        }
+
+        // Consume half messages and wait the subscription created on the cluster2.
+        for (int i = 0; i < messagesCount / 2; i++){
+            Message<String> message = consumer1.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                fail("Should not receive null.");
+            }
+            receivedMessages.add(message.getValue());
+            consumer1.acknowledge(message);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(topic2.getSubscriptions().get(subscriptionName), "Subscription should created");
+        });
+
+        // Switch client to cluster2.
+        // Since the cluster1 was not crash, all messages will be replicated to the cluster2.
+        consumer1.close();
+        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
+        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+                .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
+
+        // Verify all messages will be consumed.
+        Awaitility.await().untilAsserted(() -> {
+            while (true) {
+                Message message = consumer2.receive(2, TimeUnit.SECONDS);
+                if (message != null) {
+                    receivedMessages.add(message.getValue().toString());
+                    consumer2.acknowledge(message);
+                } else {
+                    break;
+                }
+            }
+            assertEquals(receivedMessages.size(), sentMessages.size());
+        });
+
+        consumer2.close();
+        producer1.close();
+        client1.close();
+        client2.close();
     }
 
     /**
@@ -530,6 +630,27 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
+    @Test(timeOut = 30000)
+    public void testReplicatedSubscriptionRestApi3() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("geo/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/topic-rest-api3";
+        final String subName = "sub";
+        admin4.tenants().createTenant("geo",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
+        admin4.namespaces().createNamespace(namespace);
+        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin4.topics().createPartitionedTopic(topicName, 2);
+
+        @Cleanup
+        final PulsarClient client4 = PulsarClient.builder().serviceUrl(url4.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        Consumer<byte[]> consumer4 = client4.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Assert.expectThrows(PulsarAdminException.class, () ->
+                admin4.topics().setReplicatedSubscriptionStatus(topicName, subName, true));
+        consumer4.close();
+    }
+
     /**
      * Tests replicated subscriptions when replicator producer is closed
      */
@@ -611,6 +732,274 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // wait for subscription to be replicated
         Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
         Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+    }
+
+    @DataProvider(name = "isTopicPolicyEnabled")
+    private Object[][] isTopicPolicyEnabled() {
+        // Todo: fix replication can not be enabled at topic level.
+        return new Object[][] { { Boolean.FALSE } };
+    }
+
+    /**
+     * Test the replication subscription can work normal in the following cases:
+     *  <p>
+     *      1. Do not write data into the original topic when the topic does not configure a remote cluster. {topic1}
+     *          1. Publish message to the topic and then wait a moment,
+     *          the backlog will not increase after publishing completely.
+     *          2. Acknowledge the messages, the last confirm entry does not change.
+     *      2. Snapshot and mark will be written after topic configure a remote cluster. {topic2}
+     *          1. publish message to topic. After publishing completely, the backlog of the topic keep increase.
+     *          2. Wait the snapshot complete, the backlog stop changing.
+     *          3. Publish messages to wait another snapshot complete.
+     *          4. Ack messages to move the mark delete position after the position record in the first snapshot.
+     *          5. Check new entry (a mark) appending to the original topic.
+     *       3. Stopping writing snapshot and mark after remove the remote cluster of the topic. {topic2}
+     *          similar to step 1.
+     *  </p>
+     */
+    @Test(dataProvider = "isTopicPolicyEnabled")
+    public void testWriteMarkerTaskOfReplicateSubscriptions(boolean isTopicPolicyEnabled) throws Exception {
+        // 1. Prepare resource and use proper configuration.
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/testReplicateSubBackLog");
+        String topic1 = "persistent://" + namespace + "/replication-enable";
+        String topic2 = "persistent://" + namespace + "/replication-disable";
+        String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        pulsar1.getConfiguration().setTopicLevelPoliciesEnabled(isTopicPolicyEnabled);
+        pulsar1.getConfiguration().setReplicationPolicyCheckDurationSeconds(1);
+        pulsar1.getConfiguration().setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        // 2. Build Producer and Consumer.
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        Consumer<byte[]> consumer1 = client1.newConsumer()
+                .topic(topic1)
+                .subscriptionName(subName)
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .replicateSubscriptionState(true)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer1 = client1.newProducer()
+                .topic(topic1)
+                .create();
+        // 3. Test replication subscription work as expected.
+        // Test case 1: disable replication, backlog will not increase.
+        testReplicatedSubscriptionWhenDisableReplication(producer1, consumer1, topic1);
+
+        // Test case 2: enable replication, mark and snapshot work as expected.
+        if (isTopicPolicyEnabled) {
+            admin1.topics().createNonPartitionedTopic(topic2);
+            admin1.topics().setReplicationClusters(topic2, List.of("r1", "r2"));
+        } else {
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        }
+        @Cleanup
+        Consumer<byte[]> consumer2 = client1.newConsumer()
+                .topic(topic2)
+                .subscriptionName(subName)
+                .ackTimeout(5, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .replicateSubscriptionState(true)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer2 = client1.newProducer()
+                .topic(topic2)
+                .create();
+        testReplicatedSubscriptionWhenEnableReplication(producer2, consumer2, topic2);
+
+        // Test case 3: enable replication, mark and snapshot work as expected.
+        if (isTopicPolicyEnabled) {
+            admin1.topics().setReplicationClusters(topic2, List.of("r1"));
+        } else {
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+        }
+        testReplicatedSubscriptionWhenDisableReplication(producer2, consumer2, topic2);
+        // 4. Clear resource.
+        pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        admin1.namespaces().deleteNamespace(namespace, true);
+        pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    @Test
+    public void testReplicatedSubscriptionWithCompaction() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/testReplicatedSubscriptionWithCompaction";
+        final String subName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topicPolicies().setCompactionThreshold(topicName, 100 * 1024 * 1024L);
+
+        @Cleanup final PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName).create();
+        producer.newMessage().key("K1").value("V1").send();
+        producer.newMessage().key("K1").value("V2").send();
+        producer.close();
+
+        createReplicatedSubscription(client, topicName, subName, true);
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Boolean> status = admin1.topics().getReplicatedSubscriptionStatus(topicName, subName);
+            assertTrue(status.get(topicName));
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
+        Assert.assertTrue(rsc1.getLastCompletedSnapshotId().isPresent());
+        assertEquals(t1.getPendingWriteOps().get(), 0L);
+        });
+
+        admin1.topics().triggerCompaction(topicName);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.topics().compactionStatus(topicName).status,
+                    LongRunningProcessStatus.Status.SUCCESS);
+        });
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub2")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .subscribe();
+        List<String> result = new ArrayList<>();
+        while (true) {
+            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+
+            result.add(receive.getValue());
+        }
+
+        Assert.assertEquals(result, List.of("V2"));
+    }
+
+    /**
+     * Disable replication subscription.
+     *    Test scheduled task case.
+     *    1. Send three messages |1:0|1:1|1:2|.
+     *    2. Get topic backlog, as backlog1.
+     *    3. Wait a moment.
+     *    4. Get the topic backlog again, the backlog will not increase.
+     *    Test acknowledge messages case.
+     *    1. Get the last confirm entry, as LAC1.
+     *    2. Acknowledge these messages |1:0|1:1|.
+     *    3. wait a moment.
+     *    4. Get the last confirm entry, as LAC2. LAC1 is equal to LAC2.
+     *    Clear environment.
+     *    1. Ack all the retained messages. |1:2|
+     *    2. Wait for the backlog to return to zero.
+     */
+    private void testReplicatedSubscriptionWhenDisableReplication(Producer<byte[]> producer, Consumer<byte[]> consumer,
+                                                                  String topic) throws Exception {
+        final int messageSum = 3;
+        // Test scheduled task case.
+        for (int i = 0; i < messageSum; i++) {
+            producer.newMessage().send();
+        }
+        long backlog1 = admin1.topics().getStats(topic, false).getBacklogSize();
+        Thread.sleep(3000);
+        long backlog2 = admin1.topics().getStats(topic, false).getBacklogSize();
+        assertEquals(backlog1, backlog2);
+        // Test acknowledge messages case.
+        String lastConfirmEntry1 = admin1.topics().getInternalStats(topic).lastConfirmedEntry;
+        for (int i = 0; i < messageSum - 1; i++) {
+            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmEntry2 = admin1.topics().getInternalStats(topic).lastConfirmedEntry;
+            assertEquals(lastConfirmEntry1, lastConfirmEntry2);
+        });
+        // Clear environment.
+        consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> {
+            long backlog4 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertEquals(backlog4, 0);
+        });
+    }
+
+    /**
+     * Enable replication subscription.
+     *    Test scheduled task case.
+     *    1. Wait replicator connected.
+     *    2. Send three messages |1:0|1:1|1:2|.
+     *    3. Get topic backlog, as backlog1.
+     *    4. Wait a moment.
+     *    5. Get the topic backlog again, as backlog2. The backlog2 is bigger than backlog1. |1:0|1:1|1:2|mark|.
+     *    6. Wait the snapshot complete.
+     *    Test acknowledge messages case.
+     *    1. Write messages and wait another snapshot complete. |1:0|1:1|1:2|mark|1:3|1:4|1:5|mark|
+     *    2. Ack message |1:0|1:1|1:2|1:3|1:4|.
+     *    3. Get last confirm entry, as LAC1.
+     *    2. Wait a moment.
+     *    3. Get Last confirm entry, as LAC2. LAC2 different to LAC1. |1:5|mark|mark|
+     *    Clear environment.
+     *    1. Ack all the retained message |1:5|.
+     *    2. Wait for the backlog to return to zero.
+     */
+    private void testReplicatedSubscriptionWhenEnableReplication(Producer<byte[]> producer, Consumer<byte[]> consumer,
+                                                                String topic) throws Exception {
+        final int messageSum = 3;
+        Awaitility.await().untilAsserted(() -> {
+            List<String> keys = pulsar1.getBrokerService()
+                    .getTopic(topic, false).get().get()
+                    .getReplicators().keys();
+            assertEquals(keys.size(), 1);
+            assertTrue(pulsar1.getBrokerService()
+                    .getTopic(topic, false).get().get()
+                    .getReplicators().get(keys.get(0)).isConnected());
+        });
+        // Test scheduled task case.
+        sendMessageAndWaitSnapshotComplete(producer, topic, messageSum);
+        // Test acknowledge messages case.
+        // After snapshot write completely, acknowledging message to move the mark delete position
+        // after the position recorded in the snapshot will trigger to write a new marker.
+        sendMessageAndWaitSnapshotComplete(producer, topic, messageSum);
+        String lastConfirmedEntry3 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+        for (int i = 0; i < messageSum * 2 - 1; i++) {
+            consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmedEntry4 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            assertNotEquals(lastConfirmedEntry3, lastConfirmedEntry4);
+        });
+        // Clear environment.
+        consumer.acknowledge(consumer.receive(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> {
+            long backlog4 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertEquals(backlog4, 0);
+        });
+    }
+
+    private void sendMessageAndWaitSnapshotComplete(Producer<byte[]> producer, String topic,
+                                                    int messageSum) throws Exception {
+        for (int i = 0; i < messageSum; i++) {
+            producer.newMessage().send();
+        }
+        long backlog1 = admin1.topics().getStats(topic, false).getBacklogSize();
+        Awaitility.await().untilAsserted(() -> {
+            long backlog2 = admin1.topics().getStats(topic, false).getBacklogSize();
+            assertTrue(backlog2 > backlog1);
+        });
+        // Wait snapshot write completely, stop writing marker into topic.
+        Awaitility.await().untilAsserted(() -> {
+            String lastConfirmedEntry1 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            PersistentTopicInternalStats persistentTopicInternalStats =  admin1.topics().getInternalStats(topic, false);
+            Thread.sleep(1000);
+            String lastConfirmedEntry2 = admin1.topics().getInternalStats(topic, false).lastConfirmedEntry;
+            assertEquals(lastConfirmedEntry1, lastConfirmedEntry2);
+        });
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)

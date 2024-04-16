@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +31,6 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -73,20 +71,6 @@ public class ModularLoadManagerWrapper implements LoadManager {
         }
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
         return leastLoadedBroker.map(this::buildBrokerResourceUnit);
-    }
-
-    private String getBrokerWebServiceUrl(String broker) {
-        LocalBrokerData localData = (loadManager).getBrokerLocalData(broker);
-        if (localData != null) {
-            return localData.getWebServiceUrl() != null ? localData.getWebServiceUrl()
-                    : localData.getWebServiceUrlTls();
-        }
-        return String.format("http://%s", broker);
-    }
-
-    private String getBrokerZnodeName(String broker, String webServiceUrl) {
-        String scheme = webServiceUrl.substring(0, webServiceUrl.indexOf("://"));
-        return String.format("%s://%s", scheme, broker);
     }
 
     @Override
@@ -149,10 +133,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     private SimpleResourceUnit buildBrokerResourceUnit (String broker) {
-        String webServiceUrl = getBrokerWebServiceUrl(broker);
-        String brokerZnodeName = getBrokerZnodeName(broker, webServiceUrl);
-        return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+        return new SimpleResourceUnit(broker, new PulsarResourceDescription());
     }
 
     @Override

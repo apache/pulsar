@@ -100,6 +100,9 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             pulsar = new PulsarService(config);
             pulsar.start();
 
+            if (admin != null) {
+                admin.close();
+            }
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
             admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());

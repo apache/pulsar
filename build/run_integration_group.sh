@@ -26,7 +26,8 @@ set -o errexit
 
 JAVA_MAJOR_VERSION="$(java -version 2>&1 |grep " version " | awk -F\" '{ print $2 }' | awk -F. '{ if ($1=="1") { print $2 } else { print $1 } }')"
 # Used to shade run test on Java 8, because the latest TestNG requires Java 11 or higher.
-TESTNG_VERSION="7.3.0"
+TESTNG_VERSION_JAVA_8="7.3.0"
+MOCKITO_VERSION_JAVA_8="4.11.0"
 
 # lists all active maven modules with given parameters
 # parses the modules from the "mvn initialize" output
@@ -112,7 +113,11 @@ test_group_shade() {
 }
 
 test_group_shade_build() {
-  mvn_run_integration_test --build-only "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
+  local additional_args
+  if [[ $JAVA_MAJOR_VERSION -ge 8 && $JAVA_MAJOR_VERSION -lt 11 ]]; then
+      additional_args="$additional_args -Dtestng.version=$TESTNG_VERSION_JAVA_8 -Dmockito.version=$MOCKITO_VERSION_JAVA_8"
+  fi
+  mvn_run_integration_test --build-only "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args
 }
 
 test_group_shade_run() {
@@ -122,7 +127,7 @@ test_group_shade_run() {
   fi
 
   if [[ $JAVA_MAJOR_VERSION -ge 8 && $JAVA_MAJOR_VERSION -lt 11 ]]; then
-      additional_args="$additional_args -Dtestng.version=$TESTNG_VERSION"
+      additional_args="$additional_args -Dtestng.version=$TESTNG_VERSION_JAVA_8 -Dmockito.version=$MOCKITO_VERSION_JAVA_8"
   fi
 
   mvn_run_integration_test --skip-build-deps --clean "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args
@@ -156,6 +161,10 @@ test_group_messaging() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-tls.xml -DintegrationTests
 }
 
+test_group_loadbalance() {
+   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-loadbalance.xml -DintegrationTests
+}
+
 test_group_plugin() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-plugin.xml -DintegrationTests
 }
@@ -170,6 +179,10 @@ test_group_standalone() {
 
 test_group_transaction() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests
+}
+
+test_group_metrics() {
+   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-metrics.xml -DintegrationTests
 }
 
 test_group_tiered_filesystem() {

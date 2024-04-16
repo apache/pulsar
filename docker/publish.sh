@@ -18,7 +18,7 @@
 # under the License.
 #
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. >/dev/null 2>&1 && pwd )"
 cd $ROOT_DIR/docker
 
 # We should only publish images that are made from official and approved releases
@@ -49,6 +49,9 @@ fi
 
 MVN_VERSION=`./get-version.sh`
 echo "Pulsar version: ${MVN_VERSION}"
+GIT_COMMIT_ID_ABBREV=$(git rev-parse --short=7 HEAD 2>/dev/null || echo no-git)
+GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo no-git)
+IMAGE_TAG="${MVN_VERSION}-${GIT_COMMIT_ID_ABBREV}"
 
 if [[ -z ${DOCKER_REGISTRY} ]]; then
     docker_registry_org=${DOCKER_ORG}
@@ -62,15 +65,20 @@ set -x
 # Fail if any of the subsequent commands fail
 set -e
 
-docker tag apachepulsar/pulsar:latest ${docker_registry_org}/pulsar:latest
-docker tag apachepulsar/pulsar-all:latest ${docker_registry_org}/pulsar-all:latest
+if [[ "$GIT_BRANCH" == "master" ]]; then
+  docker tag apachepulsar/pulsar:${IMAGE_TAG} ${docker_registry_org}/pulsar:latest
+  docker tag apachepulsar/pulsar-all:${IMAGE_TAG} ${docker_registry_org}/pulsar-all:latest
+fi
 
-docker tag apachepulsar/pulsar:latest ${docker_registry_org}/pulsar:$MVN_VERSION
-docker tag apachepulsar/pulsar-all:latest ${docker_registry_org}/pulsar-all:$MVN_VERSION
+docker tag apachepulsar/pulsar:${IMAGE_TAG} ${docker_registry_org}/pulsar:$MVN_VERSION
+docker tag apachepulsar/pulsar-all:${IMAGE_TAG} ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
 # Push all images and tags
-docker push ${docker_registry_org}/pulsar:latest
-docker push ${docker_registry_org}/pulsar-all:latest
+if [[ "$GIT_BRANCH" == "master" ]]; then
+  docker push ${docker_registry_org}/pulsar:latest
+  docker push ${docker_registry_org}/pulsar-all:latest
+fi
+
 docker push ${docker_registry_org}/pulsar:$MVN_VERSION
 docker push ${docker_registry_org}/pulsar-all:$MVN_VERSION
 

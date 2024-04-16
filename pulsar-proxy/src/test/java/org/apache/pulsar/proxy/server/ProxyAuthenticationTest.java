@@ -58,6 +58,7 @@ import org.testng.annotations.Test;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
+	private static final String CLUSTER_NAME = "test";
 
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
 		private final String authParam;
@@ -168,7 +169,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		// Expires after an hour
 		conf.setBrokerClientAuthenticationParameters(
-				"entityType:broker,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
+				"entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
 
 		Set<String> superUserRoles = new HashSet<>();
 		superUserRoles.add("admin");
@@ -178,7 +179,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		providers.add(BasicAuthenticationProvider.class.getName());
 		conf.setAuthenticationProviders(providers);
 
-		conf.setClusterName("test");
+		conf.setClusterName(CLUSTER_NAME);
 		Set<String> proxyRoles = new HashSet<>();
 		proxyRoles.add("proxy");
 		conf.setProxyRoles(proxyRoles);
@@ -222,6 +223,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerProxyAllowedTargetPorts("*");
 		proxyConfig.setWebServicePort(Optional.of(0));
 		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+		proxyConfig.setClusterName(CLUSTER_NAME);
 
 		proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
@@ -255,6 +257,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private void updateAdminClient() throws PulsarClientException {
 		// Expires after an hour
 		String adminAuthParams = "entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000);
+		closeAdmin();
 		admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
 				.authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
 	}

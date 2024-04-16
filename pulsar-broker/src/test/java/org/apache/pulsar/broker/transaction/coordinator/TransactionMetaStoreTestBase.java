@@ -120,6 +120,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
     @Override
     protected void cleanup() throws Exception {
+        if (transactionCoordinatorClient != null) {
+            transactionCoordinatorClient.close();
+        }
         for (PulsarAdmin admin : pulsarAdmins) {
             if (admin != null) {
                 admin.close();
@@ -132,6 +135,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             if (service != null) {
                 service.close();
             }
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
         }
         Mockito.reset();
     }

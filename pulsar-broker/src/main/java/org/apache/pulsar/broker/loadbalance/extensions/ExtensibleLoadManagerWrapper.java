@@ -74,7 +74,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public void disableBroker() throws Exception {
-        this.loadManager.getBrokerRegistry().unregister();
+        this.loadManager.disableBroker();
     }
 
     @Override
@@ -118,13 +118,11 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     @Override
     public void writeLoadReportOnZookeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
-        throw new UnsupportedOperationException();
     }
 
     @Override
     public void writeResourceQuotasToZooKeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
-        throw new UnsupportedOperationException();
     }
 
     @Override

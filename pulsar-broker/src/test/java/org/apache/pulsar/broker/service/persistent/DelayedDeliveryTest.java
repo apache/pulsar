@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -233,7 +234,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("shared-sub")
                 .subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(1) // Use small prefecthing to simulate the multiple read batches
+                .receiverQueueSize(1) // Use small prefetching to simulate the multiple read batches
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
@@ -337,6 +338,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
                 .active(false)
+                .maxDeliveryDelayInMillis(5000)
                 .build();
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
@@ -349,6 +351,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         assertFalse(admin.topics().getDelayedDeliveryPolicy(topicName).isActive());
         assertEquals(2000, admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime());
+        assertEquals(5000, admin.topics().getDelayedDeliveryPolicy(topicName).getMaxDeliveryDelayInMillis());
 
         admin.topics().removeDelayedDeliveryPolicy(topicName);
         //wait for update
@@ -622,4 +625,42 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testDelayedDeliveryExceedsMaxDelay() throws Exception {
+        long maxDeliveryDelayInMillis = 5000;
+        String topic = BrokerTestUtil.newUniqueName("testDelayedDeliveryExceedsMaxDelay");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        admin.topicPolicies().setDelayedDeliveryPolicy(topic,
+                DelayedDeliveryPolicies.builder()
+                        .active(true)
+                        .tickTime(100L)
+                        .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+                        .build());
+
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topic) != null) {
+                break;
+            }
+        }
+
+        try {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(6, TimeUnit.SECONDS)
+                    .send();
+
+            producer.flush();
+            fail("Should have thrown NotAllowedException due to exceeding maxDeliveryDelayInMillis");
+        } catch (PulsarClientException.NotAllowedException ex) {
+            assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
+                    + maxDeliveryDelayInMillis + " milliseconds");
+        }
+    }
 }

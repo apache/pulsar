@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -47,6 +49,7 @@ public class AutoClusterFailoverTest {
         long failoverDelay = 30;
         long switchBackDelay = 60;
         long checkInterval = 1_000;
+        @Cleanup
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -85,6 +88,7 @@ public class AutoClusterFailoverTest {
         Map<String, Authentication> secondaryAuthentications = new HashMap<>();
         secondaryAuthentications.put(secondary, secondaryAuthentication);
 
+        @Cleanup
         ServiceUrlProvider provider1 = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -111,6 +115,7 @@ public class AutoClusterFailoverTest {
 
         ClientConfigurationData configurationData = new ClientConfigurationData();
 
+        @Cleanup
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -121,6 +126,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -153,6 +160,7 @@ public class AutoClusterFailoverTest {
 
         ClientConfigurationData configurationData = new ClientConfigurationData();
 
+        @Cleanup
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -163,6 +171,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -205,6 +215,7 @@ public class AutoClusterFailoverTest {
         configurationData.setTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
         configurationData.setAuthentication(primaryAuthentication);
 
+        @Cleanup
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -217,6 +228,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -258,6 +271,7 @@ public class AutoClusterFailoverTest {
         configurationData.setTlsTrustStorePath(primaryTlsTrustStorePath);
         configurationData.setTlsTrustStorePassword(primaryTlsTrustStorePassword);
 
+        @Cleanup
         ServiceUrlProvider provider = AutoClusterFailover.builder()
                 .primary(primary)
                 .secondary(Collections.singletonList(secondary))
@@ -270,6 +284,8 @@ public class AutoClusterFailoverTest {
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();

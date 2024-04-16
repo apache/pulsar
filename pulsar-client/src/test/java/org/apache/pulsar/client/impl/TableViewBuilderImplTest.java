@@ -52,6 +52,8 @@ public class TableViewBuilderImplTest {
         Reader reader = mock(Reader.class);
         when(reader.readNextAsync()).thenReturn(CompletableFuture.allOf());
         client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.newReader(any(Schema.class)))
             .thenReturn(new ReaderBuilderImpl(client, Schema.BYTES));
         when(client.createReaderAsync(any(ReaderConfigurationData.class), any(Schema.class)))

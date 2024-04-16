@@ -47,7 +47,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -69,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy that unloads bundles from the highest loaded brokers.
- * This strategy is only configurable in the broker load balancer extenstions introduced by
+ * This strategy is only configurable in the broker load balancer extensions introduced by
  * PIP-192[https://github.com/apache/pulsar/issues/16691].
  *
  * This load shedding strategy has the following goals:
@@ -363,7 +362,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
             boolean transfer = conf.isLoadBalancerTransferEnabled();
             if (stats.std() > targetStd
-                    || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)
+                    || isUnderLoaded(context, stats.peekMinBroker(), stats)
                     || isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
                 unloadConditionHitCount++;
             } else {
@@ -391,7 +390,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 UnloadDecision.Reason reason;
                 if (stats.std() > targetStd) {
                     reason = Overloaded;
-                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats)) {
                     reason = Underloaded;
                     if (debugMode) {
                         log.info(String.format("broker:%s is underloaded:%s although "
@@ -670,19 +669,27 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     }
 
 
-    private boolean isUnderLoaded(LoadManagerContext context, String broker, double avgLoad) {
+    private boolean isUnderLoaded(LoadManagerContext context, String broker, LoadStats stats) {
         var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
         if (brokerLoadDataOptional.isEmpty()) {
             return false;
         }
         var brokerLoadData = brokerLoadDataOptional.get();
-        if (brokerLoadData.getMsgThroughputEMA() < 1) {
+
+        var underLoadedMultiplier =
+                Math.min(0.5, Math.max(0.0, context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2.0));
+
+        if (brokerLoadData.getWeightedMaxEMA() < stats.avg * underLoadedMultiplier) {
             return true;
         }
 
-        return brokerLoadData.getWeightedMaxEMA()
-                < avgLoad * Math.min(0.5, Math.max(0.0,
-                context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
+        var maxBrokerLoadDataOptional = context.brokerLoadDataStore().get(stats.peekMaxBroker());
+        if (maxBrokerLoadDataOptional.isEmpty()) {
+            return false;
+        }
+
+        return brokerLoadData.getMsgThroughputEMA()
+                < maxBrokerLoadDataOptional.get().getMsgThroughputEMA() * underLoadedMultiplier;
     }
 
     private boolean isOverLoaded(LoadManagerContext context, String broker, double avgLoad) {
@@ -720,8 +727,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
         for (var filter : brokerFilterPipeline) {
             try {
-                filter.filter(candidates, namespaceBundle, context);
-            } catch (BrokerFilterException e) {
+                filter.filterAsync(candidates, namespaceBundle, context)
+                        .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                                TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
                 return false;
             }

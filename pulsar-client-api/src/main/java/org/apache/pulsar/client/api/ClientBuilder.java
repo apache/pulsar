@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -458,7 +460,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @param unit
      *            time unit for {@code statsInterval}
      * @return the client builder instance
+     *
+     * @deprecated @see {@link #openTelemetry(OpenTelemetry)}
      */
+    @Deprecated
     ClientBuilder statsInterval(long statsInterval, TimeUnit unit);
 
     /**
@@ -554,6 +559,24 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder enableBusyWait(boolean enableBusyWait);
 
     /**
+     * Configure OpenTelemetry for Pulsar Client
+     * <p>
+     * When you pass an OpenTelemetry instance, Pulsar client will emit metrics that can be exported in a variety
+     * of different methods.
+     * <p>
+     * Refer to <a href="https://opentelemetry.io/docs/languages/java/">OpenTelemetry Java SDK documentation</a> for
+     * how to configure OpenTelemetry and the metrics exporter.
+     * <p>
+     * By default, Pulsar client will use the {@link io.opentelemetry.api.GlobalOpenTelemetry} instance. If an
+     * OpenTelemetry JVM agent is configured, the metrics will be reported, otherwise the metrics will be
+     * completely disabled.
+     *
+     * @param openTelemetry the OpenTelemetry instance
+     * @return the client builder instance
+     */
+    ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -594,6 +617,13 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder dnsLookupBind(String address, int port);
+
+    /**
+     * Set dns lookup server addresses.
+     * @param addresses dnsServerAddresses
+     * @return
+     */
+    ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
 
     /**
      *  Set socks5 proxy address.

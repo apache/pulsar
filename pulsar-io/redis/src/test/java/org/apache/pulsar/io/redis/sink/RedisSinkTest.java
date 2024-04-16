@@ -21,7 +21,9 @@ package org.apache.pulsar.io.redis.sink;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.redis.EmbeddedRedisUtils;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -66,7 +68,8 @@ public class RedisSinkTest {
         Record<byte[]> record = build("fakeTopic", "fakeKey", "fakeValue");
 
         // open should success
-        sink.open(configs, null);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        sink.open(configs, sinkContext);
 
         // write should success.
         sink.write(record);

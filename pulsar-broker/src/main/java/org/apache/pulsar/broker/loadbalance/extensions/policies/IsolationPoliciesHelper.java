@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.policies;
 
-import io.netty.util.concurrent.FastThreadLocal;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -38,32 +37,22 @@ public class IsolationPoliciesHelper {
         this.policies = policies;
     }
 
-    private static final FastThreadLocal<Set<String>> localBrokerCandidateCache = new FastThreadLocal<>() {
-        @Override
-        protected Set<String> initialValue() {
-            return new HashSet<>();
-        }
-    };
-
-    public Set<String> applyIsolationPolicies(Map<String, BrokerLookupData> availableBrokers,
-                                              ServiceUnitId serviceUnit) {
-        Set<String> brokerCandidateCache = localBrokerCandidateCache.get();
-        brokerCandidateCache.clear();
-        LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+    public CompletableFuture<Set<String>> applyIsolationPoliciesAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                      ServiceUnitId serviceUnit) {
+        return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies,
                 availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
                     @Override
-                    public boolean isEnablePersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnablePersistentTopics(String brokerId) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerId);
                         return lookupData != null && lookupData.persistentTopicsEnabled();
                     }
 
                     @Override
-                    public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnableNonPersistentTopics(String brokerId) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerId);
                         return lookupData != null && lookupData.nonPersistentTopicsEnabled();
                     }
                 });
-        return brokerCandidateCache;
     }
 
     public boolean hasIsolationPolicy(NamespaceName namespaceName) {

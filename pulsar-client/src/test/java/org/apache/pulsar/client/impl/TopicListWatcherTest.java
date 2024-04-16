@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl.TopicsChangedListener;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -26,7 +29,9 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,18 +55,28 @@ public class TopicListWatcherTest {
     public void setup() {
         listener = mock(TopicsChangedListener.class);
         client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        when(connectionPool.genRandomKeyToSelectCon()).thenReturn(0);
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         clientCnxFuture = new CompletableFuture<>();
         when(client.getConnectionToServiceUrl()).thenReturn(clientCnxFuture);
+        Timer timer = new HashedWheelTimer();
+        when(client.timer()).thenReturn(timer);
+        String topic = "persistent://tenant/ns/topic\\d+";
+        when(client.getConnection(topic, 0)).
+                thenReturn(clientCnxFuture.thenApply(clientCnx -> Pair.of(clientCnx, false)));
+        when(client.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
+        when(connectionPool.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(listener, client,
-                Pattern.compile("persistent://tenant/ns/topic\\d+"), 7,
-                NamespaceName.get("tenant/ns"), null, watcherFuture);
+                Pattern.compile(topic), 7,
+                NamespaceName.get("tenant/ns"), null, watcherFuture, () -> {});
     }
 
     @Test
     public void testWatcherGrabsConnection() {
-        verify(client).getConnectionToServiceUrl();
+        verify(client).getConnection(anyString(), anyInt());
     }
 
     @Test
@@ -106,6 +121,4 @@ public class TopicListWatcherTest {
         watcher.handleCommandWatchTopicUpdate(update);
         verify(listener).onTopicsAdded(Collections.singletonList("persistent://tenant/ns/topic12"));
     }
-
-
 }

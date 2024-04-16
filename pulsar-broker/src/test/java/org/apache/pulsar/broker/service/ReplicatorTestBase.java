@@ -82,6 +82,13 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     PulsarAdmin admin3;
     LocalBookkeeperEnsemble bkEnsemble3;
 
+    URL url4;
+    URL urlTls4;
+    ServiceConfiguration config4 = new ServiceConfiguration();
+    PulsarService pulsar4;
+    PulsarAdmin admin4;
+    LocalBookkeeperEnsemble bkEnsemble4;
+
     ZookeeperServerTest globalZkS;
 
     ExecutorService executor;
@@ -111,6 +118,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     protected final String cluster1 = "r1";
     protected final String cluster2 = "r2";
     protected final String cluster3 = "r3";
+    protected final String cluster4 = "r4";
+    protected String loadManagerClassName;
+
+    protected String getLoadManagerClassName() {
+        return loadManagerClassName;
+    }
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -178,6 +191,21 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         urlTls3 = new URL(pulsar3.getWebServiceAddressTls());
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
+        // Start region 4
+
+        // Start zk & bks
+        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble4.start();
+
+        setConfig4DefaultValue();
+        pulsar4 = new PulsarService(config4);
+        pulsar4.start();
+
+        url4 = new URL(pulsar4.getWebServiceAddress());
+        urlTls4 = new URL(pulsar4.getWebServiceAddressTls());
+        admin4 = PulsarAdmin.builder().serviceHttpUrl(url4.toString()).build();
+
+
         // Provision the global namespace
         admin1.clusters().createCluster(cluster1, ClusterData.builder()
                 .serviceUrl(url1.toString())
@@ -230,9 +258,27 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStorePassword(keyStorePassword)
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
+        admin4.clusters().createCluster(cluster4, ClusterData.builder()
+                .serviceUrl(url4.toString())
+                .serviceUrlTls(urlTls4.toString())
+                .brokerServiceUrl(pulsar4.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientCertificateFilePath(clientCertFilePath)
+                .brokerClientKeyFilePath(clientKeyFilePath)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsKeyStore(clientKeyStorePath)
+                .brokerClientTlsKeyStorePassword(keyStorePassword)
+                .brokerClientTlsKeyStoreType(keyStoreType)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
+                .build());
 
-        admin1.tenants().createTenant("pulsar",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+        updateTenantInfo("pulsar",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                        Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
@@ -257,7 +303,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     }
 
     public void setConfig3DefaultValue() {
-        setConfigDefaults(config3, "r3", bkEnsemble3);
+        setConfigDefaults(config3, cluster3, bkEnsemble3);
         config3.setTlsEnabled(true);
     }
 
@@ -267,6 +313,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     public void setConfig2DefaultValue() {
         setConfigDefaults(config2, cluster2, bkEnsemble2);
+    }
+
+    public void setConfig4DefaultValue() {
+        setConfigDefaults(config4, cluster4, bkEnsemble4);
+        config4.setEnableReplicatedSubscriptions(false);
     }
 
     private void setConfigDefaults(ServiceConfiguration config, String clusterName,
@@ -299,6 +350,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setLoadManagerClassName(getLoadManagerClassName());
     }
 
     public void resetConfig1() {
@@ -314,6 +366,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     public void resetConfig3() {
         config3 = new ServiceConfiguration();
         setConfig3DefaultValue();
+    }
+
+    public void resetConfig4() {
+        config4 = new ServiceConfiguration();
+        setConfig4DefaultValue();
     }
 
     private int inSec(int time, TimeUnit unit) {
@@ -332,7 +389,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.close();
         admin2.close();
         admin3.close();
+        admin4.close();
 
+        if (pulsar4 != null) {
+            pulsar4.close();
+        }
         if (pulsar3 != null) {
             pulsar3.close();
         }
@@ -346,11 +407,21 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble1.stop();
         bkEnsemble2.stop();
         bkEnsemble3.stop();
+        bkEnsemble4.stop();
         globalZkS.stop();
 
         resetConfig1();
         resetConfig2();
         resetConfig3();
+        resetConfig4();
+    }
+
+    protected void updateTenantInfo(String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin1.tenants().getTenants().contains(tenant)) {
+            admin1.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin1.tenants().updateTenant(tenant, tenantInfo);
+        }
     }
 
     static class MessageProducer implements AutoCloseable {
@@ -365,12 +436,16 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            producer = client.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
+            try {
+                producer = client.newProducer()
+                        .topic(topicName)
+                        .enableBatching(false)
+                        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                        .create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
@@ -383,8 +458,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .enableBatching(batch)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
-            producer = producerBuilder.create();
-
+            try {
+                producer = producerBuilder.create();
+            } catch (Exception e) {
+                client.close();
+                throw e;
+            }
         }
 
         void produceBatch(int messages) throws Exception {

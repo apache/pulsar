@@ -18,12 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -60,6 +55,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -85,193 +83,141 @@ public class PerformanceConsumer {
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
-    @Parameters(commandDescription = "Test pulsar consumer performance.")
-    static class Arguments extends PerformanceBaseArguments {
+    @Command(description = "Test pulsar consumer performance.", showDefaultValues = true, scope = ScopeType.INHERIT)
+    static class Arguments extends PerformanceTopicListArguments {
 
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topic;
-
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
-
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
+        @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
                 + "one consumer is allowed when subscriptionType is Exclusive",
-                validateWith = PositiveNumberParameterValidator.class)
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
-                validateWith = PositiveNumberParameterValidator.class)
+        @Option(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
+                converter = PositiveNumberParameterConvert.class
+        )
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        @Option(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName;
 
-        @Parameter(names = { "-ss", "--subscriptions" },
+        @Option(names = { "-ss", "--subscriptions" },
                 description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
+        @Option(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+        @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
         private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
+        @Option(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" },
+        @Option(names = { "-p", "--receiver-queue-size-across-partitions" },
                 description = "Max total size of the receiver queue across partitions")
         public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
-        @Parameter(names = {"-aq", "--auto-scaled-receiver-queue-size"},
+        @Option(names = {"-aq", "--auto-scaled-receiver-queue-size"},
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
 
-        @Parameter(names = {"-rs", "--replicated" },
+        @Option(names = {"-rs", "--replicated" },
                 description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
+        @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
-        @Parameter(names = {"-m",
+        @Option(names = {"-m",
                 "--num-messages"},
                 description = "Number of messages to consume in total. If <= 0, it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
-
-        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChunkedMessage = 0;
 
-        @Parameter(names = { "-ac",
+        @Option(names = { "-ac",
                 "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
         private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-        @Parameter(names = { "-e",
+        @Option(names = { "-e",
                 "--expire_time_incomplete_chunked_messages" },
                 description = "Expire time in ms for incomplete chunk messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
-        @Parameter(names = { "-v",
+        @Option(names = { "-v",
                 "--encryption-key-value-file" },
                 description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
 
-        @Parameter(names = { "-time",
+        @Option(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
-        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+        @Option(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+        @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
         private boolean poolMessages = true;
 
-        @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
+        @Option(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 10;
 
-        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
+        @Option(names = {"-nmt", "--numMessage-perTransaction"},
                 description = "The number of messages acknowledged by a transaction. "
                 + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
         public int numMessagesPerTransaction = 50;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
+        @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
+        @Option(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
                 + "(After --txn-enable setting to true, -ntxn takes effect.)")
         public long totalNumTxn = 0;
 
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+        @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
                 + "setting to true, -abort takes effect)")
         public boolean isAbortTransaction = false;
 
-        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
 
         @Override
         public void fillArgumentsFromProperties(Properties prop) {
         }
+
+        @Override
+        public void validate() throws Exception {
+            super.validate();
+            if (subscriptionType == SubscriptionType.Exclusive && numConsumers > 1) {
+                throw new Exception("Only one consumer is allowed when subscriptionType is Exclusive");
+            }
+
+            if (subscriptions != null && subscriptions.size() != numSubscriptions) {
+                // keep compatibility with the previous version
+                if (subscriptions.size() == 1) {
+                    if (subscriberName == null) {
+                        subscriberName = subscriptions.get(0);
+                    }
+                    List<String> defaultSubscriptions = new ArrayList<>();
+                    for (int i = 0; i < numSubscriptions; i++) {
+                        defaultSubscriptions.add(String.format("%s-%d", subscriberName, i));
+                    }
+                    subscriptions = defaultSubscriptions;
+                } else {
+                    throw new Exception("The size of subscriptions list should be equal to --num-subscriptions");
+                }
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf consume");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
-        }
-
-        for (String arg : arguments.topic) {
-            if (arg.startsWith("-")) {
-                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
-                        + "please use a fully qualified topic name\n", arg, arg);
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
-                List<String> defaultTopics = new ArrayList<>();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
-                }
-                arguments.topic = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topics");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-
-        if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
-            System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
-            // keep compatibility with the previous version
-            if (arguments.subscriptions.size() == 1) {
-                if (arguments.subscriberName == null) {
-                    arguments.subscriberName = arguments.subscriptions.get(0);
-                }
-                List<String> defaultSubscriptions = new ArrayList<>();
-                for (int i = 0; i < arguments.numSubscriptions; i++) {
-                    defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
-                }
-                arguments.subscriptions = defaultSubscriptions;
-            } else {
-                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
-                jc.usage();
-                PerfClientUtils.exit(1);
-            }
-        }
-        arguments.fillArgumentsFromProperties();
+        arguments.parseCLI("pulsar-perf consume", args);
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -449,7 +395,7 @@ public class PerformanceConsumer {
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topic.get(i));
+            final TopicName topicName = TopicName.get(arguments.topics.get(i));
 
             log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 
@@ -560,6 +506,14 @@ public class PerformanceConsumer {
 
             reportHistogram.reset();
             oldTime = now;
+
+            if (arguments.testTime > 0) {
+                if (now > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    PerfClientUtils.exit(0);
+                    thread.interrupt();
+                }
+            }
         }
 
         pulsarClient.close();

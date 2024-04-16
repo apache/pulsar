@@ -52,6 +52,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import okhttp3.OkHttpClient;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -144,6 +146,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
     private String[] allowedAudiences;
+    private ApiClient k8sApiClient;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -163,7 +166,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
-        if (trustCertsFilePath != null) {
+        // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
+        // should be ignored.
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
             // Use default settings for everything but the trust store.
             sslContext = SslContextBuilder.forClient()
                     .trustManager(new File(trustCertsFilePath))
@@ -175,8 +180,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
-        ApiClient k8sApiClient =
-                fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
+        k8sApiClient = fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
         this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
         this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
     }
@@ -300,7 +304,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return verifyIssuerAndGetJwk(jwt)
                 .thenCompose(jwk -> {
                     try {
-                        if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
+                        // verify the algorithm, if it is set ("alg" is optional in the JWK spec)
+                        if (jwk.getAlgorithm() != null && !jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
                             incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
                             return CompletableFuture.failedFuture(
                                     new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
@@ -358,7 +363,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
-        httpClient.close();
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        if (k8sApiClient != null) {
+            OkHttpClient okHttpClient = k8sApiClient.getHttpClient();
+            okHttpClient.dispatcher().executorService().shutdown();
+            okHttpClient.connectionPool().evictAll();
+            if (okHttpClient.cache() != null) {
+                okHttpClient.cache().close();
+            }
+        }
     }
 
     /**

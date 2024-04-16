@@ -18,18 +18,23 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.Objects.requireNonNull;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -40,10 +45,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -53,6 +56,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,34 +81,52 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
             readerCaches = new ConcurrentHashMap<>();
-    @VisibleForTesting
-    final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
+
+    final Map<NamespaceName, CompletableFuture<Void>> policyCacheInitMap = new ConcurrentHashMap<>();
 
     @VisibleForTesting
     final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
+
+    private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCaches;
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
         this.clusterName = pulsarService.getConfiguration().getClusterName();
         this.localCluster = Sets.newHashSet(clusterName);
+        this.writerCaches = Caffeine.newBuilder()
+                .expireAfterAccess(5, TimeUnit.MINUTES)
+                .removalListener((namespaceName, writer, cause) -> {
+                    ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
+                        log.error("[{}] Close writer error.", namespaceName, ex);
+                        return null;
+                    });
+                })
+                .buildAsync((namespaceName, executor) -> {
+                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                            .createTopicPoliciesSystemTopicClient(namespaceName);
+                    return systemTopicClient.newWriterAsync();
+                });
     }
 
     @Override
     public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.completedFuture(null);
+        }
         return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
     }
 
     @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
+                    "Not allowed to update topic policy for the heartbeat topic"));
+        }
         return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
     }
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
                                                          TopicPolicies policies) {
-        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
-            return CompletableFuture.failedFuture(
-                    new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
-        }
         return pulsarService.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(namespacePolicies -> {
@@ -118,39 +140,32 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } catch (PulsarServerException e) {
                         return CompletableFuture.failedFuture(e);
                     }
-
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
-                                    .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
-
-                    return systemTopicClient.newWriterAsync()
-                            .thenCompose(writer -> {
-                            PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
-                            CompletableFuture<MessageId> writeFuture =
-                                    ActionType.DELETE.equals(actionType) ? writer.deleteAsync(getEventKey(event), event)
-                                            : writer.writeAsync(getEventKey(event), event);
-                            return writeFuture.handle((messageId, e) -> {
-                                if (e != null) {
-                                    return CompletableFuture.failedFuture(e);
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    writerCaches.get(topicName.getNamespaceObject())
+                            .whenComplete((writer, cause) -> {
+                                if (cause != null) {
+                                    writerCaches.synchronous().invalidate(topicName.getNamespaceObject());
+                                    result.completeExceptionally(cause);
                                 } else {
-                                    if (messageId != null) {
-                                        return CompletableFuture.completedFuture(null);
-                                    } else {
-                                        return CompletableFuture.failedFuture(
-                                                new RuntimeException("Got message id is null."));
-                                    }
-                                }
-                            }).thenRun(() ->
-                                        writer.closeAsync().whenComplete((v, cause) -> {
-                                            if (cause != null) {
-                                                log.error("[{}] Close writer error.", topicName, cause);
+                                    PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                                    CompletableFuture<MessageId> writeFuture = ActionType.DELETE.equals(actionType)
+                                                    ? writer.deleteAsync(getEventKey(event), event)
+                                                    : writer.writeAsync(getEventKey(event), event);
+                                    writeFuture.whenComplete((messageId, e) -> {
+                                        if (e != null) {
+                                            result.completeExceptionally(e);
+                                        } else {
+                                            if (messageId != null) {
+                                                result.complete(null);
                                             } else {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug("[{}] Close writer success.", topicName);
-                                                }
+                                                result.completeExceptionally(
+                                                        new RuntimeException("Got message id is null."));
                                             }
-                                        })
-                            );
+                                        }
+                                    });
+                            }
                     });
+                    return result;
                 });
     }
 
@@ -180,7 +195,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             TopicName topicName =  TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
             if (listeners.get(topicName) != null) {
                 for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                    listener.onUpdate(null);
+                    try {
+                        listener.onUpdate(null);
+                    } catch (Throwable error) {
+                        log.error("[{}] call listener error.", topicName, error);
+                    }
                 }
             }
             return;
@@ -195,7 +214,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (listeners.get(topicName) != null) {
             TopicPolicies policies = event.getPolicies();
             for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                listener.onUpdate(policies);
+                try {
+                    listener.onUpdate(policies);
+                } catch (Throwable error) {
+                    log.error("[{}] call listener error.", topicName, error);
+                }
             }
         }
     }
@@ -208,16 +231,60 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public TopicPolicies getTopicPolicies(TopicName topicName,
                                           boolean isGlobal) throws TopicPoliciesCacheNotInitException {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return null;
+        }
         if (!policyCacheInitMap.containsKey(topicName.getNamespaceObject())) {
             NamespaceName namespace = topicName.getNamespaceObject();
-            prepareInitPoliciesCache(namespace, new CompletableFuture<>());
+            prepareInitPoliciesCacheAsync(namespace);
         }
-        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
-                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
-            throw new TopicPoliciesCacheNotInitException();
+
+        MutablePair<TopicPoliciesCacheNotInitException, TopicPolicies> result = new MutablePair<>();
+        policyCacheInitMap.compute(topicName.getNamespaceObject(), (k, initialized) -> {
+            if (initialized == null || !initialized.isDone()) {
+                result.setLeft(new TopicPoliciesCacheNotInitException());
+            } else {
+                TopicPolicies topicPolicies =
+                        isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+                                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+                result.setRight(topicPolicies);
+            }
+            return initialized;
+        });
+
+        if (result.getLeft() != null) {
+            throw result.getLeft();
+        } else {
+            return result.getRight();
         }
-        return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
-                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    @NotNull
+    @Override
+    public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+                                                                            boolean isGlobal) {
+        requireNonNull(topicName);
+        final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
+        return preparedFuture.thenApply(__ -> {
+            final TopicPolicies candidatePolicies = isGlobal
+                    ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+                    : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+            return Optional.ofNullable(candidatePolicies);
+        });
+    }
+
+    @NotNull
+    @Override
+    public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName) {
+        requireNonNull(topicName);
+        final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
+        return preparedFuture.thenApply(__ -> {
+            final TopicPolicies localPolicies = policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+            if (localPolicies != null) {
+                return Optional.of(localPolicies);
+            }
+            return Optional.ofNullable(globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName())));
+        });
     }
 
     @Override
@@ -243,55 +310,72 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
         if (NamespaceService.isHeartbeatNamespace(namespace)) {
-            result.complete(null);
-            return result;
+            return CompletableFuture.completedFuture(null);
         }
         synchronized (this) {
             if (readerCaches.get(namespace) != null) {
                 ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
-                result.complete(null);
+                return CompletableFuture.completedFuture(null);
             } else {
-                prepareInitPoliciesCache(namespace, result);
+                return prepareInitPoliciesCacheAsync(namespace);
             }
         }
-        return result;
     }
 
-    private void prepareInitPoliciesCache(@Nonnull NamespaceName namespace, CompletableFuture<Void> result) {
-        if (policyCacheInitMap.putIfAbsent(namespace, false) == null) {
-            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                    createSystemTopicClientWithRetry(namespace);
-            readerCaches.put(namespace, readerCompletableFuture);
-            ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
-            readerCompletableFuture.thenAccept(reader -> {
-                initPolicesCache(reader, result);
-                result.thenRun(() -> readMorePolicies(reader));
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
-                cleanCacheAndCloseReader(namespace, false);
-                result.completeExceptionally(ex);
-                return null;
-            });
-        }
+    @VisibleForTesting
+    @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
+        requireNonNull(namespace);
+        return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
+                        .thenCompose(namespacePolicies -> {
+                            if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
+                                log.info("[{}] skip prepare init policies cache since the namespace is deleted",
+                                        namespace);
+                                return CompletableFuture.completedFuture(null);
+                            }
+
+                            return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
+                                final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                                        createSystemTopicClient(namespace);
+                                readerCaches.put(namespace, readerCompletableFuture);
+                                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
+                                final CompletableFuture<Void> initFuture = readerCompletableFuture
+                                        .thenCompose(reader -> {
+                                            final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
+                                            initPolicesCache(reader, stageFuture);
+                                            return stageFuture
+                                                    // Read policies in background
+                                                    .thenAccept(__ -> readMorePoliciesAsync(reader));
+                                        });
+                                initFuture.exceptionally(ex -> {
+                                    try {
+                                        log.error("[{}] Failed to create reader on __change_events topic",
+                                                namespace, ex);
+                                        cleanCacheAndCloseReader(namespace, false);
+                                    } catch (Throwable cleanupEx) {
+                                        // Adding this catch to avoid break callback chain
+                                        log.error("[{}] Failed to cleanup reader on __change_events topic",
+                                                namespace, cleanupEx);
+                                    }
+                                    return null;
+                                });
+                                // let caller know we've got an exception.
+                                return initFuture;
+                            });
+                        });
     }
 
-    protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClientWithRetry(
+    protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
             NamespaceName namespace) {
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> result = new CompletableFuture<>();
         try {
             createSystemTopicFactoryIfNeeded();
-        } catch (PulsarServerException e) {
-            result.completeExceptionally(e);
-            return result;
+        } catch (PulsarServerException ex) {
+            return FutureUtil.failedFuture(ex);
         }
-        SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+        final SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                 .createTopicPoliciesSystemTopicClient(namespace);
-        Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
-        RetryUtil.retryAsynchronously(systemTopicClient::newReaderAsync, backoff, pulsarService.getExecutor(), result);
-        return result;
+        return systemTopicClient.newReaderAsync();
     }
 
     @Override
@@ -303,7 +387,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
         if (bundlesCount == null || bundlesCount.decrementAndGet() <= 0) {
-            cleanCacheAndCloseReader(namespace, true);
+            cleanCacheAndCloseReader(namespace, true, true);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -359,24 +443,36 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
                 }
-                policyCacheInitMap.computeIfPresent(
-                        reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+
                 // replay policy message
                 policiesCache.forEach(((topicName, topicPolicies) -> {
                     if (listeners.get(topicName) != null) {
                         for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
-                            listener.onUpdate(topicPolicies);
+                            try {
+                                listener.onUpdate(topicPolicies);
+                            } catch (Throwable error) {
+                                log.error("[{}] call listener error.", topicName, error);
+                            }
                         }
                     }
                 }));
+
                 future.complete(null);
             }
         });
     }
 
     private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+        cleanCacheAndCloseReader(namespace, cleanOwnedBundlesCount, false);
+    }
+
+    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount,
+                                          boolean cleanWriterCache) {
+        if (cleanWriterCache) {
+            writerCaches.synchronous().invalidate(namespace);
+        }
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
-        policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
         }
@@ -387,10 +483,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         return null;
                     });
         }
-        policyCacheInitMap.remove(namespace);
+
+        policyCacheInitMap.compute(namespace, (k, v) -> {
+            policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+            return null;
+        });
     }
 
-    private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
+    /**
+     * This is an async method for the background reader to continue syncing new messages.
+     *
+     * Note: You should not do any blocking call here. because it will affect
+     * #{@link SystemTopicBasedTopicPoliciesService#getTopicPoliciesAsync(TopicName)} method to block loading topic.
+     */
+    private void readMorePoliciesAsync(SystemTopicClient.Reader<PulsarEvent> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
@@ -398,7 +504,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 })
                 .whenComplete((__, ex) -> {
                     if (ex == null) {
-                        readMorePolicies(reader);
+                        readMorePoliciesAsync(reader);
                     } else {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
@@ -407,7 +513,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                         } else {
                             log.warn("Read more topic polices exception, read again.", ex);
-                            readMorePolicies(reader);
+                            readMorePoliciesAsync(reader);
                         }
                     }
                 });
@@ -575,7 +681,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @VisibleForTesting
-    public Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
+    public CompletableFuture<Void> getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
     }
 
@@ -611,6 +717,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     protected Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> getListeners() {
         return listeners;
+    }
+
+    @VisibleForTesting
+    protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCaches() {
+        return writerCaches;
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

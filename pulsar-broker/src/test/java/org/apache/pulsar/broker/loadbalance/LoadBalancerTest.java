@@ -34,10 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
@@ -88,8 +85,6 @@ import org.testng.annotations.Test;
 public class LoadBalancerTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
 
     private static final int MAX_RETRIES = 15;
@@ -124,7 +119,6 @@ public class LoadBalancerTest {
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setBrokerServicePortTls(Optional.of(0));
-            config.setWebServicePortTls(Optional.of(0));
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
@@ -139,7 +133,7 @@ public class LoadBalancerTest {
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + pulsarServices[i].getListenPortHTTP().get();
+            lookupAddresses[i] = pulsarServices[i].getBrokerId();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 
@@ -151,13 +145,10 @@ public class LoadBalancerTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();
-            if (pulsarServices[i] != null) {
-                pulsarServices[i].close();
-            }
+            pulsarServices[i].close();
         }
 
         bkEnsemble.stop();
@@ -410,7 +401,7 @@ public class LoadBalancerTest {
         double expectedMaxVariation = 10.0;
         for (int i = 0; i < BROKER_COUNT; i++) {
             long actualValue = 0;
-            String resourceId = "http://" + lookupAddresses[i];
+            String resourceId = lookupAddresses[i];
             if (namespaceOwner.containsKey(resourceId)) {
                 actualValue = namespaceOwner.get(resourceId);
             }
@@ -671,32 +662,26 @@ public class LoadBalancerTest {
      */
     @Test
     public void testLeaderElection() throws Exception {
-        // this.pulsarServices is the reference to all of the PulsarServices
-        // it is used in order to clean up the resources
-        PulsarService[] allServices = new PulsarService[pulsarServices.length];
-        System.arraycopy(pulsarServices, 0, allServices, 0, pulsarServices.length);
         for (int i = 0; i < BROKER_COUNT - 1; i++) {
             List<PulsarService> activePulsar = new ArrayList<>();
             List<PulsarService> followerPulsar = new ArrayList<>();
             LeaderBroker oldLeader = null;
             PulsarService leaderPulsar = null;
             for (int j = 0; j < BROKER_COUNT; j++) {
-                if (allServices[j].getState() != PulsarService.State.Closed) {
-                    activePulsar.add(allServices[j]);
-                    LeaderElectionService les = allServices[j].getLeaderElectionService();
+                PulsarService pulsarService = pulsarServices[j];
+                if (pulsarService.getState() != PulsarService.State.Closed) {
+                    activePulsar.add(pulsarService);
+                    LeaderElectionService les = pulsarService.getLeaderElectionService();
                     if (les.isLeader()) {
                         oldLeader = les.getCurrentLeader().get();
-                        leaderPulsar = allServices[j];
-                        // set the refence to null in the main array,
-                        // in order to prevent closing this PulsarService twice
-                        pulsarServices[i] = null;
+                        leaderPulsar = pulsarService;
                     } else {
-                        followerPulsar.add(allServices[j]);
+                        followerPulsar.add(pulsarService);
                     }
                 }
             }
             // Make sure all brokers see the same leader
-            log.info("Old leader is : {}", oldLeader.getServiceUrl());
+            log.info("Old leader is : {}", oldLeader.getBrokerId());
             for (PulsarService pulsar : activePulsar) {
                 log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(), pulsar.getLeaderElectionService().getCurrentLeader());
                 assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
@@ -706,7 +691,7 @@ public class LoadBalancerTest {
             leaderPulsar.close();
             loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
             LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
-            log.info("New leader is : {}", newLeader.getServiceUrl());
+            log.info("New leader is : {}", newLeader.getBrokerId());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
     }
@@ -744,7 +729,7 @@ public class LoadBalancerTest {
         // set up policy that use this broker as secondary
         policyData = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList("pulsar/use/secondary-ns.*"))
-                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .primary(Collections.singletonList(pulsarServices[0].getAdvertisedAddress()))
                 .secondary(allExceptFirstBroker)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
@@ -756,7 +741,7 @@ public class LoadBalancerTest {
         // set up policy that do not use this broker (neither primary nor secondary)
         policyData = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList("pulsar/use/shared-ns.*"))
-                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .primary(Collections.singletonList(pulsarServices[0].getAdvertisedAddress()))
                 .secondary(allExceptFirstBroker)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)

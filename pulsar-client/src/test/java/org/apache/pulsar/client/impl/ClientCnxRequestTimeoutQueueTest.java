@@ -26,6 +26,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
@@ -60,7 +61,7 @@ public class ClientCnxRequestTimeoutQueueTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setKeepAliveIntervalSeconds(0);
         conf.setOperationTimeoutMs(1);
-        cnx = new ClientCnx(conf, eventLoop);
+        cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);

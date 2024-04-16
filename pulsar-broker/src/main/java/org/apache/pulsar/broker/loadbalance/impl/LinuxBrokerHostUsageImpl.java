@@ -155,7 +155,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * </pre>
      *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum subtracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum substracting the idle cycles(that is idle+iowait), this would include
+     * cpu, user, nice, system, irq, softirq, steal, guest and guest_nice.
      */
     private double getTotalCpuUsageForEntireHost() {
         LinuxInfoUtils.ResourceUsage cpuUsageForEntireHost = getCpuUsageForEntireHost();

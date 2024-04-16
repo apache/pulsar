@@ -139,10 +139,12 @@ public interface TransactionBuffer {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Close the buffer asynchronously.
+     * Check if the txn is aborted.
+     * TODO: To avoid broker oom, we will load the aborted txn from snapshot on demand.
+     *       So we need the readPosition to check if the txn is loaded.
      * @param txnID {@link TxnID} txnId.
-     * @param readPosition the persitent position of the txn message.
-     * @return the txnId is aborted.
+     * @param readPosition the persistent position of the txn message.
+     * @return whether the txn is aborted.
      */
     boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
 
@@ -159,10 +161,27 @@ public interface TransactionBuffer {
     PositionImpl getMaxReadPosition();
 
     /**
+     * Get the snapshot type.
+     *
+     * The snapshot type can be either "Single" or "Segment". In "Single" mode, a single snapshot log is used
+     * to record the transaction buffer stats. In "Segment" mode, a snapshot segment topic is used to record
+     * the stats, and a separate snapshot segment index topic is used to index these stats.
+     *
+     * @return the snapshot type
+     */
+    AbortedTxnProcessor.SnapshotType getSnapshotType();
+
+    /**
      * Get transaction in buffer stats.
      * @return the transaction in buffer stats.
      */
     TransactionInBufferStats getTransactionInBufferStats(TxnID txnID);
+
+    /**
+     * Get transaction stats in buffer.
+     * @return the transaction stats in buffer.
+     */
+    TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats);
 
     /**
      * Get transaction stats in buffer.

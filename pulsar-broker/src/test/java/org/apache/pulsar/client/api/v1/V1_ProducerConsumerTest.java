@@ -951,7 +951,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     /**
      * Verify: Consumer stops receiving msg when reach unack-msg limit and starts receiving once acks messages 1.
      * Produce X (600) messages 2. Consumer has receive size (10) and receive message without acknowledging 3. Consumer
-     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remanining
+     * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remaining
      * messages This testcase enables checksum sending while producing message and broker verifies the checksum for the
      * message.
      *
@@ -1574,7 +1574,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
@@ -1659,7 +1659,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
     /**
      * It verifies that redelivery-of-specific messages: that redelivers all those messages even when consumer gets
-     * blocked due to unacked messsages
+     * blocked due to unacked messages
      *
      * Usecase: Consumer starts consuming only after all messages have been produced. So, consumer consumes total
      * receiver-queue-size number messages => ask for redelivery and receives all messages again.

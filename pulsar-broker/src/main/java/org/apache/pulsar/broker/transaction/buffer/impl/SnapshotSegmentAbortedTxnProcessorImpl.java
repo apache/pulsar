@@ -58,9 +58,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SegmentStats;
+import org.apache.pulsar.common.policies.data.SegmentsStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -114,6 +118,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
+
+    private volatile long lastTakedSnapshotSegmentTimestamp;
 
     /**
      * The number of the aborted transaction IDs in a segment.
@@ -174,7 +180,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     /**
-     * Check werther the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
+     * Check whether the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
      * is expired. If the position is not exist in the original topic, the according transaction is an invalid
      * transaction. And the according segment is invalid, too. The transaction IDs before the transaction ID
      * in the aborts are invalid, too.
@@ -321,6 +327,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                     hasInvalidIndex.set(true);
                                                 }
                                             }
+
+                                            @Override
+                                            public String toString() {
+                                                return String.format("Transaction buffer [%s] recover from snapshot",
+                                                        SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
+                                            }
                                         }, null);
                             });
                             openManagedLedgerAndHandleSegmentsFuture.complete(null);
@@ -381,10 +393,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     // This method will be deprecated and removed in version 4.x.0
     private CompletableFuture<PositionImpl> recoverOldSnapshot() {
-        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/"
-                        + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
-                .thenCompose(topicOption -> {
-                    if (!topicOption.isPresent()) {
+        return topic.getBrokerService().getPulsar().getPulsarResources().getTopicResources()
+                .listPersistentTopicsAsync(NamespaceName.get(TopicName.get(topic.getName()).getNamespace()))
+                .thenCompose(topics -> {
+                    if (!topics.contains(TopicDomain.persistent + "://"
+                            + TopicName.get(topic.getName()).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT)) {
                         return CompletableFuture.completedFuture(null);
                     } else {
                         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
@@ -448,9 +462,25 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 persistentWorker::clearSnapshotSegmentAndIndexes);
     }
 
-    @Override
-    public long getLastSnapshotTimestamps() {
-        return this.lastSnapshotTimestamps;
+    public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.totalAbortedTransactions = this.aborts.size();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        SegmentsStats segmentsStats = new SegmentsStats();
+        segmentsStats.currentSegmentCapacity = this.snapshotSegmentCapacity;
+        segmentsStats.lastTookSnapshotSegmentTimestamp = this.lastTakedSnapshotSegmentTimestamp;
+        segmentsStats.unsealedAbortTxnIDSize = this.unsealedTxnIds.size();
+        segmentsStats.segmentsSize = indexes.size();
+        if (segmentStats) {
+            List<SegmentStats> statsList = new ArrayList<>();
+            segmentIndex.forEach((position, txnID) -> {
+                SegmentStats stats = new SegmentStats(txnID.toString(), position.toString());
+                statsList.add(stats);
+            });
+            segmentsStats.segmentStats = statsList;
+        }
+        transactionBufferStats.segmentsStats = segmentsStats;
+        return transactionBufferStats;
     }
 
     @Override
@@ -702,6 +732,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
+                lastTakedSnapshotSegmentTimestamp = System.currentTimeMillis();
                 //Build index for this segment
                 TransactionBufferSnapshotIndex index = new TransactionBufferSnapshotIndex();
                 index.setSequenceID(transactionBufferSnapshotSegment.getSequenceId());

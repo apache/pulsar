@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.elasticsearch.opensearch;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchClient;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchSslConfig;
@@ -32,6 +33,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -81,7 +83,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config, mock(SinkContext.class));
             testIndexExists(client);
         }
     }
@@ -107,7 +109,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config, mock(SinkContext.class));
             testIndexExists(client);
         }
     }
@@ -133,7 +135,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
+            ElasticSearchClient client = new ElasticSearchClient(config, mock(SinkContext.class));
             testIndexExists(client);
         }
     }

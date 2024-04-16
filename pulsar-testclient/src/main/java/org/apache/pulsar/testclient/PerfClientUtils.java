@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +68,7 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES)
+                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)
@@ -76,7 +77,9 @@ public class PerfClientUtils {
                 .listenerThreads(arguments.listenerThreads)
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
-                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol);
+                .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
+                .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
+                        .build().getOpenTelemetrySdk());
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -118,6 +121,5 @@ public class PerfClientUtils {
 
         return pulsarAdminBuilder;
     }
-
 
 }
