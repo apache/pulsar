@@ -3178,7 +3178,7 @@ public class PersistentTopicsBase extends AdminResource {
             } else {
                 return CompletableFuture.completedFuture(null);
             }
-        }).thenAccept(__ -> validateTopicOwnershipAsync(topicName, authoritative)
+        }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
         .thenCompose(unused -> getTopicReferenceAsync(topicName))
         .thenAccept(t -> {
             PersistentTopic topic = (PersistentTopic) t;
@@ -3204,7 +3204,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
-        }));
+        });
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
