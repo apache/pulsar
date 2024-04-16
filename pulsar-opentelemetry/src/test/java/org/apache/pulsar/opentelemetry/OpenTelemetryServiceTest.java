@@ -25,6 +25,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.instrumentation.resources.JarServiceNameDetector;
+import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
@@ -197,5 +198,16 @@ public class OpenTelemetryServiceTest {
 
         // Validate that the callback has not being called.
         assertThat(callback).isFalse();
+    }
+
+    @Test
+    public void testJvmRuntimeMetrics() {
+        var otel = openTelemetryService.getOpenTelemetry();
+
+        @Cleanup
+        var runtimeMetrics = RuntimeMetrics.builder(otel).enableAllFeatures().enableExperimentalJmxTelemetry().build();
+
+        var metrics = reader.collectAllMetrics();
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.thread.count"));
     }
 }

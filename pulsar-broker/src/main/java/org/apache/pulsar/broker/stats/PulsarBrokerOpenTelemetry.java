@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.Closeable;
 import java.util.function.Consumer;
@@ -36,6 +37,8 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
     @Getter
     private final Meter meter;
 
+    private final RuntimeMetrics runtimeMetrics;
+
     public PulsarBrokerOpenTelemetry(ServiceConfiguration config,
                                  @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> builderCustomizer) {
         openTelemetryService = OpenTelemetryService.builder()
@@ -44,11 +47,29 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
                 .serviceVersion(PulsarVersion.getVersion())
                 .builderCustomizer(builderCustomizer)
                 .build();
-        meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.broker");
+        var openTelemetry = openTelemetryService.getOpenTelemetry();
+
+        meter = openTelemetry.getMeter("org.apache.pulsar.broker");
+
+        // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
+        runtimeMetrics = RuntimeMetrics.builder(openTelemetry)
+                .enableAllFeatures()
+                .enableExperimentalJmxTelemetry()
+                .build();
+
+        /*
+            BufferPools.registerObservers(openTelemetry);
+            Classes.registerObservers(openTelemetry);
+            Cpu.registerObservers(openTelemetry);
+            GarbageCollector.registerObservers(openTelemetry);
+            MemoryPools.registerObservers(openTelemetry);
+            Threads.registerObservers(openTelemetry);
+         */
     }
 
     @Override
     public void close() {
+        runtimeMetrics.close();
         openTelemetryService.close();
     }
 }

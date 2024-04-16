@@ -94,3 +94,7 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -D
 #Wait time before forcefully kill the pulsar server instance, if the stop is not successful
 #PULSAR_STOP_TIMEOUT=
 
+# Enable semantically stably telemetry for JVM metrics
+OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_JAVA17_ENABLE_ALL=true
+OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_TELEMETRY=true
+OTEL_SEMCONV_STABILITY_OPT_IN=true

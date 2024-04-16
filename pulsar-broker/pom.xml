@@ -616,6 +616,7 @@
             <!-- workaround issue #13750 which gets triggered if org.apache.bookkeeper.meta.MetadataDrivers class gets loaded before org.apache.pulsar.metadata.bookkeeper.BKCluster constructor is called -->
             <bookkeeper.metadata.bookie.drivers>org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver</bookkeeper.metadata.bookie.drivers>
             <bookkeeper.metadata.client.drivers>org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver</bookkeeper.metadata.client.drivers>
+            <otel.semconv-stability.opt-in>jvm</otel.semconv-stability.opt-in>
           </systemPropertyVariables>
         </configuration>
       </plugin>
