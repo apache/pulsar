@@ -119,6 +119,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     protected final String cluster2 = "r2";
     protected final String cluster3 = "r3";
     protected final String cluster4 = "r4";
+    protected String loadManagerClassName;
+
+    protected String getLoadManagerClassName() {
+        return loadManagerClassName;
+    }
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -271,8 +276,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
-        admin1.tenants().createTenant("pulsar",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+        updateTenantInfo("pulsar",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                        Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
@@ -344,6 +350,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setLoadManagerClassName(getLoadManagerClassName());
     }
 
     public void resetConfig1() {
@@ -407,6 +414,14 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         resetConfig2();
         resetConfig3();
         resetConfig4();
+    }
+
+    protected void updateTenantInfo(String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin1.tenants().getTenants().contains(tenant)) {
+            admin1.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin1.tenants().updateTenant(tenant, tenantInfo);
+        }
     }
 
     static class MessageProducer implements AutoCloseable {
