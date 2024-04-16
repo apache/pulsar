@@ -28,9 +28,11 @@ import io.opentelemetry.instrumentation.resources.JarServiceNameDetector;
 import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.opentelemetry.semconv.ResourceAttributes;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -205,9 +207,54 @@ public class OpenTelemetryServiceTest {
         var otel = openTelemetryService.getOpenTelemetry();
 
         @Cleanup
-        var runtimeMetrics = RuntimeMetrics.builder(otel).enableAllFeatures().enableExperimentalJmxTelemetry().build();
+        var runtimeMetrics = RuntimeMetrics.builder(otel)
+                .enableAllFeatures()
+                .enableExperimentalJmxTelemetry()
+                .build();
 
-        var metrics = reader.collectAllMetrics();
+        // Attempt collection of GC metrics
+        Runtime.getRuntime().gc();
+
+        var metrics = reader.collectAllMetrics().stream().sorted(Comparator.comparing(MetricData::getName)).toList();
+
+        // Process Metrics
+        // Replaces process_cpu_seconds_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.cpu.time"));
+
+        // Memory Metrics
+        // Replaces jvm_memory_bytes_used
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used"));
+        // Replaces jvm_memory_bytes_committed
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.committed"));
+        // Replaces jvm_memory_bytes_max
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.limit"));
+        // Replaces jvm_memory_bytes_init
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.init"));
+        // Replaces jvm_memory_pool_allocated_bytes_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used_after_last_gc"));
+
+        // Buffer Pool Metrics
+        // Replaces jvm_buffer_pool_used_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
+        // Replaces jvm_buffer_pool_capacity_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
+        // Replaces jvm_buffer_pool_used_buffers
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.count"));
+
+        // Garbage Collector Metrics
+        // Replaces jvm_gc_collection_seconds
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.gc.duration"));
+
+        // Thread Metrics
+        // Replaces jvm_threads_state, jvm_threads_current and jvm_threads_daemon
         assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.thread.count"));
+
+        // Class Loading Metrics
+        // Replaces jvm_classes_currently_loaded
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.count"));
+        // Replaces jvm_classes_loaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.loaded"));
+        // Replaces jvm_classes_unloaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.unloaded"));
     }
 }
