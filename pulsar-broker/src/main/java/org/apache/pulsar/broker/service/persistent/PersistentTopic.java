@@ -3310,8 +3310,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         Boolean encryptionRequired = topicPolicies.getEncryptionRequired().get();
         isEncryptionRequired = encryptionRequired != null ? encryptionRequired : false;
-        Boolean allowAutoUpdateSchema = topicPolicies.getAllowAutoUpdateSchema().get();
-        isAllowAutoUpdateSchema = allowAutoUpdateSchema != null ? allowAutoUpdateSchema : false;
+        isAllowAutoUpdateSchema = topicPolicies.getAllowAutoUpdateSchema().get();
 
         // Client permission check.
         subscriptions.forEach((subName, sub) -> {
