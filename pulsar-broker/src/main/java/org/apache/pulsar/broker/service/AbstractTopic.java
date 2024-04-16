@@ -81,7 +81,6 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,8 +158,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
 
-    protected ConcurrentOpenHashMap<Long, SchemaData> schemaCache;
-
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -176,10 +173,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
         topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicSnapshotClock());
         updateActiveRateLimiters();
-        this.schemaCache = ConcurrentOpenHashMap.<Long, SchemaData>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -1378,9 +1371,4 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         return Optional.empty();
     }
-
-    public void putSchemaAndVersionInSchemaCache(long schemaVersion, SchemaData schemaData) {
-        schemaCache.putIfAbsent(schemaVersion, schemaData);
-    }
-
 }
