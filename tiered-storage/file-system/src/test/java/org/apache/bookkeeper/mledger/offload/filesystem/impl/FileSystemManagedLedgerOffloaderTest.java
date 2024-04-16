@@ -22,6 +22,7 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,6 +42,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.pulsar.common.naming.TopicName;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -60,6 +62,14 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         this.bk = new PulsarMockBookKeeper(scheduler);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", managedLedgerName);
+    }
+
+    @Override
+    public void cleanup() throws IOException {
+        if (bk != null) {
+            bk.shutdown();
+        }
+        super.cleanup();
     }
 
     private ReadHandle buildReadHandle() throws Exception {
@@ -84,6 +94,12 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     @Override
     public void start() throws Exception {
         super.start();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    public void tearDown() {
+        super.tearDown();
     }
 
     @Test

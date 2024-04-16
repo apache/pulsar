@@ -68,6 +68,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
+    public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
         beforeSendCount.set(0);

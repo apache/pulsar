@@ -4648,4 +4648,36 @@ public interface Namespaces {
      */
     void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException;
 
+    /**
+     * Set DispatcherPauseOnAckStatePersistent for a namespace asynchronously.
+     */
+    CompletableFuture<Void> setDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Remove entry filters of a namespace.
+     * @param namespace    Namespace name
+     * @throws PulsarAdminException
+     */
+    void setDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    void removeDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
 }

@@ -198,7 +198,7 @@ public final class OffloadUtils {
         metadataMap.put("ManagedLedgerName", name);
 
         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                        TimeUnit.SECONDS.toHours(1)).limit(10),
+                        TimeUnit.HOURS.toMillis(1)).limit(10),
                 Retries.NonFatalPredicate,
                 () -> mlConfig.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
                 executor, name).whenComplete((ignored, exception) -> {

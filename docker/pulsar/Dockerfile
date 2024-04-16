@@ -18,7 +18,9 @@
 #
 
 # First create a stage with just the Pulsar tarball and scripts
-FROM busybox as pulsar
+FROM alpine as pulsar
+
+RUN apk add zip
 
 ARG PULSAR_TARBALL
 
@@ -26,84 +28,99 @@ ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
 RUN rm -rf /pulsar/bin/*.cmd
 
-COPY scripts/apply-config-from-env.py /pulsar/bin
-COPY scripts/apply-config-from-env-with-prefix.py /pulsar/bin
-COPY scripts/gen-yml-from-env.py /pulsar/bin
-COPY scripts/generate-zookeeper-config.sh /pulsar/bin
-COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
-COPY scripts/watch-znode.py /pulsar/bin
-COPY scripts/install-pulsar-client.sh /pulsar/bin
+COPY build-scripts /build-scripts/
+RUN /build-scripts/remove-unnecessary-native-binaries.sh
+
+COPY scripts/* /pulsar/bin/
 
 # The final image needs to give the root group sufficient permission for Pulsar components
 # to write to specific directories within /pulsar
+# The ownership is changed to uid 10000 to allow using a different root group. This is necessary when running the
+# container when gid=0 is prohibited. In that case, the container must be run with uid 10000 with
+# any group id != 0 (for example 10001).
 # The file permissions are preserved when copying files from this builder image to the target image.
-RUN for SUBDIRECTORY in conf data download logs; do \
-     [ -d /pulsar/$SUBDIRECTORY ] || mkdir /pulsar/$SUBDIRECTORY; \
-     chmod -R g+w /pulsar/$SUBDIRECTORY; \
+RUN for SUBDIRECTORY in conf data download logs instances/deps; do \
+     mkdir -p /pulsar/$SUBDIRECTORY; \
+     chmod -R ug+rwx /pulsar/$SUBDIRECTORY; \
+     chown -R 10000:0 /pulsar/$SUBDIRECTORY; \
      done
 
-# Trino writes logs to this directory (at least during tests), so we need to give the process permission
-# to create those log directories. This should be removed when Trino is removed.
-RUN chmod g+w /pulsar/trino
+RUN chmod -R g+rx /pulsar/bin
+RUN chmod -R o+rx /pulsar
 
-### Create 2nd stage from Ubuntu image
-### and add OpenJDK and Python dependencies (for Pulsar functions)
+## Create 2nd stage to build the Python dependencies
+## Since it needs to have GCC available, we're doing it in a different layer
+FROM alpine:3.19 AS python-deps
 
-FROM ubuntu:22.04
+RUN apk add --no-cache \
+       bash \
+       python3-dev \
+       g++ \
+       musl-dev \
+       libffi-dev \
+       py3-pip \
+       py3-grpcio \
+       py3-yaml
 
-ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
-ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
-ARG JDK_MAJOR_VERSION=17
+RUN pip3 install --break-system-packages \
+        kazoo
+
+ARG PULSAR_CLIENT_PYTHON_VERSION
+RUN pip3 install --break-system-packages \
+    pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
+
+
+###  Create one stage to include JVM distribution
+FROM alpine AS jvm
+
+RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub
+RUN echo "https://apk.corretto.aws" >> /etc/apk/repositories
+RUN apk add --no-cache amazon-corretto-21 binutils
+
+# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
+# This still includes all JDK modules, though in the future we could compile a list of required modules
+RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
+RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
+RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
+
+
+FROM apachepulsar/glibc-base:2.38 as glibc
+
+## Create final stage from Alpine image
+## and add OpenJDK and Python dependencies (for Pulsar functions)
+FROM alpine:3.19.1
+ENV LANG C.UTF-8
 
 # Install some utilities
-RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
-     -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
-     && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
-     && apt-get update \
-     && apt-get -y dist-upgrade \
-     && apt-get -y install netcat dnsutils less procps iputils-ping \
-                 curl ca-certificates wget apt-transport-https \
-     && apt-get -y install --no-install-recommends python3 python3-kazoo python3-pip
+RUN apk add --no-cache \
+            bash \
+            python3 \
+            py3-pip \
+            gcompat \
+            ca-certificates \
+            procps
 
-# Install Eclipse Temurin Package
-RUN mkdir -p /etc/apt/keyrings \
-     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
-     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
-     && apt-get update \
-     && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-${JDK_MAJOR_VERSION:-17}-jdk \
-     && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-${JDK_MAJOR_VERSION:-17}-jdk-$ARCH/conf/security/java.security \
-     && echo networkaddress.cache.negative.ttl=1 >> /usr/lib/jvm/temurin-${JDK_MAJOR_VERSION:-17}-jdk-$ARCH/conf/security/java.security \
+# Install GLibc compatibility library
+COPY --from=glibc /root/packages /root/packages
+RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
 
-# Cleanup apt
-RUN apt-get -y --purge autoremove \
-     && apt-get autoclean \
-     && apt-get clean \
-     && rm -rf /var/lib/apt/lists/*
+COPY --from=jvm /opt/jvm /opt/jvm
+ENV JAVA_HOME=/opt/jvm
 
-RUN pip3 install pyyaml==6.0.1
+# The default is /pulsat/bin and cannot be written.
+ENV PULSAR_PID_DIR=/pulsar/logs
 
-# Pulsar currently writes to the below directories, assuming the default configuration.
-# Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
-# 1. /pulsar/data - both bookkeepers and zookeepers use this directory
-# 2. /pulsar/logs - function workers write to this directory and pulsar-admin initializes this directory
-# 3. /pulsar/download - functions write to this directory
-# 4. /pulsar - hadoop writes to this directory
-RUN mkdir /pulsar && chmod g+w /pulsar
+# Copy Python depedencies from the other stage
+COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
+
 WORKDIR /pulsar
-
-ARG PULSAR_CLIENT_PYTHON_VERSION
-ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
-
-# This script is intentionally run as the root user to make the dependencies available for all UIDs.
-RUN chmod +x /pulsar/bin/install-pulsar-client.sh
-RUN /pulsar/bin/install-pulsar-client.sh
+ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
+ARG DEFAULT_USERNAME=pulsar
+RUN adduser ${DEFAULT_USERNAME} -u 10000 -G root -D -H -h /pulsar/data
 USER 10000

@@ -209,12 +209,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();
-        doReturn(CompletableFuture.completedFuture(true)).when(serverCnx).checkConnectionLiveness();
+        doReturn(CompletableFuture.completedFuture(Optional.of(true))).when(serverCnx).checkConnectionLiveness();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         NamespaceBundle bundle = mock(NamespaceBundle.class);
         doReturn(CompletableFuture.completedFuture(bundle)).when(nsSvc).getBundleAsync(any());
-        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());
@@ -2231,7 +2230,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub1.addConsumer(consumer1);
         consumer1.close();
 
-        SubscriptionStatsImpl stats1 = sub1.getStats(false, false, false);
+        SubscriptionStatsImpl stats1 = sub1.getStats(new GetStatsOptions(false, false, false, false, false));
         assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
         assertFalse(stats1.allowOutOfOrderDelivery);
 
@@ -2242,7 +2241,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub2.addConsumer(consumer2);
         consumer2.close();
 
-        SubscriptionStatsImpl stats2 = sub2.getStats(false, false, false);
+        SubscriptionStatsImpl stats2 = sub2.getStats(new GetStatsOptions(false, false, false, false, false));
         assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
         assertTrue(stats2.allowOutOfOrderDelivery);
 
@@ -2254,7 +2253,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        SubscriptionStatsImpl stats3 = sub3.getStats(false, false, false);
+        SubscriptionStatsImpl stats3 = sub3.getStats(new GetStatsOptions(false, false, false, false, false));
         assertEquals(stats3.keySharedMode, "STICKY");
         assertFalse(stats3.allowOutOfOrderDelivery);
     }

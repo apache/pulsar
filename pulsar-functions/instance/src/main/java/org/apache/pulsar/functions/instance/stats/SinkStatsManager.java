@@ -19,13 +19,12 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
+import com.google.common.util.concurrent.RateLimiter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.Getter;
-import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 public class SinkStatsManager extends ComponentStatsManager {
@@ -196,18 +195,8 @@ public class SinkStatsManager extends ComponentStatsManager {
                 .help("Exception from sink.")
                 .create());
 
-        sysExceptionRateLimiter = RateLimiter.builder()
-                .scheduledExecutorService(scheduledExecutorService)
-                .permits(5)
-                .rateTime(1)
-                .timeUnit(TimeUnit.MINUTES)
-                .build();
-        sinkExceptionRateLimiter = RateLimiter.builder()
-                .scheduledExecutorService(scheduledExecutorService)
-                .permits(5)
-                .rateTime(1)
-                .timeUnit(TimeUnit.MINUTES)
-                .build();
+        sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
+        sinkExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
     }
 
     @Override

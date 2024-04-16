@@ -54,7 +54,7 @@ public class RabbitMQSource extends PushSource<byte[]> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        rabbitMQSourceConfig = RabbitMQSourceConfig.load(config);
+        rabbitMQSourceConfig = RabbitMQSourceConfig.load(config, sourceContext);
         rabbitMQSourceConfig.validate();
 
         ConnectionFactory connectionFactory = rabbitMQSourceConfig.createConnectionFactory();

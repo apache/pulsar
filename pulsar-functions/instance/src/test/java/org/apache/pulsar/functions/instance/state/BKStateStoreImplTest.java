@@ -35,7 +35,9 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.options.Options;
 import org.apache.bookkeeper.api.kv.result.DeleteResult;
+import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -115,6 +117,24 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    public void testGetStateValue() throws Exception {
+        KeyValue returnedKeyValue = mock(KeyValue.class);
+        ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
+        when(returnedKeyValue.value()).thenReturn(returnedValue);
+        when(returnedKeyValue.version()).thenReturn(1l);
+        when(returnedKeyValue.isNumber()).thenReturn(false);
+        when(mockTable.getKv(any(ByteBuf.class)))
+            .thenReturn(FutureUtils.value(returnedKeyValue));
+        StateValue result = stateContext.getStateValue("test-key");
+        assertEquals("test-value", new String(result.getValue(), UTF_8));
+        assertEquals(1l, result.getVersion().longValue());
+        assertEquals(false, result.getIsNumber().booleanValue());
+        verify(mockTable, times(1)).getKv(
+            eq(Unpooled.copiedBuffer("test-key", UTF_8))
+        );
+    }
+
+    @Test
     public void testGetAmount() throws Exception {
         when(mockTable.getNumber(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(10L));
@@ -131,6 +151,12 @@ public class BKStateStoreImplTest {
         CompletableFuture<ByteBuffer> result = stateContext.getAsync("test-key");
         assertTrue(result != null);
         assertEquals(result.get(), null);
+
+        when(mockTable.getKv(any(ByteBuf.class)))
+                .thenReturn(FutureUtils.value(null));
+        CompletableFuture<StateValue> stateValueResult = stateContext.getStateValueAsync("test-key");
+        assertTrue(stateValueResult != null);
+        assertEquals(stateValueResult.get(), null);
 
     }
 

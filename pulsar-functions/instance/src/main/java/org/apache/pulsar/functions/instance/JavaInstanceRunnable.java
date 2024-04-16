@@ -390,7 +390,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateStoreProvider = getStateStoreProvider();
             Map<String, Object> stateStoreProviderConfig = new HashMap<>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
-            stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
+            stateStoreProvider.init(stateStoreProviderConfig);
 
             StateStore store = stateStoreProvider.getStateStore(
                 instanceConfig.getFunctionDetails().getTenant(),

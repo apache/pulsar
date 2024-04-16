@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.2.0-SNAPSHOT</version>
+    <version>3.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
@@ -73,6 +73,10 @@
           <groupId>org.eclipse.jetty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -80,12 +84,24 @@
       <groupId>org.apache.kafka</groupId>
       <artifactId>connect-json</artifactId>
       <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>connect-api</artifactId>
       <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- pulsar-client is only needed for MessageId conversion (for seeking), commons-lang3 and Netty buffer manipulation -->
@@ -136,6 +152,12 @@
       <artifactId>connect-file</artifactId>
       <version>${kafka-client.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

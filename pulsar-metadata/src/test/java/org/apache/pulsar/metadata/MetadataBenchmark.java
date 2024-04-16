@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class MetadataBenchmark extends MetadataStoreTest {
+public class MetadataBenchmark extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl", enabled = false)
     public void testGet(String provider, Supplier<String> urlSupplier) throws Exception {

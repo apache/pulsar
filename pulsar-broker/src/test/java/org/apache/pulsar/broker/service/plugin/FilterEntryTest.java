@@ -255,7 +255,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         int counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -289,7 +289,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -321,7 +321,7 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);

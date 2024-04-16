@@ -105,7 +105,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits))
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in transaction buffer {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -143,7 +143,7 @@ public class Transactions extends TransactionsBase {
                     Long.parseLong(leastSigBits), subName)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction state in pending ack {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -181,7 +181,7 @@ public class Transactions extends TransactionsBase {
             internalGetTransactionBufferStats(authoritative, lowWaterMarks, segmentStats)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction buffer stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -217,7 +217,7 @@ public class Transactions extends TransactionsBase {
             internalGetPendingAckStats(authoritative, subName, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction pending ack stats in topic {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -314,7 +314,7 @@ public class Transactions extends TransactionsBase {
             internalGetPendingAckInternalStats(authoritative, subName, metadata)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get pending ack internal stats {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -365,7 +365,7 @@ public class Transactions extends TransactionsBase {
             internalGetTransactionBufferInternalStats(authoritative, metadata)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
+                        if (isNot307And404Exception(ex)) {
                             log.error("[{}] Failed to get transaction buffer internal stats {}",
                                     clientAppId(), topicName, ex);
                         }
@@ -439,4 +439,33 @@ public class Transactions extends TransactionsBase {
         }
     }
 
+    @POST
+    @Path("/abortTransaction/{mostSigBits}/{leastSigBits}")
+    @ApiOperation(value = "Abort transaction")
+    @ApiResponses(value = {
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or coordinator or transaction doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access")})
+    public void abortTransaction(@Suspended final AsyncResponse asyncResponse,
+                                 @QueryParam("authoritative")
+                                 @DefaultValue("false") boolean authoritative,
+                                 @PathParam("mostSigBits") String mostSigBits,
+                                 @PathParam("leastSigBits") String leastSigBits) {
+        try {
+            checkTransactionCoordinatorEnabled();
+            internalAbortTransaction(authoritative, Long.parseLong(mostSigBits), Long.parseLong(leastSigBits))
+                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(ex -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
+    }
 }

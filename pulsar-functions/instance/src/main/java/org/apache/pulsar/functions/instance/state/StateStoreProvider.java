@@ -51,7 +51,16 @@ public interface StateStoreProvider extends AutoCloseable {
      * @param functionDetails the function details.
      * @throws Exception when failed to init the state store provider.
      */
+    @Deprecated
     default void init(Map<String, Object> config, FunctionDetails functionDetails) throws Exception {}
+
+    /**
+     * Initialize the state store provider.
+     *
+     * @param config the config to init the state store provider.
+     * @throws Exception when failed to init the state store provider.
+     */
+    default void init(Map<String, Object> config) throws Exception {}
 
     /**
      * Get the state store with the provided store name.
@@ -66,6 +75,16 @@ public interface StateStoreProvider extends AutoCloseable {
      * or interface of the actual returned store.
      */
     <T extends StateStore> T getStateStore(String tenant, String namespace, String name) throws Exception;
+
+    /**
+     * Clean up the state store with the provided store name.
+     *
+     * @param tenant the tenant that owns this state store
+     * @param namespace the namespace that owns this state store
+     * @param name the state store name
+     * @throws Exception when failed to clean up the state store provider.
+     */
+    default void cleanUp(String tenant, String namespace, String name) throws Exception {}
 
     @Override
     void close();

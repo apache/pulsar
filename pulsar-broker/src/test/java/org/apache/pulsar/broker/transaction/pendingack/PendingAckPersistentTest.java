@@ -19,13 +19,18 @@
 package org.apache.pulsar.broker.transaction.pendingack;
 
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -38,19 +43,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Multimap;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -58,13 +63,14 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -97,6 +103,83 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
+    }
+
+    /**
+     * Test consumer can be built successfully with retryable exception
+     * and get correct error with no-retryable exception.
+     * @throws Exception
+     */
+    @Test(timeOut = 60000)
+    public void testBuildConsumerEncounterPendingAckInitFailure() throws Exception {
+        // 1. Prepare and make sure the consumer can be built successfully.
+        String topic = NAMESPACE1 + "/testUnloadSubscriptionWhenFailedInitPendingAck";
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .subscriptionName("subName1")
+                .topic(topic)
+                .subscribe();
+        // 2. Mock a transactionPendingAckStoreProvider to test building consumer
+        // failing at transactionPendingAckStoreProvider::checkInitializedBefore.
+        Field transactionPendingAckStoreProviderField = PulsarService.class
+                .getDeclaredField("transactionPendingAckStoreProvider");
+        transactionPendingAckStoreProviderField.setAccessible(true);
+        TransactionPendingAckStoreProvider pendingAckStoreProvider =
+                (TransactionPendingAckStoreProvider) transactionPendingAckStoreProviderField
+                        .get(pulsarServiceList.get(0));
+        TransactionPendingAckStoreProvider mockProvider = mock(pendingAckStoreProvider.getClass());
+        // 3. Test retryable exception when checkInitializedBefore:
+        // The consumer will be built successfully after one time retry.
+        when(mockProvider.checkInitializedBefore(any()))
+                // First, the method checkInitializedBefore will fail with a retryable exception.
+                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail initialize")))
+                // Then, the method will be executed successfully.
+                .thenReturn(CompletableFuture.completedFuture(false));
+        transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .subscriptionName("subName2")
+                .topic(topic)
+                .subscribe();
+
+        // 4. Test retryable exception when newPendingAckStore:
+        // The consumer will be built successfully after one time retry.
+        when(mockProvider.checkInitializedBefore(any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+
+        when(mockProvider.newPendingAckStore(any()))
+                // First, the method newPendingAckStore will fail with a retryable exception.
+                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail new store")))
+                // Then, the method will be executed successfully.
+                .thenCallRealMethod();
+        transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
+        @Cleanup
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
+                .subscriptionName("subName3")
+                .topic(topic)
+                .subscribe();
+
+        // 5. Test no-retryable exception:
+        // The consumer building will be failed without retrying.
+        when(mockProvider.checkInitializedBefore(any()))
+                // The method checkInitializedBefore will fail with a no-retryable exception without retrying.
+                .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException
+                        .NonRecoverableLedgerException("mock fail")))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .operationTimeout(3, TimeUnit.SECONDS)
+                .build();
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer4 = pulsarClient.newConsumer()
+                    .subscriptionName("subName4")
+                    .topic(topic)
+                    .subscribe();
+            fail();
+        } catch (Exception exception) {
+            assertTrue(exception.getMessage().contains("Failed to init transaction pending ack."));
+        }
     }
 
     @Test
@@ -254,30 +337,30 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsarServiceList.get(0), true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count_total");
-        Collection<PrometheusMetricsTest.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count_total");
-        Collection<PrometheusMetricsTest.Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
+        Collection<Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count_total");
+        Collection<Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count_total");
+        Collection<Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
         Assert.assertTrue(commitLatency.size() > 0);
 
         int count = 0;
-        for (PrometheusMetricsTest.Metric metric : commitLatency) {
+        for (Metric metric : commitLatency) {
             if (metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC) && metric.value > 0) {
                 count++;
             }
         }
         Assert.assertTrue(count > 0);
 
-        for (PrometheusMetricsTest.Metric metric : abortedCount) {
+        for (Metric metric : abortedCount) {
             if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);
             }
         }
-        for (PrometheusMetricsTest.Metric metric : committedCount) {
+        for (Metric metric : committedCount) {
             if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
                 assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
                 assertTrue(metric.value > 0);

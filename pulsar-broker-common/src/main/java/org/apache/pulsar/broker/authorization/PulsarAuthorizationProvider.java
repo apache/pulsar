@@ -357,6 +357,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                     policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
                             if (subscriptionAuth != null) {
                                 subscriptionAuth.removeAll(roles);
+                                if (subscriptionAuth.isEmpty()) {
+                                    policies.auth_policies.getSubscriptionAuthentication().remove(subscriptionName);
+                                }
                             } else {
                                 log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
                                         roles, subscriptionName);
@@ -594,6 +597,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case COMPACT:
                             case OFFLOAD:
                             case UNLOAD:
+                            case TRIM_TOPIC:
                             case DELETE_METADATA:
                             case UPDATE_METADATA:
                             case ADD_BUNDLE_RANGE:

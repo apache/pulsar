@@ -158,8 +158,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
                 .when(serverCnxWithOldVersion).getCommandSender();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));

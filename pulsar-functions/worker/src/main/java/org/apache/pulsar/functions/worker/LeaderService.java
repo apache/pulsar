@@ -41,7 +41,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
-    private boolean isLeader = false;
+    private volatile boolean isLeader = false;
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
@@ -172,7 +172,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         }
     }
 
-    public synchronized boolean isLeader() {
+    public boolean isLeader() {
         return isLeader;
     }
 

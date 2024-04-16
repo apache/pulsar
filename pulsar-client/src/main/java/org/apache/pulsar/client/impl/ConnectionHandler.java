@@ -26,8 +26,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
+import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +39,10 @@ public class ConnectionHandler {
             AtomicReferenceFieldUpdater.newUpdater(ConnectionHandler.class, ClientCnx.class, "clientCnx");
     @SuppressWarnings("unused")
     private volatile ClientCnx clientCnx = null;
+    @Getter
+    @Setter
+    // Since the `clientCnx` variable will be set to null at some times, it is necessary to save this value here.
+    private volatile int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     protected final HandlerState state;
     protected final Backoff backoff;
@@ -46,6 +53,8 @@ public class ConnectionHandler {
     protected volatile long lastConnectionClosedTimestamp = 0L;
     private final AtomicBoolean duringConnect = new AtomicBoolean(false);
     protected final int randomKeyForSelectConnection;
+
+    private volatile Boolean useProxy;
 
     interface Connection {
 
@@ -93,11 +102,14 @@ public class ConnectionHandler {
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
-            if (hostURI.isPresent()) {
-                InetSocketAddress address = InetSocketAddress.createUnresolved(
-                        hostURI.get().getHost(),
-                        hostURI.get().getPort());
-                cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+            if (hostURI.isPresent() && useProxy != null) {
+                URI uri = hostURI.get();
+                InetSocketAddress address = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                if (useProxy) {
+                    cnxFuture = state.client.getProxyConnection(address, randomKeyForSelectConnection);
+                } else {
+                    cnxFuture = state.client.getConnection(address, address, randomKeyForSelectConnection);
+                }
             } else if (state.redirectedClusterURI != null) {
                 if (state.topic == null) {
                     InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
@@ -112,7 +124,11 @@ public class ConnectionHandler {
             } else if (state.topic == null) {
                 cnxFuture = state.client.getConnectionToServiceUrl();
             } else {
-                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection);
+                cnxFuture = state.client.getConnection(state.topic, randomKeyForSelectConnection).thenApply(
+                        connectionResult -> {
+                            useProxy = connectionResult.getRight();
+                            return connectionResult.getLeft();
+                        });
             }
             cnxFuture.thenCompose(cnx -> connection.connectionOpened(cnx))
                     .thenAccept(__ -> duringConnect.set(false))
@@ -182,11 +198,11 @@ public class ConnectionHandler {
             }
             long delayMs = initialConnectionDelayMs.orElse(backoff.next());
             state.setState(State.Connecting);
-            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
-                    state.topic, state.getHandlerName(), cnx.channel(),
-                    delayMs / 1000.0);
+            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s, hostUrl: {}",
+                    state.topic, state.getHandlerName(), cnx.channel(), delayMs / 1000.0, hostUrl.orElse(null));
             state.client.timer().newTimeout(timeout -> {
-                log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
+                log.info("[{}] [{}] Reconnecting after {} s timeout, hostUrl: {}",
+                        state.topic, state.getHandlerName(), delayMs / 1000.0, hostUrl.orElse(null));
                 grabCnx(hostUrl);
             }, delayMs, TimeUnit.MILLISECONDS);
         }

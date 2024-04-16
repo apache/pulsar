@@ -20,22 +20,36 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Different with {@link org.apache.pulsar.client.api.SimpleProducerConsumerTest}, this class can visit the variables
- * of {@link ConsumerImpl} which are modified `protected`.
+ * of {@link ConsumerImpl} or {@link ProducerImpl} which have protected or default access modifiers.
  */
-@Test(groups = "broker-api")
+@Slf4j
+@Test(groups = "broker-impl")
 public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
@@ -106,7 +120,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         });
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testExclusiveConsumerWillAlwaysRetryEvenIfReceivedConsumerBusyError() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "subscription1";
@@ -143,5 +157,77 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         admin.topics().delete(topicName, false);
+    }
+
+    @DataProvider(name = "containerBuilder")
+    public Object[][] containerBuilderProvider() {
+        return new Object[][] {
+                { BatcherBuilder.DEFAULT },
+                { BatcherBuilder.KEY_BASED }
+        };
+    }
+
+    @Test(timeOut = 30000, dataProvider = "containerBuilder")
+    public void testSendTimerCheckForBatchContainer(BatcherBuilder batcherBuilder) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batcherBuilder(batcherBuilder)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(1000)
+                .create();
+
+        log.info("Before sendAsync msg-0: {}", System.nanoTime());
+        CompletableFuture<MessageId> future = producer.sendAsync("msg-0".getBytes());
+        future.thenAccept(msgId -> log.info("msg-0 done: {} (msgId: {})", System.nanoTime(), msgId));
+        future.get(); // t: the current time point
+
+        ((ProducerImpl<byte[]>) producer).triggerSendTimer(); // t+1000ms && t+2000ms: run() will be called again
+
+        Thread.sleep(1950); // t+2050ms: the batch timer is expired, which happens after run() is called
+        log.info("Before sendAsync msg-1: {}", System.nanoTime());
+        future = producer.sendAsync("msg-1".getBytes());
+        future.thenAccept(msgId -> log.info("msg-1 done: {} (msgId: {})", System.nanoTime(), msgId));
+        future.get();
+    }
+
+
+    @Test
+    public void testRetentionPolicyByProducingMessages() throws Exception {
+        // Setup: configure the entries per ledger and retention polices.
+        final int maxEntriesPerLedger = 10, messagesCount = 10;
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        pulsar.getConfiguration().setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
+        pulsar.getConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsar.getConfiguration().setDefaultRetentionTimeInMinutes(0);
+        pulsar.getConfiguration().setDefaultRetentionSizeInMB(0);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
+        // Act: prepare a full ledger data and ack them.
+        for (int i = 0; i < messagesCount; i++) {
+            producer.newMessage().sendAsync();
+        }
+        for (int i = 0; i < messagesCount; i++) {
+            Message<byte[]> message = consumer.receive();
+            assertNotNull(message);
+            consumer.acknowledge(message);
+        }
+        // Verify: a new empty ledger will be created after the current ledger is fulled.
+        // And the previous consumed ledgers will be deleted
+        Awaitility.await().untilAsserted(() -> {
+            admin.topics().trimTopic(topicName);
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();
+            assertEquals(internalStats.currentLedgerEntries, 0);
+            assertEquals(internalStats.ledgers.size(), 1);
+        });
     }
 }

@@ -60,6 +60,7 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
@@ -697,11 +698,12 @@ public class Commands {
         }
     }
 
-    public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
+    public static ByteBuf newUnsubscribe(long consumerId, long requestId, boolean force) {
         BaseCommand cmd = localCmd(Type.UNSUBSCRIBE);
         cmd.setUnsubscribe()
                 .setConsumerId(consumerId)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setForce(force);
         return serializeWithSize(cmd);
     }
 
@@ -737,11 +739,21 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
+    public static ByteBuf newCloseConsumer(
+            long consumerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
-        cmd.setCloseConsumer()
+        CommandCloseConsumer commandCloseConsumer = cmd.setCloseConsumer()
             .setConsumerId(consumerId)
             .setRequestId(requestId);
+
+        if (assignedBrokerUrl != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrl(assignedBrokerUrl);
+        }
+
+        if (assignedBrokerUrlTls != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrlTls(assignedBrokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 
@@ -1573,6 +1585,9 @@ public class Commands {
         return cmd;
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                        List<String> topics) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
@@ -1588,6 +1603,10 @@ public class Commands {
         return cmd;
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public static BaseCommand newWatchTopicUpdate(long watcherId,
                                               List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);

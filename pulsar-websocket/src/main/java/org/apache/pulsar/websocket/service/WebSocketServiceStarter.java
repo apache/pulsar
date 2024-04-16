@@ -22,8 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V1;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V2;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ATTRIBUTE_PROXY_SERVICE_NAME;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.util.ShutdownUtil;
@@ -37,37 +35,42 @@ import org.apache.pulsar.websocket.admin.v1.WebSocketProxyStatsV1;
 import org.apache.pulsar.websocket.admin.v2.WebSocketProxyStatsV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ScopeType;
 
 public class WebSocketServiceStarter {
+    @Command(name = "websocket", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
-        @Parameter(description = "config file")
+        @Parameters(description = "config file", arity = "0..1")
         private String configFile = "";
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander();
+        CommandLine commander = new CommandLine(arguments);
         try {
-            jcommander.addObject(arguments);
-            jcommander.parse(args);
+            commander.parseArgs(args);
             if (arguments.help) {
-                jcommander.usage();
+                commander.usage(commander.getOut());
                 return;
             }
             if (arguments.generateDocs && arguments.configFile != null) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                cmd.addCommand("websocket", arguments);
+                cmd.addCommand("websocket", commander);
                 cmd.run(null);
                 return;
             }
         } catch (Exception e) {
-            jcommander.usage();
+            commander.getErr().println(e);
             return;
         }
 
@@ -75,9 +78,7 @@ public class WebSocketServiceStarter {
         try {
             // load config file and start proxy service
             String configFile = args[0];
-            log.info("Loading configuration from {}", configFile);
-            WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
-                    WebSocketProxyConfiguration.class);
+            WebSocketProxyConfiguration config = loadConfig(configFile);
             ProxyServer proxyServer = new ProxyServer(config);
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
@@ -107,6 +108,14 @@ public class WebSocketServiceStarter {
                 VipStatus.class);
         proxyServer.start();
         service.start();
+    }
+
+    private static WebSocketProxyConfiguration loadConfig(String configFile) throws Exception {
+        log.info("Loading configuration from {}", configFile);
+        WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
+                WebSocketProxyConfiguration.class);
+        PulsarConfigurationLoader.isComplete(config);
+        return config;
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);

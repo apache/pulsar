@@ -245,6 +245,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
                 .thenAccept(optVal -> {
+                    Set<BookieId> bookieIdSet = new HashSet<>();
                     synchronized (this) {
                         LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
                         this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
@@ -259,12 +260,12 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
                                     bookieAddressList);
                         }
-                        Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
+                        bookieIdSet.addAll(bookieAddressList);
                         bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;
-                        if (rackawarePolicy != null) {
-                            rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
-                        }
+                    }
+                    if (rackawarePolicy != null) {
+                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
                     }
                 });
     }

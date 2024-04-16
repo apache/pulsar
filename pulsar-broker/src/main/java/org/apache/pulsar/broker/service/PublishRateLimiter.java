@@ -21,35 +21,19 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
-public interface PublishRateLimiter extends AutoCloseable {
-
-    PublishRateLimiter DISABLED_RATE_LIMITER = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
+public interface PublishRateLimiter {
 
     /**
-     * checks and update state of current publish and marks if it has exceeded the rate-limiting threshold.
-     */
-    void checkPublishRate();
-
-    /**
-     * increments current publish count.
+     * Consumes publishing quota and handles throttling.
+     * <p>
+     * The rate limiter implementation calls {@link Producer#incrementThrottleCount()} to indicate
+     * that the producer should be throttled. The rate limiter must schedule a call to
+     * {@link Producer#decrementThrottleCount()} after a throttling period that it calculates.
      *
-     * @param numOfMessages
-     * @param msgSizeInBytes
+     * @param numOfMessages  number of messages to publish
+     * @param msgSizeInBytes size of messages in bytes to publish
      */
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-
-    /**
-     * reset current publish count.
-     *
-     * @return
-     */
-    boolean resetPublishCount();
-
-    /**
-     * returns true if current publish has reached the rate-limiting threshold.
-     * @return
-     */
-    boolean isPublishRateExceeded();
+    void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes);
 
     /**
      * updates rate-limiting threshold based on policies.
@@ -63,17 +47,4 @@ public interface PublishRateLimiter extends AutoCloseable {
      * @param maxPublishRate
      */
     void update(PublishRate maxPublishRate);
-
-    /**
-     * try to acquire permit.
-     *
-     * @param numbers
-     * @param bytes
-     */
-    boolean tryAcquire(int numbers, long bytes);
-
-    /**
-     * Close the limiter.
-     */
-    void close();
 }

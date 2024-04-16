@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -34,12 +36,9 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
+    private static final long MESSAGE_SIZE_SERIALIZED = 41L;
     final String rgName = "testRG";
     org.apache.pulsar.common.policies.data.ResourceGroup testAddRg =
     new org.apache.pulsar.common.policies.data.ResourceGroup();
@@ -53,7 +52,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         prepareData();
-
     }
 
     @AfterClass(alwaysRun = true)
@@ -123,7 +121,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         try {
             // third one should succeed
-            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(100, TimeUnit.MILLISECONDS);
+            messageId = producer.sendAsync(new byte[MESSAGE_SIZE]).get(300, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
         } catch (TimeoutException e) {
             Assert.fail("should not fail");
@@ -132,6 +130,8 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         // Now detach the namespace
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
         deleteResourceGroup(rgName);
+
+        Thread.sleep(2000);
 
         // No rate limits should be applied.
         for (int i = 0; i < 5; i++) {
@@ -148,7 +148,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     }
 
     private void prepareData() {
-        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE));
+        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE_SERIALIZED));
         testAddRg.setPublishRateInMsgs(1);
         testAddRg.setDispatchRateInMsgs(-1);
         testAddRg.setDispatchRateInBytes(Long.valueOf(-1));

@@ -91,7 +91,22 @@ public class BrokerFilterTestBase {
             }
 
             @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
             public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
 
             }
         };

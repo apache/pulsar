@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 
@@ -79,7 +80,7 @@ public class PulsarTestClient extends PulsarClientImpl {
                 new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(clientConfigurationData, eventLoopGroup,
+        ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
                 () -> clientCnxSupplierReference.get().get());
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
@@ -101,7 +102,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * @return new ClientCnx instance
      */
     protected ClientCnx createClientCnx() {
-        return new ClientCnx(conf, eventLoopGroup) {
+        return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
             @Override
             public int getRemoteEndpointProtocolVersion() {
                 return overrideRemoteEndpointProtocolVersion != 0
@@ -125,7 +126,7 @@ public class PulsarTestClient extends PulsarClientImpl {
             result.completeExceptionally(new IOException("New connections are rejected."));
             return result;
         } else {
-            return super.getConnection(topic, getCnxPool().genRandomKeyToSelectCon());
+            return super.getConnection(topic);
         }
     }
 
@@ -192,7 +193,7 @@ public class PulsarTestClient extends PulsarClientImpl {
 
         // make the existing connection between the producer and broker to break by explicitly closing it
         ClientCnx cnx = producer.cnx();
-        producer.connectionClosed(cnx);
+        producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
         cnx.close();
     }
 

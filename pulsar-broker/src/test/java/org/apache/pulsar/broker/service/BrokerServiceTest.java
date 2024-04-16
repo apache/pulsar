@@ -61,7 +61,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -100,6 +99,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -998,7 +998,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Using an AtomicReference in order to reset a new CountDownLatch
         AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
         latchRef.set(new CountDownLatch(1));
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
+                () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
                 try {
@@ -1160,7 +1161,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null);
+                .loadOrCreatePersistentTopic(topicName, true, null, null);
 
         try {
             futureResult.get();
@@ -1204,7 +1205,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
                 CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null);
+                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null, null);
                 loadFutures.add(futureResult);
             }
 
@@ -1483,81 +1484,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testPublishRateLimiterMonitor() {
-        BrokerService.PublishRateLimiterMonitor monitor = new BrokerService.PublishRateLimiterMonitor("test");
-        AtomicInteger checkCnt = new AtomicInteger(0);
-        AtomicInteger refreshCnt = new AtomicInteger(0);
-        monitor.startOrUpdate(100, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
-        Assert.assertEquals(monitor.getTickTimeMs(), 100);
-        Awaitility.await().until(() -> checkCnt.get() > 0);
-        Awaitility.await().until(() -> refreshCnt.get() > 0);
-
-        monitor.startOrUpdate(500, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
-        Assert.assertEquals(monitor.getTickTimeMs(), 500);
-        checkCnt.set(0);
-        refreshCnt.set(0);
-        Awaitility.await().until(() -> checkCnt.get() > 0);
-        Awaitility.await().until(() -> refreshCnt.get() > 0);
-
-        monitor.stop();
-        Assert.assertEquals(monitor.getTickTimeMs(), 0);
-    }
-
-    @Test
-    public void testDynamicBrokerPublisherThrottlingTickTimeMillis() throws Exception {
-        cleanup();
-        conf.setBrokerPublisherThrottlingMaxMessageRate(1000);
-        conf.setBrokerPublisherThrottlingTickTimeMillis(100);
-        setup();
-
-        int prevTickMills = 100;
-        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().brokerPublishRateLimiterMonitor;
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-
-        int newTickMills = prevTickMills * 2;
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
-
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
-
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-    }
-
-    @Test
-    public void testDynamicTopicPublisherThrottlingTickTimeMillis() throws Exception {
-        cleanup();
-        conf.setPreciseTopicPublishRateLimiterEnable(false);
-        conf.setMaxPublishRatePerTopicInMessages(1000);
-        conf.setTopicPublisherThrottlingTickTimeMillis(100);
-        setup();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-abc/test-topic").create();
-
-        int prevTickMills = 100;
-        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().topicPublishRateLimiterMonitor;
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-
-        int newTickMills = prevTickMills * 2;
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
-
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
-
-        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
-        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
-    }
-
-    @Test
     public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
         // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
         for (int i = 0; i < 100; i++) {
@@ -1610,9 +1536,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
         assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
         NamespaceName heartbeatNamespaceV1 = NamespaceService
-                .getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+                .getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfig());
         NamespaceName heartbeatNamespaceV2 = NamespaceService
-                .getHeartbeatNamespaceV2(pulsar.getLookupServiceAddress(), pulsar.getConfig());
+                .getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }
@@ -1799,14 +1725,5 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception ex) {
             fail("Unsubscribe failed");
         }
-    }
-
-    @Test
-    public void testGetLookupServiceAddress() throws Exception {
-        cleanup();
-        setup();
-        conf.setWebServicePortTls(Optional.of(8081));
-        assertEquals(pulsar.getLookupServiceAddress(), "localhost:8081");
-        resetState();
     }
 }

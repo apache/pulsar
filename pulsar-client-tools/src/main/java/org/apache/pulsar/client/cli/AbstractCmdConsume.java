@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * common part of consume command and read command of pulsar-client.
  *
  */
-public abstract class AbstractCmdConsume {
+public abstract class AbstractCmdConsume extends AbstractCmd {
 
     protected static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     protected static final String MESSAGE_BOUNDARY = "----- got message -----";
@@ -107,6 +107,9 @@ public abstract class AbstractCmdConsume {
         } else {
             data = value.toString();
         }
+
+        sb.append("publishTime:[").append(message.getPublishTime()).append("], ");
+        sb.append("eventTime:[").append(message.getEventTime()).append("], ");
 
         String key = null;
         if (message.hasKey()) {

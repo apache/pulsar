@@ -61,7 +61,6 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.ClusterPolicies;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
@@ -262,26 +261,29 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public ClusterPolicies getClusterMigration(
+    public void getClusterMigration(
+        @Suspended AsyncResponse asyncResponse,
         @ApiParam(
             value = "The cluster name",
             required = true
         )
-        @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-
-        try {
-            return clusterResources().getClusterPoliciesResources().getClusterPolicies(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-            if (e instanceof RestException) {
-                throw (RestException) e;
-            } else {
-                throw new RestException(e);
-            }
-        }
+        @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().getClusterPoliciesAsync(cluster))
+                .thenAccept(policies -> {
+                    asyncResponse.resume(
+                            policies.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {} migration", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST

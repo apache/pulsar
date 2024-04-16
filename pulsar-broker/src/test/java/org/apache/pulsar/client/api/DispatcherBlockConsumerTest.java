@@ -692,8 +692,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         try {
             final int waitMills = 500;
             final int maxUnAckPerBroker = 200;
-            final double unAckMsgPercentagePerDispatcher = 10;
-            int maxUnAckPerDispatcher = (int) ((maxUnAckPerBroker * unAckMsgPercentagePerDispatcher) / 100); // 200 *
+            final double unAckMsgPercentagePerDispatcher = 0.1;
+            int maxUnAckPerDispatcher = (int) (maxUnAckPerBroker * unAckMsgPercentagePerDispatcher); // 200 *
                                                                                                              // 10% = 20
                                                                                                              // messages
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(maxUnAckPerBroker);
@@ -907,8 +907,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 .getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked();
         try {
             final int maxUnAckPerBroker = 200;
-            final double unAckMsgPercentagePerDispatcher = 10;
-            int maxUnAckPerDispatcher = (int) ((maxUnAckPerBroker * unAckMsgPercentagePerDispatcher) / 100); // 200 *
+            final double unAckMsgPercentagePerDispatcher = 0.1;
+            int maxUnAckPerDispatcher = (int) (maxUnAckPerBroker * unAckMsgPercentagePerDispatcher); // 200 *
                                                                                                              // 10% = 20
                                                                                                              // messages
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(maxUnAckPerBroker);
