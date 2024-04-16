@@ -377,6 +377,9 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--dead-letter-topic",
                 description = "The topic where messages that are not processed successfully are sent to #Java")
         protected String deadLetterTopic;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -674,6 +677,10 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getPy();
             } else if (functionConfig.getGo() != null) {
                 userCodeFile = functionConfig.getGo();
+            }
+
+            if (null != runtimeFlags) {
+                functionConfig.setRuntimeFlags(runtimeFlags);
             }
 
             // check if configs are valid
