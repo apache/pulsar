@@ -65,7 +65,6 @@
     <dependency>
       <groupId>io.streamnative.oxia</groupId>
       <artifactId>oxia-client</artifactId>
-      <classifier>shaded</classifier>
     </dependency>
 
     <dependency>

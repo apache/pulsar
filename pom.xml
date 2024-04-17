@@ -248,7 +248,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.5</jetcd.version>
-    <oxia.version>0.1.0</oxia.version>
+    <oxia.version>0.1.2</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
@@ -1192,7 +1192,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.streamnative.oxia</groupId>
         <artifactId>oxia-client</artifactId>
         <version>${oxia.version}</version>
-        <classifier>shaded</classifier>
       </dependency>
       <dependency>
         <groupId>io.streamnative.oxia</groupId>
