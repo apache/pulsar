@@ -749,9 +749,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         bundleStats.producerCount += producers.size();
         topicStatsStream.startObject(topic);
 
-        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
-            rateIn.calculateRate();
-        }
+        msgRateIn.calculateRate();
 
         topicStatsStream.startList("publishers");
         producers.values().forEach(producer -> {
@@ -927,8 +925,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         producers.values().forEach(producer -> {
             NonPersistentPublisherStatsImpl publisherStats = (NonPersistentPublisherStatsImpl) producer.getStats();
-            stats.msgRateIn += publisherStats.msgRateIn;
-            stats.msgThroughputIn += publisherStats.msgThroughputIn;
+            if (brokerService.pulsar().getConfig().isPrecomputeProducerStatsInTopicStats()) {
+                stats.msgRateIn += publisherStats.msgRateIn;
+                stats.msgThroughputIn += publisherStats.msgThroughputIn;
+            }
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -938,9 +938,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         });
 
         // Replace producer stats with topic-level stats
-        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
-            stats.msgRateIn = rateIn.getRate();
-            stats.msgThroughputIn = rateIn.getValueRate();
+        if (brokerService.pulsar().getConfig().isPrecomputeProducerStatsInTopicStats()) {
+            stats.msgRateIn = msgRateIn.getRate();
+            stats.msgThroughputIn = msgRateIn.getValueRate();
         }
 
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);

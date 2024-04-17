@@ -159,9 +159,9 @@ public interface Topic {
     void recordAddLatency(long latency, TimeUnit unit);
 
     /**
-     * record topic level rate in stats.
+     * record topic level msg rate in stats.
      */
-    void recordRateIn(long events, long totalValue);
+    void recordMsgRateIn(long events, long totalValue);
 
     /**
      * increase the publishing limited times.

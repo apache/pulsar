@@ -158,7 +158,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
-    protected Rate rateIn = new Rate();
+    protected final Rate msgRateIn = new Rate();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -888,10 +888,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     @Override
-    public void recordRateIn(long events, long totalValue) {
-        if (brokerService.pulsar().getConfig().isEnableReplaceProducerStatsWithTopicStats()) {
-            rateIn.recordMultipleEvents(events, totalValue);
-        }
+    public void recordMsgRateIn(long events, long totalValue) {
+        msgRateIn.recordMultipleEvents(events, totalValue);
     }
 
     @Override

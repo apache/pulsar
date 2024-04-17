@@ -3452,9 +3452,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = "Enable or disable replace producer stats with topic stats when calculating topic production rate"
+            doc = "Precompute Producer stats in topic stats"
     )
-    private boolean enableReplaceProducerStatsWithTopicStats = false;
+    private boolean precomputeProducerStatsInTopicStats = false;
 
     /**
      * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
