@@ -107,6 +107,7 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -1013,7 +1014,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 true, attributeMap, true, Topics.class);
 
         // Add metrics servlet
-        webService.addServlet("/metrics",
+        webService.addServlet(PrometheusMetricsServlet.DEFAULT_METRICS_PATH,
                 new ServletHolder(metricsServlet),
                 config.isAuthenticateMetricsEndpoint(), attributeMap);
 
