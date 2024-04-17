@@ -69,15 +69,9 @@ public class PulsarPerfTestTool {
         commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
 
         for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-            if (PerformanceBaseArguments.class.isAssignableFrom(c.getValue())){
-                Constructor<?> constructor = c.getValue().getDeclaredConstructor();
-                constructor.setAccessible(true);
-                addCommand(c.getKey(), constructor.newInstance());
-            } else {
-                Constructor<?> constructor = c.getValue().getDeclaredConstructor();
-                constructor.setAccessible(true);
-                addCommand(c.getKey(), constructor.newInstance());
-            }
+            Constructor<?> constructor = c.getValue().getDeclaredConstructor();
+            constructor.setAccessible(true);
+            addCommand(c.getKey(), constructor.newInstance());
         }
 
         // Remove the first argument, it's the config file path
