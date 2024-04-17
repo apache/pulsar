@@ -141,6 +141,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setStatsUpdateInitialDelayInSecs(Integer.MAX_VALUE);
         super.internalSetup();
         persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
@@ -1898,5 +1899,107 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(cursor.getCursorProperties().size(), 1);
         assertEquals(cursor.getCursorProperties().get("foo"), "bar");
+    }
+
+    @Test
+    public void testPrecomputeProducerStatsInTopicStatsForPersistentTopic() throws Exception {
+        final int numberOfMessages = 10;
+        final String testLocalTopicName = "testPrecomputeProducerStatsInTopicStatsForPersistentTopic";
+        final String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testLocalTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // 1) Use producer stats to compute msgRateIn and msgThroughputIn for persistentTopic
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(false);
+
+        // produce numberOfMessages message to pulsar
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false, false, false);
+        ArgumentCaptor<TopicStats> statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        TopicStats topicStats = statCaptor.getValue();
+        assertEquals(topicStats.getMsgRateIn(), 0);
+        assertEquals(topicStats.getMsgThroughputIn(), 0);
+
+
+        // 2) Use topic stats to compute msgRateIn and msgThroughputIn for persistentTopic
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(true);
+
+        // produce numberOfMessages message to pulsar
+        producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false, false, false);
+        statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        topicStats = statCaptor.getValue();
+        Assert.assertTrue(topicStats.getMsgRateIn() > 0);
+        Assert.assertTrue(topicStats.getMsgThroughputIn() > 0);
+    }
+
+    @Test
+    public void testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic() throws Exception {
+        final int numberOfMessages = 10;
+        final String testLocalTopicName = "testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic";
+        final String topicName = "non-persistent://" + testTenant + "/" + testNamespace + "/" + testLocalTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // 1) Use producer stats to compute msgRateIn and msgThroughputIn for nonPersistentTopic
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(false);
+
+        // produce numberOfMessages message to pulsar
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        AsyncResponse response = mock(AsyncResponse.class);
+        nonPersistentTopic.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false, false, false);
+        ArgumentCaptor<TopicStats> statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        TopicStats topicStats = statCaptor.getValue();
+        assertEquals(topicStats.getMsgRateIn(), 0);
+        assertEquals(topicStats.getMsgThroughputIn(), 0);
+
+
+        // 2) Use topic stats to compute msgRateIn and msgThroughputIn for nonPersistentTopic
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(true);
+
+        // produce numberOfMessages message to pulsar
+        producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        response = mock(AsyncResponse.class);
+        nonPersistentTopic.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false, false, false);
+        statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        topicStats = statCaptor.getValue();
+        Assert.assertTrue(topicStats.getMsgRateIn() > 0);
+        Assert.assertTrue(topicStats.getMsgThroughputIn() > 0);
     }
 }

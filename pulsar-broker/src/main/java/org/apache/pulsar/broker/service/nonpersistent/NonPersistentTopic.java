@@ -937,7 +937,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             }
         });
 
-        // Replace producer stats with topic-level stats
+        // Compute msgRateIn and msgThroughputIn with topic stats
         if (brokerService.pulsar().getConfig().isPrecomputeProducerStatsInTopicStats()) {
             stats.msgRateIn = msgRateIn.getRate();
             stats.msgThroughputIn = msgRateIn.getValueRate();
