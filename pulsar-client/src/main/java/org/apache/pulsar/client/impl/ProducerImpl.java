@@ -334,8 +334,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             interceptorMessage.getProperties();
         }
 
-        int msgSize = interceptorMessage.getDataBuffer().readableBytes();
-        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
+        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage));
         return future;
     }
 
@@ -343,15 +342,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         CompletableFuture<MessageId> sendFuture;
         MessageImpl<?> currentMsg;
-        int msgSize;
         long createdAt = System.nanoTime();
         SendCallback nextCallback = null;
         MessageImpl<?> nextMsg = null;
 
-        DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg, int msgSize) {
+        DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg) {
             this.sendFuture = sendFuture;
             this.currentMsg = currentMsg;
-            this.msgSize = msgSize;
         }
 
         @Override
