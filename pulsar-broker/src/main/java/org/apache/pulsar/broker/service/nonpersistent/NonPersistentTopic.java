@@ -925,7 +925,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         producers.values().forEach(producer -> {
             NonPersistentPublisherStatsImpl publisherStats = (NonPersistentPublisherStatsImpl) producer.getStats();
-            if (brokerService.pulsar().getConfig().isPrecomputeProducerStatsInTopicStats()) {
+            if (!brokerService.pulsar().getConfig().isPrecomputeProducerStatsInTopicStats()) {
                 stats.msgRateIn += publisherStats.msgRateIn;
                 stats.msgThroughputIn += publisherStats.msgThroughputIn;
             }
