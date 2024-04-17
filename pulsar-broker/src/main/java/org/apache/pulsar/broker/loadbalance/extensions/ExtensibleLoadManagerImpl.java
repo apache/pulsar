@@ -270,10 +270,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
-    public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
-        return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
-    }
-
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
         return pulsar.getLoadManager().get() instanceof ExtensibleLoadManagerWrapper;
     }
@@ -346,7 +342,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public static CompletableFuture<Optional<BrokerLookupData>> getAssignedBrokerLookupData(PulsarService pulsar,
                                                                           String topic) {
         var config = pulsar.getConfig();
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
                 && config.isLoadBalancerMultiPhaseBundleUnload()) {
             var topicName = TopicName.get(topic);
             try {
@@ -829,11 +825,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (!serviceUnitStateChannel.isChannelOwner()) {
                     becameFollower = true;
                     break;
                 }
-                initWaiter.await();
                 // Confirm the system topics have been created or create them if they do not exist.
                 // If the leader has changed, the new leader need to reset
                 // the local brokerService.topics (by this topic creations).
@@ -879,11 +875,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (serviceUnitStateChannel.isChannelOwner()) {
                     becameLeader = true;
                     break;
                 }
-                initWaiter.await();
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
                 brokerLoadDataStore.init();

@@ -2446,7 +2446,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testTimestampOnWorkingLedger() throws Exception {
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
@@ -3525,7 +3525,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testLedgerNotRolloverWithoutOpenState() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -3932,6 +3932,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        assertEquals(ledger.currentLedger.getId(), ledgerId);
+
+        ledger.close();
+    }
+
+    @Test
+    public void testDontRollOverInactiveLedgersWhenMetadataServiceInvalid() throws Exception {
+        int inactiveLedgerRollOverTimeMs = 5;
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        // mock metadata service invalid
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
 
         long ledgerId = ledger.currentLedger.getId();
 

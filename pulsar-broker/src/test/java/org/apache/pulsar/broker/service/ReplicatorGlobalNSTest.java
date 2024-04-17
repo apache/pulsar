@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -32,6 +34,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
@@ -41,6 +45,18 @@ import java.util.concurrent.TimeUnit;
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
+    @DataProvider(name = "loadManagerClassName")
+    public static Object[][] loadManagerClassName() {
+        return new Object[][]{
+                {ModularLoadManagerImpl.class.getName()},
+                {ExtensibleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    @Factory(dataProvider = "loadManagerClassName")
+    public ReplicatorGlobalNSTest(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
 
     @BeforeMethod
     public void beforeMethod(Method m) {

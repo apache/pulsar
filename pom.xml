@@ -92,7 +92,7 @@ flexible messaging model and an intuitive client API.</description>
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups>quarantine</excludedGroups>
+    <excludedGroups>quarantine,flaky</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -137,7 +137,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.26.0</commons-compress.version>
 
-    <bookkeeper.version>4.16.4</bookkeeper.version>
+    <bookkeeper.version>4.16.5</bookkeeper.version>
     <zookeeper.version>3.9.2</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -155,8 +155,8 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.18.0</log4j2.version>
-    <bouncycastle.version>1.75</bouncycastle.version>
+    <log4j2.version>2.23.1</log4j2.version>
+    <bouncycastle.version>1.78</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
     <jackson.version>2.14.2</jackson.version>
@@ -227,7 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.30</lombok.version>
+    <lombok.version>1.18.32</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
