@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PrometheusMetricsServlet extends HttpServlet {
+    public static final String DEFAULT_METRICS_PATH = "/metrics";
     private static final long serialVersionUID = 1L;
     static final int HTTP_STATUS_OK_200 = 200;
     static final int HTTP_STATUS_INTERNAL_SERVER_ERROR_500 = 500;

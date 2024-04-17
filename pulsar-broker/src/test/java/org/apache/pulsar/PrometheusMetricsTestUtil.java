@@ -55,7 +55,7 @@ public class PrometheusMetricsTestUtil {
         try {
             ByteBuf buffer = null;
             try {
-                buffer = metricsBuffer.getBufferFuture().get(5, TimeUnit.SECONDS);
+                buffer = metricsBuffer.getBufferFuture().get(5, TimeUnit.SECONDS).getUncompressedBuffer();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException(e);

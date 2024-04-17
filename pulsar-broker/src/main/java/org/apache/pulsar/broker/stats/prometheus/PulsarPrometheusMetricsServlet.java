@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.web.GzipHandlerUtil.isGzipCompressionEnabledForEndpoint;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncContext;
@@ -40,6 +43,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     private static final int EXECUTOR_MAX_THREADS = 4;
 
     private final PrometheusMetricsGenerator prometheusMetricsGenerator;
+    private final boolean gzipCompressionEnabledForMetrics;
 
     public PulsarPrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics,
                                           boolean includeConsumerMetrics, boolean includeProducerMetrics,
@@ -50,6 +54,8 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
         prometheusMetricsGenerator =
                 new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
                         includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC());
+        gzipCompressionEnabledForMetrics = isGzipCompressionEnabledForEndpoint(
+                pulsar.getConfiguration().getHttpServerGzipCompressionExcludedPaths(), DEFAULT_METRICS_PATH);
     }
 
 
@@ -100,7 +106,14 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
             context.complete();
             return;
         }
-        metricsBuffer.getBufferFuture().whenComplete((buffer, ex) -> executor.execute(() -> {
+        boolean compressOutput = gzipCompressionEnabledForMetrics && isGzipAccepted(request);
+        metricsBuffer.getBufferFuture().thenCompose(responseBuffer -> {
+            if (compressOutput) {
+                return responseBuffer.getCompressedBuffer(executor);
+            } else {
+                return CompletableFuture.completedFuture(responseBuffer.getUncompressedBuffer());
+            }
+        }).whenComplete((buffer, ex) -> executor.execute(() -> {
             try {
                 long elapsedNanos = System.nanoTime() - startNanos;
                 // check if the request has been timed out, implement a soft timeout
@@ -133,6 +146,9 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                 } else {
                     response.setStatus(HTTP_STATUS_OK_200);
                     response.setContentType("text/plain;charset=utf-8");
+                    if (compressOutput) {
+                        response.setHeader("Content-Encoding", "gzip");
+                    }
                     ServletOutputStream outputStream = response.getOutputStream();
                     if (outputStream instanceof HttpOutput) {
                         HttpOutput output = (HttpOutput) outputStream;
@@ -155,5 +171,15 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                 context.complete();
             }
         }));
+    }
+
+    private boolean isGzipAccepted(HttpServletRequest request) {
+        String acceptEncoding = request.getHeader("Accept-Encoding");
+        if (acceptEncoding != null) {
+            return Arrays.stream(acceptEncoding.split(","))
+                    .map(String::trim)
+                    .anyMatch(str -> "gzip".equalsIgnoreCase(str));
+        }
+        return false;
     }
 }
