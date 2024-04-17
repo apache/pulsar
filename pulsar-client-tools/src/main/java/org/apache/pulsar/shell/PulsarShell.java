@@ -137,22 +137,22 @@ public class PulsarShell {
         CONFIG("config"),
         DEFAULT("");
 
+        private static final Map<String, ShellMode> COMMAND_MAP = new HashMap<>();
+
+        static {
+            for (ShellMode shellMode: values()) {
+                COMMAND_MAP.put(shellMode.command, shellMode);
+            }
+        }
+
         final String command;
 
         ShellMode(String command) {
             this.command = command;
         }
 
-        private static final Map<String, ShellMode> commandMap = new HashMap<>();
-
-        static {
-            for (ShellMode shellMode: values()) {
-                commandMap.put(shellMode.command, shellMode);
-            }
-        }
-
         public static ShellMode valueOfCommand(String command) {
-            return commandMap.get(command);
+            return COMMAND_MAP.get(command);
         }
     }
     private Properties properties;
