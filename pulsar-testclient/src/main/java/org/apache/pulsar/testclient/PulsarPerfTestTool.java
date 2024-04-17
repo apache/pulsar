@@ -66,13 +66,13 @@ public class PulsarPerfTestTool {
                 prop.load(fis);
             }
         }
+        commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
 
         for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
             if (PerformanceBaseArguments.class.isAssignableFrom(c.getValue())){
                 Constructor<?> constructor = c.getValue().getDeclaredConstructor();
                 constructor.setAccessible(true);
-                commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
-                commander.addSubcommand(c.getKey(), constructor.newInstance());
+                addCommand(c.getKey(), constructor.newInstance());
             } else {
                 Constructor<?> constructor = c.getValue().getDeclaredConstructor();
                 constructor.setAccessible(true);

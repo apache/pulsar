@@ -37,9 +37,18 @@ public abstract class CmdBase implements Callable<Integer> {
         commander.parseArgs(args);
     }
 
+    /**
+     * Validate the CLI arguments.  Default implementation provides validation for the common arguments.
+     * Each subclass should call super.validate() and provide validation code specific to the sub-command.
+     * @throws Exception
+     */
+    public void validate() throws Exception {
+    }
+
     // Picocli entrypoint.
     @Override
     public Integer call() throws Exception {
+        validate();
         run();
         return 0;
     }

@@ -61,8 +61,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 @Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
 public class PerformanceClient extends CmdBase {
@@ -120,7 +122,7 @@ public class PerformanceClient extends CmdBase {
     public String payloadDelimiter = "\\n";
 
     @Option(names = { "-fp", "--format-payload" },
-            description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
+            description = "Format %%i as a message index in the stream from producer and/or %%t as the timestamp"
                     + " nanoseconds")
     public boolean formatPayload = false;
 
@@ -136,8 +138,11 @@ public class PerformanceClient extends CmdBase {
     }
 
 
+    @Spec
+    CommandSpec spec;
+
     public void loadArguments() {
-        CommandLine commander = super.getCommander();
+        CommandLine commander = spec.commandLine();
 
         if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
             this.authPluginClassName = this.deprecatedAuthPluginClassName;

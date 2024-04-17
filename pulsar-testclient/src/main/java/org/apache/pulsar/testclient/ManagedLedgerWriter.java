@@ -62,7 +62,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 public class ManagedLedgerWriter extends CmdBase{
@@ -136,9 +138,12 @@ public class ManagedLedgerWriter extends CmdBase{
     }
 
 
+    @Spec
+    CommandSpec spec;
+
     @Override
     public void run() throws Exception {
-        CommandLine commander = super.getCommander();
+        CommandLine commander = spec.commandLine();
 
         if (this.metadataStoreUrl == null && this.zookeeperServers == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");

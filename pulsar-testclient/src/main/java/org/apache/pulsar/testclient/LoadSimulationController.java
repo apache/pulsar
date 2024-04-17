@@ -691,7 +691,6 @@ public class LoadSimulationController extends CmdBase{
      */
     @Override
     public void run() throws Exception {
-        CommandLine commander = super.getCommander();
         random = new Random();
         clients = this.clientHostNames.split(",");
         final Socket[] sockets = new Socket[clients.length];

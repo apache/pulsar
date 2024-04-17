@@ -212,8 +212,6 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     }
     @Override
     public void run() throws Exception {
-        super.parseCLI();
-
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();

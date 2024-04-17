@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -321,8 +320,6 @@ public class LoadSimulationClient extends CmdBase{
      */
     @Override
     public void run() throws Exception {
-        CommandLine commander = super.getCommander();
-
         admin = PulsarAdmin.builder()
                 .serviceHttpUrl(this.serviceURL)
                 .build();

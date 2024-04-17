@@ -104,12 +104,9 @@ public abstract class PerformanceBaseArguments extends CmdBase{
         super(cmdName);
     }
 
-    /**
-     * Validate the CLI arguments.  Default implementation provides validation for the common arguments.
-     * Each subclass should call super.validate() and provide validation code specific to the sub-command.
-     * @throws Exception
-     */
+    @Override
     public void validate() throws Exception {
+        parseCLI();
     }
 
     /**
@@ -119,13 +116,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     public void parseCLI() {
         if (isBlank(authPluginClassName) && !isBlank(deprecatedAuthPluginClassName)) {
             authPluginClassName = deprecatedAuthPluginClassName;
-        }
-
-        try {
-            validate();
-        } catch (Exception e) {
-            System.out.println("error: " + e.getMessage());
-            PerfClientUtils.exit(1);
         }
     }
 

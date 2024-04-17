@@ -27,7 +27,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 @Slf4j
 @Command(name = "gen-doc", description = "Generate documentation automatically.")
@@ -40,10 +42,12 @@ public class CmdGenerateDocumentation extends CmdBase{
         super("gen-doc");
     }
 
+    @Spec
+    CommandSpec spec;
 
     @Override
     public void run() throws Exception {
-        CommandLine commander = super.getCommander();
+        CommandLine commander = spec.commandLine();
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
         cmdClassMap.put("produce", PerformanceProducer.class);

@@ -46,7 +46,6 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -544,8 +543,6 @@ public class BrokerMonitor extends CmdBase {
 
     @Override
     public void run() throws Exception {
-        CommandLine commander = super.getCommander();
-
         if (this.extensions) {
             final BrokerMonitor monitor = new BrokerMonitor(this.connectString);
             monitor.startBrokerLoadDataStoreMonitor();
