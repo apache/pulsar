@@ -219,6 +219,8 @@ public class NamespaceStatsAggregator {
         stats.abortedTxnCount = tStatus.abortedTxnCount;
         stats.ongoingTxnCount = tStatus.ongoingTxnCount;
         stats.committedTxnCount = tStatus.committedTxnCount;
+        stats.rateIn = tStatus.msgRateIn;
+        stats.throughputIn = tStatus.msgThroughputIn;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -231,8 +233,6 @@ public class NamespaceStatsAggregator {
             } else {
                 // Local producer
                 stats.producersCount++;
-                stats.rateIn += producer.getStats().msgRateIn;
-                stats.throughputIn += producer.getStats().msgThroughputIn;
 
                 if (includeProducerMetrics) {
                     AggregatedProducerStats producerStats = stats.producerStats.computeIfAbsent(

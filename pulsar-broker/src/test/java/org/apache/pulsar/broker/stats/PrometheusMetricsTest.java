@@ -87,6 +87,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
@@ -115,6 +116,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
+        conf.setStatsUpdateInitialDelayInSecs(Integer.MAX_VALUE);
         return conf;
     }
 
@@ -1940,6 +1942,201 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(subCountLines.size(), 1);
         assertEquals(subCountLines.get(0),
                 "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\",topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
+    }
+
+    @Test
+    public void testPrecomputeProducerStatsInTopicStatsForPersistentTopic() throws Exception {
+        final int numberOfMessages = 10;
+        final int contentSize = 10;
+        final String nsName = "prop/ns-abc1";
+        admin.namespaces().createNamespace(nsName);
+        String topicName = "persistent://" + nsName + "/testPrecomputeProducerStatsInTopicStatsForPersistentTopic";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // 1) Use producer stats to compute msgRateIn and msgThroughputIn
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(false);
+        // produce numberOfMessages message to pulsar
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[contentSize]);
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        @Cleanup
+        ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false,
+                false, statsOut1);
+        String metricsStr = statsOut1.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<Metric> metric = metrics.get("pulsar_producers_count");
+        double value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_rate_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_throughput_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_average_msg_size");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_in_bytes_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > contentSize * numberOfMessages);
+
+        metric = metrics.get("pulsar_in_messages_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, numberOfMessages);
+
+        // 2) Use topic stats to compute msgRateIn and msgThroughputIn
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(true);
+
+        // produce numberOfMessages message to pulsar
+        producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[contentSize]);
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        @Cleanup
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false,
+                false, statsOut2);
+        metricsStr = statsOut2.toString();
+        metrics = parseMetrics(metricsStr);
+
+        metric = metrics.get("pulsar_producers_count");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_rate_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 0);
+
+        metric = metrics.get("pulsar_throughput_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 0);
+
+        metric = metrics.get("pulsar_average_msg_size");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > contentSize);
+
+        metric = metrics.get("pulsar_in_bytes_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 2 * contentSize * numberOfMessages);
+
+        metric = metrics.get("pulsar_in_messages_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 2 * numberOfMessages);
+    }
+
+    @Test
+    public void testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic() throws Exception {
+        final int numberOfMessages = 10;
+        final int contentSize = 10;
+        final String nsName = "prop/ns-abc1";
+        admin.namespaces().createNamespace(nsName);
+        String topicName = "non-persistent://" + nsName
+                + "/testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // 1) Use producer stats to compute msgRateIn and msgThroughputIn
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(false);
+        // produce numberOfMessages message to pulsar
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[contentSize]);
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        @Cleanup
+        ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false,
+                false, statsOut1);
+        String metricsStr = statsOut1.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<Metric> metric = metrics.get("pulsar_producers_count");
+        double value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_rate_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_throughput_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_average_msg_size");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_in_bytes_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > contentSize * numberOfMessages);
+
+        metric = metrics.get("pulsar_in_messages_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, numberOfMessages);
+
+        // 2) Use topic stats to compute msgRateIn and msgThroughputIn
+        pulsar.getConfiguration().setPrecomputeProducerStatsInTopicStats(true);
+
+        // produce numberOfMessages message to pulsar
+        producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[contentSize]);
+        }
+        producer.close();
+
+        // trigger update rates
+        pulsar.getBrokerService().updateRates();
+
+        @Cleanup
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false,
+                false, statsOut2);
+        metricsStr = statsOut2.toString();
+        metrics = parseMetrics(metricsStr);
+
+        metric = metrics.get("pulsar_producers_count");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 0);
+
+        metric = metrics.get("pulsar_rate_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 0);
+
+        metric = metrics.get("pulsar_throughput_in");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 0);
+
+        metric = metrics.get("pulsar_average_msg_size");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > contentSize);
+
+        metric = metrics.get("pulsar_in_bytes_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        Assert.assertTrue(value > 2 * contentSize * numberOfMessages);
+
+        metric = metrics.get("pulsar_in_messages_total");
+        value = metric.stream().filter(input -> input.tags.containsValue(topicName)).toList().get(0).value;
+        assertEquals(value, 2 * numberOfMessages);
     }
 
 }
