@@ -459,7 +459,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected synchronized NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
         // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
         // So skip this filter out.
-        if (!isAllowOutOfOrderDelivery()) {
+        if (isAllowOutOfOrderDelivery()) {
             return src;
         }
         if (src.isEmpty()) {
@@ -508,7 +508,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected boolean hasConsumersNeededNormalRead() {
         // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
         // So the method "filterOutEntriesWillBeDiscarded" will filter out nothing, just return "true" here.
-        if (!isAllowOutOfOrderDelivery()) {
+        if (isAllowOutOfOrderDelivery()) {
             return true;
         }
         for (Consumer consumer : consumerList) {
