@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.junit.Assert.fail;
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -72,13 +71,16 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
     public void testBlankAdminRoleTenant() throws Exception {
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        TenantInfoImpl blankAdminRoleTenantInfo = new TenantInfoImpl(Sets.newHashSet(""), Sets.newHashSet("test"));
-        TenantInfoImpl containsWhitespaceAdminRoleTenantInfo = new TenantInfoImpl(Sets.newHashSet("   role1   "), Sets.newHashSet("test"));
-        TenantInfoImpl noneBlankAdminRoleTenantInfo = new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("test"));
+        TenantInfoImpl blankAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet(""), Sets.newHashSet("test"));
+        TenantInfoImpl containsWhitespaceAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet("   role1   "), Sets.newHashSet("test"));
+        TenantInfoImpl noneBlankAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant1", noneBlankAdminRoleTenantInfo);
         try {
             admin.tenants().createTenant("testTenant2", blankAdminRoleTenantInfo);
-            fail();
+            Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
             Assert.assertEquals(e.getHttpError(), "AdminRole can not be blank or containsWhitespace");
@@ -86,7 +88,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.tenants().createTenant("testTenant3", containsWhitespaceAdminRoleTenantInfo);
-            fail();
+            Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
             Assert.assertEquals(e.getHttpError(), "AdminRole can not be blank or containsWhitespace");

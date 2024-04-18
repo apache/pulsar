@@ -289,8 +289,10 @@ public class TenantsBase extends PulsarWebResource {
         if (!info.getAdminRoles().isEmpty()) {
             for (String adminRole : info.getAdminRoles()) {
                 if (!StringUtils.trim(adminRole).equals(adminRole)) {
-                    log.warn("[{}] Failed to validate due to adminRole {} contains whitespace in the beginning or end.", clientAppId(), adminRole);
-                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "AdminRoles contains whitespace in the beginning or end."));
+                    log.warn("[{}] Failed to validate due to adminRole {} contains whitespace in the beginning or end.",
+                            clientAppId(), adminRole);
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                            "AdminRoles contains whitespace in the beginning or end."));
                 }
             }
         }
