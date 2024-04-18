@@ -441,14 +441,13 @@ public class PulsarShell {
                 return;
             }
             execState = ExecState.RUNNING;
-            final String inputLine = words.stream().collect(Collectors.joining(" "));
-            if (StringUtils.isBlank(inputLine)) {
+            String line = words.stream().collect(Collectors.joining(" "));
+            if (StringUtils.isBlank(line)) {
                 continue;
             }
-            if (isQuitCommand(inputLine)) {
-                if (shellMode != ShellMode.DEFAULT){
+            if (isQuitCommand(line)) {
+                if (shellMode != ShellMode.DEFAULT) {
                     output(String.format("Exiting from %s shell mode", shellMode.command), terminal);
-                    promptMessage = promptMessage.substring(0, promptMessage.lastIndexOf(shellMode.command) - 1);
                     prompt = createPrompt(promptMessage);
                     shellMode = ShellMode.DEFAULT;
                     continue;
@@ -458,17 +457,16 @@ public class PulsarShell {
             }
             if (shellMode != ShellMode.DEFAULT) {
                 words.add(0, shellMode.command);
+                line = shellMode.command + " " + line;
             }
-            final String line = words.stream().collect(Collectors.joining(" "));
             if (isHelp(line)) {
                 shellCommander.usage(System.out);
                 continue;
             }
             ShellMode newShellMode = ShellMode.valueOfCommand(line.toLowerCase(Locale.ROOT));
-            if (newShellMode != null){
+            if (newShellMode != null) {
                 shellMode = newShellMode;
-                promptMessage = promptMessage.concat(" ").concat(shellMode.command);
-                prompt = createPrompt(promptMessage);
+                prompt = createPrompt(promptMessage + " " + shellMode.command);
                 continue;
             }
 
