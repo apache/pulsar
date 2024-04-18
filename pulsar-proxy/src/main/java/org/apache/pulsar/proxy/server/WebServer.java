@@ -45,6 +45,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -152,6 +153,11 @@ public class WebServer {
                 }
                 connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
                 connectionFactories.add(httpConnectionFactory);
+                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+                // this is needed for TLS authentication
+                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
+                    httpConfig.addCustomizer(new SecureRequestCustomizer());
+                }
                 connectorTls = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
