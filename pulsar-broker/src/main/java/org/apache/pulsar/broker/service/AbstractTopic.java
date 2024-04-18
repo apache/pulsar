@@ -688,27 +688,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .checkConsumerCompatibility(id, schema, getSchemaCompatibilityStrategy());
     }
 
-    protected CompletableFuture<Void> tryCompleteTheLostSchema(SchemaVersion schemaVersion, SchemaData schema) {
-        String id = getSchemaId();
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .tryCompleteTheLostSchema(id, schemaVersion, schema);
-    }
-
-    @Override
-    public CompletableFuture<Long> findSchemaVersion(SchemaData schema) {
-        String id = getSchemaId();
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .findSchemaVersion(id, schema);
-    }
-
-    protected CompletableFuture<SchemaVersion> getLatestSchemaVersion() {
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .getLatestSchemaVersion(getSchemaId());
-    }
-
     @Override
     public CompletableFuture<Optional<Long>> addProducer(Producer producer,
                                                          CompletableFuture<Void> producerQueuedFuture) {

@@ -293,7 +293,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @Override
-    public CompletableFuture<Long> tryCompleteTheLostSchemaLedger(String schemaId, SchemaVersion version,
+    public CompletableFuture<Long> tryComplementTheLostSchemaLedger(String schemaId, SchemaVersion version,
                                                                   SchemaData schema) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         tryCompleteTheLostSchemaLedger(schemaId, version, schema, promise);

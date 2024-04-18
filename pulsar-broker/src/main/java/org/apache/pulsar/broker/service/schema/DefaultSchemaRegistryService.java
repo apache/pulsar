@@ -71,12 +71,6 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Void> tryCompleteTheLostSchema(String schemaId, SchemaVersion schemaVersion,
-                                                            SchemaData schema) {
-        return completedFuture(null);
-    }
-
-    @Override
     public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId) {
         return completedFuture(null);
     }

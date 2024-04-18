@@ -305,8 +305,6 @@ public interface Topic {
      */
     CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
-    CompletableFuture<Long> findSchemaVersion(SchemaData schema);
-
     CompletableFuture<Void> deleteForcefully();
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {

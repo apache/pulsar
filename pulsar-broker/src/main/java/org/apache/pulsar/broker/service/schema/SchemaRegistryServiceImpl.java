@@ -30,6 +30,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +68,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaStorage schemaStorage;
     private final Clock clock;
     private final SchemaRegistryStats stats;
+    private static final String COMPLEMENT_SCHEMA_ENABLE = "complementSchemaEnabled";
+    private static final String COMPLEMENT_SCHEMA_VERSION = "complementSchemaVersion";
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
@@ -230,6 +233,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }))).whenComplete((v, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Put schema failed", schemaId, ex);
+                        if (ex.getMessage().contains("No such ledger exists on Bookies")
+                                && schema.getProps().containsKey(COMPLEMENT_SCHEMA_ENABLE)
+                                && schema.getProps().containsKey(COMPLEMENT_SCHEMA_VERSION)) {
+                            ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
+                            bbVersion.putLong(Long.parseLong(schema.getProps().get(COMPLEMENT_SCHEMA_VERSION)));
+                            SchemaVersion schemaVersion = versionFromBytes(bbVersion.array());
+                            tryComplementTheLostSchema(schemaId, schemaVersion, schema, promise);
+                        }
                         if (start.getValue() != 0) {
                             this.stats.recordPutFailed(schemaId);
                         }
@@ -445,30 +456,24 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return completableFuture;
     }
 
-    @Override
-    public CompletableFuture<Void> tryCompleteTheLostSchema(String schemaId, SchemaVersion schemaVersion,
-                                                            SchemaData schema) {
-        // long start = this.clock.millis();
-        CompletableFuture<Void> longCompletableFuture = new CompletableFuture<>();
+    private void tryComplementTheLostSchema(String schemaId, SchemaVersion schemaVersion,
+                                                              SchemaData schema,
+                                                              CompletableFuture<SchemaVersion> promise) {
         schemaStorage
-                .tryCompleteTheLostSchemaLedger(schemaId, schemaVersion, schema)
+                .tryComplementTheLostSchemaLedger(schemaId, schemaVersion, schema)
                 .whenComplete((v, t) -> {
-                    // TODO: add completeLostSchemaLedger stats?
                     if (t != null) {
-                        // this.stats.recordDelFailed(schemaId);
                         log.error("[{}] Complete lost schema({}) failed", schemaId,
                                 ((LongSchemaVersion) schemaVersion).getVersion());
-                        longCompletableFuture.completeExceptionally(t);
+                        promise.completeExceptionally(t);
                     } else {
-                        // this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Complete lost schema({}) finished", schemaId,
                                     ((LongSchemaVersion) schemaVersion).getVersion());
                         }
-                        longCompletableFuture.complete(null);
+                        promise.complete(schemaVersion);
                     }
                 });
-        return longCompletableFuture;
     }
 
     @Override

@@ -85,12 +85,6 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Void> tryCompleteTheLostSchema(String schemaId, SchemaVersion schemaVersion,
-                                                            SchemaData schema) {
-        return this.service.tryCompleteTheLostSchema(schemaId, schemaVersion, schema);
-    }
-
-    @Override
     public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId) {
         return this.service.getLatestSchemaVersion(schemaId);
     }
