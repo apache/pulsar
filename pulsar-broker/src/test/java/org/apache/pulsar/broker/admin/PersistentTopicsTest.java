@@ -1904,6 +1904,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPrecomputeProducerStatsInTopicStatsForPersistentTopic() throws Exception {
         final int numberOfMessages = 10;
+        final int contentSize = 10;
         final String testLocalTopicName = "testPrecomputeProducerStatsInTopicStatsForPersistentTopic";
         final String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testLocalTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -1914,7 +1915,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // produce numberOfMessages message to pulsar
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numberOfMessages; i++) {
-            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+            log.info("Produce messages: " + producer.send(new byte[contentSize]).toString());
         }
         producer.close();
 
@@ -1928,6 +1929,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = statCaptor.getValue();
         assertEquals(topicStats.getMsgRateIn(), 0);
         assertEquals(topicStats.getMsgThroughputIn(), 0);
+        assertEquals(topicStats.getAverageMsgSize(), 0);
+        assertEquals(topicStats.getMsgInCounter(), numberOfMessages);
+        Assert.assertTrue(topicStats.getBytesInCounter() > contentSize * numberOfMessages);
 
 
         // 2) Use topic stats to compute msgRateIn and msgThroughputIn for persistentTopic
@@ -1936,7 +1940,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // produce numberOfMessages message to pulsar
         producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numberOfMessages; i++) {
-            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+            log.info("Produce messages: " + producer.send(new byte[contentSize]).toString());
         }
         producer.close();
 
@@ -1950,11 +1954,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         topicStats = statCaptor.getValue();
         Assert.assertTrue(topicStats.getMsgRateIn() > 0);
         Assert.assertTrue(topicStats.getMsgThroughputIn() > 0);
+        Assert.assertTrue(topicStats.getAverageMsgSize() > contentSize);
+        assertEquals(topicStats.getMsgInCounter(), numberOfMessages * 2);
+        Assert.assertTrue(topicStats.getBytesInCounter() > contentSize * numberOfMessages * 2);
     }
 
     @Test
     public void testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic() throws Exception {
         final int numberOfMessages = 10;
+        final int contentSize = 10;
         final String testLocalTopicName = "testPrecomputeProducerStatsInTopicStatsForNonPersistentTopic";
         final String topicName = "non-persistent://" + testTenant + "/" + testNamespace + "/" + testLocalTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -1979,6 +1987,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = statCaptor.getValue();
         assertEquals(topicStats.getMsgRateIn(), 0);
         assertEquals(topicStats.getMsgThroughputIn(), 0);
+        assertEquals(topicStats.getAverageMsgSize(), 0);
+        assertEquals(topicStats.getMsgInCounter(), numberOfMessages);
+        Assert.assertTrue(topicStats.getBytesInCounter() > contentSize * numberOfMessages);
 
 
         // 2) Use topic stats to compute msgRateIn and msgThroughputIn for nonPersistentTopic
@@ -2001,5 +2012,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         topicStats = statCaptor.getValue();
         Assert.assertTrue(topicStats.getMsgRateIn() > 0);
         Assert.assertTrue(topicStats.getMsgThroughputIn() > 0);
+        Assert.assertTrue(topicStats.getAverageMsgSize() > contentSize);
+        assertEquals(topicStats.getMsgInCounter(), numberOfMessages * 2);
+        Assert.assertTrue(topicStats.getBytesInCounter() > contentSize * numberOfMessages * 2);
     }
 }
