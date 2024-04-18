@@ -458,15 +458,16 @@ public class PulsarShell {
             if (shellMode != ShellMode.DEFAULT) {
                 words.add(0, shellMode.command);
                 line = shellMode.command + " " + line;
+            } else {
+                ShellMode newShellMode = ShellMode.valueOfCommand(line.toLowerCase(Locale.ROOT));
+                if (newShellMode != null) {
+                    shellMode = newShellMode;
+                    prompt = createPrompt(promptMessage + " " + shellMode.command);
+                    continue;
+                }
             }
             if (isHelp(line)) {
                 shellCommander.usage(System.out);
-                continue;
-            }
-            ShellMode newShellMode = ShellMode.valueOfCommand(line.toLowerCase(Locale.ROOT));
-            if (newShellMode != null) {
-                shellMode = newShellMode;
-                prompt = createPrompt(promptMessage + " " + shellMode.command);
                 continue;
             }
 
