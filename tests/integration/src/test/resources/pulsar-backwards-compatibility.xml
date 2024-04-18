@@ -30,6 +30,7 @@
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_3" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_4" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_5" />
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientOffloadTest3_0" />
         </classes>
     </test>
 </suite>

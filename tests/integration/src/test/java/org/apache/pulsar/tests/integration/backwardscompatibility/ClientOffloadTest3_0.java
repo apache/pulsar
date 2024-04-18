@@ -21,9 +21,13 @@ package org.apache.pulsar.tests.integration.backwardscompatibility;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.offload.TestBaseOffload;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ClientOffloadTest3_0 extends TestBaseOffload {
@@ -49,6 +53,84 @@ public class ClientOffloadTest3_0 extends TestBaseOffload {
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
-        super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
+        final String tenant = "offload-test-deletion-lag-" + randomName(4);
+        final String namespace = tenant + "/ns1";
+        final String topic = "persistent://" + namespace + "/topic1";
+
+        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
+                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
+                "--admin-roles", "offload-admin", tenant);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
+                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+
+        // set threshold to offload runs immediately after role
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
+                "set-offload-threshold", "--size", "0", namespace);
+
+        String output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("Unset for namespace"));
+
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
+
+        long offloadedLedger = writeAndWaitForOffload(serviceUrl.get(), adminUrl.get(), topic);
+        // give it up to 5 seconds to delete, it shouldn't
+        // so we wait this every time
+        Thread.sleep(5000);
+        Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+
+        long finalOffloadedLedger1 = offloadedLedger;
+        ManagedLedgerInternalStats.LedgerInfo offloadedLedgerInfo =
+                admin.topics().getInternalStats(topic).ledgers.stream()
+                        .filter((x) -> x.ledgerId == finalOffloadedLedger1).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace,
+                "--lag", "0m");
+        output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("0 minute(s)"));
+
+        offloadedLedger = writeAndWaitForOffload(serviceUrl.get(), adminUrl.get(), topic);
+        // wait up to 10 seconds for ledger to be deleted
+        for (int i = 0; i < 10 && ledgerExistsInBookKeeper(offloadedLedger); i++) {
+            writeAndWaitForOffload(serviceUrl.get(), adminUrl.get(), topic);
+            Thread.sleep(1000);
+        }
+        Assert.assertFalse(ledgerExistsInBookKeeper(offloadedLedger));
+
+        long finalOffloadedLedger2 = offloadedLedger;
+        offloadedLedgerInfo = admin.topics().getInternalStats(topic).ledgers.stream()
+                .filter((x) -> x.ledgerId == finalOffloadedLedger2).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+
+        // old version server, new version client
+        // the new field `bookkeeperDeleted` should always be false
+        Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "clear-offload-deletion-lag", namespace);
+
+        Thread.sleep(5); // wait 5 seconds to allow broker to see update
+
+        output = pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces", "get-offload-deletion-lag", namespace).getStdout();
+        Assert.assertTrue(output.contains("Unset for namespace"));
+
+        offloadedLedger = writeAndWaitForOffload(serviceUrl.get(), adminUrl.get(), topic);
+
+        // give it up to 5 seconds to delete, it shouldn't
+        // so we wait this every time
+        Thread.sleep(5000);
+        Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+
+        long finalOffloadedLedger3 = offloadedLedger;
+        offloadedLedgerInfo = admin.topics().getInternalStats(topic).ledgers.stream()
+                .filter((x) -> x.ledgerId == finalOffloadedLedger3).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
+
+        admin.close();
     }
 }

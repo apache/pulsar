@@ -220,7 +220,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 .map(l -> l.offloaded).findFirst().get();
     }
 
-    private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic)
+    protected long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic)
             throws Exception {
         return writeAndWaitForOffload(serviceUrl, adminUrl, topic, -1);
     }
