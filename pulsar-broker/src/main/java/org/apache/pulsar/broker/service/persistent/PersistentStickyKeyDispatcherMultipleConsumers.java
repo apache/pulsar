@@ -501,6 +501,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     @Override
     protected boolean hasConsumersNeededNormalRead() {
+        if (MapUtils.isEmpty(recentlyJoinedConsumers)) {
+            return getFirstAvailableConsumerPermits() > 0;
+        }
         for (Consumer consumer : consumerList) {
             if (consumer == null || consumer.isBlocked()) {
                 continue;
