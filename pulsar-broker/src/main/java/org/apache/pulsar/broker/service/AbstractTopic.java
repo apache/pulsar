@@ -320,7 +320,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private Integer normalizeValue(Integer policyValue) {
-        return policyValue != null && policyValue <= 0 ? null : policyValue;
+        return policyValue != null && policyValue < 0 ? null : policyValue;
     }
 
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
@@ -376,21 +376,18 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.isBrokerDeleteInactiveTopicsEnabled()));
 
         updateBrokerSubscriptionTypesEnabled();
-        topicPolicies.getMaxSubscriptionsPerTopic()
-                .updateBrokerValue(normalizeValue(config.getMaxSubscriptionsPerTopic()));
-        topicPolicies.getMaxProducersPerTopic().updateBrokerValue(normalizeValue(config.getMaxProducersPerTopic()));
-        topicPolicies.getMaxConsumerPerTopic().updateBrokerValue(normalizeValue(config.getMaxConsumersPerTopic()));
-        topicPolicies.getMaxConsumersPerSubscription()
-                .updateBrokerValue(normalizeValue(config.getMaxConsumersPerSubscription()));
+        topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxProducersPerTopic().updateBrokerValue(config.getMaxProducersPerTopic());
+        topicPolicies.getMaxConsumerPerTopic().updateBrokerValue(config.getMaxConsumersPerTopic());
+        topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(config.getMaxConsumersPerSubscription());
         topicPolicies.getDeduplicationEnabled().updateBrokerValue(config.isBrokerDeduplicationEnabled());
-        topicPolicies.getRetentionPolicies().updateBrokerValue(new RetentionPolicies(
-                config.getDefaultRetentionTimeInMinutes(), config.getDefaultRetentionSizeInMB()));
-        topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateBrokerValue(
-                config.getBrokerDeduplicationSnapshotIntervalSeconds());
-        topicPolicies.getMaxUnackedMessagesOnConsumer()
-                .updateBrokerValue(normalizeValue(config.getMaxUnackedMessagesPerConsumer()));
+        topicPolicies.getRetentionPolicies().updateBrokerValue(
+                new RetentionPolicies(config.getDefaultRetentionTimeInMinutes(), config.getDefaultRetentionSizeInMB()));
+        topicPolicies.getDeduplicationSnapshotIntervalSeconds()
+                .updateBrokerValue(config.getBrokerDeduplicationSnapshotIntervalSeconds());
+        topicPolicies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(config.getMaxUnackedMessagesPerConsumer());
         topicPolicies.getMaxUnackedMessagesOnSubscription()
-                .updateBrokerValue(normalizeValue(config.getMaxUnackedMessagesPerSubscription()));
+                .updateBrokerValue(config.getMaxUnackedMessagesPerSubscription());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
                 .get(BacklogQuota.BacklogQuotaType.destination_storage)
@@ -399,9 +396,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .get(BacklogQuota.BacklogQuotaType.message_age)
                 .updateBrokerValue(brokerService.getBacklogQuotaManager().getDefaultQuota());
 
-        topicPolicies.getTopicMaxMessageSize().updateBrokerValue(normalizeValue(config.getMaxMessageSize()));
-        topicPolicies.getMessageTTLInSeconds()
-                .updateBrokerValue(normalizeValue(config.getTtlDurationDefaultInSeconds()));
+        topicPolicies.getTopicMaxMessageSize().updateBrokerValue(config.getMaxMessageSize());
+        topicPolicies.getMessageTTLInSeconds().updateBrokerValue(config.getTtlDurationDefaultInSeconds());
         topicPolicies.getPublishRate().updateBrokerValue(publishRateInBroker(config));
         topicPolicies.getDelayedDeliveryEnabled().updateBrokerValue(config.isDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateBrokerValue(config.getDelayedDeliveryTickTimeMillis());
