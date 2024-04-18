@@ -51,6 +51,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -71,6 +72,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -101,6 +103,10 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -663,6 +669,47 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                                     pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
                         }
                     }
+                    // Check if the broker is available
+                    var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
+                    var loadManager4 = spy((ExtensibleLoadManagerImpl)
+                            FieldUtils.readField(wrapper, "loadManager", true));
+                    loadManager4.getBrokerRegistry().unregister();
+
+                    NamespaceName slaMonitorNamespace =
+                            getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
+                    String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+                    String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(result);
+                    log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
+                    assertNotEquals(result, pulsar4.getBrokerServiceUrl());
+
+                    Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                    producer.send("t1");
+
+                    // Test re-register broker and check the lookup result
+                    loadManager4.getBrokerRegistry().register();
+
+                    result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(result);
+                    log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
+                    assertEquals(result, pulsar4.getBrokerServiceUrl());
+
+                    producer.send("t2");
+                    Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                    producer1.send("t3");
+
+                    producer.close();
+                    producer1.close();
+                    @Cleanup
+                    Consumer<String> consumer = pulsar.getClient().newConsumer(Schema.STRING)
+                            .topic(slaMonitorTopic)
+                            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                            .subscriptionName("test")
+                            .subscribe();
+                    // receive message t1 t2 t3
+                    assertEquals(consumer.receive().getValue(), "t1");
+                    assertEquals(consumer.receive().getValue(), "t2");
+                    assertEquals(consumer.receive().getValue(), "t3");
                 }
             }
         }
