@@ -71,11 +71,6 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId) {
-        return completedFuture(null);
-    }
-
-    @Override
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
         return completedFuture(null);
     }

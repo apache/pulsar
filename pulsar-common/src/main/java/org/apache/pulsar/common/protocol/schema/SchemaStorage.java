@@ -54,8 +54,6 @@ public interface SchemaStorage {
 
     SchemaVersion versionFromBytes(byte[] version);
 
-    CompletableFuture<SchemaVersion> getLatestSchemaVersion(String key);
-
     CompletableFuture<Long> tryComplementTheLostSchemaLedger(String schemaId, SchemaVersion version, SchemaData schema);
 
     void start() throws Exception;

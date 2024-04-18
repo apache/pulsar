@@ -476,13 +476,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 });
     }
 
-    @Override
-    public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId) {
-        return schemaStorage.getLatestSchemaVersion(schemaId);
-    }
-
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
-                                                                 SchemaCompatibilityStrategy strategy) {
+                                                                    SchemaCompatibilityStrategy strategy) {
         if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
             return CompletableFuture.completedFuture(null);
         }

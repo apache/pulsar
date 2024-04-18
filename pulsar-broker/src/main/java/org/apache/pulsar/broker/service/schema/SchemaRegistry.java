@@ -59,8 +59,6 @@ public interface SchemaRegistry extends AutoCloseable {
     CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
                                                                   SchemaData schemaData);
 
-    CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId);
-
     SchemaVersion versionFromBytes(byte[] version);
 
     class SchemaAndMetadata {

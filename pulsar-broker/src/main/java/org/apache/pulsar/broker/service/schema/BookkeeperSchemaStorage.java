@@ -280,18 +280,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return new LongSchemaVersion(bb.getLong());
     }
 
-    @NotNull
-    public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String key) {
-        return getSchemaLocator(getSchemaPath(key)).thenCompose(locator -> {
-            if (locator.isEmpty()) {
-                return completedFuture(null);
-            }
-
-            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
-            return completedFuture(new LongSchemaVersion(schemaLocator.getInfo().getVersion()));
-        });
-    }
-
     @Override
     public CompletableFuture<Long> tryComplementTheLostSchemaLedger(String schemaId, SchemaVersion version,
                                                                   SchemaData schema) {
