@@ -443,7 +443,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         };
     }
 
-    @Test(dataProvider = "conditionOfSwitchThread")
+    @Test(dataProvider = "conditionOfSwitchThread", invocationTimeOut = 30_000)
     public void testThreadSwitchOfZkMetadataStore(boolean hasSynchronizer, boolean enabledBatch) throws Exception {
         final String prefix = newKey();
         final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
@@ -481,6 +481,19 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             verify.run();
             return null;
         }).join();
+        // blocking chaining call
+        store.get(prefix + "/d1").thenApply((ignore) -> {
+                    try {
+                        verify.run();
+                        return store.get(prefix + "/e1").thenApply((ignore2) -> {
+                            verify.run();
+                            return null;
+                        }).get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+        ).get(5, TimeUnit.SECONDS);
         // get the node which is not exists.
         store.get(prefix + "/non").thenApply((ignore) -> {
             verify.run();
