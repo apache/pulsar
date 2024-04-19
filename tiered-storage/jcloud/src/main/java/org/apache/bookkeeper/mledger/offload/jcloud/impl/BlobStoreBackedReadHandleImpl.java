@@ -50,6 +50,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionC
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -206,7 +207,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             } catch (Throwable t) {
                 log.error("Failed to read entries {} - {} from the offloader in ledger {}",
                     firstEntry, lastEntry, ledgerId, t);
-                promise.completeExceptionally(t);
+                if (t instanceof KeyNotFoundException) {
+                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                } else {
+                    promise.completeExceptionally(t);
+                }
                 entries.forEach(LedgerEntry::close);
             }
         });
@@ -270,7 +275,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize,
                                   LedgerOffloaderStats offloaderStats, String managedLedgerName)
-            throws IOException {
+            throws IOException, BKException.BKNoSuchLedgerExistsException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
@@ -283,6 +288,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         while (retryCount-- > 0) {
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
+            if (blob == null) {
+                log.error("{} not found in container {}", indexKey, bucket);
+                throw new BKException.BKNoSuchLedgerExistsException();
+            }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
             versionCheck.check(indexKey, blob);
