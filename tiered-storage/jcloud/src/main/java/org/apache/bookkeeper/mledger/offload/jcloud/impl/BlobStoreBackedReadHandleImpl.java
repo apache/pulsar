@@ -270,7 +270,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize,
                                   LedgerOffloaderStats offloaderStats, String managedLedgerName)
-            throws IOException, BKException.BKNoSuchLedgerExistsOnMetadataServerException {
+            throws IOException, BKException.BKNoSuchLedgerExistsException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
@@ -285,7 +285,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             Blob blob = blobStore.getBlob(bucket, indexKey);
             if (blob == null) {
                 log.error("{} not found in container {}", indexKey, bucket);
-                throw new BKException.BKNoSuchLedgerExistsOnMetadataServerException();
+                throw new BKException.BKNoSuchLedgerExistsException();
             }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
