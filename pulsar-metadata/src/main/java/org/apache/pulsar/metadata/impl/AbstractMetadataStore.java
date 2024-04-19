@@ -542,27 +542,31 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down.
+     * Run the task in the ForkJoinPool.commonPool thread and fail the future if exceptionally.
      */
     @VisibleForTesting
     public void execute(Runnable task, CompletableFuture<?> future) {
-        try {
-            executor.execute(task);
-        } catch (Throwable t) {
-            future.completeExceptionally(t);
-        }
+        CompletableFuture.runAsync(task).exceptionally(e -> {
+            if (!future.isDone()) {
+                future.completeExceptionally(e);
+            }
+            return null;
+        });
     }
 
     /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down.
+     * Run the task in the ForkJoinPool.commonPool thread and fail the future if exceptionally.
      */
     @VisibleForTesting
     public void execute(Runnable task, Supplier<List<CompletableFuture<?>>> futures) {
-        try {
-            executor.execute(task);
-        } catch (final Throwable t) {
-            futures.get().forEach(f -> f.completeExceptionally(t));
-        }
+        CompletableFuture.runAsync(task).exceptionally(e -> {
+            futures.get().forEach(f -> {
+                if (!f.isDone()) {
+                    f.completeExceptionally(e);
+                }
+            });
+            return null;
+        });
     }
 
     protected static String parent(String path) {
