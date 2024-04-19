@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionC
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
 import org.slf4j.Logger;
@@ -95,6 +96,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             try {
                 long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
+                if (blob == null) {
+                    throw new KeyNotFoundException(bucket, key, "");
+                }
                 versionCheck.check(key, blob);
 
                 try (InputStream stream = blob.getPayload().openStream()) {
@@ -120,6 +124,10 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             } catch (Throwable e) {
                 if (null != this.offloaderStats) {
                     this.offloaderStats.recordReadOffloadError(this.topicName);
+                }
+                // If the blob is not found, the original exception is thrown and handled by the caller.
+                if (e instanceof KeyNotFoundException) {
+                    throw e;
                 }
                 throw new IOException("Error reading from BlobStore", e);
             }
