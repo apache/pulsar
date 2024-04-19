@@ -101,6 +101,12 @@ public class AsyncHttpConnector implements Connector {
                               boolean acceptGzipCompression) {
         this.acceptGzipCompression = acceptGzipCompression;
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        if (conf.getConnectionsPerBroker() > 0) {
+            confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
+        }
+        if (conf.getConnectionMaxIdleSeconds() > 0) {
+            confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
+        }
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());

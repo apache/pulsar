@@ -134,7 +134,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
                     + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
     )
-    private int connectionMaxIdleSeconds = 180;
+    private int connectionMaxIdleSeconds = 25;
 
     @ApiModelProperty(
             name = "useTcpNoDelay",
