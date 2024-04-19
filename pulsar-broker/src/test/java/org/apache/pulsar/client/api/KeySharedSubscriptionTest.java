@@ -1710,6 +1710,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
+    @DataProvider(name = "allowKeySharedOutOfOrder")
+    public Object[][] allowKeySharedOutOfOrder() {
+        return new Object[][]{
+                {true},
+                {false}
+        };
+    }
+
     /**
      * This test is in order to guarantee the feature added by https://github.com/apache/pulsar/pull/7105.
      * 1. Start 3 consumers:
@@ -1724,8 +1732,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      *   - no repeated Read-and-discard.
      *   - at last, all messages will be received.
      */
-    @Test(timeOut = 180 * 1000) // the test will be finished in 60s.
-    public void testRecentJoinedPosWillNotStuckOtherConsumer() throws Exception {
+    @Test(timeOut = 180 * 1000, dataProvider = "allowKeySharedOutOfOrder") // the test will be finished in 60s.
+    public void testRecentJoinedPosWillNotStuckOtherConsumer(boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
@@ -1744,6 +1752,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             log.info("Published message :{}", messageId);
         }
 
+        KeySharedPolicy keySharedPolicy = KeySharedPolicy.autoSplitHashRange()
+                .setAllowOutOfOrderDelivery(allowKeySharedOutOfOrder);
         // 1. Start 3 consumers and make ack holes.
         //   - one consumer will be closed and trigger a messages redeliver.
         //   - one consumer will not ack any messages to make the new consumer joined late will be stuck due to the
@@ -1754,18 +1764,21 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(keySharedPolicy)
                 .subscribe();
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(keySharedPolicy)
                 .subscribe();
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(keySharedPolicy)
                 .subscribe();
         List<Message> msgList1 = new ArrayList<>();
         List<Message> msgList2 = new ArrayList<>();
@@ -1814,6 +1827,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .receiverQueueSize(1000)
                 .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(keySharedPolicy)
                 .subscribe();
         consumerWillBeClose.close();
 
