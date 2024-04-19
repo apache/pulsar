@@ -64,7 +64,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, NamespaceBundle bundle, LookupOptions options) {
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
         return loadManager.assign(topic, bundle, options)
                 .thenApply(lookupData -> lookupData.map(data -> {
                     try {
