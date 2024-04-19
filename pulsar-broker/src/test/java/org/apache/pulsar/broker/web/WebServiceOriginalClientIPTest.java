@@ -88,7 +88,7 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
                 // Validate the response
                 assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
 
-                // Validate that the client IP passed in HA Proxy protocol is logged
+                // Validate that the client IP passed in X-Forwarded-For is logged
                 assertTrue(consoleCaptor.getStandardOutput().stream()
                         .anyMatch(line -> line.contains("RequestLog") && line.contains("- 11.22.33.44")));
             });
