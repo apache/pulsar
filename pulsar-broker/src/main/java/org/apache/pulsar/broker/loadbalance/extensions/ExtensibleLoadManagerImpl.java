@@ -516,17 +516,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
-                if (options.isReadOnly()) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
+                return this.selectAsync(serviceUnit, Collections.emptySet(), options).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
                         return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
                     }
-                    throw new IllegalStateException(
-                            "Failed to select the new owner broker for bundle: " + bundle);
+                    return CompletableFuture.completedFuture(null);
                 });
             }
             assignCounter.incrementSkip();
@@ -598,12 +594,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
-        return selectAsync(bundle, Collections.emptySet());
-    }
-
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
-                                                           Set<String> excludeBrokerSet) {
+                                                           Set<String> excludeBrokerSet,
+                                                           LookupOptions options) {
+        if (options.isReadOnly()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenComposeAsync(availableBrokers -> {
