@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,10 +44,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -56,6 +59,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -621,35 +625,69 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
         getNamespaceReplicatedClustersAsync(namespaceName)
-                .thenAccept(clusters -> {
-                    for (String cluster : clusters) {
-                        if (!cluster.equals(pulsar().getConfiguration().getClusterName())) {
-                            // this call happens in the background without async composition. completion is logged.
-                            pulsar().getPulsarResources().getClusterResources()
-                                    .getClusterAsync(cluster)
-                                    .thenCompose(clusterDataOp ->
-                                            ((TopicsImpl) pulsar().getBrokerService()
-                                                    .getClusterPulsarAdmin(cluster,
-                                                            clusterDataOp).topics())
-                                                    .createPartitionedTopicAsync(
-                                                            topicName.getPartitionedTopicName(),
-                                                            numPartitions,
-                                                            true, null))
-                                    .whenComplete((__, ex) -> {
-                                        if (ex != null) {
-                                            log.error(
-                                                    "[{}] Failed to create partitioned topic {} in cluster {}.",
-                                                    clientAppId(), topicName, cluster, ex);
-                                        } else {
-                                            log.info(
-                                                    "[{}] Successfully created partitioned topic {} in "
-                                                            + "cluster {}",
-                                                    clientAppId(), topicName, cluster);
-                                        }
-                                    });
+            .thenAccept(clusters -> {
+                // this call happens in the background without async composition. completion is logged.
+                internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions);
+            });
+    }
+
+    protected Map<String, CompletableFuture<Void>> internalCreatePartitionedTopicToReplicatedClustersInBackground(
+            Set<String> clusters, int numPartitions) {
+        final String shortTopicName = topicName.getPartitionedTopicName();
+        Map<String, CompletableFuture<Void>> tasksForAllClusters = new HashMap<>();
+        for (String cluster : clusters) {
+            if (cluster.equals(pulsar().getConfiguration().getClusterName())) {
+                continue;
+            }
+            ClusterResources clusterResources = pulsar().getPulsarResources().getClusterResources();
+            CompletableFuture<Void> createRemoteTopicFuture = new CompletableFuture<>();
+            tasksForAllClusters.put(cluster, createRemoteTopicFuture);
+            clusterResources.getClusterAsync(cluster).thenCompose(clusterData -> {
+                Topics topics = pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
+                return topics.createPartitionedTopicAsync(shortTopicName, numPartitions).exceptionally(ex -> {
+                    if (ex != null) {
+                        Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
+                        // The topic has been created before, check the partitions count is expected.
+                        if (unwrapEx instanceof PulsarAdminException.ConflictException) {
+                            topics.getPartitionedTopicMetadataAsync(shortTopicName).thenAccept(topicMeta -> {
+                                if (topicMeta.partitions == numPartitions) {
+                                    log.info("[{}] Skip created partitioned topic {} in cluster {},  because that {}",
+                                            clientAppId(), topicName, cluster, unwrapEx.getMessage());
+                                    createRemoteTopicFuture.complete(null);
+                                } else {
+                                    String errorMsg = String.format("[%s] There is an exists topic %s with different"
+                                                    + " partitions %s on the remote cluster %s, you want to create it"
+                                                    + " with partitions %s",
+                                            clientAppId(), shortTopicName, topicMeta.partitions, cluster,
+                                            numPartitions);
+                                    log.error(errorMsg);
+                                    createRemoteTopicFuture.completeExceptionally(
+                                            new RestException(Status.PRECONDITION_FAILED, errorMsg));
+                                }
+                            });
+                        } else {
+                            // An HTTP error was responded from the remote cluster.
+                            log.error("[{}] Failed to create partitioned topic {} in cluster {}.",
+                                    clientAppId(), topicName, cluster, ex);
+                            createRemoteTopicFuture.completeExceptionally(new RestException(unwrapEx));
                         }
+                    } else {
+                        // Create success.
+                        log.info("[{}] Successfully created partitioned topic {} in cluster {}",
+                                clientAppId(), topicName, cluster);
+                        createRemoteTopicFuture.complete(null);
                     }
+                    return null;
                 });
+            }).exceptionally(ex -> {
+                // Unexpected error, such as NPE. Catch all error to avoid the "createRemoteTopicFuture" stuck.
+                log.error("[{}] An un-expected error occurs when trying to create partitioned topic {} in cluster {}.",
+                        clientAppId(), topicName, cluster, ex);
+                createRemoteTopicFuture.completeExceptionally(new RestException(ex));
+                return null;
+            });
+        }
+        return tasksForAllClusters;
     }
 
     /**
