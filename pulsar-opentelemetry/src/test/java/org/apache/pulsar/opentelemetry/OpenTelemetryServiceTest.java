@@ -212,7 +212,7 @@ public class OpenTelemetryServiceTest {
                 .enableExperimentalJmxTelemetry()
                 .build();
 
-        // Attempt collection of GC metrics
+        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
         Runtime.getRuntime().gc();
 
         var metrics = reader.collectAllMetrics().stream().sorted(Comparator.comparing(MetricData::getName)).toList();
