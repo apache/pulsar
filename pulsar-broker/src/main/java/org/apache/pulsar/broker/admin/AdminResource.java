@@ -641,49 +641,60 @@ public abstract class AdminResource extends PulsarWebResource {
             ClusterResources clusterResources = pulsar().getPulsarResources().getClusterResources();
             CompletableFuture<Void> createRemoteTopicFuture = new CompletableFuture<>();
             tasksForAllClusters.put(cluster, createRemoteTopicFuture);
-            clusterResources.getClusterAsync(cluster).thenCompose(clusterData -> {
+            clusterResources.getClusterAsync(cluster).whenComplete((clusterData, ex1) -> {
+                if (ex1 != null) {
+                    // Unexpected error, such as NPE. Catch all error to avoid the "createRemoteTopicFuture" stuck.
+                    log.error("[{}] An un-expected error occurs when trying to create partitioned topic {} in cluster"
+                                    + " {}.", clientAppId(), topicName, cluster, ex1);
+                    createRemoteTopicFuture.completeExceptionally(new RestException(ex1));
+                    return;
+                }
+                // Get cluster data success.
                 Topics topics = pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
-                return topics.createPartitionedTopicAsync(shortTopicName, numPartitions).exceptionally(ex -> {
-                    if (ex != null) {
-                        Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
-                        // The topic has been created before, check the partitions count is expected.
-                        if (unwrapEx instanceof PulsarAdminException.ConflictException) {
-                            topics.getPartitionedTopicMetadataAsync(shortTopicName).thenAccept(topicMeta -> {
-                                if (topicMeta.partitions == numPartitions) {
-                                    log.info("[{}] Skip created partitioned topic {} in cluster {},  because that {}",
-                                            clientAppId(), topicName, cluster, unwrapEx.getMessage());
-                                    createRemoteTopicFuture.complete(null);
-                                } else {
-                                    String errorMsg = String.format("[%s] There is an exists topic %s with different"
-                                                    + " partitions %s on the remote cluster %s, you want to create it"
-                                                    + " with partitions %s",
-                                            clientAppId(), shortTopicName, topicMeta.partitions, cluster,
-                                            numPartitions);
-                                    log.error(errorMsg);
-                                    createRemoteTopicFuture.completeExceptionally(
-                                            new RestException(Status.PRECONDITION_FAILED, errorMsg));
-                                }
-                            });
-                        } else {
-                            // An HTTP error was responded from the remote cluster.
-                            log.error("[{}] Failed to create partitioned topic {} in cluster {}.",
-                                    clientAppId(), topicName, cluster, ex);
-                            createRemoteTopicFuture.completeExceptionally(new RestException(unwrapEx));
-                        }
-                    } else {
+                topics.createPartitionedTopicAsync(shortTopicName, numPartitions).whenComplete((ignore, ex2) -> {
+                    if (ex2 == null) {
                         // Create success.
                         log.info("[{}] Successfully created partitioned topic {} in cluster {}",
                                 clientAppId(), topicName, cluster);
                         createRemoteTopicFuture.complete(null);
+                        return;
                     }
-                    return null;
+                    // Create topic on the remote cluster error.
+                    Throwable unwrapEx2 = FutureUtil.unwrapCompletionException(ex2);
+                    // The topic has been created before, check the partitions count is expected.
+                    if (unwrapEx2 instanceof PulsarAdminException.ConflictException) {
+                        topics.getPartitionedTopicMetadataAsync(shortTopicName).whenComplete((topicMeta, ex3) -> {
+                            if (ex3 != null) {
+                                // Unexpected error, such as NPE. Catch all error to avoid the
+                                // "createRemoteTopicFuture" stuck.
+                                log.error("[{}] Failed to check remote-cluster's topic metadata when creating"
+                                                + " partitioned topic {} in cluster {}.",
+                                        clientAppId(), topicName, cluster, ex3);
+                                createRemoteTopicFuture.completeExceptionally(new RestException(ex3));
+                            }
+                            // Call get partitioned metadata of remote cluster success.
+                            if (topicMeta.partitions == numPartitions) {
+                                log.info("[{}] Skip created partitioned topic {} in cluster {},  because that {}",
+                                        clientAppId(), topicName, cluster, unwrapEx2.getMessage());
+                                createRemoteTopicFuture.complete(null);
+                            } else {
+                                String errorMsg = String.format("[%s] There is an exists topic %s with different"
+                                                + " partitions %s on the remote cluster %s, you want to create it"
+                                                + " with partitions %s",
+                                        clientAppId(), shortTopicName, topicMeta.partitions, cluster,
+                                        numPartitions);
+                                log.error(errorMsg);
+                                createRemoteTopicFuture.completeExceptionally(
+                                        new RestException(Status.PRECONDITION_FAILED, errorMsg));
+                            }
+                        });
+                    } else {
+                        // An HTTP error was responded from the remote cluster.
+                        log.error("[{}] Failed to create partitioned topic {} in cluster {}.",
+                                clientAppId(), topicName, cluster, ex2);
+                        createRemoteTopicFuture.completeExceptionally(new RestException(unwrapEx2));
+                    }
                 });
-            }).exceptionally(ex -> {
-                // Unexpected error, such as NPE. Catch all error to avoid the "createRemoteTopicFuture" stuck.
-                log.error("[{}] An un-expected error occurs when trying to create partitioned topic {} in cluster {}.",
-                        clientAppId(), topicName, cluster, ex);
-                createRemoteTopicFuture.completeExceptionally(new RestException(ex));
-                return null;
             });
         }
         return tasksForAllClusters;
