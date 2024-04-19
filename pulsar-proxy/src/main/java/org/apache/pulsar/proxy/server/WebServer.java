@@ -306,7 +306,10 @@ public class WebServer {
 
     public void start() throws Exception {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
+        boolean showDetailedAddresses = config.getWebServiceLogDetailedAddresses() != null
+                ? config.getWebServiceLogDetailedAddresses() :
+                (config.isWebServiceHaProxyProtocolEnabled() || config.isWebServiceTrustXForwardedFor());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server));
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

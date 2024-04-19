@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.web;
 
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.console.ConsoleCaptor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProxyProtocolClientConnectionFactory.V2;
@@ -75,52 +78,78 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
     public void testClientIPIsPickedFromXForwardedForHeaderAndLogged(boolean tlsEnabled) throws Exception {
         String metricsUrl =
                 (tlsEnabled ? pulsar.getWebServiceAddressTls() : pulsar.getWebServiceAddress()) + "/metrics/";
-        ConsoleCaptor consoleCaptor = new ConsoleCaptor();
-        try {
-            Awaitility.await().untilAsserted(() -> {
-                consoleCaptor.clearOutput();
+        performLoggingTest(consoleCaptor -> {
+            // Send a GET request to the metrics URL
+            ContentResponse response = httpClient.newRequest(metricsUrl)
+                    .header("X-Forwarded-For", "11.22.33.44:12345")
+                    .send();
 
-                // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(metricsUrl)
-                        .header("X-Forwarded-For", "11.22.33.44")
-                        .send();
+            // Validate the response
+            assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
 
-                // Validate the response
-                assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
-
-                // Validate that the client IP passed in X-Forwarded-For is logged
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("RequestLog") && line.contains("- 11.22.33.44")));
-            });
-        } finally {
-            consoleCaptor.close();
-        }
+            // Validate that the client IP passed in X-Forwarded-For is logged
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:11.22.33.44:12345 via ")));
+        });
     }
 
+    @Test(dataProvider = "tlsEnabled")
+    public void testClientIPIsPickedFromForwardedHeaderAndLogged(boolean tlsEnabled) throws Exception {
+        String metricsUrl =
+                (tlsEnabled ? pulsar.getWebServiceAddressTls() : pulsar.getWebServiceAddress()) + "/metrics/";
+        performLoggingTest(consoleCaptor -> {
+            // Send a GET request to the metrics URL
+            ContentResponse response = httpClient.newRequest(metricsUrl)
+                    .header("Forwarded", "for=11.22.33.44:12345")
+                    .send();
+
+            // Validate the response
+            assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
+
+            // Validate that the client IP passed in Forwarded is logged
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:11.22.33.44:12345 via ")));
+        });
+    }
 
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromHAProxyProtocolAndLogged(boolean tlsEnabled) throws Exception {
         String metricsUrl = (tlsEnabled ? pulsar.getWebServiceAddressTls() : pulsar.getWebServiceAddress()) + "/metrics/";
+        performLoggingTest(consoleCaptor -> {
+            // Send a GET request to the metrics URL
+            ContentResponse response = httpClient.newRequest(metricsUrl)
+                    // Jetty client will add HA Proxy protocol header with the given IP to the request
+                    .tag(new V2.Tag(V2.Tag.Command.PROXY, null, V2.Tag.Protocol.STREAM,
+                            // source IP and port
+                            "99.22.33.44", 1234,
+                            // destination IP and port
+                            "5.4.3.1", 4321,
+                            null))
+                    .send();
+
+            // Validate the response
+            assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
+
+            // Validate that the client IP and destination IP passed in HA Proxy protocol is logged
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:99.22.33.44:1234 via ")
+                            && line.contains(" dst 5.4.3.1:4321]")));
+        });
+    }
+
+    void performLoggingTest(ThrowingConsumer<ConsoleCaptor> testFunction) {
         ConsoleCaptor consoleCaptor = new ConsoleCaptor();
         try {
-            Awaitility.await().untilAsserted(() -> {
+            Awaitility.await().atMost(Duration.of(2, ChronoUnit.SECONDS)).untilAsserted(() -> {
                 consoleCaptor.clearOutput();
-
-                // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(metricsUrl)
-                        // Jetty client will add HA Proxy protocol header with the given IP to the request
-                        .tag(new V2.Tag("99.22.33.44", 1234))
-                        .send();
-
-                // Validate the response
-                assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
-
-                // Validate that the client IP passed in HA Proxy protocol is logged
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("RequestLog") && line.contains("- 99.22.33.44")));
+                testFunction.accept(consoleCaptor);
             });
         } finally {
             consoleCaptor.close();
+            System.out.println("--- Captured console output:");
+            consoleCaptor.getStandardOutput().forEach(System.out::println);
+            consoleCaptor.getErrorOutput().forEach(System.err::println);
+            System.out.println("--- End of captured console output");
         }
     }
 }

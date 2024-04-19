@@ -278,6 +278,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "Default is false.")
     private boolean webServiceTrustXForwardedFor = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
                     + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")

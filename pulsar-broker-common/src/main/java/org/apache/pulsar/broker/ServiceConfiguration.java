@@ -260,6 +260,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Default is false.")
     private boolean webServiceTrustXForwardedFor = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for Netty Acceptor."

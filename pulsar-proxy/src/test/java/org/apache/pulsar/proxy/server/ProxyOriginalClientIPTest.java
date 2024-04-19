@@ -19,10 +19,13 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.console.ConsoleCaptor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProxyProtocolClientConnectionFactory.V2;
@@ -94,60 +97,61 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromXForwardedForHeaderAndLogged(boolean tlsEnabled) throws Exception {
         String url = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/admin/v2/brokers/leaderBroker";
-        ConsoleCaptor consoleCaptor = new ConsoleCaptor();
-        try {
-            Awaitility.await().untilAsserted(() -> {
-                consoleCaptor.clearOutput();
+        performLoggingTest(consoleCaptor -> {
+            // Send a GET request to the metrics URL
+            ContentResponse response = httpClient.newRequest(url)
+                    .header("X-Forwarded-For", "11.22.33.44")
+                    .send();
 
-                // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(url)
-                        .header("X-Forwarded-For", "11.22.33.44")
-                        .send();
+            // Validate the response
+            assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
 
-                // Validate the response
-                assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
-
-                // Validate that the client IP passed in X-Forwarded-For is logged
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
-                                && line.contains("- 11.22.33.44")), "Expected to find client IP in proxy logs");
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
-                                && line.contains("- 11.22.33.44")), "Expected to find client IP in broker logs");
-            });
-        } finally {
-            consoleCaptor.close();
-        }
+            // Validate that the client IP passed in X-Forwarded-For is logged
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
+                            && line.contains("R:11.22.33.44")), "Expected to find client IP in proxy logs");
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
+                            && line.contains("R:11.22.33.44")), "Expected to find client IP in broker logs");
+        });
     }
-
 
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromHAProxyProtocolAndLogged(boolean tlsEnabled) throws Exception {
         String url = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/admin/v2/brokers/leaderBroker";
+        performLoggingTest(consoleCaptor -> {
+            // Send a GET request to the metrics URL
+            ContentResponse response = httpClient.newRequest(url)
+                    // Jetty client will add HA Proxy protocol header with the given IP to the request
+                    .tag(new V2.Tag("99.22.33.44", 1234))
+                    .send();
+
+            // Validate the response
+            assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
+
+            // Validate that the client IP passed in HA proxy protocol is logged
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
+                            && line.contains("R:99.22.33.44")), "Expected to find client IP in proxy logs");
+            assertTrue(consoleCaptor.getStandardOutput().stream()
+                    .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
+                            && line.contains("R:99.22.33.44")), "Expected to find client IP in broker logs");
+        });
+    }
+
+    void performLoggingTest(ThrowingConsumer<ConsoleCaptor> testFunction) {
         ConsoleCaptor consoleCaptor = new ConsoleCaptor();
         try {
-            Awaitility.await().untilAsserted(() -> {
+            Awaitility.await().atMost(Duration.of(2, ChronoUnit.SECONDS)).untilAsserted(() -> {
                 consoleCaptor.clearOutput();
-
-                // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(url)
-                        // Jetty client will add HA Proxy protocol header with the given IP to the request
-                        .tag(new V2.Tag("99.22.33.44", 1234))
-                        .send();
-
-                // Validate the response
-                assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
-
-                // Validate that the client IP passed in HA proxy protocol is logged
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
-                                && line.contains("- 99.22.33.44")), "Expected to find client IP in proxy logs");
-                assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
-                                && line.contains("- 99.22.33.44")), "Expected to find client IP in broker logs");
+                testFunction.accept(consoleCaptor);
             });
         } finally {
             consoleCaptor.close();
+            System.out.println("--- Captured console output:");
+            consoleCaptor.getStandardOutput().forEach(System.out::println);
+            consoleCaptor.getErrorOutput().forEach(System.err::println);
+            System.out.println("--- End of captured console output");
         }
     }
 }
