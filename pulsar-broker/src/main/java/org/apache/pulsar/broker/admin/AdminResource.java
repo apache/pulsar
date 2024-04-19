@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -650,8 +651,10 @@ public abstract class AdminResource extends PulsarWebResource {
                     return;
                 }
                 // Get cluster data success.
-                Topics topics = pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
-                topics.createPartitionedTopicAsync(shortTopicName, numPartitions).whenComplete((ignore, ex2) -> {
+                TopicsImpl topics =
+                        (TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
+                topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
+                        .whenComplete((ignore, ex2) -> {
                     if (ex2 == null) {
                         // Create success.
                         log.info("[{}] Successfully created partitioned topic {} in cluster {}",
