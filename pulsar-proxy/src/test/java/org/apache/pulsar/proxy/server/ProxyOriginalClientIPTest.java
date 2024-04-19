@@ -93,23 +93,27 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromXForwardedForHeaderAndLogged(boolean tlsEnabled) throws Exception {
-        String metricsUrl = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/metrics/";
+        String url = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/admin/v2/brokers/leaderBroker";
         ConsoleCaptor consoleCaptor = new ConsoleCaptor();
         try {
             Awaitility.await().untilAsserted(() -> {
                 consoleCaptor.clearOutput();
 
                 // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(metricsUrl)
+                ContentResponse response = httpClient.newRequest(url)
                         .header("X-Forwarded-For", "11.22.33.44")
                         .send();
 
                 // Validate the response
-                assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
+                assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
 
-                // Validate that the client IP passed in HA Proxy protocol is logged
+                // Validate that the client IP passed in X-Forwarded-For is logged
                 assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("RequestLog") && line.contains("- 11.22.33.44")));
+                        .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
+                                && line.contains("- 11.22.33.44")), "Expected to find client IP in proxy logs");
+                assertTrue(consoleCaptor.getStandardOutput().stream()
+                        .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
+                                && line.contains("- 11.22.33.44")), "Expected to find client IP in broker logs");
             });
         } finally {
             consoleCaptor.close();
@@ -119,24 +123,28 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "tlsEnabled")
     public void testClientIPIsPickedFromHAProxyProtocolAndLogged(boolean tlsEnabled) throws Exception {
-        String metricsUrl = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/metrics/";
+        String url = (tlsEnabled ? webServiceUrlTls : webServiceUrl) + "/admin/v2/brokers/leaderBroker";
         ConsoleCaptor consoleCaptor = new ConsoleCaptor();
         try {
             Awaitility.await().untilAsserted(() -> {
                 consoleCaptor.clearOutput();
 
                 // Send a GET request to the metrics URL
-                ContentResponse response = httpClient.newRequest(metricsUrl)
+                ContentResponse response = httpClient.newRequest(url)
                         // Jetty client will add HA Proxy protocol header with the given IP to the request
                         .tag(new V2.Tag("99.22.33.44", 1234))
                         .send();
 
                 // Validate the response
-                assertTrue(response.getContentAsString().contains("process_cpu_seconds_total"));
+                assertTrue(response.getContentAsString().contains("\"brokerId\":\"" + pulsar.getBrokerId() + "\""));
 
-                // Validate that the client IP passed in HA Proxy protocol is logged
+                // Validate that the client IP passed in HA proxy protocol is logged
                 assertTrue(consoleCaptor.getStandardOutput().stream()
-                        .anyMatch(line -> line.contains("RequestLog") && line.contains("- 99.22.33.44")));
+                        .anyMatch(line -> line.contains("pulsar-external-web-") && line.contains("RequestLog")
+                                && line.contains("- 99.22.33.44")), "Expected to find client IP in proxy logs");
+                assertTrue(consoleCaptor.getStandardOutput().stream()
+                        .anyMatch(line -> line.contains("pulsar-web-") && line.contains("RequestLog")
+                                && line.contains("- 99.22.33.44")), "Expected to find client IP in broker logs");
             });
         } finally {
             consoleCaptor.close();
