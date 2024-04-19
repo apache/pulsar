@@ -20,7 +20,6 @@ package org.apache.pulsar.io.kafka.source;
 
 import com.google.common.collect.ImmutableMap;
 import java.time.Duration;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Arrays;
 import java.lang.reflect.Field;
