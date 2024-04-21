@@ -47,7 +47,7 @@ public class AuthZTest extends MockedPulsarStandalone {
     protected static final String TENANT_ADMIN_TOKEN = Jwts.builder()
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void before() throws IllegalAccessException {
         orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
         authorizationService = Mockito.spy(orignalAuthorizationService);
@@ -55,7 +55,7 @@ public class AuthZTest extends MockedPulsarStandalone {
                 authorizationService, true);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 orignalAuthorizationService, true);
