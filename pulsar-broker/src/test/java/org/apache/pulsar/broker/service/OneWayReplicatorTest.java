@@ -486,32 +486,4 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().deletePartitionedTopic(topicName);
         admin2.topics().deletePartitionedTopic(topicName);
     }
-
-    /**
-     * TODO next PR will correct the behavior below, just left this test here.
-     */
-    // @Test
-    private void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
-        admin2.topics().createPartitionedTopic(topicName, 3);
-        try {
-            admin1.topics().createPartitionedTopic(topicName, 2);
-            fail("Expected error due to a conflict partitioned topic already exists.");
-        } catch (Exception ex) {
-            Throwable unWrapEx = FutureUtil.unwrapCompletionException(ex);
-            assertTrue(unWrapEx.getMessage().contains("with different partitions"));
-        }
-        // Check nothing changed.
-        PartitionedTopicMetadata topicMetadata2 = admin2.topics().getPartitionedTopicMetadata(topicName);
-        assertEquals(topicMetadata2.partitions, 3);
-        try {
-            admin1.topics().getPartitionedTopicMetadata(topicName);
-            fail("Expected a not found error");
-        } catch (Exception ex) {
-            Throwable unWrapEx = FutureUtil.unwrapCompletionException(ex);
-            assertTrue(unWrapEx.getMessage().contains("not found"));
-        }
-        // cleanup.
-        admin2.topics().deletePartitionedTopic(topicName);
-    }
 }
