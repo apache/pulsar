@@ -517,6 +517,10 @@ public interface ManagedCursor {
      */
     void rewind();
 
+    default void rewind(boolean readCompacted) {
+        rewind();
+    }
+
     /**
      * Move the cursor to a different read position.
      *

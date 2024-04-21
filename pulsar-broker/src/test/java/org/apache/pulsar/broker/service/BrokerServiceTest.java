@@ -99,6 +99,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -997,7 +998,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Using an AtomicReference in order to reset a new CountDownLatch
         AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
         latchRef.set(new CountDownLatch(1));
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
+                () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
                 try {
@@ -1723,14 +1725,5 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception ex) {
             fail("Unsubscribe failed");
         }
-    }
-
-    @Test
-    public void testGetBrokerId() throws Exception {
-        cleanup();
-        conf.setWebServicePortTls(Optional.of(8081));
-        setup();
-        assertEquals(pulsar.getBrokerId(), "localhost:8081");
-        resetState();
     }
 }

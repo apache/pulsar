@@ -17,6 +17,9 @@ Copyright (c) 2005 Brian Goetz and Tim Peierls
 JCommander
 Copyright 2010 Cedric Beust cedric@beust.com
 
+picocli (http://picocli.info)
+Copyright 2017 Remko Popma
+
 EA Agent Loader
 Copyright (C) 2015 Electronic Arts Inc.  All rights reserved.
 

@@ -103,14 +103,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         setupConfigs(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
-        primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        primaryHost = pulsar1.getBrokerId();
         admin1 = admin;
 
         var config2 = getDefaultConf();
         setupConfigs(config2);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(config2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
-        secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+        secondaryHost = pulsar2.getBrokerId();
 
         primaryLoadManager = getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = getField(pulsar2.getLoadManager().get(), "loadManager");

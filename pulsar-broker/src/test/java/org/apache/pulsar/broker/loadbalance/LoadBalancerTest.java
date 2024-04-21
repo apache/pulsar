@@ -729,7 +729,7 @@ public class LoadBalancerTest {
         // set up policy that use this broker as secondary
         policyData = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList("pulsar/use/secondary-ns.*"))
-                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .primary(Collections.singletonList(pulsarServices[0].getAdvertisedAddress()))
                 .secondary(allExceptFirstBroker)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
@@ -741,7 +741,7 @@ public class LoadBalancerTest {
         // set up policy that do not use this broker (neither primary nor secondary)
         policyData = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList("pulsar/use/shared-ns.*"))
-                .primary(Collections.singletonList(pulsarServices[0].getWebServiceAddress()))
+                .primary(Collections.singletonList(pulsarServices[0].getAdvertisedAddress()))
                 .secondary(allExceptFirstBroker)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)

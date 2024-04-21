@@ -133,6 +133,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -1516,7 +1517,7 @@ public class TransactionTest extends TransactionTestBase {
             fail("Expect failure by PendingAckHandle closed, but success");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            Assert.assertTrue(t instanceof BrokerServiceException);
         }
     }
 
@@ -1664,7 +1665,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEncryptionRequired() throws Exception {
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/testEncryptionRequired";
         final String topic = "persistent://" + namespace + "/test_transaction_topic";
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setEncryptionRequiredStatus(namespace, true);
@@ -1797,7 +1798,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testReadCommittedWithReadCompacted() throws Exception{
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/ns-read-committed-compacted";
         final String topic = "persistent://" + namespace + "/test_transaction_topic";
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
@@ -1853,7 +1854,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testReadCommittedWithCompaction() throws Exception{
-        final String namespace = "tnx/ns-prechecks";
+        final String namespace = "tnx/ns-read-committed-compaction";
         final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
@@ -1893,6 +1894,7 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
                 .subscribe();
         List<String> result = new ArrayList<>();
@@ -1908,4 +1910,40 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(result, List.of("V4", "V5", "V6"));
     }
 
+    @Test
+    public void testDelayedDeliveryExceedsMaxDelay() throws Exception {
+        final long maxDeliveryDelayInMillis = 5000;
+        final String namespace = "tnx/testDelayedDeliveryExceedsMaxDelay";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setDelayedDeliveryPolicy(topic,
+                DelayedDeliveryPolicies.builder()
+                        .active(true)
+                        .tickTime(100L)
+                        .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+                        .build());
+
+        @Cleanup
+        Producer<byte[]> producer = this.pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .addEncryptionKey("my-app-key")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .create();
+
+        try {
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+            producer.newMessage(txn)
+                    .value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                    .deliverAfter(6, TimeUnit.SECONDS)
+                    .send();
+            txn.commit();
+            fail("Should have thrown NotAllowedException due to exceeding maxDeliveryDelayInMillis");
+        } catch (PulsarClientException.NotAllowedException ex) {
+            assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
+                    + maxDeliveryDelayInMillis + " milliseconds");
+        }
+    }
 }

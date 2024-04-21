@@ -23,9 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.create;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,10 +31,10 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
@@ -63,7 +60,13 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
+@Command(description = "broker", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarBrokerStarter {
 
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
@@ -76,31 +79,30 @@ public class PulsarBrokerStarter {
     }
 
     @VisibleForTesting
-    @Parameters(commandDescription = "Options")
     private static class StarterArguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        @Option(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
-        @Parameter(names = {"-rb", "--run-bookie"}, description = "Run Bookie together with Broker")
+        @Option(names = {"-rb", "--run-bookie"}, description = "Run Bookie together with Broker")
         private boolean runBookie = false;
 
-        @Parameter(names = {"-ra", "--run-bookie-autorecovery"},
+        @Option(names = {"-ra", "--run-bookie-autorecovery"},
                 description = "Run Bookie Autorecovery together with broker")
         private boolean runBookieAutoRecovery = false;
 
-        @Parameter(names = {"-bc", "--bookie-conf"}, description = "Configuration file for Bookie")
+        @Option(names = {"-bc", "--bookie-conf"}, description = "Configuration file for Bookie")
         private String bookieConfigFile = "conf/bookkeeper.conf";
 
-        @Parameter(names = {"-rfw", "--run-functions-worker"}, description = "Run functions worker with Broker")
+        @Option(names = {"-rfw", "--run-functions-worker"}, description = "Run functions worker with Broker")
         private boolean runFunctionsWorker = false;
 
-        @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+        @Option(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
         private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
     }
 
@@ -125,43 +127,46 @@ public class PulsarBrokerStarter {
         return bookieConf;
     }
 
-    private static boolean argsContains(String[] args, String arg) {
-        return Arrays.asList(args).contains(arg);
-    }
-
-    private static class BrokerStarter {
-        private final ServiceConfiguration brokerConfig;
-        private final PulsarService pulsarService;
-        private final LifecycleComponent bookieServer;
+    protected static class BrokerStarter implements Callable<Integer> {
+        private ServiceConfiguration brokerConfig;
+        private PulsarService pulsarService;
+        private LifecycleComponent bookieServer;
         private volatile CompletableFuture<Void> bookieStartFuture;
-        private final AutoRecoveryMain autoRecoveryMain;
-        private final StatsProvider bookieStatsProvider;
-        private final ServerConfiguration bookieConfig;
-        private final WorkerService functionsWorkerService;
-        private final WorkerConfig workerConfig;
+        private AutoRecoveryMain autoRecoveryMain;
+        private StatsProvider bookieStatsProvider;
+        private ServerConfiguration bookieConfig;
+        private WorkerService functionsWorkerService;
+        private WorkerConfig workerConfig;
 
-        BrokerStarter(String[] args) throws Exception {
-            StarterArguments starterArguments = new StarterArguments();
-            JCommander jcommander = new JCommander(starterArguments);
-            jcommander.setProgramName("PulsarBrokerStarter");
+        private CommandLine commander;
 
-            // parse args by JCommander
-            jcommander.parse(args);
+        @ArgGroup(exclusive = false)
+        private final StarterArguments starterArguments = new StarterArguments();
+
+        BrokerStarter() {
+            commander = new CommandLine(this);
+        }
+
+        public int start(String[] args) {
+            return commander.execute(args);
+        }
+
+        public Integer call() throws Exception {
             if (starterArguments.help) {
-                jcommander.usage();
-                System.exit(0);
+                commander.usage(commander.getOut());
+                return 0;
             }
 
             if (starterArguments.generateDocs) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                cmd.addCommand("broker", starterArguments);
+                cmd.addCommand("broker", commander);
                 cmd.run(null);
-                System.exit(0);
+                return 0;
             }
 
             // init broker config
             if (isBlank(starterArguments.brokerConfigFile)) {
-                jcommander.usage();
+                commander.usage(commander.getOut());
                 throw new IllegalArgumentException("Need to specify a configuration file for broker");
             } else {
                 final String filepath = Path.of(starterArguments.brokerConfigFile)
@@ -209,20 +214,16 @@ public class PulsarBrokerStarter {
                                               });
 
             // if no argument to run bookie in cmd line, read from pulsar config
-            if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
-                checkState(!starterArguments.runBookie,
-                        "runBookie should be false if has no argument specified");
+            if (!starterArguments.runBookie) {
                 starterArguments.runBookie = brokerConfig.isEnableRunBookieTogether();
             }
-            if (!argsContains(args, "-ra") && !argsContains(args, "--run-bookie-autorecovery")) {
-                checkState(!starterArguments.runBookieAutoRecovery,
-                        "runBookieAutoRecovery should be false if has no argument specified");
+            if (!starterArguments.runBookieAutoRecovery) {
                 starterArguments.runBookieAutoRecovery = brokerConfig.isEnableRunBookieAutoRecoveryTogether();
             }
 
             if ((starterArguments.runBookie || starterArguments.runBookieAutoRecovery)
-                && isBlank(starterArguments.bookieConfigFile)) {
-                jcommander.usage();
+                    && isBlank(starterArguments.bookieConfigFile)) {
+                commander.usage(commander.getOut());
                 throw new IllegalArgumentException("No configuration file for Bookie");
             }
 
@@ -257,9 +258,7 @@ public class PulsarBrokerStarter {
             } else {
                 autoRecoveryMain = null;
             }
-        }
 
-        public void start() throws Exception {
             if (bookieStatsProvider != null) {
                 bookieStatsProvider.start(bookieConfig);
                 log.info("started bookieStatsProvider.");
@@ -275,15 +274,17 @@ public class PulsarBrokerStarter {
 
             pulsarService.start();
             log.info("PulsarService started.");
+            return 0;
         }
 
         public void join() throws InterruptedException {
-            pulsarService.waitUntilClosed();
-
-            try {
-                pulsarService.close();
-            } catch (PulsarServerException e) {
-                throw new RuntimeException();
+            if (pulsarService != null) {
+                pulsarService.waitUntilClosed();
+                try {
+                    pulsarService.close();
+                } catch (PulsarServerException e) {
+                    throw new RuntimeException();
+                }
             }
 
             if (bookieStartFuture != null) {
@@ -301,8 +302,10 @@ public class PulsarBrokerStarter {
                 log.info("Shut down functions worker service successfully.");
             }
 
-            pulsarService.close();
-            log.info("Shut down broker service successfully.");
+            if (pulsarService != null) {
+                pulsarService.close();
+                log.info("Shut down broker service successfully.");
+            }
 
             if (bookieStatsProvider != null) {
                 bookieStatsProvider.stop();
@@ -317,6 +320,11 @@ public class PulsarBrokerStarter {
                 log.info("Shut down autoRecoveryMain successfully.");
             }
         }
+
+        @VisibleForTesting
+        CommandLine getCommander() {
+            return commander;
+        }
     }
 
 
@@ -330,7 +338,7 @@ public class PulsarBrokerStarter {
             exception.printStackTrace(System.out);
         });
 
-        BrokerStarter starter = new BrokerStarter(args);
+        BrokerStarter starter = new BrokerStarter();
         Runtime.getRuntime().addShutdownHook(
             new Thread(() -> {
                 try {
@@ -344,16 +352,21 @@ public class PulsarBrokerStarter {
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
-            if (starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
+            if (starter.brokerConfig != null && starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
                 log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
             } else {
                 log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-                starter.pulsarService.shutdownNow();
+                if (starter.pulsarService != null) {
+                    starter.pulsarService.shutdownNow();
+                }
             }
         });
 
         try {
-            starter.start();
+            int start = starter.start(args);
+            if (start != 0) {
+                System.exit(start);
+            }
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
             ShutdownUtil.triggerImmediateForcefulShutdown();

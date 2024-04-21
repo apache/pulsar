@@ -181,6 +181,10 @@ test_group_transaction() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests
 }
 
+test_group_metrics() {
+   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-metrics.xml -DintegrationTests
+}
+
 test_group_tiered_filesystem() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=tiered-filesystem-storage.xml -DintegrationTests
 }

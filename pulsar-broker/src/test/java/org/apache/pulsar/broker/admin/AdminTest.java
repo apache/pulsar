@@ -302,7 +302,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationDataImpl policyData = NamespaceIsolationDataImpl.builder()
                 .namespaces(Collections.singletonList("dummy/colo/ns"))
-                .primary(Collections.singletonList("localhost" + ":" + pulsar.getListenPortHTTP()))
+                .primary(Collections.singletonList(pulsar.getAdvertisedAddress()))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
@@ -722,7 +722,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(res instanceof Set);
         Set<String> activeBrokers = (Set<String>) res;
         assertEquals(activeBrokers.size(), 1);
-        assertEquals(activeBrokers, Set.of(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
+        assertEquals(activeBrokers, Set.of(pulsar.getBrokerId()));
         Object leaderBrokerRes = asyncRequests(ctx -> brokers.getLeaderBroker(ctx));
         assertTrue(leaderBrokerRes instanceof BrokerInfo);
         BrokerInfo leaderBroker = (BrokerInfo)leaderBrokerRes;

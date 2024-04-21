@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
@@ -108,6 +109,8 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -248,6 +251,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
+    private final PulsarBrokerOpenTelemetry openTelemetry;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -303,12 +307,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                          WorkerConfig workerConfig,
                          Optional<WorkerService> functionWorkerService,
                          Consumer<Integer> processTerminator) {
+        this(config, workerConfig,  functionWorkerService, processTerminator, null);
+    }
+
+    public PulsarService(ServiceConfiguration config,
+                         WorkerConfig workerConfig,
+                         Optional<WorkerService> functionWorkerService,
+                         Consumer<Integer> processTerminator,
+                         Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
         state = State.Init;
 
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
         this.config = config;
+
+        this.openTelemetry = new PulsarBrokerOpenTelemetry(config, openTelemetrySdkBuilderCustomizer);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -386,7 +400,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void closeLeaderElectionService() throws Exception {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(this)) {
             ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService().close();
         } else {
             if (this.leaderElectionService != null) {
@@ -461,6 +475,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             resetMetricsServlet();
+            if (openTelemetry != null) {
+                openTelemetry.close();
+            }
 
             if (this.compactionServiceFactory != null) {
                 try {
@@ -830,10 +847,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerServiceUrlTls = brokerUrlTls(config);
 
             // the broker id is used in the load manager to identify the broker
+            // it should not be used for making connections to the broker
             this.brokerId =
-                    String.format("%s:%s", advertisedAddress, config.getWebServicePortTls().isPresent()
-                            ? config.getWebServicePortTls().get()
-                            : config.getWebServicePort().orElseThrow());
+                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
+                            .or(config::getWebServicePortTls).orElseThrow());
 
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
@@ -864,7 +881,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.nsService.initialize();
 
             // Start topic level policies service
-            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
+            if (config.isSystemTopicAndTopicLevelPoliciesEnabled()) {
                 this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
             }
 
@@ -1024,7 +1041,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 true, attributeMap, true, Topics.class);
 
         // Add metrics servlet
-        webService.addServlet("/metrics",
+        webService.addServlet(PrometheusMetricsServlet.DEFAULT_METRICS_PATH,
                 new ServletHolder(metricsServlet),
                 config.isAuthenticateMetricsEndpoint(), attributeMap);
 
@@ -1140,7 +1157,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     protected void startLeaderElectionService() {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(this)) {
             LOG.info("The load manager extension is enabled. Skipping PulsarService LeaderElectionService.");
             return;
         }
@@ -1255,7 +1272,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Starting load management service ...");
         this.loadManager.get().start();
 
-        if (config.isLoadBalancerEnabled() && !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (config.isLoadBalancerEnabled() && !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(this)) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
                 long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();
@@ -1342,7 +1359,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @return a reference of the current <code>LeaderElectionService</code> instance.
      */
     public LeaderElectionService getLeaderElectionService() {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(this)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService();
         } else {
             return this.leaderElectionService;
@@ -1702,6 +1719,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrlTls != null ? brokerServiceUrlTls : brokerServiceUrl;
     }
 
+    /**
+     * Return the broker id. The broker id is used in the load manager to uniquely identify the broker at runtime.
+     * It should not be used for making connections to the broker. The broker id is available after {@link #start()}
+     * has been called.
+     *
+     * @return broker id
+     */
     public String getBrokerId() {
         return Objects.requireNonNull(brokerId,
                 "brokerId is not initialized before start has been called");

@@ -258,15 +258,16 @@ public class WebService implements AutoCloseable {
 
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
                            Map<String, Object> attributeMap) {
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ServletContextHandler servletContextHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
         // Notice: each context path should be unique, but there's nothing here to verify that
-        context.setContextPath(path);
-        context.addServlet(servletHolder, MATCH_ALL);
+        servletContextHandler.setContextPath(path);
+        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
         if (attributeMap != null) {
-            attributeMap.forEach(context::setAttribute);
+            attributeMap.forEach(servletContextHandler::setAttribute);
         }
-        filterInitializer.addFilters(context, requiresAuthentication);
-        handlers.add(context);
+        filterInitializer.addFilters(servletContextHandler, requiresAuthentication);
+
+        handlers.add(servletContextHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
@@ -290,8 +291,10 @@ public class WebService implements AutoCloseable {
             ContextHandlerCollection contexts = new ContextHandlerCollection();
             contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
 
+            Handler handlerForContexts = GzipHandlerUtil.wrapWithGzipHandler(contexts,
+                    pulsar.getConfig().getHttpServerGzipCompressionExcludedPaths());
             HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+            handlerCollection.setHandlers(new Handler[] {handlerForContexts, new DefaultHandler(), requestLogHandler});
 
             // Metrics handler
             StatisticsHandler stats = new StatisticsHandler();
@@ -302,7 +305,6 @@ public class WebService implements AutoCloseable {
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
-            handlers.add(stats);
 
             server.setHandler(stats);
             server.start();

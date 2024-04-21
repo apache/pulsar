@@ -88,7 +88,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -293,6 +292,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     log.info("Closed the channel producer.");
                 }
             }
+
+            PulsarClusterMetadataSetup.createTenantIfAbsent
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
+
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
@@ -480,21 +483,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        CompletableFuture<Optional<String>> activeOwner = owner.isPresent()
-                ? brokerRegistry.lookupAsync(owner.get()).thenApply(lookupData -> lookupData.flatMap(__ -> owner))
-                : CompletableFuture.completedFuture(Optional.empty());
+        return deferGetOwnerRequest(serviceUnit)
+                .thenCompose(newOwner -> {
+                    if (newOwner == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-        return activeOwner
-                .thenCompose(broker -> broker
-                        .map(__ -> activeOwner)
-                        .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable)))
-                .whenComplete((__, e) -> {
+                    return brokerRegistry.lookupAsync(newOwner)
+                            .thenApply(lookupData -> {
+                                if (lookupData.isPresent()) {
+                                    return newOwner;
+                                } else {
+                                    throw new IllegalStateException(
+                                            "The new owner " + newOwner + " is inactive.");
+                                }
+                            });
+                }).whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
-                                serviceUnit, state, owner, e);
+                        log.error("{} failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
+                                brokerId, serviceUnit, state, owner, e);
                         ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
-                });
+                }).thenApply(Optional::ofNullable);
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
@@ -514,7 +524,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return getActiveOwnerAsync(serviceUnit, state, Optional.empty());
+                if (isTargetBroker(data.dstBroker())) {
+                    return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.dstBroker()));
+                }
+                // If this broker is not the dst broker, return the dst broker as the owner(or empty).
+                // Clients need to connect(redirect) to the dst broker anyway
+                // and wait for the dst broker to receive `Owned`.
+                // This is also required to return getOwnerAsync on the src broker immediately during unloading.
+                // Otherwise, topic creation(getOwnerAsync) could block unloading bundles,
+                // if the topic creation(getOwnerAsync) happens during unloading on the src broker.
+                return CompletableFuture.completedFuture(Optional.ofNullable(data.dstBroker()));
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -528,6 +547,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
+            }
+        }
+    }
+
+    private Optional<String> getOwner(String serviceUnit) {
+        ServiceUnitStateData data = tableview.get(serviceUnit);
+        ServiceUnitState state = state(data);
+        switch (state) {
+            case Owned -> {
+                return Optional.of(data.dstBroker());
+            }
+            case Splitting -> {
+                return Optional.of(data.sourceBroker());
+            }
+            case Init, Free -> {
+                return Optional.empty();
+            }
+            default -> {
+                return null;
             }
         }
     }
@@ -720,7 +758,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void log(Throwable e, String serviceUnit, ServiceUnitStateData data, ServiceUnitStateData next) {
         if (e == null) {
-            if (log.isDebugEnabled() || isTransferCommand(data)) {
+            if (debug() || isTransferCommand(data)) {
                 long handlerTotalCount = getHandlerTotalCounter(data).get();
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
                 log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
@@ -759,6 +797,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleOwnEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
+            if (debug()) {
+                log.info("Returned owner request for serviceUnit:{}", serviceUnit);
+            }
             getOwnerRequest.complete(data.dstBroker());
         }
 
@@ -883,26 +924,52 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
+
         var requested = new MutableObject<CompletableFuture<String>>();
         try {
             return getOwnerRequests
                     .computeIfAbsent(serviceUnit, k -> {
-                        CompletableFuture<String> future = new CompletableFuture<>();
+                        var ownerBefore = getOwner(serviceUnit);
+                        if (ownerBefore != null && ownerBefore.isPresent()) {
+                            // Here, we do a quick active check first with the computeIfAbsent lock
+                            brokerRegistry.lookupAsync(ownerBefore.get()).getNow(Optional.empty())
+                                    .ifPresent(__ -> requested.setValue(
+                                            CompletableFuture.completedFuture(ownerBefore.get())));
+
+                            if (requested.getValue() != null) {
+                                return requested.getValue();
+                            }
+                        }
+
+
+                        CompletableFuture<String> future =
+                                new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
+                                                TimeUnit.MILLISECONDS)
+                                        .exceptionally(e -> {
+                                            var ownerAfter = getOwner(serviceUnit);
+                                            log.warn("{} failed to wait for owner for serviceUnit:{}; Trying to "
+                                                            + "return the current owner:{}",
+                                                    brokerId, serviceUnit, ownerAfter, e);
+                                            if (ownerAfter == null) {
+                                                throw new IllegalStateException(e);
+                                            }
+                                            return ownerAfter.orElse(null);
+                                        });
+                        if (debug()) {
+                            log.info("{} is waiting for owner for serviceUnit:{}", brokerId, serviceUnit);
+                        }
                         requested.setValue(future);
                         return future;
                     });
         } finally {
             var future = requested.getValue();
             if (future != null) {
-                future.orTimeout(inFlightStateWaitingTimeInMillis + 5 * 1000, TimeUnit.MILLISECONDS)
-                        .whenComplete((v, e) -> {
-                                    if (e != null) {
-                                        getOwnerRequests.remove(serviceUnit, future);
-                                        log.warn("Failed to getOwner for serviceUnit:{}",
-                                                serviceUnit, e);
-                                    }
-                                }
-                        );
+                future.whenComplete((__, e) -> {
+                    getOwnerRequests.remove(serviceUnit);
+                    if (e != null) {
+                        log.warn("{} failed to getOwner for serviceUnit:{}", brokerId, serviceUnit, e);
+                    }
+                });
             }
         }
     }
@@ -1313,8 +1380,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight non-system bundle override messages.", e);
         }
 
@@ -1337,8 +1404,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight system bundle override messages.", e);
         }
 
@@ -1516,8 +1583,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight messages.", e);
         }
 

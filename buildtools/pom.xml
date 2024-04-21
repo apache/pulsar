@@ -40,12 +40,12 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
-    <log4j2.version>2.18.0</log4j2.version>
+    <log4j2.version>2.23.1</log4j2.version>
     <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.7.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
-    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
+    <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <netty.version>4.1.104.Final</netty.version>
     <guice.version>4.2.3</guice.version>

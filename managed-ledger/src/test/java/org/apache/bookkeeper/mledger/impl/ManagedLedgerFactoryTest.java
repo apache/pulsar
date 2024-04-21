@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -53,12 +54,16 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerInfo info = factory.getManagedLedgerInfo("testGetManagedLedgerInfo");
 
-        assertEquals(info.ledgers.size(), 4);
+        assertEquals(info.ledgers.size(), 5);
 
         assertEquals(info.ledgers.get(0).ledgerId, 3);
         assertEquals(info.ledgers.get(1).ledgerId, 4);
         assertEquals(info.ledgers.get(2).ledgerId, 5);
         assertEquals(info.ledgers.get(3).ledgerId, 6);
+
+        for (ManagedLedgerInfo.LedgerInfo linfo : info.ledgers) {
+            assertNotNull(linfo.timestamp);
+        }
 
         assertEquals(info.cursors.size(), 1);
 

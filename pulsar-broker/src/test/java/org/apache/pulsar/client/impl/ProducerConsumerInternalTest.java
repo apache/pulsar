@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -29,11 +30,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -116,7 +120,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         });
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testExclusiveConsumerWillAlwaysRetryEvenIfReceivedConsumerBusyError() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
         final String subscriptionName = "subscription1";
@@ -185,5 +189,45 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         future = producer.sendAsync("msg-1".getBytes());
         future.thenAccept(msgId -> log.info("msg-1 done: {} (msgId: {})", System.nanoTime(), msgId));
         future.get();
+    }
+
+
+    @Test
+    public void testRetentionPolicyByProducingMessages() throws Exception {
+        // Setup: configure the entries per ledger and retention polices.
+        final int maxEntriesPerLedger = 10, messagesCount = 10;
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        pulsar.getConfiguration().setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
+        pulsar.getConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsar.getConfiguration().setDefaultRetentionTimeInMinutes(0);
+        pulsar.getConfiguration().setDefaultRetentionSizeInMB(0);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
+        // Act: prepare a full ledger data and ack them.
+        for (int i = 0; i < messagesCount; i++) {
+            producer.newMessage().sendAsync();
+        }
+        for (int i = 0; i < messagesCount; i++) {
+            Message<byte[]> message = consumer.receive();
+            assertNotNull(message);
+            consumer.acknowledge(message);
+        }
+        // Verify: a new empty ledger will be created after the current ledger is fulled.
+        // And the previous consumed ledgers will be deleted
+        Awaitility.await().untilAsserted(() -> {
+            admin.topics().trimTopic(topicName);
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();
+            assertEquals(internalStats.currentLedgerEntries, 0);
+            assertEquals(internalStats.ledgers.size(), 1);
+        });
     }
 }
