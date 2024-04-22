@@ -18,21 +18,28 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 
 @Slf4j
 public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
@@ -140,10 +147,32 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void cleanupTopics(CleanupTopicAction cleanupTopicAction) throws Exception {
+        waitChangeEventsInit(defaultNamespace);
         admin1.namespaces().setNamespaceReplicationClusters(defaultNamespace, Collections.singleton(cluster1));
         admin1.namespaces().unload(defaultNamespace);
         cleanupTopicAction.run();
         admin1.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(cluster1, cluster2));
+        waitChangeEventsInit(defaultNamespace);
+    }
+
+    protected void waitChangeEventsInit(String namespace) {
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false)
+                .join().get();
+        Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
+            TopicStatsImpl topicStats = topic.getStats(true, false, false);
+            topicStats.getSubscriptions().entrySet().forEach(entry -> {
+                // No wait for compaction.
+                if (COMPACTION_SUBSCRIPTION.equals(entry.getKey())) {
+                    return;
+                }
+                // No wait for durable cursor.
+                if (entry.getValue().isDurable()) {
+                    return;
+                }
+                Assert.assertTrue(entry.getValue().getMsgBacklog() == 0, entry.getKey());
+            });
+        });
     }
 
     protected interface CleanupTopicAction {
@@ -185,10 +214,19 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setLoadBalancerSheddingEnabled(false);
     }
 
     @Override
     protected void cleanup() throws Exception {
+        // delete namespaces.
+        waitChangeEventsInit(defaultNamespace);
+        admin1.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(cluster1));
+        admin1.namespaces().deleteNamespace(defaultNamespace);
+        admin2.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(cluster2));
+        admin2.namespaces().deleteNamespace(defaultNamespace);
+
+        // shutdown.
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
 

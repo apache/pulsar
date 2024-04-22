@@ -21,9 +21,9 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -33,7 +33,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -104,7 +106,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         return originalValue;
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testReplicatorProducerStatInTopic() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         final String subscribeName = "subscribe_1";
@@ -130,7 +132,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testCreateRemoteConsumerFirst() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
@@ -150,28 +152,49 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
         // Wait for replicator started.
         waitReplicatorStarted(topicName);
-        PersistentTopic persistentTopic =
+        PersistentTopic topic1 =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-        PersistentReplicator replicator =
-                (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        PersistentReplicator replicator1 =
+                (PersistentReplicator) topic1.getReplicators().values().iterator().next();
         // Mock an error when calling "replicator.disconnect()"
-        ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
-        when(mockProducer.closeAsync()).thenReturn(CompletableFuture.failedFuture(new Exception("mocked ex")));
-        ProducerImpl originalProducer = overrideProducerForReplicator(replicator, mockProducer);
+        AtomicBoolean closeFailed = new AtomicBoolean(true);
+        final ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
+        final AtomicReference<ProducerImpl> originalProducer1 = new AtomicReference();
+        doAnswer(invocation -> {
+            if (closeFailed.get()) {
+                return CompletableFuture.failedFuture(new Exception("mocked ex"));
+            } else {
+                return originalProducer1.get().closeAsync();
+            }
+        }).when(mockProducer).closeAsync();
+        originalProducer1.set(overrideProducerForReplicator(replicator1, mockProducer));
         // Verify: since the "replicator.producer.closeAsync()" will retry after it failed, the topic unload should be
         // successful.
         admin1.topics().unload(topicName);
         // Verify: After "replicator.producer.closeAsync()" retry again, the "replicator.producer" will be closed
         // successful.
-        overrideProducerForReplicator(replicator, originalProducer);
+        closeFailed.set(false);
+        AtomicReference<PersistentTopic> topic2 = new AtomicReference();
+        AtomicReference<PersistentReplicator> replicator2 = new AtomicReference();
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(replicator.isConnected());
+            topic2.set((PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get());
+            replicator2.set((PersistentReplicator) topic2.get().getReplicators().values().iterator().next());
+            // It is a new Topic after reloading.
+            assertNotEquals(topic2.get(), topic1);
+            assertNotEquals(replicator2.get(), replicator1);
+        });
+        Awaitility.await().untilAsserted(() -> {
+            // Old replicator should be closed.
+            Assert.assertFalse(replicator1.isConnected());
+            Assert.assertFalse(originalProducer1.get().isConnected());
+            // New replicator should be connected.
+            Assert.assertTrue(replicator2.get().isConnected());
         });
         // cleanup.
         cleanupTopics(() -> {
@@ -205,19 +228,26 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Inject producer decorator.
         doAnswer(invocation -> {
             Schema schema = (Schema) invocation.getArguments()[0];
-            ProducerBuilderImpl producerBuilder = (ProducerBuilderImpl) internalClient.newProducer(schema);
+            ProducerBuilderImpl<?> producerBuilder = (ProducerBuilderImpl) internalClient.newProducer(schema);
             ProducerBuilder spyProducerBuilder = spy(producerBuilder);
             doAnswer(ignore -> {
                 CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
-                final ProducerImpl p = (ProducerImpl) producerBuilder.create();
-                new FastThreadLocalThread(() -> {
-                    try {
-                        ProducerImpl newProducer = producerDecorator.apply(producerBuilder.getConf(), p);
-                        producerFuture.complete(newProducer);
-                    } catch (Exception ex) {
-                        producerFuture.completeExceptionally(ex);
+                producerBuilder.createAsync().whenComplete((p, t) -> {
+                    if (t != null) {
+                        producerFuture.completeExceptionally(t);
+                        return;
                     }
-                }).start();
+                    ProducerImpl pImpl = (ProducerImpl) p;
+                    new FastThreadLocalThread(() -> {
+                        try {
+                            ProducerImpl newProducer = producerDecorator.apply(producerBuilder.getConf(), pImpl);
+                            producerFuture.complete(newProducer);
+                        } catch (Exception ex) {
+                            producerFuture.completeExceptionally(ex);
+                        }
+                    }).start();
+                });
+
                 return producerFuture;
             }).when(spyProducerBuilder).createAsync();
             return spyProducerBuilder;
@@ -306,7 +336,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      * - The topic is wholly closed.
      * - Verify: the delayed created internal producer will be closed.
      */
-    @Test
+    @Test(timeOut = 120 * 1000)
     public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         // Inject an error for "replicator.producer" creation.
@@ -347,7 +377,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Stuck start new producer, until the state of replicator change to Stopped.
         // The next once of "createProducerSuccessAfterFailTimes" to create producer will be successfully.
         Awaitility.await().pollInterval(Duration.ofMillis(100)).atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            assertTrue(createProducerCounter.get() >= failTimes);
+            assertTrue(createProducerCounter.get() >= failTimes,
+                    "count of retry to create producer is " + createProducerCounter.get());
         });
         CompletableFuture<Void> topicCloseFuture = persistentTopic.close(true);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
