@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -105,8 +106,15 @@ public class ProxyServiceStarter {
 
     private WebServer server;
     private static boolean metricsInitialized;
+    private boolean embeddedMode;
 
     public ProxyServiceStarter(String[] args) throws Exception {
+        this(args, null, false);
+    }
+
+    public ProxyServiceStarter(String[] args, Consumer<ProxyConfiguration> proxyConfigurationCustomizer,
+                               boolean embeddedMode) throws Exception {
+        this.embeddedMode = embeddedMode;
         try {
             DateFormat dateFormat = new SimpleDateFormat(
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
@@ -129,15 +137,26 @@ public class ProxyServiceStarter {
                     CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
                     cmd.addCommand("proxy", this);
                     cmd.run(null);
-                    System.exit(0);
+                    if (embeddedMode) {
+                        return;
+                    } else {
+                        System.exit(0);
+                    }
                 }
             } catch (Exception e) {
                 jcommander.usage();
-                System.exit(1);
+                if (embeddedMode) {
+                    return;
+                } else {
+                    System.exit(1);
+                }
             }
 
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
+            if (proxyConfigurationCustomizer != null) {
+                proxyConfigurationCustomizer.accept(config);
+            }
 
             if (!isBlank(zookeeperServers)) {
                 // Use zookeeperServers from command line
@@ -227,7 +246,9 @@ public class ProxyServiceStarter {
         // create a web-service
         server = new WebServer(config, authenticationService);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        if (!embeddedMode) {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        }
 
         proxyService.start();
 
@@ -285,7 +306,9 @@ public class ProxyServiceStarter {
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
         } finally {
-            LogManager.shutdown();
+            if (!embeddedMode) {
+                LogManager.shutdown();
+            }
         }
     }
 
