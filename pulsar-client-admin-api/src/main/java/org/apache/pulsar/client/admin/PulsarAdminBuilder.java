@@ -362,4 +362,16 @@ public interface PulsarAdminBuilder {
      * @return the PulsarAdminBuilder instance
      */
     PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
+     * Sets the timeout for acquiring a connection from the pool. This timeout is used when all connections
+     * are busy and the pool is at its maximum size. If a connection cannot be acquired within the specified
+     * amount of time, an exception will be thrown.
+     * Defaults to 60 seconds.
+     *
+     * @param connectionAcquireTimeout the timeout value for acquiring a connection from the pool
+     * @param timeUnit the time unit for the connectionAcquireTimeout value
+     * @return the PulsarAdminBuilder instance
+     */
+    PulsarAdminBuilder connectionAcquireTimeout(int connectionAcquireTimeout, TimeUnit timeUnit);
 }

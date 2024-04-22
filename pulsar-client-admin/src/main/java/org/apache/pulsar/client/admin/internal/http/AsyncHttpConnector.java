@@ -86,21 +86,22 @@ public class AsyncHttpConnector implements Connector {
     private final boolean acceptGzipCompression;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression, int connectionAcquireTimeoutMs) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, connectionAcquireTimeoutMs);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression, int connectionAcquireTimeoutMs) {
         this.acceptGzipCompression = acceptGzipCompression;
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setAcquireFreeChannelTimeout(connectionAcquireTimeoutMs);
         if (conf.getConnectionsPerBroker() > 0) {
             confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
         }
