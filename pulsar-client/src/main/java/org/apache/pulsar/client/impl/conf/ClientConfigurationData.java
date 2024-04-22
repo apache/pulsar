@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.annotations.ApiModelProperty;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.util.Secret;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
