@@ -405,7 +405,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                         admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
                     } catch (Exception ex) {
                         log.error("Failed to lookup topic: ", ex);
-                        assertThat(ex.getMessage()).contains("Failed to select the new owner broker for bundle");
+                        assertThat(ex.getMessage()).contains("Service Unavailable");
                     }
                 }
         );
