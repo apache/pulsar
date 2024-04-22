@@ -262,7 +262,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.14.2.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.9.0.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.17.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
@@ -356,34 +356,34 @@ The Apache Software License, Version 2.0
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.16.5.jar
-    - org.apache.bookkeeper-circe-checksum-4.16.5.jar
-    - org.apache.bookkeeper-cpu-affinity-4.16.5.jar
-    - org.apache.bookkeeper-statelib-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-api-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-common-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-server-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.16.5.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.16.5.jar
-    - org.apache.bookkeeper.http-http-server-4.16.5.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.16.5.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.16.5.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.16.5.jar
-    - org.apache.distributedlog-distributedlog-common-4.16.5.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.5-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.5.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.16.5.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-api-4.16.5.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.16.5.jar
-    - org.apache.bookkeeper-native-io-4.16.5.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.17.0.jar
+    - org.apache.bookkeeper-circe-checksum-4.17.0.jar
+    - org.apache.bookkeeper-cpu-affinity-4.17.0.jar
+    - org.apache.bookkeeper-statelib-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-api-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-common-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-server-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.17.0.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.17.0.jar
+    - org.apache.bookkeeper.http-http-server-4.17.0.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.17.0.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.17.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.17.0.jar
+    - org.apache.distributedlog-distributedlog-common-4.17.0.jar
+    - org.apache.distributedlog-distributedlog-core-4.17.0-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.17.0.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.17.0.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-api-4.17.0.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.17.0.jar
+    - org.apache.bookkeeper-native-io-4.17.0.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
@@ -430,23 +430,23 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.55.3.jar
-    - io.grpc-grpc-auth-1.55.3.jar
-    - io.grpc-grpc-context-1.55.3.jar
-    - io.grpc-grpc-core-1.55.3.jar
-    - io.grpc-grpc-netty-1.55.3.jar
-    - io.grpc-grpc-protobuf-1.55.3.jar
-    - io.grpc-grpc-protobuf-lite-1.55.3.jar
-    - io.grpc-grpc-stub-1.55.3.jar
-    - io.grpc-grpc-alts-1.55.3.jar
-    - io.grpc-grpc-api-1.55.3.jar
-    - io.grpc-grpc-grpclb-1.55.3.jar
-    - io.grpc-grpc-netty-shaded-1.55.3.jar
-    - io.grpc-grpc-services-1.55.3.jar
-    - io.grpc-grpc-xds-1.55.3.jar
-    - io.grpc-grpc-rls-1.55.3.jar
-    - io.grpc-grpc-servlet-1.55.3.jar
-    - io.grpc-grpc-servlet-jakarta-1.55.3.jar
+    - io.grpc-grpc-all-1.56.0.jar
+    - io.grpc-grpc-auth-1.56.0.jar
+    - io.grpc-grpc-context-1.56.0.jar
+    - io.grpc-grpc-core-1.56.0.jar
+    - io.grpc-grpc-netty-1.56.0.jar
+    - io.grpc-grpc-protobuf-1.56.0.jar
+    - io.grpc-grpc-protobuf-lite-1.56.0.jar
+    - io.grpc-grpc-stub-1.56.0.jar
+    - io.grpc-grpc-alts-1.56.0.jar
+    - io.grpc-grpc-api-1.56.0.jar
+    - io.grpc-grpc-grpclb-1.56.0.jar
+    - io.grpc-grpc-netty-shaded-1.56.0.jar
+    - io.grpc-grpc-services-1.56.0.jar
+    - io.grpc-grpc-xds-1.56.0.jar
+    - io.grpc-grpc-rls-1.56.0.jar
+    - io.grpc-grpc-servlet-1.56.0.jar
+    - io.grpc-grpc-servlet-jakarta-1.56.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
@@ -504,8 +504,8 @@ The Apache Software License, Version 2.0
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
-    - com.google.auto.value-auto-value-annotations-1.9.jar
-    - com.google.re2j-re2j-1.6.jar
+    - com.google.auto.value-auto-value-annotations-1.10.1.jar
+    - com.google.re2j-re2j-1.7.jar
   * Jetcd
     - io.etcd-jetcd-api-0.7.5.jar
     - io.etcd-jetcd-common-0.7.5.jar
@@ -566,8 +566,8 @@ MIT License
     - com.auth0-jwks-rsa-0.22.0.jar
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.22.3.jar -- ../licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.22.3.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
