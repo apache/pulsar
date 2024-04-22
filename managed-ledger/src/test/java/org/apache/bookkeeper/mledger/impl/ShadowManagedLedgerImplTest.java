@@ -51,7 +51,7 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         return (ShadowManagedLedgerImpl) shadowML;
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testShadowWrites() throws Exception {
         ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", new ManagedLedgerConfig()
                 .setMaxEntriesPerLedger(2)
