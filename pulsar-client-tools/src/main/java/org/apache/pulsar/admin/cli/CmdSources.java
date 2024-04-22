@@ -359,6 +359,9 @@ public class CmdSources extends CmdBase {
         protected String secretsString;
         @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
 
         protected SourceConfig sourceConfig;
 
@@ -496,6 +499,9 @@ public class CmdSources extends CmdBase {
             }
             if (null != logTopic) {
                 sourceConfig.setLogTopic(logTopic);
+            }
+            if (null != runtimeFlags) {
+                sourceConfig.setRuntimeFlags(runtimeFlags);
             }
 
             // check if source configs are valid

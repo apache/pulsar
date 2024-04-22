@@ -393,9 +393,9 @@ The Apache Software License, Version 2.0
     - opentelemetry-extension-incubator-1.34.1-alpha.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.16.4.jar
-    - cpu-affinity-4.16.4.jar
-    - circe-checksum-4.16.4.jar
+    - bookkeeper-common-allocator-4.16.5.jar
+    - cpu-affinity-4.16.5.jar
+    - circe-checksum-4.16.5.jar
   * AirCompressor
      - aircompressor-0.20.jar
  * AsyncHttpClient
@@ -473,10 +473,10 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.75.jar
-    - bcprov-ext-jdk18on-1.75.jar
-    - bcprov-jdk18on-1.75.jar
-    - bcutil-jdk18on-1.75.jar
+    - bcpkix-jdk18on-1.78.jar
+    - bcprov-ext-jdk18on-1.78.jar
+    - bcprov-jdk18on-1.78.jar
+    - bcutil-jdk18on-1.78.jar
 
 ------------------------
 

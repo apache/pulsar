@@ -40,10 +40,10 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -218,7 +218,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Thread.sleep(2000);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, true, true, output);
+        PrometheusMetricsTestUtil.generate(pulsar, true, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
         Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
@@ -304,7 +304,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         assertEquals(opLatencyMetricsSum.intValue(), opLatencyTopicMetrics.get().value);
 
         ByteArrayOutputStream namespaceOutput = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, true, true, namespaceOutput);
+        PrometheusMetricsTestUtil.generate(pulsar, false, true, true, namespaceOutput);
         Multimap<String, Metric> namespaceMetricsMap = parseMetrics(namespaceOutput.toString(StandardCharsets.UTF_8));
 
         Optional<Metric> namespaceMetric =

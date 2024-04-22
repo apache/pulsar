@@ -492,30 +492,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                String candidateBrokerId = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
-                if (candidateBrokerId != null) {
-                    owner = CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
-                } else {
-                    owner = getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
-                }
+                owner = getHeartbeatOrSLAMonitorBrokerId(serviceUnit).thenCompose(candidateBrokerId -> {
+                    if (candidateBrokerId != null) {
+                        return CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
+                    }
+                    return getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
+                });
             }
             return getBrokerLookupData(owner, bundle);
         });
     }
 
-    private String getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
-        // Check if this is Heartbeat or SLAMonitor namespace
-        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
-        if (candidateBroker == null) {
-            candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
-        }
-        if (candidateBroker == null) {
-            candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
-        }
-        if (candidateBroker != null) {
-            return candidateBroker.substring(candidateBroker.lastIndexOf('/') + 1);
-        }
-        return candidateBroker;
+    private CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
+        return pulsar.getNamespaceService().getHeartbeatOrSLAMonitorBrokerId(serviceUnit,
+                cb -> brokerRegistry.lookupAsync(cb).thenApply(Optional::isPresent));
     }
 
     private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
@@ -662,11 +652,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
             return serviceUnitStateChannel.getChannelOwnerAsync();
         }
-        String candidateBroker = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
-        if (candidateBroker != null) {
-            return CompletableFuture.completedFuture(Optional.of(candidateBroker));
-        }
-        return serviceUnitStateChannel.getOwnerAsync(bundle);
+        return getHeartbeatOrSLAMonitorBrokerId(serviceUnit).thenCompose(candidateBroker -> {
+            if (candidateBroker != null) {
+                return CompletableFuture.completedFuture(Optional.of(candidateBroker));
+            }
+            return serviceUnitStateChannel.getOwnerAsync(bundle);
+        });
     }
 
     public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit) {
@@ -825,11 +816,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (!serviceUnitStateChannel.isChannelOwner()) {
                     becameFollower = true;
                     break;
                 }
-                initWaiter.await();
                 // Confirm the system topics have been created or create them if they do not exist.
                 // If the leader has changed, the new leader need to reset
                 // the local brokerService.topics (by this topic creations).
@@ -875,11 +866,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (serviceUnitStateChannel.isChannelOwner()) {
                     becameLeader = true;
                     break;
                 }
-                initWaiter.await();
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
                 brokerLoadDataStore.init();
