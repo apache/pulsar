@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -192,7 +193,7 @@ public class NamespaceService implements AutoCloseable {
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
+        this.ownershipCache = new OwnershipCache(pulsar, this);
         this.namespaceClients =
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
@@ -536,26 +537,47 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /**
+     * Check if this is Heartbeat or SLAMonitor namespace and return the broker id.
+     *
+     * @param serviceUnit the service unit
+     * @param isBrokerActive the function to check if the broker is active
+     * @return the broker id
+     */
+    public CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(
+            ServiceUnitId serviceUnit, Function<String, CompletableFuture<Boolean>> isBrokerActive) {
+        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
+        if (candidateBroker != null) {
+            // Check if the broker is available
+            final String finalCandidateBroker = candidateBroker;
+            return isBrokerActive.apply(candidateBroker).thenApply(isActive -> {
+                if (isActive) {
+                    return finalCandidateBroker;
+                } else {
+                    return null;
+                }
+            });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
-        if (null == pulsar.getLeaderElectionService()) {
+        String candidateBroker;
+        LeaderElectionService les = pulsar.getLeaderElectionService();
+        if (les == null) {
             LOG.warn("The leader election has not yet been completed! NamespaceBundle[{}]", bundle);
             lookupFuture.completeExceptionally(
                     new IllegalStateException("The leader election has not yet been completed!"));
-            return;
-        }
-        String candidateBroker;
-
-        LeaderElectionService les = pulsar.getLeaderElectionService();
-        if (les == null) {
-            // The leader election service was not initialized yet. This can happen because the broker service is
-            // initialized first, and it might start receiving lookup requests before the leader election service is
-            // fully initialized.
-            LOG.warn("Leader election service isn't initialized yet. "
-                            + "Returning empty result to lookup. NamespaceBundle[{}]",
-                    bundle);
-            lookupFuture.complete(Optional.empty());
             return;
         }
 
@@ -563,17 +585,9 @@ public class NamespaceService implements AutoCloseable {
 
         try {
             // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = checkHeartbeatNamespace(bundle);
-            if (candidateBroker == null) {
-                candidateBroker = checkHeartbeatNamespaceV2(bundle);
-            }
-            if (candidateBroker == null) {
-                String broker = getSLAMonitorBrokerName(bundle);
-                // checking if the broker is up and running
-                if (broker != null && isBrokerActive(broker)) {
-                    candidateBroker = broker;
-                }
-            }
+            candidateBroker = getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
+                    CompletableFuture.completedFuture(isBrokerActive(cb)))
+                    .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
 
             if (candidateBroker == null) {
                 Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
@@ -835,6 +849,11 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> isNamespaceBundleOwned(NamespaceBundle bundle) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
+                    .thenApply(Optional::isPresent);
+        }
         return pulsar.getLocalMetadataStore().exists(ServiceUnitUtils.path(bundle));
     }
 

@@ -357,7 +357,9 @@ public class BrokerService implements Closeable {
         this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
-        pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
+        if (pulsar.getConfigurationMetadataStore() != pulsar.getLocalMetadataStore()) {
+            pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
+        }
 
         this.inactivityMonitor = OrderedScheduler.newSchedulerBuilder()
                 .name("pulsar-inactivity-monitor")
@@ -631,8 +633,10 @@ public class BrokerService implements Closeable {
     }
 
     protected void startDeduplicationSnapshotMonitor() {
+        // We do not know whether users will enable deduplication on namespace level/topic level or not, so keep this
+        // scheduled task runs.
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+        if (interval > 0) {
             this.deduplicationSnapshotMonitor = OrderedScheduler.newSchedulerBuilder()
                     .name("deduplication-snapshot-monitor")
                     .numThreads(1)
@@ -1785,6 +1789,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+            return CompletableFuture.completedFuture(null);
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
         AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
             if (isMigrated) {
