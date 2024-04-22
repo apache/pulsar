@@ -347,11 +347,11 @@ public interface PulsarAdminBuilder {
      * or control the level of parallelism for operations so that a single client does not overwhelm
      * the Pulsar cluster with too many concurrent connections.
      *
-     * @param connectionsPerHost the maximum number of connections to establish per host. Set to <= 0 to disable
+     * @param maxConnectionsPerHost the maximum number of connections to establish per host. Set to <= 0 to disable
      *                             the limit.
      * @return the PulsarAdminBuilder instance, allowing for method chaining
      */
-    PulsarAdminBuilder connectionsPerHost(int connectionsPerHost);
+    PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost);
 
     /**
      * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified

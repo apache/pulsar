@@ -74,13 +74,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
                 acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
             }
         }
-        // in ClientConfigurationData, the connectionsPerHost maps to connectionsPerBroker
-        if (config.containsKey("connectionsPerHost")) {
-            Object connectionsPerHostObj = config.get("connectionsPerHost");
-            if (connectionsPerHostObj instanceof Integer) {
-                connectionsPerHost((Integer) connectionsPerHostObj);
+        // in ClientConfigurationData, the maxConnectionsPerHost maps to connectionsPerBroker
+        if (config.containsKey("maxConnectionsPerHost")) {
+            Object maxConnectionsPerHostObj = config.get("maxConnectionsPerHost");
+            if (maxConnectionsPerHostObj instanceof Integer) {
+                maxConnectionsPerHost((Integer) maxConnectionsPerHostObj);
             } else {
-                connectionsPerHost(Integer.parseInt(connectionsPerHostObj.toString()));
+                maxConnectionsPerHost(Integer.parseInt(maxConnectionsPerHostObj.toString()));
             }
         }
         return this;
@@ -257,10 +257,10 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
-    public PulsarAdminBuilder connectionsPerHost(int connectionsPerHost) {
+    public PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost) {
         // reuse the same configuration as the client, however for the admin client, the connection
         // is usually established to a cluster address and not to a broker address
-        this.conf.setConnectionsPerBroker(connectionsPerHost);
+        this.conf.setConnectionsPerBroker(maxConnectionsPerHost);
         return this;
     }
 
