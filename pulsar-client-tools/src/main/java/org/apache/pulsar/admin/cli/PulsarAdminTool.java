@@ -40,6 +40,7 @@ import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.internal.CommandHook;
 import org.apache.pulsar.internal.CommanderFactory;
+import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -171,6 +172,7 @@ public class PulsarAdminTool implements CommandHook {
                     addCommand(group.name(), generated);
                 }
             }
+            commander.addSubcommand(GenerateCompletion.class);
         } catch (Exception e) {
             Throwable cause;
             if (e instanceof InvocationTargetException && null != e.getCause()) {
