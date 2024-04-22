@@ -4695,5 +4695,66 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
     }
 
+    @Test
+    public void testRecoverCursorWithTerminateManagedLedger() throws Exception {
+        String mlName = "my_test_ledger";
+        String cursorName = "c1";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
+
+        // Write some data.
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+        Position p1 = ledger.addEntry("entry-1".getBytes());
+
+        // Read message.
+        List<Entry> entries = c1.readEntries(2);
+        assertEquals(entries.size(), 2);
+        assertEquals(entries.get(0).getPosition(), p0);
+        assertEquals(entries.get(1).getPosition(), p1);
+        entries.forEach(Entry::release);
+
+        // Mark delete the last message.
+        c1.markDelete(p1);
+        Position markDeletedPosition = c1.getMarkDeletedPosition();
+        Assert.assertEquals(markDeletedPosition, p1);
+
+        // Terminate the managed ledger.
+        Position lastPosition = ledger.terminate();
+        assertEquals(lastPosition, p1);
+
+        // Close the ledger.
+        ledger.close();
+
+        // Reopen the ledger.
+        ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+        BookKeeper mockBookKeeper = mock(BookKeeper.class);
+        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ledger,
+                cursorName);
+
+        CompletableFuture<Void> recoverFuture = new CompletableFuture<>();
+        // Recover the cursor.
+        cursor.recover(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recoverFuture.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recoverFuture.completeExceptionally(exception);
+            }
+        });
+
+        recoverFuture.join();
+        assertTrue(recoverFuture.isDone());
+        assertFalse(recoverFuture.isCompletedExceptionally());
+
+        // Verify the cursor state.
+        assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition);
+        assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
