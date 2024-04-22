@@ -92,8 +92,8 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-abc/" + localTopicName)
                 .build();
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -137,8 +137,8 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-abc/" + localTopicName)
                 .build();
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();

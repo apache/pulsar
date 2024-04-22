@@ -137,14 +137,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
         assertEquals(info.ledgers.size(), 2);
 
-        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
-                            LongRunningProcessStatus.Status.NOT_RUN);
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(), LongRunningProcessStatus.Status.NOT_RUN);
         var topicNameObject = TopicName.get(topicName);
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicNameObject.getDomain().toString())
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, topicNameObject.getTenant())
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObject.getNamespacePortion())
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicNameObject.getLocalName())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObject.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicNameObject.getPartitionedTopicName())
                 .build();
         // Verify the respective metric is 0 before the offload begins.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();

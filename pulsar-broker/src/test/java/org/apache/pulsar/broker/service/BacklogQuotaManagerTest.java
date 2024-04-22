@@ -756,8 +756,8 @@ public class BacklogQuotaManagerTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-quota")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-quota")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-quota/" + localTopicName)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, attributes,
@@ -890,8 +890,8 @@ public class BacklogQuotaManagerTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "ns-quota")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-quota")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-quota/" + localTopicName)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, attributes,

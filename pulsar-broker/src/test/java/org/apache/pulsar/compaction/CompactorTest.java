@@ -225,8 +225,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-ns")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicLocalName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "my-property/my-ns/" + topicLocalName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);

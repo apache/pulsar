@@ -404,8 +404,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         var builder = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespacePortion())
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicLocalName());
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
         if (topicName.isPartitioned()) {
             builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
         }

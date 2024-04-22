@@ -120,8 +120,8 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "public")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "default")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "public/default")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "public/default/" + topic)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
