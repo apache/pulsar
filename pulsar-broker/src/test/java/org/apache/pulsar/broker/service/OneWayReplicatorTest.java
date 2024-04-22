@@ -27,12 +27,15 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -137,17 +140,49 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Verify replicator works.
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        Producer<byte[]> producer2 = client2.newProducer().topic(topicName).create(); // Do not publish messages
         Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subscribeName).subscribe();
         producer1.newMessage().value(msgValue).send();
         pulsar1.getBrokerService().checkReplicationPolicies();
         assertEquals(consumer2.receive(10, TimeUnit.SECONDS).getValue(), msgValue);
 
-        // Verify there has one item in the attribute "publishers" or "replications"
+        // Verify that the "publishers" field does not include the producer for replication
         TopicStats topicStats2 = admin2.topics().getStats(topicName);
-        assertTrue(topicStats2.getPublishers().size() + topicStats2.getReplication().size() > 0);
+        assertEquals(topicStats2.getPublishers().size(), 1);
+        assertFalse(topicStats2.getPublishers().get(0).getProducerName().startsWith(config1.getReplicatorPrefix()));
+
+        // Update broker stats immediately (usually updated every minute)
+        pulsar2.getBrokerService().updateRates();
+        String brokerStats2 = admin2.brokerStats().getTopics();
+
+        boolean found = false;
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode rootNode = mapper.readTree(brokerStats2);
+        if (rootNode.hasNonNull(replicatedNamespace)) {
+            Iterator<JsonNode> bundleNodes = rootNode.get(replicatedNamespace).elements();
+            while (bundleNodes.hasNext()) {
+                JsonNode bundleNode = bundleNodes.next();
+                if (bundleNode.hasNonNull("persistent") && bundleNode.get("persistent").hasNonNull(topicName)) {
+                    found = true;
+                    JsonNode topicNode = bundleNode.get("persistent").get(topicName);
+                    // Verify that the "publishers" field does not include the producer for replication
+                    assertEquals(topicNode.get("publishers").size(), 1);
+                    assertEquals(topicNode.get("producerCount").intValue(), 1);
+                    Iterator<JsonNode> publisherNodes = topicNode.get("publishers").elements();
+                    while (publisherNodes.hasNext()) {
+                        JsonNode publisherNode = publisherNodes.next();
+                        assertFalse(publisherNode.get("producerName").textValue()
+                                .startsWith(config1.getReplicatorPrefix()));
+                    }
+                    break;
+                }
+            }
+        }
+        assertTrue(found);
 
         // cleanup.
-        consumer2.close();
+        consumer2.unsubscribe();
+        producer2.close();
         producer1.close();
         cleanupTopics(() -> {
             admin1.topics().delete(topicName);
