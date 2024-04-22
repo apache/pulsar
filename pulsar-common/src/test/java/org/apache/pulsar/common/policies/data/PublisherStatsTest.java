@@ -40,6 +40,8 @@ public class PublisherStatsTest {
             "msgRateIn",
             "msgThroughputIn",
             "averageMsgSize",
+            "requestRateIn",
+            "averageMsgPerRequest",
             "chunkedMessageRate",
             "producerId",
             "metadata",
