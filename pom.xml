@@ -272,6 +272,7 @@ flexible messaging model and an intuitive client API.</description>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
+    <consolecaptor.version>1.0.3</consolecaptor.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
