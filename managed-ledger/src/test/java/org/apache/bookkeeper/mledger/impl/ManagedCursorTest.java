@@ -4708,7 +4708,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p0 = ledger.addEntry("entry-0".getBytes());
         Position p1 = ledger.addEntry("entry-1".getBytes());
 
-        // Read and ack message.
+        // Read message.
         List<Entry> entries = c1.readEntries(2);
         assertEquals(entries.size(), 2);
         assertEquals(entries.get(0).getPosition(), p0);
@@ -4733,19 +4733,27 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ledger,
                 cursorName);
 
+        CompletableFuture<Void> recoverFuture = new CompletableFuture<>();
         // Recover the cursor.
         cursor.recover(new VoidCallback() {
             @Override
             public void operationComplete() {
-                assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition);
-                assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition.getNext());
+                recoverFuture.complete(null);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                fail("Cursor recovery should not fail");
+                recoverFuture.completeExceptionally(exception);
             }
         });
+
+        recoverFuture.join();
+        assertTrue(recoverFuture.isDone());
+        assertFalse(recoverFuture.isCompletedExceptionally());
+
+        // Verify the cursor state.
+        assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition);
+        assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
