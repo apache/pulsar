@@ -32,10 +32,18 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
+import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.RequestLog;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -101,8 +109,18 @@ public class WebService implements AutoCloseable {
         List<ServerConnector> connectors = new ArrayList<>();
 
         Optional<Integer> port = config.getWebServicePort();
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        if (config.isWebServiceTrustXForwardedFor()) {
+            httpConfig.addCustomizer(new ForwardedRequestCustomizer());
+        }
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
         if (port.isPresent()) {
-            httpConnector = new ServerConnector(server);
+            List<ConnectionFactory> connectionFactories = new ArrayList<>();
+            if (config.isWebServiceHaProxyProtocolEnabled()) {
+                connectionFactories.add(new ProxyConnectionFactory());
+            }
+            connectionFactories.add(httpConnectionFactory);
+            httpConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
             httpConnector.setPort(port.get());
             httpConnector.setHost(pulsar.getBindAddress());
             connectors.add(httpConnector);
@@ -141,7 +159,18 @@ public class WebService implements AutoCloseable {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                httpsConnector = new ServerConnector(server, sslCtxFactory);
+                List<ConnectionFactory> connectionFactories = new ArrayList<>();
+                if (config.isWebServiceHaProxyProtocolEnabled()) {
+                    connectionFactories.add(new ProxyConnectionFactory());
+                }
+                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(httpConnectionFactory);
+                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+                // this is needed for TLS authentication
+                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
+                    httpConfig.addCustomizer(new SecureRequestCustomizer());
+                }
+                httpsConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 httpsConnector.setPort(tlsPort.get());
                 httpsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(httpsConnector);
@@ -279,7 +308,12 @@ public class WebService implements AutoCloseable {
     public void start() throws PulsarServerException {
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
-            requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
+            boolean showDetailedAddresses = pulsar.getConfiguration().getWebServiceLogDetailedAddresses() != null
+                    ? pulsar.getConfiguration().getWebServiceLogDetailedAddresses() :
+                    (pulsar.getConfiguration().isWebServiceHaProxyProtocolEnabled()
+                            || pulsar.getConfiguration().isWebServiceTrustXForwardedFor());
+            RequestLog requestLogger = JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server);
+            requestLogHandler.setRequestLog(requestLogger);
             handlers.add(0, new ContextHandlerCollection());
             handlers.add(requestLogHandler);
 

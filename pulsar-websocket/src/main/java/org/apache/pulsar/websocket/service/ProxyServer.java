@@ -35,10 +35,17 @@ import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
+import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -73,10 +80,22 @@ public class ProxyServer {
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
         }
+
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        if (config.isWebServiceTrustXForwardedFor()) {
+            httpConfig.addCustomizer(new ForwardedRequestCustomizer());
+        }
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
+
         List<ServerConnector> connectors = new ArrayList<>();
 
         if (config.getWebServicePort().isPresent()) {
-            connector = new ServerConnector(server);
+            List<ConnectionFactory> connectionFactories = new ArrayList<>();
+            if (config.isWebServiceHaProxyProtocolEnabled()) {
+                connectionFactories.add(new ProxyConnectionFactory());
+            }
+            connectionFactories.add(httpConnectionFactory);
+            connector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
             connector.setPort(config.getWebServicePort().get());
             connectors.add(connector);
         }
@@ -111,7 +130,18 @@ public class ProxyServer {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, sslCtxFactory);
+                List<ConnectionFactory> connectionFactories = new ArrayList<>();
+                if (config.isWebServiceHaProxyProtocolEnabled()) {
+                    connectionFactories.add(new ProxyConnectionFactory());
+                }
+                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(httpConnectionFactory);
+                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+                // this is needed for TLS authentication
+                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
+                    httpConfig.addCustomizer(new SecureRequestCustomizer());
+                }
+                connectorTls = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectors.add(connectorTls);
             } catch (Exception e) {
@@ -169,7 +199,10 @@ public class ProxyServer {
                 .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
                 .collect(Collectors.joining(",")));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
+        boolean showDetailedAddresses = conf.getWebServiceLogDetailedAddresses() != null
+                ? conf.getWebServiceLogDetailedAddresses() :
+                (conf.isWebServiceHaProxyProtocolEnabled() || conf.isWebServiceTrustXForwardedFor());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server));
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 
