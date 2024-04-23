@@ -83,7 +83,7 @@
     <dependency>
       <groupId>org.apache.qpid</groupId>
       <artifactId>qpid-broker</artifactId>
-      <version>6.1.6</version>
+      <version>9.2.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
