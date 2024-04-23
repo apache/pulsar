@@ -200,6 +200,7 @@ public class Consumer {
         stats = new ConsumerStatsImpl();
         stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.consumerName = consumerName;
+        stats.role = appId;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
