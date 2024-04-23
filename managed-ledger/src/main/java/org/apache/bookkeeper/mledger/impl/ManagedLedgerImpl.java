@@ -2160,7 +2160,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         private final SortedSet<Long> entryIds;
         private final SortedSet<Entry> entries;
         private final OpReadEntry callback;
-        private final AtomicBoolean failed = new AtomicBoolean(false);
+        private boolean completed = false;
 
         @VisibleForTesting
         public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback) {
@@ -2171,19 +2171,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
+            if (completed) {
+                return;
+            }
             entries.addAll(entries0);
             if (entries.size() < entryIds.size()) {
                 return;
             }
+            completed = true;
             callback.readEntriesComplete(entries.stream().toList(), ctx);
         }
 
         @Override
-        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            // Should fail AT_MOST ONCE
-            if (!failed.compareAndSet(false, true)) {
+        public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (completed) {
                 return;
             }
+            completed = true;
             // If there are entries been read success, try to let the read operation success as possible.
             List<Entry> entries = filterEntries();
             if (entries.isEmpty()) {
