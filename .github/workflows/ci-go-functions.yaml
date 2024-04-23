@@ -45,6 +45,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Detect changed files
+        if: ${{ github.event_name == 'pull_request' && github.repository == 'apache/pulsar' }}
         id: changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
@@ -52,6 +53,7 @@ jobs:
           list-files: csv
 
       - name: Check changed files
+        if: ${{ github.event_name == 'pull_request' && github.repository == 'apache/pulsar' }}
         id: check_changes
         run: |
           if [[ "${GITHUB_EVENT_NAME}" != "schedule" ]]; then
