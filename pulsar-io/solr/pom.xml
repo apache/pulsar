@@ -70,6 +70,10 @@
                     <artifactId>jose4j</artifactId>
                     <groupId>org.bitbucket.b_c</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                    <groupId>org.apache.logging.log4j</groupId>
+                </exclusion>
             </exclusions>
             <scope>test</scope>
         </dependency>
