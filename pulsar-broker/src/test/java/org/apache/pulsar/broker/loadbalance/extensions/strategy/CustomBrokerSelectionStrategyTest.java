@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
-import java.util.Optional;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Cleanup;
@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.testng.Assert;
@@ -47,6 +48,7 @@ public class CustomBrokerSelectionStrategyTest extends MultiBrokerBaseTest {
 
     private static ServiceConfiguration addCustomConfigs(ServiceConfiguration conf) {
         conf.setLoadManagerClassName(CustomExtensibleLoadManager.class.getName());
+        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerAutoBundleSplitEnabled(false);
         conf.setDefaultNumberOfNamespaceBundles(8);
         // Don't consider broker's load so the broker will be selected randomly with the default strategy
@@ -66,16 +68,18 @@ public class CustomBrokerSelectionStrategyTest extends MultiBrokerBaseTest {
         Assert.assertEquals(connections.size(), 1);
         final var port = Integer.parseInt(connections.stream().findFirst().orElseThrow().ctx().channel()
                 .remoteAddress().toString().replaceAll(".*:", ""));
-        final var sortedPorts = Stream.concat(Stream.of(pulsar), additionalBrokers.stream())
-                .map(PulsarService::getBrokerListenPort).map(Optional::orElseThrow).sorted().toList();
-        Assert.assertEquals(port, sortedPorts.get(0).intValue());
+        final var expectedPort = Stream.concat(Stream.of(pulsar), additionalBrokers.stream())
+                .min(Comparator.comparingInt(o -> o.getListenPortHTTP().orElseThrow()))
+                .map(PulsarService::getBrokerListenPort)
+                .orElseThrow().orElseThrow();
+        Assert.assertEquals(port, expectedPort);
     }
 
     public static class CustomExtensibleLoadManager extends ExtensibleLoadManagerImpl {
 
         @Override
         public BrokerSelectionStrategy createBrokerSelectionStrategy() {
-            // The smallest port will always be selected because the host parts are all "localhost"
+            // The smallest HTTP port will always be selected because the host parts are all "localhost"
             return (brokers, __, ___) -> brokers.stream().sorted().findFirst();
         }
     }
