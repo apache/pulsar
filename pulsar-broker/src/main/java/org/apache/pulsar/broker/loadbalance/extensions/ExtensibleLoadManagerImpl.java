@@ -87,6 +87,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionS
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -496,7 +497,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
-                                                                ServiceUnitId serviceUnit) {
+                                                                ServiceUnitId serviceUnit,
+                                                                LookupOptions options) {
 
         final String bundle = serviceUnit.toString();
 
@@ -510,7 +512,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     if (candidateBrokerId != null) {
                         return CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
                     }
-                    return getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
+                    return getOrSelectOwnerAsync(serviceUnit, bundle, options).thenApply(Optional::ofNullable);
                 });
             }
             return getBrokerLookupData(owner, bundle);
@@ -523,18 +525,18 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
-                                                            String bundle) {
+                                                            String bundle,
+                                                            LookupOptions options) {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
-                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
+                return this.selectAsync(serviceUnit, Collections.emptySet(), options).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
                         return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
                     }
-                    throw new IllegalStateException(
-                            "Failed to select the new owner broker for bundle: " + bundle);
+                    return CompletableFuture.completedFuture(null);
                 });
             }
             assignCounter.incrementSkip();
@@ -548,22 +550,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             String bundle) {
         return owner.thenCompose(broker -> {
             if (broker.isEmpty()) {
-                String errorMsg = String.format(
-                        "Failed to get or assign the owner for bundle:%s", bundle);
-                log.error(errorMsg);
-                throw new IllegalStateException(errorMsg);
+                return CompletableFuture.completedFuture(Optional.empty());
             }
-            return CompletableFuture.completedFuture(broker.get());
-        }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
-            if (brokerLookupData.isEmpty()) {
-                String errorMsg = String.format(
-                        "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
-                        broker, bundle);
-                log.error(errorMsg);
-                throw new IllegalStateException(errorMsg);
-            }
-            return CompletableFuture.completedFuture(brokerLookupData);
-        }));
+            return this.getBrokerRegistry().lookupAsync(broker.get()).thenCompose(brokerLookupData -> {
+                if (brokerLookupData.isEmpty()) {
+                    String errorMsg = String.format(
+                            "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
+                            broker, bundle);
+                    log.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
+                return CompletableFuture.completedFuture(brokerLookupData);
+            });
+        });
     }
 
     /**
@@ -576,7 +575,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle namespaceBundle) {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
-        return assign(Optional.empty(), namespaceBundle)
+        return assign(Optional.empty(), namespaceBundle, LookupOptions.builder().readOnly(false).build())
                 .thenApply(brokerLookupData -> {
                     if (brokerLookupData.isEmpty()) {
                         String errorMsg = String.format(
@@ -609,12 +608,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
-        return selectAsync(bundle, Collections.emptySet());
-    }
-
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
-                                                           Set<String> excludeBrokerSet) {
+                                                           Set<String> excludeBrokerSet,
+                                                           LookupOptions options) {
+        if (options.isReadOnly()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenComposeAsync(availableBrokers -> {
