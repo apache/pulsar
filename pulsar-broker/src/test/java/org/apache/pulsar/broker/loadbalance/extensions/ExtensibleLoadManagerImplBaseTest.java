@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
+
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -66,6 +68,8 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
         return conf;
     }
 
