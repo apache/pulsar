@@ -897,7 +897,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar2 = null;
         pulsar3.close();
         pulsar3 = null;
-        replicator.disconnect(false);
+        replicator.terminate();
         Thread.sleep(100);
         Field field = AbstractReplicator.class.getDeclaredField("producer");
         field.setAccessible(true);
@@ -1836,7 +1836,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
             // Pause replicator
-            persistentReplicator.disconnect();
+            pauseReplicator(persistentReplicator);
         });
 
         persistentProducer1.send("V2".getBytes());
@@ -1875,5 +1875,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
+    }
+
+    private void pauseReplicator(PersistentReplicator replicator) {
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(replicator.isConnected());
+        });
+        replicator.closeProducerAsync(true);
     }
 }
