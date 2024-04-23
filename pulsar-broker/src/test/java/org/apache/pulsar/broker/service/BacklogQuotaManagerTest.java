@@ -48,6 +48,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -729,8 +730,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, SECONDS)
                 .build();
 
-        final String localTopicName = "topic2" + UUID.randomUUID();
-        final String topic1 = "persistent://prop/ns-quota/" + localTopicName;
+        final String topic1 = BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic2");
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;
@@ -757,7 +757,7 @@ public class BacklogQuotaManagerTest {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-quota")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-quota/" + localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic1)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_SIZE, attributes,
@@ -849,8 +849,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, SECONDS)
                 .build();
 
-        var localTopicName = "topic3" + UUID.randomUUID();
-        final String topic1 = "persistent://prop/ns-quota/" + localTopicName;
+        final String topic1 = BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic3");
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 14;
@@ -891,7 +890,7 @@ public class BacklogQuotaManagerTest {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-quota")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-quota/" + localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic1)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, attributes,

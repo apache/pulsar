@@ -199,8 +199,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAllCompactedOut() throws Exception {
-        var topicLocalName = BrokerTestUtil.newUniqueName("testAllCompactedOut");
-        String topicName = "persistent://my-property/use/my-ns/" + topicLocalName;
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/use/my-ns/testAllCompactedOut");
         // set retain null key to true
         boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
@@ -225,8 +224,8 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "my-property/my-ns/" + topicLocalName)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);

@@ -187,8 +187,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testTopicTransactionMetrics() throws Exception {
-        var localTopicName = BrokerTestUtil.newUniqueName("test_transaction_topic");
-        final String topic = "persistent://tnx/ns1/" + localTopicName;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://tnx/ns1/test_transaction_topic");
 
         @Cleanup
         Producer<byte[]> producer = this.pulsarClient.newProducer()
@@ -227,7 +226,7 @@ public class TransactionTest extends TransactionTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "tnx/ns1/localTopicName")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
                 .build();
 
         var metrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();

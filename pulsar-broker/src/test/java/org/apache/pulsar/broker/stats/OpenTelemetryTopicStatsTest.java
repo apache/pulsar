@@ -59,8 +59,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
     @Test(timeOut = 30_000)
     public void testMessagingMetrics() throws Exception {
-        var localTopicName = BrokerTestUtil.newUniqueName("testMessagingMetrics");
-        var topicName = "persistent://prop/ns-abc/" + localTopicName;
+        var topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testMessagingMetrics");
         admin.topics().createNonPartitionedTopic(topicName);
 
         var producerCount = 5;
@@ -93,7 +92,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-abc/" + localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
                 .build();
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -122,8 +121,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
 
     @Test(timeOut = 30_000)
     public void testPublishRateLimitMetric() throws Exception {
-        var localTopicName = BrokerTestUtil.newUniqueName("testPublishRateLimitMetric");
-        var topicName = "persistent://prop/ns-abc/" + localTopicName;
+        var topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testPublishRateLimitMetric");
         admin.topics().createNonPartitionedTopic(topicName);
 
         var publishRate = new PublishRate(1, -1);
@@ -138,7 +136,7 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "prop/ns-abc/" + localTopicName)
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
                 .build();
 
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
