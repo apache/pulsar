@@ -85,6 +85,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategyFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
@@ -104,7 +105,7 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
 @Slf4j
-public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
+public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerSelectionStrategyFactory {
 
     public static final String BROKER_LOAD_DATA_STORE_TOPIC = TopicName.get(
             TopicDomain.non_persistent.value(),
@@ -252,6 +253,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return ownedServiceUnits;
     }
 
+    @Override
+    public BrokerSelectionStrategy createBrokerSelectionStrategy() {
+        return new LeastResourceUsageWithWeight();
+    }
+
     public enum Role {
         Leader,
         Follower
@@ -267,8 +273,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerFilterPipeline.add(new BrokerLoadManagerClassFilter());
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
-        // TODO: Make brokerSelectionStrategy configurable.
-        this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
+        this.brokerSelectionStrategy = createBrokerSelectionStrategy();
     }
 
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
