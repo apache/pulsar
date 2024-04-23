@@ -2088,54 +2088,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        Predicate<PositionImpl> skipCond = opReadEntry.skipCondition;
-        if (skipCond == null) {
-            long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
+        long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
+
+        Predicate<PositionImpl> skipCondition = opReadEntry.skipCondition;
+        if (skipCondition == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
                         lastEntry);
             }
-            asyncReadEntry(
-                    ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(), opReadEntry, opReadEntry.ctx);
+            asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
             return;
         }
 
-        // Try to read entries in the current ledger what we need through a single `entryIdSet` as much as possible.
-        long entryId = firstEntry;
-        int count = 0;
+        // Skip entries that don't match the predicate
         SortedSet<Long> entryIds = new TreeSet<>();
-        int entriesToRead = opReadEntry.getNumberOfEntriesToRead();
-        while (entryId <= lastEntryInLedger && count < entriesToRead) {
-            PositionImpl position = PositionImpl.get(ledger.getId(), entryId);
-            if (!skipCond.test(position)) {
-                entryIds.add(entryId);
-                count++;
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            PositionImpl position = new PositionImpl(ledger.getId(), entryId);
+            if (skipCondition.test(position)) {
+                continue;
             }
-            entryId++;
+            entryIds.add(entryId);
         }
         if (entryIds.isEmpty()) {
             // Move `readPosition` of `cursor`.
-            PositionImpl position = PositionImpl.get(ledger.getId(), entryId - 1);
+            PositionImpl position = PositionImpl.get(ledger.getId(), lastEntry - 1);
             opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, position);
             return;
         }
-        asyncReadEntry(ledger, entryIds, opReadEntry, opReadEntry.ctx);
-    }
 
-
-    private void asyncReadEntry(ReadHandle ledger, SortedSet<Long> entryIds, OpReadEntry opReadEntry, Object ctx) {
-        checkArgument(!entryIds.isEmpty());
         List<Pair<Long, Long>> ranges = toRanges(entryIds);
         ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry);
         for (Pair<Long, Long> pair : ranges) {
             long start = pair.getLeft();
             long end = pair.getRight();
-            // TODO: should handle `lastReadCallback` timeout check???
-            asyncReadEntry(ledger, start, end, opReadEntry.cursor.isCacheReadEntry(), callback, ctx);
+            asyncReadEntry(ledger, start, end, opReadEntry.cursor.isCacheReadEntry(), callback, opReadEntry.ctx);
         }
     }
 
-    // Parse entryIds to ranges.
     @VisibleForTesting
     public static List<Pair<Long, Long>> toRanges(SortedSet<Long> entryIds) {
         List<Pair<Long, Long>> ranges = new ArrayList<>();
@@ -2233,8 +2222,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    @VisibleForTesting
-    public void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, boolean shouldCacheEntries,
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, boolean shouldCacheEntries,
                                ReadEntriesCallback callback, Object ctx) {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
@@ -2246,6 +2234,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntries, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntries, callback, ctx);
+        }
+    }
+
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry,
+            Object ctx) {
+        if (config.getReadEntryTimeoutSeconds() > 0) {
+            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
+            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
+            long createdTime = System.nanoTime();
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
+                    opReadEntry, readOpCount, createdTime, ctx);
+            lastReadCallback = readCallback;
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(),
+                    readCallback, readOpCount);
+        } else {
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(), opReadEntry,
+                    ctx);
         }
     }
 
