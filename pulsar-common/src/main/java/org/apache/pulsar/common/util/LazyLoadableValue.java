@@ -16,41 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.pulsar.common.util;
 
-public final class WindowWrap<T> {
-    private final long interval;
-    private long start;
+import java.util.function.Supplier;
+
+/***
+ * Used to lazy load a value, only calculate it when used. Not thread-safety.
+ */
+public class LazyLoadableValue<T> {
+
+    private Supplier<T> loader;
+
     private T value;
 
-    public WindowWrap(long interval, long windowStart, T value) {
-        this.interval = interval;
-        this.start = windowStart;
-        this.value = value;
+    public LazyLoadableValue(Supplier<T> loader) {
+        this.loader = loader;
     }
 
-    public long interval() {
-        return this.interval;
-    }
-
-    public long start() {
-        return this.start;
-    }
-
-    public T value() {
+    public T getValue() {
+        if (value == null) {
+            value = loader.get();
+        }
         return value;
-    }
-
-    public void value(T value) {
-        this.value = value;
-    }
-
-    public WindowWrap<T> resetWindowStart(long startTime) {
-        this.start = startTime;
-        return this;
-    }
-
-    public boolean isTimeInWindow(long timeMillis) {
-        return start <= timeMillis && timeMillis < start + interval;
     }
 }

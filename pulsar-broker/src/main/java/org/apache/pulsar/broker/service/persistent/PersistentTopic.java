@@ -196,7 +196,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile List<String> shadowTopics;
     private final TopicName shadowSourceTopic;
 
-    static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+    public static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
+
+    public static boolean isDedupCursorName(String name) {
+        return DEDUPLICATION_CURSOR_NAME.equals(name);
+    }
     private static final String TOPIC_EPOCH_PROPERTY_NAME = "pulsar.topic.epoch";
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
@@ -2938,14 +2942,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)) {
                 if (backlogQuotaType == BacklogQuotaType.destination_storage && isSizeBacklogExceeded()) {
-                    log.info("[{}] Size backlog quota exceeded. Cannot create producer [{}]", this.getName(),
+                    log.debug("[{}] Size backlog quota exceeded. Cannot create producer [{}]", this.getName(),
                             producerName);
                     return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
                 }
                 if (backlogQuotaType == BacklogQuotaType.message_age) {
                     return checkTimeBacklogExceeded().thenCompose(isExceeded -> {
                         if (isExceeded) {
-                            log.info("[{}] Time backlog quota exceeded. Cannot create producer [{}]", this.getName(),
+                            log.debug("[{}] Time backlog quota exceeded. Cannot create producer [{}]", this.getName(),
                                     producerName);
                             return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
                         } else {
@@ -3119,7 +3123,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // if AutoSkipNonRecoverableData is set to true, just return true here.
                 return true;
             } else {
-                log.warn("[{}] Error while getting the oldest message", topic, e);
+                log.warn("[{}] [{}] Error while getting the oldest message", topic, cursor.toString(), e);
             }
         } finally {
             if (entry != null) {

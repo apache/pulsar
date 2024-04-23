@@ -169,7 +169,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
                 log.error("{} {}/{}/{} cannot be admitted by the runtime factory",
-                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
                 throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
                         ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
             }
@@ -327,7 +327,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
             } catch (Exception e) {
                 log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory",
-                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+                        ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
                 throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
                         ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
             }

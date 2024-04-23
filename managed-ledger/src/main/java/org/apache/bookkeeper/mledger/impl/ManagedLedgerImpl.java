@@ -138,6 +138,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.LazyLoadableValue;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -528,7 +529,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     return;
                 }
 
-                log.info("[{}] Created ledger {}", name, lh.getId());
+                log.info("[{}] Created ledger {} after closed {}", name, lh.getId(),
+                        currentLedger == null ? "null" : currentLedger.getId());
                 STATE_UPDATER.set(this, State.LedgerOpened);
                 updateLastLedgerCreatedTimeAndScheduleRolloverTask();
                 currentLedger = lh;
@@ -1032,6 +1034,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     + consumerName), ctx);
             return;
         } else if (!cursor.isDurable()) {
+            cursor.setState(ManagedCursorImpl.State.Closed);
             cursors.removeCursor(consumerName);
             deactivateCursorByName(consumerName);
             callback.deleteCursorComplete(ctx);
@@ -1261,6 +1264,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Error read entry for position {}", nextPos, exception);
                 future.completeExceptionally(exception);
+            }
+
+            @Override
+            public String toString() {
+                return String.format("ML [%s] get earliest message publish time of pos",
+                        ManagedLedgerImpl.this.name);
             }
         }, null);
 
@@ -1748,10 +1757,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        if (!pendingAddEntries.isEmpty()) {
-            // Need to create a new ledger to write pending entries
-            createLedgerAfterClosed();
-        }
+        createLedgerAfterClosed();
     }
 
     @Override
@@ -1763,7 +1769,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
-            log.info("[{}] Creating a new ledger after closed", name);
+            log.info("[{}] Creating a new ledger after closed {}", name,
+                    currentLedger == null ? "null" : currentLedger.getId());
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
@@ -1805,7 +1812,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                 }
             }, null);
         }
@@ -2570,15 +2576,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
-        return config.getRetentionTimeMillis() >= 0
-                && clock.millis() - ledgerTimestamp > config.getRetentionTimeMillis();
+    private boolean hasLedgerRetentionExpired(long retentionTimeMs, long ledgerTimestamp) {
+        return retentionTimeMs >= 0 && clock.millis() - ledgerTimestamp > retentionTimeMs;
     }
 
-    private boolean isLedgerRetentionOverSizeQuota(long sizeToDelete) {
+    private boolean isLedgerRetentionOverSizeQuota(long retentionSizeInMB, long totalSizeOfML, long sizeToDelete) {
         // Handle the -1 size limit as "infinite" size quota
-        return config.getRetentionSizeInMB() >= 0
-                && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= config.getRetentionSizeInMB() * MegaByte;
+        return retentionSizeInMB >= 0 && totalSizeOfML - sizeToDelete >= retentionSizeInMB * MegaByte;
     }
 
     boolean isOffloadedNeedsDelete(OffloadContext offload, Optional<OffloadPolicies> offloadPolicies) {
@@ -2675,6 +2679,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
+            final LazyLoadableValue<Long> slowestNonDurationLedgerId =
+                    new LazyLoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
+            final long retentionSizeInMB = config.getRetentionSizeInMB();
+            final long retentionTimeMs = config.getRetentionTimeMillis();
+            final long totalSizeOfML = TOTAL_SIZE_UPDATER.get(this);
             if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
@@ -2683,7 +2692,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 PositionImpl slowestReaderPosition = cursors.getSlowestReaderPosition();
                 if (slowestReaderPosition != null) {
-                    slowestReaderLedgerId = slowestReaderPosition.getLedgerId();
+                    // The slowest reader position is the mark delete position.
+                    // If the slowest reader position point the last entry in the ledger x,
+                    // the slowestReaderLedgerId should be x + 1 and the ledger x could be deleted.
+                    LedgerInfo ledgerInfo = ledgers.get(slowestReaderPosition.getLedgerId());
+                    if (ledgerInfo != null && ledgerInfo.getLedgerId() != currentLedger.getId()
+                            && ledgerInfo.getEntries() == slowestReaderPosition.getEntryId() + 1) {
+                        slowestReaderLedgerId = slowestReaderPosition.getLedgerId() + 1;
+                    } else {
+                        slowestReaderLedgerId = slowestReaderPosition.getLedgerId();
+                    }
                 } else {
                     promise.completeExceptionally(new ManagedLedgerException("Couldn't find reader position"));
                     trimmerMutex.unlock();
@@ -2697,7 +2715,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             long totalSizeToDelete = 0;
             // skip ledger if retention constraint met
-            for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
+            Iterator<LedgerInfo> ledgerInfoIterator =
+                    ledgers.headMap(slowestReaderLedgerId, false).values().iterator();
+            while (ledgerInfoIterator.hasNext()){
+                LedgerInfo ls = ledgerInfoIterator.next();
                 // currentLedger can not be deleted
                 if (ls.getLedgerId() == currentLedger.getId()) {
                     if (log.isDebugEnabled()) {
@@ -2717,8 +2738,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 totalSizeToDelete += ls.getSize();
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(totalSizeToDelete);
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(retentionSizeInMB, totalSizeOfML,
+                        totalSizeToDelete);
+                boolean expired = hasLedgerRetentionExpired(retentionTimeMs, ls.getTimestamp());
                 if (log.isDebugEnabled()) {
                     log.debug(
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
@@ -2735,14 +2757,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     ledgersToDelete.add(ls);
                 } else {
-                    if (ls.getLedgerId() < getTheSlowestNonDurationReadPosition().getLedgerId()) {
-                        // once retention constraint has been met, skip check
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name,
-                                    ls.getLedgerId());
-                        }
-                        invalidateReadHandle(ls.getLedgerId());
+                    // once retention constraint has been met, skip check
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
                     }
+                    releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue());
+                    break;
+                }
+            }
+
+            while (ledgerInfoIterator.hasNext()) {
+                LedgerInfo ls = ledgerInfoIterator.next();
+                if (!releaseReadHandleIfNoLongerRead(ls.getLedgerId(), slowestNonDurationLedgerId.getValue())) {
+                    break;
                 }
             }
 
@@ -2828,6 +2855,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * @param ledgerId the ledger handle which maybe will be released.
+     * @return if the ledger handle was released.
+     */
+    private boolean releaseReadHandleIfNoLongerRead(long ledgerId, long slowestNonDurationLedgerId) {
+        if (ledgerId < slowestNonDurationLedgerId) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Ledger {} no longer needs to be read, close the cached readHandle", name, ledgerId);
+            }
+            invalidateReadHandle(ledgerId);
+            return true;
+        }
+        return false;
+    }
+
     protected void doDeleteLedgers(List<LedgerInfo> ledgersToDelete) {
         PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
         // Update metadata
@@ -2859,15 +2901,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        // need to move mark delete for non-durable cursors to the first ledger NOT marked for deletion
-        // calling getNumberOfEntries latter for a ledger that is already deleted will be problematic and return
-        // incorrect results
-        Long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
-        if (firstNonDeletedLedger == null) {
-            throw new LedgerNotExistException("First non deleted Ledger is not found");
+        // Just ack messages like a consumer. Normally, consumers will not confirm a position that does not exist, so
+        // find the latest existing position to ack.
+        PositionImpl highestPositionToDelete = calculateLastEntryInLedgerList(ledgersToDelete);
+        if (highestPositionToDelete == null) {
+            log.warn("[{}] The ledgers to be trim are all empty, skip to advance non-durable cursors: {}",
+                    name, ledgersToDelete);
+            return;
         }
-        PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
-
         cursors.forEach(cursor -> {
             // move the mark delete position to the highestPositionToDelete only if it is smaller than the add confirmed
             // to prevent the edge case where the cursor is caught up to the latest and highestPositionToDelete may be
@@ -2889,6 +2930,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }, null);
             }
         });
+    }
+
+    /**
+     * @return null if all ledgers is empty.
+     */
+    private PositionImpl calculateLastEntryInLedgerList(List<LedgerInfo> ledgersToDelete) {
+        for (int i = ledgersToDelete.size() - 1; i >= 0; i--) {
+            LedgerInfo ledgerInfo = ledgersToDelete.get(i);
+            if (ledgerInfo != null && ledgerInfo.hasEntries() && ledgerInfo.getEntries() > 0) {
+                return PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+            }
+        }
+        return null;
     }
 
     /**
@@ -3640,23 +3694,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return true if the position is valid, false otherwise
      */
     public boolean isValidPosition(PositionImpl position) {
-        PositionImpl last = lastConfirmedEntry;
+        PositionImpl lac = lastConfirmedEntry;
         if (log.isDebugEnabled()) {
-            log.debug("IsValid position: {} -- last: {}", position, last);
+            log.debug("IsValid position: {} -- last: {}", position, lac);
         }
 
-        if (position.getEntryId() < 0) {
+        if (!ledgers.containsKey(position.getLedgerId())){
             return false;
-        } else if (position.getLedgerId() > last.getLedgerId()) {
+        } else if (position.getEntryId() < 0) {
             return false;
-        } else if (position.getLedgerId() == last.getLedgerId()) {
-            return position.getEntryId() <= (last.getEntryId() + 1);
+        } else if (currentLedger != null && position.getLedgerId() == currentLedger.getId()) {
+            // If current ledger is empty, the largest read position can be "{current_ledger: 0}".
+            // Else, the read position can be set to "{LAC + 1}" when subscribe at LATEST,
+            return (position.getLedgerId() == lac.getLedgerId() && position.getEntryId() <= lac.getEntryId() + 1)
+                    || position.getEntryId() == 0;
+        } else if (position.getLedgerId() == lac.getLedgerId()) {
+            // The ledger witch maintains LAC was closed, and there is an empty current ledger.
+            // If entry id is larger than LAC, it should be "{current_ledger: 0}".
+            return position.getEntryId() <= lac.getEntryId();
         } else {
             // Look in the ledgers map
             LedgerInfo ls = ledgers.get(position.getLedgerId());
 
             if (ls == null) {
-                if (position.getLedgerId() < last.getLedgerId()) {
+                if (position.getLedgerId() < lac.getLedgerId()) {
                     // Pointing to a non-existing ledger that is older than the current ledger is invalid
                     return false;
                 } else {
@@ -3684,7 +3745,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         PositionImpl skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
         while (!isValidPosition(skippedPosition)) {
             Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
+            // This means it has jumped to the last position
             if (nextLedgerId == null) {
+                if (currentLedgerEntries == 0 && currentLedger != null) {
+                    return PositionImpl.get(currentLedger.getId(), 0);
+                }
                 return lastConfirmedEntry.getNext();
             }
             skippedPosition = PositionImpl.get(nextLedgerId, 0);
@@ -3793,6 +3858,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void removeWaitingCursor(ManagedCursor cursor) {
         this.waitingCursors.remove(cursor);
+    }
+
+    public void addWaitingCursor(ManagedCursorImpl cursor) {
+        this.waitingCursors.add(cursor);
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
@@ -4450,9 +4519,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public boolean checkInactiveLedgerAndRollOver() {
-        long currentTimeMs = System.currentTimeMillis();
-        if (currentLedgerEntries > 0 && inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs
-                + inactiveLedgerRollOverTimeMs)) {
+        if (factory.isMetadataServiceAvailable()
+                && currentLedgerEntries > 0
+                && inactiveLedgerRollOverTimeMs > 0
+                && System.currentTimeMillis() > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
             if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
                 LedgerHandle currentLedger = this.currentLedger;
@@ -4471,7 +4541,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
 
                     ledgerClosed(lh);
-                    createLedgerAfterClosed();
                     // we do not create ledger here, since topic is inactive for a long time.
                 }, null);
                 return true;

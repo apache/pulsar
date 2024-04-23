@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -44,7 +45,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<V> extends KafkaPushSource<V> {
     public static final String HEADER_KAFKA_TOPIC_KEY = "__kafka_topic";
     public static final String HEADER_KAFKA_PTN_KEY = "__kafka_partition";
     public static final String HEADER_KAFKA_OFFSET_KEY = "__kafka_offset";
@@ -63,6 +63,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
+    private long maxPollIntervalMs;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -126,6 +127,13 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaSourceConfig.getAutoOffsetReset());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
+        if (props.containsKey(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)) {
+            maxPollIntervalMs = Long.parseLong(props.get(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG).toString());
+        } else {
+            maxPollIntervalMs = Long.parseLong(
+                    ConsumerConfig.configDef().defaultValues().get(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG)
+                            .toString());
+        }
         try {
             consumer = new KafkaConsumer<>(beforeCreateConsumer(props));
         } catch (Exception ex) {
@@ -175,7 +183,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                         index++;
                     }
                     if (!kafkaSourceConfig.isAutoCommitEnabled()) {
-                        CompletableFuture.allOf(futures).get();
+                        // Wait about 2/3 of the time of maxPollIntervalMs.
+                        // so as to avoid waiting for the timeout to be kicked out of the consumer group.
+                        CompletableFuture.allOf(futures).get(maxPollIntervalMs * 2 / 3, TimeUnit.MILLISECONDS);
                         consumer.commitSync();
                     }
                 } catch (Exception e) {
@@ -251,6 +261,21 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Override
         public void ack() {
             completableFuture.complete(null);
+        }
+
+        @Override
+        public void fail() {
+            completableFuture.completeExceptionally(
+                    new RuntimeException(
+                            String.format(
+                                    "Failed to process record with kafka topic: %s partition: %d offset: %d key: %s",
+                                    record.topic(),
+                                    record.partition(),
+                                    record.offset(),
+                                    getKey()
+                            )
+                    )
+            );
         }
 
         @Override

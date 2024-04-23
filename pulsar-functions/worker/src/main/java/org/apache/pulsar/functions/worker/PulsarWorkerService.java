@@ -224,7 +224,7 @@ public class PulsarWorkerService implements WorkerService {
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
                     log.error("Failed to connect to Pulsar service at {} after {} attempts",
-                            workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                            workerConfig.getPulsarFunctionsNamespace(), maxRetries, e);
                     throw e;
                 }
                 retries++;

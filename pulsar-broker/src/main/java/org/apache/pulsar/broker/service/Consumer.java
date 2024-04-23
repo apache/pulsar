@@ -148,7 +148,7 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
-    private long negtiveUnackedMsgsTimestamp;
+    private long negativeUnackedMsgsTimestamp;
 
     @Getter
     private final SchemaType schemaType;
@@ -1111,8 +1111,8 @@ public class Consumer {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
-        if (unackedMsgs < 0 && System.currentTimeMillis() - negtiveUnackedMsgsTimestamp >= 10_000) {
-            negtiveUnackedMsgsTimestamp = System.currentTimeMillis();
+        if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
+            negativeUnackedMsgsTimestamp = System.currentTimeMillis();
             log.warn("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;

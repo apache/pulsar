@@ -752,7 +752,7 @@ public class Producer {
         }
         if (this.isNonPersistentTopic) {
             msgDrop.calculateRate();
-            ((NonPersistentPublisherStatsImpl) stats).msgDropRate = msgDrop.getRate();
+            ((NonPersistentPublisherStatsImpl) stats).msgDropRate = msgDrop.getValueRate();
         }
     }
 

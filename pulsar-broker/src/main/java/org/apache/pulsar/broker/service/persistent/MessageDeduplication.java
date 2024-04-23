@@ -27,6 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -132,6 +133,9 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
+
+    private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
+
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
         this.topic = topic;
@@ -153,9 +157,14 @@ public class MessageDeduplication {
 
         // Replay all the entries and apply all the sequence ids updates
         log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<Position> future = new CompletableFuture<>();
         replayCursor(future);
-        return future;
+        return future.thenAccept(lastPosition -> {
+            if (lastPosition != null && snapshotCounter >= snapshotInterval) {
+                snapshotCounter = 0;
+                takeSnapshot(lastPosition);
+            }
+        });
     }
 
     /**
@@ -164,11 +173,11 @@ public class MessageDeduplication {
      *
      * @param future future to trigger when the replay is complete
      */
-    private void replayCursor(CompletableFuture<Void> future) {
+    private void replayCursor(CompletableFuture<Position> future) {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-
+                Position lastPosition = null;
                 for (Entry entry : entries) {
                     ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
                     MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
@@ -178,7 +187,8 @@ public class MessageDeduplication {
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
                     producerRemoved(producerName);
-
+                    snapshotCounter++;
+                    lastPosition = entry.getPosition();
                     entry.release();
                 }
 
@@ -187,7 +197,7 @@ public class MessageDeduplication {
                     pulsar.getExecutor().execute(() -> replayCursor(future));
                 } else {
                     // Done replaying
-                    future.complete(null);
+                    future.complete(lastPosition);
                 }
             }
 
@@ -432,6 +442,11 @@ public class MessageDeduplication {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
+
+        if (!snapshotTaking.compareAndSet(false, true)) {
+            return;
+        }
+
         Map<String, Long> snapshot = new TreeMap<>();
         highestSequencedPersisted.forEach((producerName, sequenceId) -> {
             if (snapshot.size() < maxNumberOfProducers) {
@@ -446,11 +461,13 @@ public class MessageDeduplication {
                     log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
                 }
                 lastSnapshotTimestamp = System.currentTimeMillis();
+                snapshotTaking.set(false);
             }
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                snapshotTaking.set(false);
             }
         }, null);
     }

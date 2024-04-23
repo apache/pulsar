@@ -151,7 +151,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topic, subscriptionName, cursor, this);
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
@@ -306,7 +306,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
-            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
@@ -335,11 +334,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     if (!isResetCursor) {
                         try {
                             topic.getManagedLedger().deleteCursor(cursor.getName());
+                            topic.getManagedLedger().removeWaitingCursor(cursor);
                         } catch (InterruptedException | ManagedLedgerException e) {
                             log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                         }
                     }
                 });
+            } else {
+                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 
@@ -877,6 +879,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
+            }
+
+            @Override
+            public String toString() {
+                return String.format("Subscription [%s-%s] async replay entries", PersistentSubscription.this.topicName,
+                        PersistentSubscription.this.subName);
             }
         }, null);
 

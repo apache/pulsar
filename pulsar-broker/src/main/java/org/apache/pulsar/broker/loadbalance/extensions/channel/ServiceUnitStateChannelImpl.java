@@ -1024,7 +1024,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
                     log.info("Successfully split {} parent namespace-bundle to {} in {} ms",
                             parentBundle, childBundles, splitBundleTime);
-                    namespaceService.onNamespaceBundleSplit(parentBundle);
                     completionFuture.complete(null);
                 })
                 .exceptionally(ex -> {

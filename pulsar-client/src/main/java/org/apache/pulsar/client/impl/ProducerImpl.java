@@ -179,9 +179,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
-        this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
-                ? Math.min(conf.getChunkMaxMessageSize(), ClientCnx.getMaxMessageSize())
-                : ClientCnx.getMaxMessageSize();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
@@ -274,8 +271,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
                 .create(),
             this);
-
+        setChunkMaxMessageSize();
         grabCnx();
+    }
+
+    private void setChunkMaxMessageSize() {
+        this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
+                ? Math.min(conf.getChunkMaxMessageSize(), getMaxMessageSize())
+                : getMaxMessageSize();
     }
 
     protected void semaphoreRelease(final int releaseCountRequest) {
@@ -333,73 +336,78 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (interceptors != null) {
             interceptorMessage.getProperties();
         }
-        sendAsync(interceptorMessage, new SendCallback() {
-            SendCallback nextCallback = null;
-            MessageImpl<?> nextMsg = null;
-            long createdAt = System.nanoTime();
 
-            @Override
-            public CompletableFuture<MessageId> getFuture() {
-                return future;
-            }
-
-            @Override
-            public SendCallback getNextSendCallback() {
-                return nextCallback;
-            }
-
-            @Override
-            public MessageImpl<?> getNextMessage() {
-                return nextMsg;
-            }
-
-            @Override
-            public void sendComplete(Exception e) {
-                try {
-                    if (e != null) {
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                    }
-                } finally {
-                    interceptorMessage.getDataBuffer().release();
-                }
-
-                while (nextCallback != null) {
-                    SendCallback sendCallback = nextCallback;
-                    MessageImpl<?> msg = nextMsg;
-                    // Retain the buffer used by interceptors callback to get message. Buffer will release after
-                    // complete interceptors.
-                    try {
-                        msg.getDataBuffer().retain();
-                        if (e != null) {
-                            stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
-                        } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
-                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                        }
-                        nextMsg = nextCallback.getNextMessage();
-                        nextCallback = nextCallback.getNextSendCallback();
-                    } finally {
-                        msg.getDataBuffer().release();
-                    }
-                }
-            }
-
-            @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-                nextMsg = msg;
-                nextCallback = scb;
-            }
-        });
+        int msgSize = interceptorMessage.getDataBuffer().readableBytes();
+        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    private class DefaultSendMessageCallback implements SendCallback {
+
+        CompletableFuture<MessageId> sendFuture;
+        MessageImpl<?> currentMsg;
+        long createdAt = System.nanoTime();
+        SendCallback nextCallback = null;
+        MessageImpl<?> nextMsg = null;
+
+        DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg, int msgSize) {
+            this.sendFuture = sendFuture;
+            this.currentMsg = currentMsg;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getFuture() {
+            return sendFuture;
+        }
+
+        @Override
+        public SendCallback getNextSendCallback() {
+            return nextCallback;
+        }
+
+        @Override
+        public MessageImpl<?> getNextMessage() {
+            return nextMsg;
+        }
+
+        @Override
+        public void sendComplete(Exception e) {
+            SendCallback loopingCallback = this;
+            MessageImpl<?> loopingMsg = currentMsg;
+            while (loopingCallback != null) {
+                onSendComplete(e, loopingCallback, loopingMsg);
+                loopingMsg = loopingCallback.getNextMessage();
+                loopingCallback = loopingCallback.getNextSendCallback();
+            }
+        }
+
+        private void onSendComplete(Exception e, SendCallback sendCallback, MessageImpl<?> msg) {
+            long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
+                    ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
+            long latencyNanos = System.nanoTime() - createdAt;
+            ByteBuf payload = msg.getDataBuffer();
+            if (payload == null) {
+                log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
+                        topic, producerName);
+            } else {
+                ReferenceCountUtil.safeRelease(payload);
+            }
+            if (e != null) {
+                stats.incrementSendFailed();
+                onSendAcknowledgement(msg, null, e);
+                sendCallback.getFuture().completeExceptionally(e);
+            } else {
+                stats.incrementNumAcksReceived(latencyNanos);
+                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                sendCallback.getFuture().complete(msg.getMessageId());
+            }
+        }
+
+        @Override
+        public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+            nextMsg = msg;
+            nextCallback = scb;
+        }
     }
 
     @Override
@@ -454,14 +462,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-            if (compressedSize > ClientCnx.getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
+            if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
                 compressedPayload.release();
                 String compressedStr = conf.getCompressionType() != CompressionType.NONE ? "Compressed" : "";
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
                                 format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds"
                                                 + " %d bytes",
-                        producerName, topic, compressedStr, compressedSize, ClientCnx.getMaxMessageSize()));
+                        producerName, topic, compressedStr, compressedSize, getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 return;
             }
@@ -491,19 +499,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int payloadChunkSize;
         if (canAddToBatch(msg) || !conf.isChunkingEnabled()) {
             totalChunks = 1;
-            payloadChunkSize = ClientCnx.getMaxMessageSize();
+            payloadChunkSize = getMaxMessageSize();
         } else {
             // Reserve current metadata size for chunk size to avoid message size overflow.
             // NOTE: this is not strictly bounded, as metadata will be updated after chunking.
             // So there is a small chance that the final message size is larger than ClientCnx.getMaxMessageSize().
             // But it won't cause produce failure as broker have 10 KB padding space for these cases.
-            payloadChunkSize = ClientCnx.getMaxMessageSize() - msgMetadata.getSerializedSize();
+            payloadChunkSize = getMaxMessageSize() - msgMetadata.getSerializedSize();
             if (payloadChunkSize <= 0) {
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
                                 format("The producer %s of the topic %s sends a message with %d bytes metadata that "
                                                 + "exceeds %d bytes", producerName, topic,
-                                        msgMetadata.getSerializedSize(), ClientCnx.getMaxMessageSize()));
+                                        msgMetadata.getSerializedSize(), getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 compressedPayload.release();
                 return;
@@ -1659,7 +1667,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
-        chunkMaxMessageSize = Math.min(chunkMaxMessageSize, ClientCnx.getMaxMessageSize());
+        getConnectionHandler().setMaxMessageSize(cnx.getMaxMessageSize());
+        setChunkMaxMessageSize();
 
         final long epoch;
         synchronized (this) {
@@ -2319,16 +2328,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean isMessageSizeExceeded(OpSendMsg op) {
         if (op.msg != null && !conf.isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
-            if (messageSize > ClientCnx.getMaxMessageSize()) {
+            if (messageSize > getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
                 op.sendComplete(new PulsarClientException.InvalidMessageException(
                         format("The producer %s of the topic %s sends a message with %d bytes that exceeds %d bytes",
-                                producerName, topic, messageSize, ClientCnx.getMaxMessageSize()),
+                                producerName, topic, messageSize, getMaxMessageSize()),
                         op.sequenceId));
                 return true;
             }
         }
         return false;
+    }
+
+    private int getMaxMessageSize() {
+        return getConnectionHandler().getMaxMessageSize();
     }
 
     public long getDelayInMillis() {

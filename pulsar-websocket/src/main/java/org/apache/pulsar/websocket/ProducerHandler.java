@@ -38,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -103,11 +104,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                         request.getRemotePort(), topic);
             }
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
-                    request.getRemotePort(), topic, e.getMessage());
+            int errorCode = getErrorCode(e);
+            boolean isKnownError = errorCode != HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            if (isKnownError) {
+                log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic, e.getMessage());
+            } else {
+                log.error("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic, e.getMessage(), e);
+            }
 
             try {
-                response.sendError(getErrorCode(e), getErrorMessage(e));
+                response.sendError(errorCode, getErrorMessage(e));
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);

@@ -127,8 +127,8 @@ public class BacklogQuotaManagerTest {
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-            config.setSystemTopicEnabled(false);
-            config.setTopicLevelPoliciesEnabled(false);
+            config.setSystemTopicEnabled(true);
+            config.setTopicLevelPoliciesEnabled(true);
             config.setForceDeleteNamespaceAllowed(true);
 
             pulsar = new PulsarService(config);
@@ -228,7 +228,7 @@ public class BacklogQuotaManagerTest {
             // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
 
             MessageIdImpl msgId = null;
@@ -254,9 +254,6 @@ public class BacklogQuotaManagerTest {
 
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
-
-                // check if its the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMsgId.getLedgerId());
             });
 
             // check reader can still read with out error
@@ -303,10 +300,10 @@ public class BacklogQuotaManagerTest {
             TopicStats stats = getTopicStats(topic1);
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
-            // non-durable mes should still
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
-            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
+            // All the full ledgers should be deleted.
+            assertEquals(nonDurableSubscriptionBacklog, 0,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
             MessageIdImpl messageId = null;
             try {
@@ -327,8 +324,8 @@ public class BacklogQuotaManagerTest {
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
 
-                // check if its the expected ledger id given MAX_ENTRIES_PER_LEDGER
-                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId());
+                // check if it's the expected ledger id given MAX_ENTRIES_PER_LEDGER
+                assertEquals(internalStats.ledgers.get(0).ledgerId, finalMessageId.getLedgerId() + 1);
             });
             // check reader can still read with out error
 
@@ -1169,8 +1166,13 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "backlog exceeded exception did not occur");
     }
 
-    @Test
-    public void testProducerExceptionAndThenUnblockSizeQuota() throws Exception {
+    @DataProvider(name = "dedupTestSet")
+    public static Object[][] dedupTestSet() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    @Test(dataProvider = "dedupTestSet")
+    public void testProducerExceptionAndThenUnblockSizeQuota(boolean dedupTestSet) throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 new HashMap<>());
         admin.namespaces().setBacklogQuota("prop/quotahold",
@@ -1186,9 +1188,12 @@ public class BacklogQuotaManagerTest {
         boolean gotException = false;
 
         Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
-
         byte[] content = new byte[1024];
         Producer<byte[]> producer = createProducer(client, topic1);
+
+        admin.topicPolicies().setDeduplicationStatus(topic1, dedupTestSet);
+        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
+
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
@@ -1207,6 +1212,7 @@ public class BacklogQuotaManagerTest {
         }
 
         assertTrue(gotException, "backlog exceeded exception did not occur");
+        assertFalse(producer.isConnected());
         // now remove backlog and ensure that producer is unblocked;
 
         TopicStats stats = getTopicStats(topic1);
@@ -1223,14 +1229,33 @@ public class BacklogQuotaManagerTest {
         Exception sendException = null;
         gotException = false;
         try {
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 10; i++) {
                 producer.send(content);
+                Message<?> msg = consumer.receive();
+                consumer.acknowledge(msg);
             }
         } catch (Exception e) {
             gotException = true;
             sendException = e;
         }
+        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         assertFalse(gotException, "unable to publish due to " + sendException);
+
+        gotException = false;
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
+        try {
+            // try to send over backlog quota and make sure it passes
+            producer.send(content);
+            producer.send(content);
+        } catch (PulsarClientException ce) {
+            assertTrue(ce instanceof PulsarClientException.ProducerBlockedQuotaExceededException
+                    || ce instanceof PulsarClientException.TimeoutException, ce.getMessage());
+            gotException = true;
+            sendException = ce;
+        }
+        assertFalse(gotException, "unable to publish due to " + sendException);
+        assertEquals(lastDisconnectedTimestamp, producer.getLastDisconnectedTimestamp());
+
     }
 
     @Test
