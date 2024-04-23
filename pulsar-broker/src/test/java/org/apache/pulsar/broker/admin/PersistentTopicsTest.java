@@ -57,9 +57,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.admin.v2.ExtPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
-import org.apache.pulsar.broker.admin.v2.ExtPersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -1667,7 +1667,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 true, 5);
         verify(response, timeout(5000).times(1)).resume(throwableCaptor.capture());
         Assert.assertEquals(throwableCaptor.getValue().getMessage(),
-                "Desired partitions 5 can't be greater than the maximum partitions per topic 4.");
+                "Expect partitions 5 grater than maximum partitions per topic 4");
 
         response = mock(AsyncResponse.class);
         metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
