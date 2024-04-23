@@ -18,19 +18,31 @@
  */
 package org.apache.pulsar.tests.integration.backwardscompatibility;
 
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_3_0_IMAGE_NAME;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
-import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.tests.integration.containers.CSContainer;
+import org.apache.pulsar.tests.integration.containers.NoopContainer;
+import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.offload.TestBaseOffload;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class ClientOffloadTest3_0 extends TestBaseOffload {
+/**
+ * Test new version server and old version client.
+ */
+public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
+
+    private NoopContainer toolsetContainer;
+
     @Override
     protected Map<String, String> getEnv() {
         Map<String, String> result = new HashMap<>();
@@ -45,9 +57,15 @@ public class ClientOffloadTest3_0 extends TestBaseOffload {
     @Override
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
-        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-            brokerContainer.setDockerImageName(PulsarContainer.PULSAR_3_0_IMAGE_NAME);
-        }
+
+        PulsarClusterSpec spec = this.getPulsarCluster().getSpec();
+        String clusterName = spec.clusterName();
+
+        toolsetContainer = new NoopContainer(clusterName, clusterName + "-" + NoopContainer.NAME, PULSAR_3_0_IMAGE_NAME)
+                .withEnv("metadataStoreUrl", ZKContainer.NAME)
+                .withEnv("configurationMetadataStoreUrl", CSContainer.NAME + ":" + CS_PORT)
+                .withEnv("clusterName", clusterName);
+        toolsetContainer.start();
     }
 
     @Test(dataProvider = "ServiceAndAdminUrls")
@@ -105,9 +123,17 @@ public class ClientOffloadTest3_0 extends TestBaseOffload {
         offloadedLedgerInfo = admin.topics().getInternalStats(topic).ledgers.stream()
                 .filter((x) -> x.ledgerId == finalOffloadedLedger2).findFirst().get();
         Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertTrue(offloadedLedgerInfo.bookkeeperDeleted);
 
-        // old version server, new version client
-        // the new field `bookkeeperDeleted` should always be false
+        output = toolsetContainer.execCmd(PulsarCluster.ADMIN_SCRIPT, "topics", "stats-internal", topic).getStdout();
+        // old version client should not recognize `bookkeeperDeleted`
+        Assert.assertFalse(output.contains("bookkeeperDeleted"));
+        PersistentTopicInternalStats topicInternalStats =
+                jsonMapper().readValue(output, PersistentTopicInternalStats.class);
+        offloadedLedgerInfo = topicInternalStats.ledgers.stream()
+                .filter((x) -> x.ledgerId == finalOffloadedLedger2).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        // old version client should not recognize `bookkeeperDeleted`, so should be default value `False`
         Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
 
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "clear-offload-deletion-lag", namespace);

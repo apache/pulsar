@@ -1,0 +1,48 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.tests.integration.containers;
+
+/**
+ * A pulsar container that runs nothing.
+ */
+public class NoopContainer extends PulsarContainer<NoopContainer> {
+
+    public static final String NAME = "toolset";
+
+    public NoopContainer(String clusterName, String hostName, String imageName) {
+        this(clusterName, hostName, false, imageName);
+    }
+
+
+    public NoopContainer(String clusterName, String hostName) {
+        this(clusterName, hostName, false, DEFAULT_IMAGE_NAME);
+    }
+
+    public NoopContainer(String clusterName, String hostName, boolean enableTls, String imageName) {
+        super(clusterName, hostName, hostName, "sleep infinity", BROKER_PORT,
+                enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, imageName);
+        tailContainerLog();
+    }
+
+    public String getHostName() {
+        return super.hostname;
+    }
+
+}
