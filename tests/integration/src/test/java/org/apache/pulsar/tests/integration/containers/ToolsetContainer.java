@@ -18,31 +18,33 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+
 /**
  * A pulsar container that runs nothing.
  */
-public class NoopContainer extends PulsarContainer<NoopContainer> {
+public class ToolsetContainer extends ChaosContainer<ToolsetContainer> {
 
     public static final String NAME = "toolset";
 
-    public NoopContainer(String clusterName, String hostName, String imageName) {
-        this(clusterName, hostName, false, imageName);
+    public ToolsetContainer(String clusterName, String imageName) {
+        super(clusterName, imageName);
     }
 
-
-    public NoopContainer(String clusterName, String hostName) {
-        this(clusterName, hostName, false, DEFAULT_IMAGE_NAME);
+    @Override
+    public String getContainerName() {
+        return clusterName + "-" + NAME;
     }
 
-    public NoopContainer(String clusterName, String hostName, boolean enableTls, String imageName) {
-        super(clusterName, hostName, hostName, "sleep infinity", BROKER_PORT,
-                enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
-                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, imageName);
-        tailContainerLog();
+    @Override
+    protected void configure() {
+        super.configure();
+        this.withNetworkAliases(NAME)
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(NAME);
+                    createContainerCmd.withName(getContainerName());
+                    createContainerCmd.withCmd("sleep", "infinity");
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
-
-    public String getHostName() {
-        return super.hostname;
-    }
-
 }

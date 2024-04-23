@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
-import org.apache.pulsar.tests.integration.containers.NoopContainer;
+import org.apache.pulsar.tests.integration.containers.ToolsetContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.offload.TestBaseOffload;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
  */
 public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
 
-    private NoopContainer toolsetContainer;
+    private ToolsetContainer toolsetContainer;
 
     @Override
     protected Map<String, String> getEnv() {
@@ -61,7 +61,7 @@ public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
         PulsarClusterSpec spec = this.getPulsarCluster().getSpec();
         String clusterName = spec.clusterName();
 
-        toolsetContainer = new NoopContainer(clusterName, clusterName + "-" + NoopContainer.NAME, PULSAR_3_0_IMAGE_NAME)
+        toolsetContainer = new ToolsetContainer(clusterName, PULSAR_3_0_IMAGE_NAME)
                 .withEnv("metadataStoreUrl", ZKContainer.NAME)
                 .withEnv("configurationMetadataStoreUrl", CSContainer.NAME + ":" + CS_PORT)
                 .withEnv("clusterName", clusterName);
