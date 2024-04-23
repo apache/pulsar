@@ -72,9 +72,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     public static final String PUBLISH_RATE_LIMIT_HIT_COUNTER = "pulsar.broker.topic.publish.rate.limit";
     private final ObservableLongMeasurement publishRateLimitHitCounter;
 
-    // Replaces pulsar_consumer_msg_ack_rate
-    public static final String CONSUMER_MSG_ACK_COUNTER = "pulsar.broker.topic.consumer.msg.ack";
-    private final ObservableLongMeasurement consumerMsgAckCounter;
+    // Omitted: pulsar_consumer_msg_ack_rate
 
     // Replaces pulsar_storage_size
     public static final String STORAGE_COUNTER = "pulsar.broker.topic.storage.size";
@@ -230,12 +228,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The number of times the publish rate limit is triggered.")
                 .buildObserver();
 
-        consumerMsgAckCounter = meter
-                .upDownCounterBuilder(CONSUMER_MSG_ACK_COUNTER)
-                .setUnit("{ack}")
-                .setDescription("The total number of message acknowledgments received for this topic.")
-                .buildObserver();
-
         storageCounter = meter
                 .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("{byte}")
@@ -371,7 +363,6 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 bytesInCounter,
                 bytesOutCounter,
                 publishRateLimitHitCounter,
-                consumerMsgAckCounter,
                 storageCounter,
                 storageLogicalCounter,
                 storageBacklogCounter,
