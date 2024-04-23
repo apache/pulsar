@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -59,17 +60,26 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         conf.setSystemTopicEnabled(false);
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setAuthenticationEnabled(true);
+        conf.setForceDeleteNamespaceAllowed(true);
+        conf.setForceDeleteTenantAllowed(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
     }
 
     @Override
     protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
         pulsarAdminBuilder.authentication(new MockAuthentication("pass.pass"));
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.authentication(new MockAuthentication("pass.pass"));
     }
 
     @AfterClass(alwaysRun = true)
@@ -237,6 +247,24 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("p1/c1/ns1", true);
         admin.tenants().deleteTenant("p1");
+
+        admin.clusters().deleteCluster("c1");
+    }
+
+    @Test
+    public void testDeleteV1Tenant() throws Exception {
+        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        waitForChange();
+        admin.namespaces().createNamespace("p1/c1/ns1");
+        waitForChange();
+
+
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
+        admin.tenants().deleteTenant("p1", true);
         admin.clusters().deleteCluster("c1");
     }
 
