@@ -33,3 +33,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master
+
+permissions:
+  actions: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: none
+  packages: read
+  pages: none
+  pull-requests: write
+  repository-projects: none
+  security-events: none
+  statuses: read

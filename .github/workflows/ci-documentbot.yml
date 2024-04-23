@@ -31,11 +31,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.number }}
   cancel-in-progress: true
 
+permissions:
+  actions: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: none
+  packages: read
+  pages: none
+  pull-requests: write
+  repository-projects: none
+  security-events: none
+  statuses: read
+
 jobs:
   label:
     if: (github.repository == 'apache/pulsar') && (github.event.pull_request.state == 'open')
     permissions:
-      pull-requests: write 
+      pull-requests: write
     runs-on: ubuntu-22.04
     steps:
       - name: Labeling
