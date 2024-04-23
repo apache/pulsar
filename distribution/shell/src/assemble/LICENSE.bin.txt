@@ -393,9 +393,9 @@ The Apache Software License, Version 2.0
     - opentelemetry-extension-incubator-1.34.1-alpha.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.16.5.jar
-    - cpu-affinity-4.16.5.jar
-    - circe-checksum-4.16.5.jar
+    - bookkeeper-common-allocator-4.17.0.jar
+    - cpu-affinity-4.17.0.jar
+    - circe-checksum-4.17.0.jar
   * AirCompressor
      - aircompressor-0.20.jar
  * AsyncHttpClient
@@ -429,7 +429,7 @@ MIT License
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
+   - protobuf-java-3.22.3.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
