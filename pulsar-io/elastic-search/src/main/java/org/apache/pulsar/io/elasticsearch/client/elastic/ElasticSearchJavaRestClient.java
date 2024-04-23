@@ -84,6 +84,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                         .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
                         .setConnectTimeout(config.getConnectTimeoutInMs())
                         .setSocketTimeout(config.getSocketTimeoutInMs()))
+                .setCompressionEnabled(config.isCompressionEnabled())
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.elasticsearch.client.RestClient.FailureListener() {
                     public void onFailure(Node node) {
