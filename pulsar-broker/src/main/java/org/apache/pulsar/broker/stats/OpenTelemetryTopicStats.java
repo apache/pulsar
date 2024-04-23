@@ -119,7 +119,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     // Omitted: pulsar_entry_size_le_*
 
     // Replaces pulsar_compaction_removed_event_count
-    public static final String COMPACTION_REMOVED_COUNTER = "pulsar.broker.topic.compaction.removed.event.count";
+    public static final String COMPACTION_REMOVED_COUNTER = "pulsar.broker.topic.compaction.removed.message.count";
     private final ObservableLongMeasurement compactionRemovedCounter;
 
     // Replaces pulsar_compaction_succeed_count
@@ -290,8 +290,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
         compactionRemovedCounter = meter
                 .upDownCounterBuilder(COMPACTION_REMOVED_COUNTER)
-                .setUnit("{event}")
-                .setDescription("The total number of removed events of the compaction.")
+                .setUnit("{message}")
+                .setDescription("The total number of messages removed by compaction.")
                 .buildObserver();
 
         compactionSucceededCounter = meter
