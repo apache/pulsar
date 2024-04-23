@@ -25,6 +25,9 @@ import java.util.Map;
  * Consumer statistics.
  */
 public interface ConsumerStats {
+    /** the role used for authorization. */
+    String getRole();
+
     /** Total rate of messages delivered to the consumer (msg/s). */
     double getMsgRateOut();
 

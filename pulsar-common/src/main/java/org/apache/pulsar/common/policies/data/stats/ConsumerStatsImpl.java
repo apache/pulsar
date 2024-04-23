@@ -30,6 +30,9 @@ import org.apache.pulsar.common.util.DateFormatter;
  */
 @Data
 public class ConsumerStatsImpl implements ConsumerStats {
+    /** the role used for authorization. */
+    public String role;
+
     /** Total rate of messages delivered to the consumer (msg/s). */
     public double msgRateOut;
 
