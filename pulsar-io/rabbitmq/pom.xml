@@ -85,13 +85,6 @@
       <artifactId>qpid-broker</artifactId>
       <version>9.2.0</version>
       <scope>test</scope>
-      <exclusions>
-        <!-- com.sleepycat:je:7.4.5 in the Oracle Maven Repository, not Maven Central -->
-        <exclusion>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-bdbstore</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>
