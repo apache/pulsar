@@ -231,19 +231,19 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         storageCounter = meter
                 .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total storage size of the messages in this topic.")
+                .setDescription("The total storage size of the messages in this topic, including storage used by replicas.")
                 .buildObserver();
 
         storageLogicalCounter = meter
                 .upDownCounterBuilder(STORAGE_LOGICAL_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The storage size of topics in the namespace owned by the broker without replicas.")
+                .setDescription("The storage size of the messages in this topic, excluding storage used by replicas.")
                 .buildObserver();
 
         storageBacklogCounter = meter
                 .upDownCounterBuilder(STORAGE_BACKLOG_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total backlog size of the topics of this topic owned by this broker.")
+                .setDescription("The size of the backlog storage for this topic.")
                 .buildObserver();
 
         storageOffloadedCounter = meter
