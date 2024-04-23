@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -61,7 +62,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
 
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
-            return ((ExtensibleLoadManagerImpl) loadManager).assign(Optional.empty(), serviceUnit).get()
+            return ((ExtensibleLoadManagerImpl) loadManager)
+                    .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build()).get()
                     .get().getPulsarServiceUrl();
         } catch (Throwable e) {
             throw new RuntimeException(e);
