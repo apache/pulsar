@@ -22,6 +22,7 @@
 <suite name="Pulsar Messaging Backwards Compatibility Tests" verbose="2" annotations="JDK">
     <test name="messaging-backwards-compatibility-suite" preserve-order="true">
         <classes>
+            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.TestFileSystemOffloadWithServer3_0" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_2" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_3" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_4" />
@@ -30,7 +31,6 @@
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_3" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_4" />
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_5" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.TestFileSystemOffloadWithServer3_0" />
         </classes>
     </test>
 </suite>

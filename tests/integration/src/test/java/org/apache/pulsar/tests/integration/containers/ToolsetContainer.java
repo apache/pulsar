@@ -43,7 +43,7 @@ public class ToolsetContainer extends ChaosContainer<ToolsetContainer> {
                 .withCreateContainerCmdModifier(createContainerCmd -> {
                     createContainerCmd.withHostName(NAME);
                     createContainerCmd.withName(getContainerName());
-                    createContainerCmd.withCmd("sleep", "infinity");
+                    createContainerCmd.withEntrypoint("sleep", "infinity");
                 })
                 .waitingFor(new HostPortWaitStrategy());
     }
