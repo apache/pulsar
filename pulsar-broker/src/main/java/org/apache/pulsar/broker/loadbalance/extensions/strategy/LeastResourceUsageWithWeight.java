@@ -96,8 +96,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         // select one of them at the end.
         double totalUsage = 0.0d;
 
-        // TODO: use loadBalancerDebugModeEnabled too.
-        boolean debugMode = log.isDebugEnabled();
+        boolean debugMode = log.isDebugEnabled() || conf.isLoadBalancerDebugModeEnabled();
         for (String broker : candidates) {
             var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
             if (brokerLoadDataOptional.isEmpty()) {
