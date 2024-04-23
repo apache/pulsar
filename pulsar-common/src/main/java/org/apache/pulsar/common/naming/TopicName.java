@@ -260,23 +260,11 @@ public class TopicName implements ServiceUnitId {
      * </ul>
      */
     public String getPartitionedTopicName() {
-        return stripPartitionSuffix(completeTopicName);
-    }
-
-    /**
-     * For partitions in a topic, return the local partitioned topic name.
-     * Eg:
-     * <ul>
-     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> --> <code>my-topic</code>
-     *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>my-topic</code>
-     * </ul>
-     */
-    public String getPartitionedTopicLocalName() {
-        return stripPartitionSuffix(localName);
-    }
-
-    private String stripPartitionSuffix(String base) {
-        return isPartitioned() ? base.substring(0, base.lastIndexOf("-partition-")) : base;
+        if (isPartitioned()) {
+            return completeTopicName.substring(0, completeTopicName.lastIndexOf("-partition-"));
+        } else {
+            return completeTopicName;
+        }
     }
 
     /**
