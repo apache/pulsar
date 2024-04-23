@@ -768,15 +768,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<Void> stopReplProducers() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
-        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect()));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.terminate()));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.terminate()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
-        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true)));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -1358,8 +1358,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 if (closeIfClientsConnected) {
-                    replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                    shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
+                    replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
+                    shadowReplicators.forEach((__, replicator) -> futures.add(replicator.terminate()));
                     producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 }
                 FutureUtil.waitForAll(futures).thenRunAsync(() -> {
@@ -1491,8 +1491,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         futures.add(transactionBuffer.closeAsync());
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
+        replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
+        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.terminate()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
@@ -1841,7 +1841,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
-        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::disconnect)
+        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::terminate)
                 .orElse(CompletableFuture.completedFuture(null)).thenRun(() -> {
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
@@ -1913,7 +1913,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         log.info("[{}] Removing shadow topic replicator to {}", topic, shadowTopic);
         final CompletableFuture<Void> future = new CompletableFuture<>();
         String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
-        shadowReplicators.get(shadowTopic).disconnect().thenRun(() -> {
+        shadowReplicators.get(shadowTopic).terminate().thenRun(() -> {
 
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
@@ -2654,6 +2654,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
                         maxInactiveDurationInSec);
                 }
+                /**
+                 * There is a race condition that may cause a NPE:
+                 * - task 1: a callback of "replicator.cursor.asyncRead" will trigger a replication.
+                 * - task 2: "closeReplProducersIfNoBacklog" called by current thread will make the variable
+                 *   "replicator.producer" to a null value.
+                 * Race condition: task 1 will get a NPE when it tries to send messages using the variable
+                 * "replicator.producer", because task 2 will set this variable to "null".
+                 * TODO Create a seperated PR to fix it.
+                 */
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
                         if (log.isDebugEnabled()) {
