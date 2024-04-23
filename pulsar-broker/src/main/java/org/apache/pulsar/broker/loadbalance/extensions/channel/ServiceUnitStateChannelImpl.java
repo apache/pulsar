@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListen
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.api.CompressionType;
@@ -1430,7 +1431,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
             return loadManager.selectAsync(
-                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit), Set.of(inactiveBroker))
+                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit),
+                            Set.of(inactiveBroker), LookupOptions.builder().build())
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
