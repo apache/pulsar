@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -92,7 +93,7 @@ public class AbstractReplicatorTest {
         final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
-        replicator.disconnect();
+        replicator.terminate();
 
         // Verify task will done.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -127,7 +128,7 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void readEntries(Producer<byte[]> producer) {
+        protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
 
         }
 
@@ -137,7 +138,22 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected long getNumberOfEntriesInBacklog() {
+        public ReplicatorStatsImpl getStats() {
+            return null;
+        }
+
+        @Override
+        public void updateRates() {
+
+        }
+
+        @Override
+        public boolean isConnected() {
+            return false;
+        }
+
+        @Override
+        public long getNumberOfEntriesInBacklog() {
             return 0;
         }
 

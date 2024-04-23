@@ -18,29 +18,57 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.junit.Assert;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
@@ -79,7 +107,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         return originalValue;
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testReplicatorProducerStatInTopic() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         final String subscribeName = "subscribe_1";
@@ -110,7 +138,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testCreateRemoteConsumerFirst() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
@@ -130,29 +158,257 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    @Test
+    @Test(timeOut = 45 * 1000)
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
         // Wait for replicator started.
         waitReplicatorStarted(topicName);
-        PersistentTopic persistentTopic =
+        PersistentTopic topic1 =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-        PersistentReplicator replicator =
-                (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        PersistentReplicator replicator1 =
+                (PersistentReplicator) topic1.getReplicators().values().iterator().next();
         // Mock an error when calling "replicator.disconnect()"
-        ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
-        Mockito.when(mockProducer.closeAsync()).thenReturn(CompletableFuture.failedFuture(new Exception("mocked ex")));
-        ProducerImpl originalProducer = overrideProducerForReplicator(replicator, mockProducer);
+        AtomicBoolean closeFailed = new AtomicBoolean(true);
+        final ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
+        final AtomicReference<ProducerImpl> originalProducer1 = new AtomicReference();
+        doAnswer(invocation -> {
+            if (closeFailed.get()) {
+                return CompletableFuture.failedFuture(new Exception("mocked ex"));
+            } else {
+                return originalProducer1.get().closeAsync();
+            }
+        }).when(mockProducer).closeAsync();
+        originalProducer1.set(overrideProducerForReplicator(replicator1, mockProducer));
         // Verify: since the "replicator.producer.closeAsync()" will retry after it failed, the topic unload should be
         // successful.
         admin1.topics().unload(topicName);
         // Verify: After "replicator.producer.closeAsync()" retry again, the "replicator.producer" will be closed
         // successful.
-        overrideProducerForReplicator(replicator, originalProducer);
+        closeFailed.set(false);
+        AtomicReference<PersistentTopic> topic2 = new AtomicReference();
+        AtomicReference<PersistentReplicator> replicator2 = new AtomicReference();
         Awaitility.await().untilAsserted(() -> {
+            topic2.set((PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get());
+            replicator2.set((PersistentReplicator) topic2.get().getReplicators().values().iterator().next());
+            // It is a new Topic after reloading.
+            assertNotEquals(topic2.get(), topic1);
+            assertNotEquals(replicator2.get(), replicator1);
+        });
+        Awaitility.await().untilAsserted(() -> {
+            // Old replicator should be closed.
+            Assert.assertFalse(replicator1.isConnected());
+            Assert.assertFalse(originalProducer1.get().isConnected());
+            // New replicator should be connected.
+            Assert.assertTrue(replicator2.get().isConnected());
+        });
+        // cleanup.
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicName);
+            admin2.topics().delete(topicName);
+        });
+    }
+
+    private void injectMockReplicatorProducerBuilder(
+                                BiFunction<ProducerConfigurationData, ProducerImpl, ProducerImpl> producerDecorator)
+            throws Exception {
+        String cluster2 = pulsar2.getConfig().getClusterName();
+        BrokerService brokerService = pulsar1.getBrokerService();
+        // Wait for the internal client created.
+        final String topicNameTriggerInternalClientCreate =
+                BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicNameTriggerInternalClientCreate);
+        waitReplicatorStarted(topicNameTriggerInternalClientCreate);
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicNameTriggerInternalClientCreate);
+            admin2.topics().delete(topicNameTriggerInternalClientCreate);
+        });
+
+        // Inject spy client.
+        ConcurrentOpenHashMap<String, PulsarClient>
+                replicationClients = WhiteboxImpl.getInternalState(brokerService, "replicationClients");
+        PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
+        PulsarClient spyClient = spy(internalClient);
+        replicationClients.put(cluster2, spyClient);
+
+        // Inject producer decorator.
+        doAnswer(invocation -> {
+            Schema schema = (Schema) invocation.getArguments()[0];
+            ProducerBuilderImpl<?> producerBuilder = (ProducerBuilderImpl) internalClient.newProducer(schema);
+            ProducerBuilder spyProducerBuilder = spy(producerBuilder);
+            doAnswer(ignore -> {
+                CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
+                producerBuilder.createAsync().whenComplete((p, t) -> {
+                    if (t != null) {
+                        producerFuture.completeExceptionally(t);
+                        return;
+                    }
+                    ProducerImpl pImpl = (ProducerImpl) p;
+                    new FastThreadLocalThread(() -> {
+                        try {
+                            ProducerImpl newProducer = producerDecorator.apply(producerBuilder.getConf(), pImpl);
+                            producerFuture.complete(newProducer);
+                        } catch (Exception ex) {
+                            producerFuture.completeExceptionally(ex);
+                        }
+                    }).start();
+                });
+
+                return producerFuture;
+            }).when(spyProducerBuilder).createAsync();
+            return spyProducerBuilder;
+        }).when(spyClient).newProducer(any(Schema.class));
+    }
+
+    private SpyCursor spyCursor(PersistentTopic persistentTopic, String cursorName) throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(cursorName);
+        ManagedCursorImpl spyCursor = spy(cursor);
+        // remove cursor.
+        ml.getCursors().removeCursor(cursorName);
+        ml.deactivateCursor(cursor);
+        // Add the spy one. addCursor(ManagedCursorImpl cursor)
+        Method m = ManagedLedgerImpl.class.getDeclaredMethod("addCursor", new Class[]{ManagedCursorImpl.class});
+        m.setAccessible(true);
+        m.invoke(ml, new Object[]{spyCursor});
+        return new SpyCursor(cursor, spyCursor);
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class SpyCursor {
+        ManagedCursorImpl original;
+        ManagedCursorImpl spy;
+    }
+
+    private CursorCloseSignal makeCursorClosingDelay(SpyCursor spyCursor) throws Exception {
+        CountDownLatch startCloseSignal = new CountDownLatch(1);
+        CountDownLatch startCallbackSignal = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            AsyncCallbacks.CloseCallback originalCallback = (AsyncCallbacks.CloseCallback) invocation.getArguments()[0];
+            Object ctx = invocation.getArguments()[1];
+            AsyncCallbacks.CloseCallback newCallback = new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    new FastThreadLocalThread(new Runnable() {
+                        @Override
+                        @SneakyThrows
+                        public void run() {
+                            startCallbackSignal.await();
+                            originalCallback.closeComplete(ctx);
+                        }
+                    }).start();
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    new FastThreadLocalThread(new Runnable() {
+                        @Override
+                        @SneakyThrows
+                        public void run() {
+                            startCallbackSignal.await();
+                            originalCallback.closeFailed(exception, ctx);
+                        }
+                    }).start();
+                }
+            };
+            startCloseSignal.await();
+            spyCursor.original.asyncClose(newCallback, ctx);
+            return null;
+        }).when(spyCursor.spy).asyncClose(any(AsyncCallbacks.CloseCallback.class), any());
+        return new CursorCloseSignal(startCloseSignal, startCallbackSignal);
+    }
+
+    @AllArgsConstructor
+    static class CursorCloseSignal {
+        CountDownLatch startCloseSignal;
+        CountDownLatch startCallbackSignal;
+
+        void startClose() {
+            startCloseSignal.countDown();
+        }
+
+        void startCallback() {
+            startCallbackSignal.countDown();
+        }
+    }
+
+    /**
+     * See the description and execution flow: https://github.com/apache/pulsar/pull/21946.
+     * Steps:
+     * - Create topic, but the internal producer of Replicator created failed.
+     * - Unload bundle, the Replicator will be closed, but the internal producer creation retry has not executed yet.
+     * - The internal producer creation retry execute successfully, the "repl.cursor" has not been closed yet.
+     * - The topic is wholly closed.
+     * - Verify: the delayed created internal producer will be closed.
+     */
+    @Test(timeOut = 120 * 1000)
+    public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+        // Inject an error for "replicator.producer" creation.
+        // The delay time of next retry to create producer is below:
+        //   0.1s, 0.2, 0.4, 0.8, 1.6s, 3.2s, 6.4s...
+        //   If the retry counter is larger than 6, the next creation will be slow enough to close Replicator.
+        final AtomicInteger createProducerCounter = new AtomicInteger();
+        final int failTimes = 6;
+        injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
+            if (topicName.equals(producerCnf.getTopicName())) {
+                // There is a switch to determine create producer successfully or not.
+                if (createProducerCounter.incrementAndGet() > failTimes) {
+                    return originalProducer;
+                }
+                log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                // Release producer and fail callback.
+                originalProducer.closeAsync();
+                throw new RuntimeException("mock error");
+            }
+            return originalProducer;
+        });
+
+        // Create topic.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentReplicator replicator =
+                (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        // Since we inject a producer creation error, the replicator can not start successfully.
+        assertFalse(replicator.isConnected());
+
+        // Stuck the closing of the cursor("pulsar.repl"), until the internal producer of the replicator started.
+        SpyCursor spyCursor =
+                spyCursor(persistentTopic, "pulsar.repl." + pulsar2.getConfig().getClusterName());
+        CursorCloseSignal cursorCloseSignal = makeCursorClosingDelay(spyCursor);
+
+        // Unload bundle: call "topic.close(false)".
+        // Stuck start new producer, until the state of replicator change to Stopped.
+        // The next once of "createProducerSuccessAfterFailTimes" to create producer will be successfully.
+        Awaitility.await().pollInterval(Duration.ofMillis(100)).atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            assertTrue(createProducerCounter.get() >= failTimes,
+                    "count of retry to create producer is " + createProducerCounter.get());
+        });
+        CompletableFuture<Void> topicCloseFuture = persistentTopic.close(true);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            String state = String.valueOf(replicator.getState());
+            assertTrue(state.equals("Stopped") || state.equals("Terminated"));
+        });
+
+        // Delay close cursor, until "replicator.producer" create successfully.
+        // The next once retry time of create "replicator.producer" will be 3.2s.
+        Thread.sleep(4 * 1000);
+        log.info("Replicator.state: {}", replicator.getState());
+        cursorCloseSignal.startClose();
+        cursorCloseSignal.startCallback();
+
+        // Wait for topic close successfully.
+        // Verify there is no orphan producer on the remote cluster.
+        topicCloseFuture.join();
+        Awaitility.await().pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            assertEquals(persistentTopic2.getProducers().size(), 0);
             Assert.assertFalse(replicator.isConnected());
         });
+
         // cleanup.
         cleanupTopics(() -> {
             admin1.topics().delete(topicName);
