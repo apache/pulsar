@@ -256,7 +256,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         backlogQuotaLimitTime = meter
-                .upDownCounterBuilder(BACKLOG_QUOTA_LIMIT_TIME)
+                .gaugeBuilder(BACKLOG_QUOTA_LIMIT_TIME)
+                .ofLongs()
                 .setUnit("s")
                 .setDescription("The time based backlog quota limit for this topic.")
                 .buildObserver();
@@ -268,7 +269,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         backlogQuotaAge = meter
-                .upDownCounterBuilder(BACKLOG_QUOTA_AGE)
+                .gaugeBuilder(BACKLOG_QUOTA_AGE)
+                .ofLongs()
                 .setUnit("s")
                 .setDescription("The age of the oldest unacknowledged message (backlog).")
                 .buildObserver();
