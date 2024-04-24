@@ -773,6 +773,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        admin.topics().createNonPartitionedTopic(topic);
         admin.topics().grantPermission(topic, invalidRole, Collections.singleton(AuthAction.produce));
         admin.topics().grantPermission(topic, producerRole, Sets.newHashSet(AuthAction.produce, AuthAction.consume));
 
