@@ -31,8 +31,6 @@ import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.ToolsetContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.offload.TestBaseOffload;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -58,8 +56,7 @@ public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
     protected void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
 
-        PulsarClusterSpec spec = this.getPulsarCluster().getSpec();
-        String clusterName = spec.clusterName();
+        String clusterName = this.getPulsarCluster().getSpec().clusterName();
 
         toolsetContainer = new ToolsetContainer(clusterName, PULSAR_3_0_IMAGE_NAME)
                 .withEnv("metadataStoreUrl", ZKContainer.NAME)
