@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.DEFAULT_IMAGE_NAME;
 
 /**
  * A pulsar container that runs nothing.
@@ -26,6 +26,10 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 public class ToolsetContainer extends ChaosContainer<ToolsetContainer> {
 
     public static final String NAME = "toolset";
+
+    public ToolsetContainer(String clusterName) {
+        super(clusterName, DEFAULT_IMAGE_NAME);
+    }
 
     public ToolsetContainer(String clusterName, String imageName) {
         super(clusterName, imageName);
@@ -44,7 +48,6 @@ public class ToolsetContainer extends ChaosContainer<ToolsetContainer> {
                     createContainerCmd.withHostName(NAME);
                     createContainerCmd.withName(getContainerName());
                     createContainerCmd.withEntrypoint("sleep", "infinity");
-                })
-                .waitingFor(new HostPortWaitStrategy());
+                });
     }
 }
