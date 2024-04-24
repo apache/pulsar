@@ -472,4 +472,8 @@ public abstract class AbstractReplicator implements Replicator {
         }
         return compareSetAndGetState(expect, update);
     }
+
+    public boolean isTerminated() {
+        return state == State.Terminating || state == State.Terminating;
+    }
 }
