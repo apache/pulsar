@@ -605,12 +605,15 @@ public abstract class AdminResource extends PulsarWebResource {
                         throw new RestException(Status.CONFLICT, "This topic already exists");
                     }
                 })
+                .thenCompose(__ -> {
+                    if (!createLocalTopicOnly && topicName.isGlobal()) {
+                        return internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
                 .thenRun(() -> {
-                    if (!createLocalTopicOnly && topicName.isGlobal()) {
-                        internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
-                    }
                     log.info("[{}] Successfully created partitions for topic {} in cluster {}",
                             clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
                     asyncResponse.resume(Response.noContent().build());
@@ -622,11 +625,13 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
-        getNamespaceReplicatedClustersAsync(namespaceName)
-            .thenAccept(clusters -> {
+    private CompletableFuture<Void> internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
+        return getNamespaceReplicatedClustersAsync(namespaceName)
+            .thenCompose(clusters -> {
                 // this call happens in the background without async composition. completion is logged.
-                internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions);
+                Map<String, CompletableFuture<Void>> createPartitionedMetaOnRemoteCluster =
+                        internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions);
+                return FutureUtil.waitForAll(createPartitionedMetaOnRemoteCluster.values());
             });
     }
 

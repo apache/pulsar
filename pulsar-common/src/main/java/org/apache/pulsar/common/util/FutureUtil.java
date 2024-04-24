@@ -54,6 +54,9 @@ public class FutureUtil {
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
     public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
+        if (futures.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 

@@ -663,4 +663,63 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin2.topics().delete(topicName);
         });
     }
+
+    @Test
+    public void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
+        // Verify: will get a not found error when calling "getPartitionedTopicMetadata" on a topic not exists.
+        try {
+            admin1.topics().getPartitionedTopicMetadata(topicName);
+            fail("Expected a not found error");
+        } catch (Exception ex) {
+            Throwable unWrapEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(unWrapEx.getMessage().contains("not found"));
+        }
+        // Verify: will get a conflict error when there is a topic with different partitions on the remote side.
+        admin2.topics().createPartitionedTopic(topicName, 1);
+        try {
+            admin1.topics().createPartitionedTopic(topicName, 2);
+            fail("Expected error due to a conflict partitioned topic already exists.");
+        } catch (Exception ex) {
+            Throwable unWrapEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(unWrapEx.getMessage().contains("with different partitions"));
+        }
+        // Verify: nothing has been changed after the failed calling.
+        Optional<PartitionedTopicMetadata> partitions1 = pulsar1.getPulsarResources().getNamespaceResources()
+                .getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(TopicName.get(topicName), true).join();
+        assertFalse(partitions1.isPresent());
+        Optional<PartitionedTopicMetadata> partitions2 = pulsar2.getPulsarResources().getNamespaceResources()
+                .getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(TopicName.get(topicName), true).join();
+        assertTrue(partitions2.isPresent());
+        assertEquals(partitions2.get().partitions, 1);
+        // cleanup.
+        admin2.topics().deletePartitionedTopic(topicName);
+    }
+
+    @Test
+    public void testNamespaceLevelPartitionedMetadataReplication() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
+        // Verify: will get a not found error when calling "getPartitionedTopicMetadata" on a topic not exists.
+        try {
+            admin1.topics().getPartitionedTopicMetadata(topicName);
+            fail("Expected a not found error");
+        } catch (Exception ex) {
+            Throwable unWrapEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(unWrapEx.getMessage().contains("not found"));
+        }
+        // Verify: will get a conflict error when there is a topic with different partitions on the remote side.
+        admin1.topics().createPartitionedTopic(topicName, 2);
+        // Verify: nothing has been changed after the failed calling.
+        PartitionedTopicMetadata topicMetadata1 = admin1.topics().getPartitionedTopicMetadata(topicName);
+        assertEquals(topicMetadata1.partitions, 2);
+        PartitionedTopicMetadata topicMetadata2 = admin2.topics().getPartitionedTopicMetadata(topicName);
+        assertEquals(topicMetadata2.partitions, 2);
+        // cleanup.
+        cleanupTopics(() -> {
+            admin1.topics().deletePartitionedTopic(topicName);
+            admin2.topics().deletePartitionedTopic(topicName);
+        });
+    }
 }
