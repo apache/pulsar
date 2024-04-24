@@ -474,6 +474,6 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     public boolean isTerminated() {
-        return state == State.Terminating || state == State.Terminating;
+        return state == State.Terminating || state == State.Terminated;
     }
 }

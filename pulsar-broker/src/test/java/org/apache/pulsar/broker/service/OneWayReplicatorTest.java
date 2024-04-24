@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -50,6 +51,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -69,6 +71,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -598,5 +602,56 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet(cluster1));
         admin1.namespaces().deleteNamespace(namespaceName);
         admin2.namespaces().deleteNamespace(namespaceName);
+    }
+
+    @Test
+    public void testUnFenceTopicToReuse() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
+        // Wait for replicator started.
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        waitReplicatorStarted(topicName);
+
+        // Inject an error to make topic close fails.
+        final String mockProducerName = UUID.randomUUID().toString();
+        final org.apache.pulsar.broker.service.Producer mockProducer =
+                mock(org.apache.pulsar.broker.service.Producer.class);
+        doAnswer(invocation -> CompletableFuture.failedFuture(new RuntimeException("mocked error")))
+                .when(mockProducer).disconnect(any());
+        doAnswer(invocation -> CompletableFuture.failedFuture(new RuntimeException("mocked error")))
+                .when(mockProducer).disconnect();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        persistentTopic.getProducers().put(mockProducerName, mockProducer);
+
+        // Do close.
+        GeoPersistentReplicator replicator1 =
+                (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        try {
+            persistentTopic.close(true, false).join();
+            fail("Expected close fails due to a producer close fails");
+        } catch (Exception ex) {
+            log.info("Expected error: {}", ex.getMessage());
+        }
+
+        // Broker will call `topic.unfenceTopicToResume` if close clients fails.
+        // Verify: the replicator will be re-created.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(producer1.isConnected());
+            GeoPersistentReplicator replicator2 =
+                    (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+            assertNotEquals(replicator1, replicator2);
+            assertFalse(replicator1.isConnected());
+            assertFalse(replicator1.producer != null && replicator1.producer.isConnected());
+            assertTrue(replicator2.isConnected());
+            assertTrue(replicator2.producer != null && replicator2.producer.isConnected());
+        });
+
+        // cleanup.
+        persistentTopic.getProducers().remove(mockProducerName, mockProducer);
+        producer1.close();
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicName);
+            admin2.topics().delete(topicName);
+        });
     }
 }
