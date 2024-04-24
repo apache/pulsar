@@ -112,6 +112,7 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
                         .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
                         .setConnectTimeout(config.getConnectTimeoutInMs())
                         .setSocketTimeout(config.getSocketTimeoutInMs()))
+                .setCompressionEnabled(config.isCompressionEnabled())
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.opensearch.client.RestClient.FailureListener() {
                     @Override

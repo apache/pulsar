@@ -20,6 +20,7 @@ package org.apache.pulsar.io.elasticsearch;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -27,8 +28,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,6 +46,8 @@ import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelR
 import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestHighLevelClient;
 import org.testcontainers.containers.Network;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
@@ -112,11 +117,41 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setCompressionEnabled(true)
                 .setIndexName(INDEX), metrics)) {
             if (elasticImageName.equals(OPENSEARCH) || elasticImageName.equals(ELASTICSEARCH_7)) {
                 assertTrue(client.getRestClient() instanceof OpenSearchHighLevelRestClient);
+                OpenSearchHighLevelRestClient osRestHighLevelClient = (OpenSearchHighLevelRestClient) client.getRestClient();
+                RestHighLevelClient restHighLevelClient = osRestHighLevelClient.getClient();
+                assertNotNull(restHighLevelClient);
+
+                Field field = RestHighLevelClient.class.getDeclaredField("client");
+                field.setAccessible(true);
+                RestClient restClient = (RestClient) field.get(restHighLevelClient);
+                assertNotNull(restClient);
+
+                Field compressionEnabledFiled = RestClient.class.getDeclaredField("compressionEnabled");
+                compressionEnabledFiled.setAccessible(true);
+                boolean compressionEnabled = (boolean) compressionEnabledFiled.get(restClient);
+                assertTrue(compressionEnabled);
             } else {
                 assertTrue(client.getRestClient() instanceof ElasticSearchJavaRestClient);
+                ElasticSearchJavaRestClient javaRestClient = (ElasticSearchJavaRestClient) client.getRestClient();
+
+                Field field = ElasticSearchJavaRestClient.class.getDeclaredField("transport");
+                field.setAccessible(true);
+                RestClientTransport transport = (RestClientTransport) field.get(javaRestClient);
+                assertNotNull(transport);
+
+                Field restClientFiled = RestClientTransport.class.getDeclaredField("restClient");
+                restClientFiled.setAccessible(true);
+                org.elasticsearch.client.RestClient restClient = (org.elasticsearch.client.RestClient) restClientFiled.get(transport);
+                assertNotNull(restClient);
+
+                Field compressionEnabledFiled = org.elasticsearch.client.RestClient.class.getDeclaredField("compressionEnabled");
+                compressionEnabledFiled.setAccessible(true);
+                boolean compressionEnabled = (boolean) compressionEnabledFiled.get(restClient);
+                assertTrue(compressionEnabled);
             }
         }
     }
@@ -124,7 +159,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     @Test
     public void testIndexName() throws Exception {
         String index = "myindex-" + UUID.randomUUID();
-        Record<GenericObject> record = Mockito.mock(Record.class);
+        Record<GenericObject> record = mock(Record.class);
         String topicName = "topic-" + UUID.randomUUID();
         SinkContext mockContext = Mockito.mock(SinkContext.class);
         ElasticSearchMetrics metrics = new ElasticSearchMetrics(mockContext);
