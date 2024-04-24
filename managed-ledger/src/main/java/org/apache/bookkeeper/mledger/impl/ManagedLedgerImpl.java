@@ -2109,9 +2109,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             entryIds.add(entryId);
         }
+
         if (entryIds.isEmpty()) {
             // Move `readPosition` of `cursor`.
-            PositionImpl position = PositionImpl.get(ledger.getId(), lastEntry - 1);
+            PositionImpl position = PositionImpl.get(ledger.getId(), lastEntry);
             opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, position);
             return;
         }
@@ -2146,14 +2147,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @VisibleForTesting
     public static class BatchReadEntriesCallback implements ReadEntriesCallback {
         private final SortedSet<Long> entryIds;
-        private final SortedSet<Entry> entries;
+        private final List<Entry> entries;
         private final OpReadEntry callback;
         private boolean completed = false;
 
         @VisibleForTesting
         public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback) {
             this.entryIds = entryIdSet;
-            this.entries = new TreeSet<>(Comparator.comparing(Entry::getEntryId));
+            this.entries = new ArrayList<>(entryIdSet.size());
             this.callback = callback;
         }
 
@@ -2167,7 +2168,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
             completed = true;
-            callback.readEntriesComplete(entries.stream().toList(), ctx);
+            entries.sort(Comparator.comparingLong(Entry::getEntryId));
+            callback.readEntriesComplete(entries, ctx);
         }
 
         @Override
@@ -2195,10 +2197,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (this.entries.isEmpty()) {
                     break;
                 }
-                Entry entry = this.entries.first();
+                Entry entry = this.entries.remove(0);
                 if (entry.getEntryId() == entryId) {
                     entries.add(entry);
-                    this.entries.remove(entry);
                 } else {
                     break;
                 }

@@ -4390,7 +4390,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entryIds.add(5L);
         entryIds.add(7L);
         entryIds.add(9L);
-        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(entryIds, opReadEntry);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(entryIds, opReadEntry);
         long ledgerId = ledger.currentLedger.getId();
 
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
