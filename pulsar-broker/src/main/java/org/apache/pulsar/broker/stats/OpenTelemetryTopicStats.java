@@ -69,7 +69,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     private final ObservableLongMeasurement bytesOutCounter;
 
     // Replaces pulsar_publish_rate_limit_times
-    public static final String PUBLISH_RATE_LIMIT_HIT_COUNTER = "pulsar.broker.topic.publish.rate.limit";
+    public static final String PUBLISH_RATE_LIMIT_HIT_COUNTER = "pulsar.broker.topic.publish.rate.limit.count";
     private final ObservableLongMeasurement publishRateLimitHitCounter;
 
     // Omitted: pulsar_consumer_msg_ack_rate
@@ -107,11 +107,11 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     private final ObservableLongMeasurement backlogQuotaAge;
 
     // Replaces pulsar_storage_write_rate
-    public static final String STORAGE_OUT_COUNTER = "pulsar.broker.topic.storage.outgoing";
+    public static final String STORAGE_OUT_COUNTER = "pulsar.broker.topic.storage.entry.outgoing.count";
     private final ObservableLongMeasurement storageOutCounter;
 
     // Replaces pulsar_storage_read_rate
-    public static final String STORAGE_IN_COUNTER = "pulsar.broker.topic.storage.incoming";
+    public static final String STORAGE_IN_COUNTER = "pulsar.broker.topic.storage.entry.incoming.count";
     private final ObservableLongMeasurement storageInCounter;
 
     // Omitted: pulsar_storage_write_latency_le_*
@@ -131,29 +131,29 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     private final ObservableDoubleMeasurement compactionDurationSeconds;
 
     // Replaces pulsar_compaction_read_throughput
-    public static final String COMPACTION_BYTES_IN_COUNTER = "pulsar.broker.topic.compaction.incoming";
+    public static final String COMPACTION_BYTES_IN_COUNTER = "pulsar.broker.topic.compaction.incoming.size";
     private final ObservableLongMeasurement compactionBytesInCounter;
 
     // Replaces pulsar_compaction_write_throughput
-    public static final String COMPACTION_BYTES_OUT_COUNTER = "pulsar.broker.topic.compaction.outgoing";
+    public static final String COMPACTION_BYTES_OUT_COUNTER = "pulsar.broker.topic.compaction.outgoing.size";
     private final ObservableLongMeasurement compactionBytesOutCounter;
 
     // Omitted: pulsar_compaction_latency_le_*
 
     // Replaces pulsar_compaction_compacted_entries_count
-    public static final String COMPACTION_ENTRIES_COUNTER = "pulsar.broker.topic.compaction.compacted.entries.count";
+    public static final String COMPACTION_ENTRIES_COUNTER = "pulsar.broker.topic.compaction.compacted.entry.count";
     private final ObservableLongMeasurement compactionEntriesCounter;
 
     // Replaces pulsar_compaction_compacted_entries_size
-    public static final String COMPACTION_BYTES_COUNTER = "pulsar.broker.topic.compaction.compacted.entries.size";
+    public static final String COMPACTION_BYTES_COUNTER = "pulsar.broker.topic.compaction.compacted.entry.size";
     private final ObservableLongMeasurement compactionBytesCounter;
 
     // Replaces ['pulsar_txn_tb_active_total', 'pulsar_txn_tb_aborted_total', 'pulsar_txn_tb_committed_total']
-    public static final String TRANSACTION_COUNTER = "pulsar.broker.topic.transaction";
+    public static final String TRANSACTION_COUNTER = "pulsar.broker.topic.transaction.count";
     private final ObservableLongMeasurement transactionCounter;
 
     // Replaces pulsar_subscription_delayed
-    public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar.broker.topic.subscription.delayed";
+    public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar.broker.topic.subscription.delayed.entry.count";
     private final ObservableLongMeasurement delayedSubscriptionCounter;
 
     // Omitted: pulsar_delayed_message_index_size_bytes
@@ -227,7 +227,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         storageCounter = meter
                 .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total storage size of the messages in this topic, including storage used by replicas.")
+                .setDescription(
+                        "The total storage size of the messages in this topic, including storage used by replicas.")
                 .buildObserver();
 
         storageLogicalCounter = meter
@@ -274,13 +275,13 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
         storageOutCounter = meter
                 .upDownCounterBuilder(STORAGE_OUT_COUNTER)
-                .setUnit("{message batch}")
+                .setUnit("{entry}")
                 .setDescription("The total message batches (entries) written to the storage for this topic.")
                 .buildObserver();
 
         storageInCounter = meter
                 .upDownCounterBuilder(STORAGE_IN_COUNTER)
-                .setUnit("{message batch}")
+                .setUnit("{entry}")
                 .setDescription("The total message batches (entries) read from the storage for this topic.")
                 .buildObserver();
 
@@ -335,8 +336,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
         delayedSubscriptionCounter = meter
                 .upDownCounterBuilder(DELAYED_SUBSCRIPTION_COUNTER)
-                .setUnit("{message batch}")
-                .setDescription("The total message batches (entries) are delayed for dispatching.")
+                .setUnit("{entry}")
+                .setDescription("The total number of message batches (entries) delayed for dispatching.")
                 .buildObserver();
 
         batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
@@ -454,8 +455,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                     .flatMap(compactorMXBean -> compactorMXBean.getCompactionRecordForTopic(topic.getName()))
                     .ifPresent(compactionRecord -> {
                         compactionRemovedCounter.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
-                        compactionSucceededCounter.record(compactionRecord.getCompactionSucceedCount(), attributes);
-                        compactionFailedCounter.record(compactionRecord.getCompactionFailedCount(), attributes);
+                        compactionOperationCounter.record(compactionRecord.getCompactionSucceedCount(),
+                                Attributes.builder()
+                                        .putAll(attributes)
+                                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
+                                        .build());
+                        compactionOperationCounter.record(compactionRecord.getCompactionFailedCount(),
+                                Attributes.builder()
+                                        .putAll(attributes)
+                                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
+                                        .build());
                         compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
                             compactionRecord.getCompactionDurationTimeInMills(), TimeUnit.MILLISECONDS), attributes);
                         compactionBytesInCounter.record(compactionRecord.getCompactionReadBytes(), attributes);
