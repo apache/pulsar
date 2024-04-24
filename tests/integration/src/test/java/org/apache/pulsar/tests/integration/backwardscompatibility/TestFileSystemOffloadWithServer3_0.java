@@ -68,6 +68,14 @@ public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
         toolsetContainer.start();
     }
 
+    @Override
+    public void tearDownCluster() throws Exception {
+        super.tearDownCluster();
+        if (toolsetContainer != null) {
+            toolsetContainer.stop();
+        }
+    }
+
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
@@ -125,7 +133,7 @@ public class TestFileSystemOffloadWithServer3_0 extends TestBaseOffload {
         Assert.assertTrue(offloadedLedgerInfo.offloaded);
         Assert.assertTrue(offloadedLedgerInfo.bookkeeperDeleted);
 
-        output = toolsetContainer.execCmd(PulsarCluster.ADMIN_SCRIPT, "topics", "stats-internal", topic).getStdout();
+        output = toolsetContainer.runAdminCommand("topics", "stats-internal", topic).getStdout();
         // old version client should not recognize `bookkeeperDeleted`
         Assert.assertFalse(output.contains("bookkeeperDeleted"));
         PersistentTopicInternalStats topicInternalStats =

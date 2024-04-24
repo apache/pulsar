@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.DEFAULT_IMAGE_NAME;
+import static org.apache.pulsar.tests.integration.topologies.PulsarCluster.ADMIN_SCRIPT;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 
 /**
  * A pulsar container that runs nothing.
@@ -49,5 +51,12 @@ public class ToolsetContainer extends ChaosContainer<ToolsetContainer> {
                     createContainerCmd.withName(getContainerName());
                     createContainerCmd.withEntrypoint("sleep", "infinity");
                 });
+    }
+
+    public ContainerExecResult runAdminCommand(String... commands) throws Exception {
+        String[] cmds = new String[commands.length + 1];
+        cmds[0] = ADMIN_SCRIPT;
+        System.arraycopy(commands, 0, cmds, 1, commands.length);
+        return this.execCmd(cmds);
     }
 }
