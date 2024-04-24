@@ -150,12 +150,16 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void cleanupTopics(CleanupTopicAction cleanupTopicAction) throws Exception {
-        waitChangeEventsInit(replicatedNamespace);
-        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Collections.singleton(cluster1));
-        admin1.namespaces().unload(replicatedNamespace);
+        cleanupTopics(replicatedNamespace, cleanupTopicAction);
+    }
+
+    protected void cleanupTopics(String namespace, CleanupTopicAction cleanupTopicAction) throws Exception {
+        waitChangeEventsInit(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1));
+        admin1.namespaces().unload(namespace);
         cleanupTopicAction.run();
-        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1, cluster2));
-        waitChangeEventsInit(replicatedNamespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        waitChangeEventsInit(namespace);
     }
 
     protected void waitChangeEventsInit(String namespace) {
