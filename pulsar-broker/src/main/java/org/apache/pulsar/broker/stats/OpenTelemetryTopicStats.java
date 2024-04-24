@@ -122,13 +122,9 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     public static final String COMPACTION_REMOVED_COUNTER = "pulsar.broker.topic.compaction.removed.message.count";
     private final ObservableLongMeasurement compactionRemovedCounter;
 
-    // Replaces pulsar_compaction_succeed_count
-    public static final String COMPACTION_SUCCEEDED_COUNTER = "pulsar.broker.topic.compaction.succeed.count";
-    private final ObservableLongMeasurement compactionSucceededCounter;
-
-    // Replaces pulsar_compaction_failed_count
-    public static final String COMPACTION_FAILED_COUNTER = "pulsar.broker.topic.compaction.failed.count";
-    private final ObservableLongMeasurement compactionFailedCounter;
+    // Replaces ['pulsar_compaction_succeed_count', 'pulsar_compaction_failed_count']
+    public static final String COMPACTION_OPERATION_COUNTER = "pulsar.broker.topic.compaction.operation.count";
+    private final ObservableLongMeasurement compactionOperationCounter;
 
     // Replaces pulsar_compaction_duration_time_in_mills
     public static final String COMPACTION_DURATION_SECONDS = "pulsar.broker.topic.compaction.duration";
@@ -294,16 +290,10 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The total number of messages removed by compaction.")
                 .buildObserver();
 
-        compactionSucceededCounter = meter
-                .upDownCounterBuilder(COMPACTION_SUCCEEDED_COUNTER)
-                .setUnit("{event}")
-                .setDescription("The total number of successes of the compaction.")
-                .buildObserver();
-
-        compactionFailedCounter = meter
-                .upDownCounterBuilder(COMPACTION_FAILED_COUNTER)
-                .setUnit("{event}")
-                .setDescription("The total number of failures of the compaction.")
+        compactionOperationCounter = meter
+                .upDownCounterBuilder(COMPACTION_OPERATION_COUNTER)
+                .setUnit("{operation}")
+                .setDescription("The total number of compaction operations.")
                 .buildObserver();
 
         compactionDurationSeconds = meter
@@ -374,8 +364,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 storageOutCounter,
                 storageInCounter,
                 compactionRemovedCounter,
-                compactionSucceededCounter,
-                compactionFailedCounter,
+                compactionOperationCounter,
                 compactionDurationSeconds,
                 compactionBytesInCounter,
                 compactionBytesOutCounter,

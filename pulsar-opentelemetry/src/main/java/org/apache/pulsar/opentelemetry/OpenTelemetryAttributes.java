@@ -61,6 +61,11 @@ public interface OpenTelemetryAttributes {
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
 
     /**
+     * The status of the Pulsar compaction operation.
+     */
+    AttributeKey<String> PULSAR_COMPACTION_STATUS = AttributeKey.stringKey("pulsar.compaction.status");
+
+    /**
      * The type of the backlog quota.
      */
     AttributeKey<String> PULSAR_BACKLOG_QUOTA_TYPE = AttributeKey.stringKey("pulsar.backlog.quota.type");

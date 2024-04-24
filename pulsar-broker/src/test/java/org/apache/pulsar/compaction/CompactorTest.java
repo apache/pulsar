@@ -229,8 +229,16 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_SUCCEEDED_COUNTER, attributes, 1);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_FAILED_COUNTER, attributes, 0);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
+                        .build(),
+                1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
+                        .build(),
+                0);
         assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,
                 actual -> assertThat(actual).isPositive());
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, attributes,
