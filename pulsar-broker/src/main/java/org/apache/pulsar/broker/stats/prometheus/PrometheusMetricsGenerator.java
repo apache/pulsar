@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.prometheus.client.Collector;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -233,17 +234,22 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                 }
             }
             if (isLast) {
-                // write gzip footer, integer values are in little endian byte order
-                compressBuffer.order(ByteOrder.LITTLE_ENDIAN);
-                // write CRC32 checksum
-                compressBuffer.putInt((int) crc.getValue());
-                // write uncompressed size
-                compressBuffer.putInt(deflater.getTotalIn());
                 // append the last compressed buffer
                 backingCompressBuffer.setIndex(0, compressBuffer.position());
                 resultBuffer.addComponent(true, backingCompressBuffer);
                 backingCompressBuffer = null;
                 compressBuffer = null;
+
+                // write gzip trailer
+                ByteBuffer trailer = ByteBuffer.allocate(8);
+                // write gzip trailer, integer values are in little endian byte order
+                trailer.order(ByteOrder.LITTLE_ENDIAN);
+                // write CRC32 checksum
+                trailer.putInt((int) crc.getValue());
+                // write uncompressed size
+                trailer.putInt(deflater.getTotalIn());
+                trailer.flip();
+                resultBuffer.addComponent(true, Unpooled.wrappedBuffer(trailer));
             }
         }
 
