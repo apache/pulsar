@@ -1645,6 +1645,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return deleteForcefully();
         }
 
+        removeTerminatedReplicators(replicators);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // Check for missing replicators
@@ -1683,6 +1684,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (log.isDebugEnabled()) {
             log.debug("[{}] Checking shadow replication status, shadowTopics={}", topic, configuredShadowTopics);
         }
+
+        removeTerminatedReplicators(shadowReplicators);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // Check for missing replicators
@@ -1833,19 +1836,30 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (replicationClient == null) {
                         return;
                     }
-                    Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
-                        try {
-                            return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
-                                    remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
-                        } catch (PulsarServerException e) {
-                            log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
+                    lock.readLock().lock();
+                    try {
+                        if (isClosingOrDeleting) {
+                            // Whether is "transferring" or not, do not create new replicator.
+                            log.info("[{}] Skip to create replicator because this topic is closing."
+                                    + " remote cluster: {}. State of transferring : {}",
+                                    topic, remoteCluster, transferring);
+                            return;
                         }
-                        return null;
-                    });
-
-                    // clean up replicator if startup is failed
-                    if (replicator == null) {
-                        replicators.removeNullValue(remoteCluster);
+                        Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
+                            try {
+                                return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
+                                        remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
+                            } catch (PulsarServerException e) {
+                                log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
+                            }
+                            return null;
+                        });
+                        // clean up replicator if startup is failed
+                        if (replicator == null) {
+                            replicators.removeNullValue(remoteCluster);
+                        }
+                    } finally {
+                        lock.readLock().unlock();
                     }
                 });
     }
@@ -3501,9 +3515,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void unfenceTopicToResume() {
-        subscriptions.values().forEach(sub -> sub.resumeAfterFence());
         isFenced = false;
         isClosingOrDeleting = false;
+        subscriptions.values().forEach(sub -> sub.resumeAfterFence());
+        unfenceReplicatorsToResume();
+    }
+
+    private void unfenceReplicatorsToResume() {
+        checkReplication();
+        checkShadowReplication();
+    }
+
+    private void removeTerminatedReplicators(ConcurrentOpenHashMap<String, Replicator> replicators) {
+        Map<String, Replicator> terminatedReplicators = new HashMap<>();
+        replicators.forEach((cluster, replicator) -> {
+            if (replicator.isTerminated()) {
+                terminatedReplicators.put(cluster, replicator);
+            }
+        });
+        terminatedReplicators.entrySet().forEach(entry -> {
+            replicators.remove(entry.getKey(), entry.getValue());
+        });
     }
 
     @Override
