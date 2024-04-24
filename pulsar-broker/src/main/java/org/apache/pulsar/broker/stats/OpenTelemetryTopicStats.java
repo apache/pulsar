@@ -195,31 +195,31 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         messageInCounter = meter
-                .upDownCounterBuilder(MESSAGE_IN_COUNTER)
+                .counterBuilder(MESSAGE_IN_COUNTER)
                 .setUnit("{message}")
                 .setDescription("The total number of messages received for this topic.")
                 .buildObserver();
 
         messageOutCounter = meter
-                .upDownCounterBuilder(MESSAGE_OUT_COUNTER)
+                .counterBuilder(MESSAGE_OUT_COUNTER)
                 .setUnit("{message}")
                 .setDescription("The total number of messages read from this topic.")
                 .buildObserver();
 
         bytesInCounter = meter
-                .upDownCounterBuilder(BYTES_IN_COUNTER)
+                .counterBuilder(BYTES_IN_COUNTER)
                 .setUnit("By")
                 .setDescription("The total number of messages bytes received for this topic.")
                 .buildObserver();
 
         bytesOutCounter = meter
-                .upDownCounterBuilder(BYTES_OUT_COUNTER)
+                .counterBuilder(BYTES_OUT_COUNTER)
                 .setUnit("By")
                 .setDescription("The total number of messages bytes read from this topic.")
                 .buildObserver();
 
         publishRateLimitHitCounter = meter
-                .upDownCounterBuilder(PUBLISH_RATE_LIMIT_HIT_COUNTER)
+                .counterBuilder(PUBLISH_RATE_LIMIT_HIT_COUNTER)
                 .setUnit("{event}")
                 .setDescription("The number of times the publish rate limit is triggered.")
                 .buildObserver();
@@ -262,7 +262,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         backlogEvictionCounter = meter
-                .upDownCounterBuilder(BACKLOG_EVICTION_COUNTER)
+                .counterBuilder(BACKLOG_EVICTION_COUNTER)
                 .setUnit("{eviction}")
                 .setDescription("The number of times a backlog was evicted since it has exceeded its quota.")
                 .buildObserver();
@@ -274,25 +274,25 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         storageOutCounter = meter
-                .upDownCounterBuilder(STORAGE_OUT_COUNTER)
+                .counterBuilder(STORAGE_OUT_COUNTER)
                 .setUnit("{entry}")
                 .setDescription("The total message batches (entries) written to the storage for this topic.")
                 .buildObserver();
 
         storageInCounter = meter
-                .upDownCounterBuilder(STORAGE_IN_COUNTER)
+                .counterBuilder(STORAGE_IN_COUNTER)
                 .setUnit("{entry}")
                 .setDescription("The total message batches (entries) read from the storage for this topic.")
                 .buildObserver();
 
         compactionRemovedCounter = meter
-                .upDownCounterBuilder(COMPACTION_REMOVED_COUNTER)
+                .counterBuilder(COMPACTION_REMOVED_COUNTER)
                 .setUnit("{message}")
                 .setDescription("The total number of messages removed by compaction.")
                 .buildObserver();
 
         compactionOperationCounter = meter
-                .upDownCounterBuilder(COMPACTION_OPERATION_COUNTER)
+                .counterBuilder(COMPACTION_OPERATION_COUNTER)
                 .setUnit("{operation}")
                 .setDescription("The total number of compaction operations.")
                 .buildObserver();
@@ -305,25 +305,25 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .buildObserver();
 
         compactionBytesInCounter = meter
-                .upDownCounterBuilder(COMPACTION_BYTES_IN_COUNTER)
+                .counterBuilder(COMPACTION_BYTES_IN_COUNTER)
                 .setUnit("By")
                 .setDescription("The total count of bytes read by the compaction process for this topic.")
                 .buildObserver();
 
         compactionBytesOutCounter = meter
-                .upDownCounterBuilder(COMPACTION_BYTES_OUT_COUNTER)
+                .counterBuilder(COMPACTION_BYTES_OUT_COUNTER)
                 .setUnit("By")
                 .setDescription("The total count of bytes written by the compaction process for this topic.")
                 .buildObserver();
 
         compactionEntriesCounter = meter
-                .upDownCounterBuilder(COMPACTION_ENTRIES_COUNTER)
+                .counterBuilder(COMPACTION_ENTRIES_COUNTER)
                 .setUnit("{entry}")
                 .setDescription("The total number of compacted entries.")
                 .buildObserver();
 
         compactionBytesCounter = meter
-                .upDownCounterBuilder(COMPACTION_BYTES_COUNTER)
+                .counterBuilder(COMPACTION_BYTES_COUNTER)
                 .setUnit("By")
                 .setDescription("The total size of the compacted entries.")
                 .buildObserver();
