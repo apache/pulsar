@@ -23,7 +23,6 @@ import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
@@ -177,19 +176,6 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
                 Assert.assertTrue(entry.getValue().getMsgBacklog() == 0, entry.getKey());
             });
         });
-    }
-
-    protected void cleanupNamespace(String namespace) throws Exception {
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1));
-        List<String> partitionedTopics = admin1.topics().getPartitionedTopicList(namespace);
-        for (String partitionedTopic: partitionedTopics) {
-            admin1.topics().deletePartitionedTopic(partitionedTopic);
-        }
-        List<String> nonPartitionedTopics = admin1.topics().getList(namespace);
-        for (String nonPartitionedTopic: nonPartitionedTopics) {
-            admin1.topics().delete(nonPartitionedTopic);
-        }
-        admin1.namespaces().deleteNamespace(namespace);
     }
 
     protected interface CleanupTopicAction {

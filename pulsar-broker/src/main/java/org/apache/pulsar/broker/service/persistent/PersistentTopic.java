@@ -1466,7 +1466,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                                 @Override
                                                 public void deleteLedgerComplete(Object ctx) {
-                                                    disconnectReplicators().thenAccept(__ -> {
+                                                    terminateReplicators().thenAccept(__ -> {
                                                         brokerService.removeTopicFromCache(PersistentTopic.this);
 
                                                         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
@@ -1488,7 +1488,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                             instanceof MetadataStoreException.NotFoundException) {
                                                         log.info("[{}] Topic is already deleted {}",
                                                                 topic, exception.getMessage());
-                                                        deleteLedgerComplete(ctx);
+                                                        terminateReplicators().thenAccept(__ -> {
+                                                            deleteLedgerComplete(ctx);
+                                                        });
                                                     } else {
                                                         log.error("[{}] Error deleting topic",
                                                                 topic, exception);
@@ -1612,7 +1614,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ledger.asyncClose(new CloseCallback() {
                 @Override
                 public void closeComplete(Object ctx) {
-                    disconnectReplicators().thenAccept(__ -> {
+                    terminateReplicators().thenAccept(__ -> {
                         if (disconnectClients) {
                             // Everything is now closed, remove the topic from map
                             disposeTopic(closeFuture);
@@ -1625,7 +1627,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    disconnectReplicators().thenAccept(__ -> {
+                    terminateReplicators().thenAccept(__ -> {
                         if (disconnectClients) {
                             disposeTopic(closeFuture);
                         } else {
@@ -1644,10 +1646,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
-    private CompletableFuture<Void> disconnectReplicators() {
+    private CompletableFuture<Void> terminateReplicators() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
+        replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
+        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.terminate()));
         return FutureUtil.waitForAll(futures).handle((__, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to close replicator, proceeding anyway.", topic, ex);

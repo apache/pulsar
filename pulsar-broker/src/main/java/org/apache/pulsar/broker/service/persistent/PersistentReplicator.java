@@ -698,6 +698,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
         return producer != null && producer.isConnected();
     }
 
+    @Override
+    protected void doReleaseResources() {
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
 
     @VisibleForTesting
