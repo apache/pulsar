@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -53,11 +54,11 @@ public class NamespaceResources extends BaseResources<Policies> {
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
 
-    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
+    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
-        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
+        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec, executor);
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
@@ -234,9 +235,11 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
         private static final String PARTITIONED_TOPIC_PATH = "/admin/partitioned-topics";
+        private final Executor executor;
 
-        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec) {
+        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
+            this.executor = executor;
         }
 
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
@@ -371,7 +374,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                         future.complete(deleteResult);
                     }
                 });
-            });
+            }, executor);
 
             return future;
         }
