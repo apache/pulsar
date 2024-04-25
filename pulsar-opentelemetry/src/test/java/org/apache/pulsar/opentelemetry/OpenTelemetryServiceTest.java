@@ -25,7 +25,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.instrumentation.resources.JarServiceNameDetector;
-import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.metrics.data.MetricData;
@@ -204,18 +203,10 @@ public class OpenTelemetryServiceTest {
 
     @Test
     public void testJvmRuntimeMetrics() {
-        var otel = openTelemetryService.getOpenTelemetry();
-
-        @Cleanup
-        var runtimeMetrics = RuntimeMetrics.builder(otel)
-                .enableAllFeatures()
-                .enableExperimentalJmxTelemetry()
-                .build();
-
         // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
         Runtime.getRuntime().gc();
 
-        var metrics = reader.collectAllMetrics().stream().sorted(Comparator.comparing(MetricData::getName)).toList();
+        var metrics = reader.collectAllMetrics();
 
         // Process Metrics
         // Replaces process_cpu_seconds_total
