@@ -233,15 +233,15 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             // the completion is checked by the deflater.needsInput() method for buffers that aren't the last buffer
             // for the last buffer, the completion is checked by the deflater.finished() method
             while (!isLast && !deflater.needsInput() || isLast && !deflater.finished()) {
-                // when the previous deflater.deflate() call returns 0, it means the output buffer is full
-                // append the compressed buffer to the result buffer and allocate a new buffer
+                // when the previous deflater.deflate() call returns 0, it means that the output buffer is full.
+                // append the compressed buffer to the result buffer and allocate a new buffer.
                 if (written == 0) {
                     if (compressBuffer.position() > 0) {
                         backingCompressBuffer.setIndex(0, compressBuffer.position());
                         resultBuffer.addComponent(true, backingCompressBuffer);
                         allocateBuffer();
                     } else {
-                        // this is an unexpected case, throw an exception to prevent infinite loop
+                        // this is an unexpected case, throw an exception to prevent an infinite loop
                         throw new IllegalStateException(
                                 "Deflater didn't write any bytes while the compress buffer is empty.");
                     }
@@ -254,7 +254,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     backingCompressBuffer.setIndex(0, compressBuffer.position());
                     resultBuffer.addComponent(true, backingCompressBuffer);
                 } else {
-                    // release unused empty buffer
+                    // release an unused empty buffer
                     backingCompressBuffer.release();
                 }
                 backingCompressBuffer = null;
