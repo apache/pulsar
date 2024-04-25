@@ -233,7 +233,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             // the completion is checked by the deflater.needsInput() method for buffers that aren't the last buffer
             // for the last buffer, the completion is checked by the deflater.finished() method
             while (!isLast && !deflater.needsInput() || isLast && !deflater.finished()) {
-                // when the previous deflater.deflate() call returns 0, it means that the output buffer is full.
+                // when the previous deflater.deflate() call returns 0 (and needsInput/finished returns false),
+                // it means that the output buffer is full.
                 // append the compressed buffer to the result buffer and allocate a new buffer.
                 if (written == 0) {
                     if (compressBuffer.position() > 0) {
