@@ -4304,19 +4304,27 @@ public class PersistentTopicsBase extends AdminResource {
         // and other vital information. Even after namespace starting deletion,,
         // we need to access the metadata of system topics to create readers and clean up topic data.
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
-        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
-            .thenCompose(res -> pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
-            .thenAccept(metadata -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Total number of partitions for topic {} is {}", topicName,
-                        metadata.partitions);
-                }
-                metadataFuture.complete(metadata);
-            }).exceptionally(ex -> {
-            metadataFuture.completeExceptionally(ex.getCause());
-            return null;
-        });
+        CompletableFuture<Void> clusterOwnershipCheck;
+        if (isSystemTopic(topicName)) {
+            clusterOwnershipCheck = CompletableFuture.completedFuture(null);
+        } else {
+            clusterOwnershipCheck =
+                    checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
+                            .thenApply(res -> null);
+        }
+
+        clusterOwnershipCheck.thenCompose(res -> pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .thenAccept(metadata -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Total number of partitions for topic {} is {}", topicName,
+                                metadata.partitions);
+                    }
+                    metadataFuture.complete(metadata);
+                }).exceptionally(ex -> {
+                    metadataFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
 
         return metadataFuture;
     }
