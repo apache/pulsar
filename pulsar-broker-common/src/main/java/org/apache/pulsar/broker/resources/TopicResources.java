@@ -120,7 +120,7 @@ public class TopicResources {
         return store.exists(path)
                 .thenCompose(exists -> {
                     if (exists) {
-                        return store.delete(path, Optional.empty());
+                        return store.deleteRecursive(path);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }

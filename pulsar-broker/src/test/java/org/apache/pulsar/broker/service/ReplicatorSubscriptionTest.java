@@ -757,7 +757,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
      *          similar to step 1.
      *  </p>
      */
-    @Test(dataProvider = "isTopicPolicyEnabled")
+    // TODO: this test causes OOME in the CI, need to investigate
+    @Test(dataProvider = "isTopicPolicyEnabled", enabled = false)
     public void testWriteMarkerTaskOfReplicateSubscriptions(boolean isTopicPolicyEnabled) throws Exception {
         // 1. Prepare resource and use proper configuration.
         String namespace = BrokerTestUtil.newUniqueName("pulsar/testReplicateSubBackLog");
