@@ -140,8 +140,6 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <otel.instrumentation.runtime-telemetry-java17.enable-all>true</otel.instrumentation.runtime-telemetry-java17.enable-all>
-            <otel.instrumentation.runtime-telemetry.emit-experimental-telemetry>true</otel.instrumentation.runtime-telemetry.emit-experimental-telemetry>
             <otel.semconv-stability.opt-in>jvm</otel.semconv-stability.opt-in>
           </systemPropertyVariables>
         </configuration>
