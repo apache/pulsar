@@ -372,7 +372,9 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         int totalLen = 0;
         while (totalLen < initialBufferSize) {
             totalLen += chunkSize;
-            buf.addComponent(false, byteBufAllocator.directBuffer(chunkSize));
+            // increase the capacity in increments of chunkSize to preallocate the buffers
+            // in the composite buffer
+            buf.capacity(totalLen);
         }
         return buf;
     }
