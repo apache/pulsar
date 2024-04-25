@@ -204,8 +204,19 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                     .getPartitionedTopicList("tenant-xyz/ns-abc")
                     .contains(topic));
         } else {
-            log.info("trying to create the topic again");
-            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+            if (admin.topics().getList("tenant-xyz/ns-abc")
+                    .stream().noneMatch(t -> t.contains(topic))) {
+                log.info("trying to create the topic again");
+                try {
+                    ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+                } catch (Exception ce) {
+                    if (ce instanceof PulsarAdminException.ConflictException) {
+                        // pass
+                    }else {
+                        throw ce;
+                    }
+                }
+            }
         }
     }
 }
