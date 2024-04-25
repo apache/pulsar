@@ -234,6 +234,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // grant topic consume authorization to the subscriptionRole
+        tenantAdmin.topics().createNonPartitionedTopic(topicName);
         tenantAdmin.topics().grantPermission(topicName, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
