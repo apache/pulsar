@@ -285,8 +285,6 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
         // Reset configs.
         config1 = new ServiceConfiguration();
-        setConfigDefaults(config1, cluster1, bkEnsemble1, brokerConfigZk1);
         config2 = new ServiceConfiguration();
-        setConfigDefaults(config2, cluster2, bkEnsemble2, brokerConfigZk2);
     }
 }
