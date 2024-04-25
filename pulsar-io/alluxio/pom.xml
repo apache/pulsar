@@ -57,6 +57,12 @@
             <groupId>org.alluxio</groupId>
             <artifactId>alluxio-core-client-fs</artifactId>
             <version>${alluxio.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                    <groupId>org.apache.logging.log4j</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -68,6 +74,10 @@
                 <exclusion>
                     <groupId>org.glassfish</groupId>
                     <artifactId>javax.el</artifactId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                    <groupId>org.apache.logging.log4j</groupId>
                 </exclusion>
             </exclusions>
         </dependency>

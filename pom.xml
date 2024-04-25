@@ -153,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.3.8</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
-    <slf4j.version>1.7.32</slf4j.version>
+    <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
     <bouncycastle.version>1.78</bouncycastle.version>
@@ -352,6 +352,10 @@ flexible messaging model and an intuitive client API.</description>
                 <groupId>org.yaml</groupId>
                 <artifactId>*</artifactId>
             </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
         </exclusions>
       </dependency>
 
@@ -459,6 +463,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
           </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -1582,6 +1590,10 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.zookeeper</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>log4j-slf4j-impl</artifactId>
+          <groupId>org.apache.logging.log4j</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -2697,6 +2709,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <!-- For the BDB JE dependency -->
+    <repository>
+      <id>oracle.releases</id>
+      <url>https://download.oracle.com/maven</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

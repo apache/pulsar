@@ -386,7 +386,7 @@ The Apache Software License, Version 2.0
  * Log4J
     - log4j-api-2.23.1.jar
     - log4j-core-2.23.1.jar
-    - log4j-slf4j-impl-2.23.1.jar
+    - log4j-slf4j2-impl-2.23.1.jar
     - log4j-web-2.23.1.jar
  * OpenTelemetry
     - opentelemetry-api-1.34.1.jar
@@ -424,7 +424,7 @@ BSD 3-clause "New" or "Revised" License
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - slf4j-api-1.7.32.jar
+    - slf4j-api-2.0.13.jar
  * The Checker Framework
     - checker-qual-3.33.0.jar
 
