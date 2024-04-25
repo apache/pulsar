@@ -2125,7 +2125,7 @@ public abstract class NamespacesBase extends AdminResource {
                     f.complete(null);
                 })
                 .exceptionally(t -> {
-                    Throwable cause = t.getCause();
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
                             clientAppId(), namespaceName, t);
                     f.completeExceptionally(new RestException(cause));
