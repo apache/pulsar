@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.deleteNamespaceWithRetry;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -58,7 +59,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -71,8 +71,6 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     private PulsarClient pulsarClient;
 
     private AuthorizationService authorizationService;
-
-    private AuthorizationService orignalAuthorizationService;
 
     private static final String TENANT_ADMIN_SUBJECT =  UUID.randomUUID().toString();
     private static final String TENANT_ADMIN_TOKEN = Jwts.builder()
@@ -100,6 +98,9 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
         this.pulsarClient = super.getPulsarService().getClient();
+        this.authorizationService = Mockito.spy(getPulsarService().getBrokerService().getAuthorizationService());
+        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
+                authorizationService, true);
     }
 
 
@@ -115,19 +116,9 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         close();
     }
 
-    @BeforeMethod
-    public void before() throws IllegalAccessException {
-        orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
-        authorizationService = Mockito.spy(orignalAuthorizationService);
-        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                authorizationService, true);
-    }
-
     @AfterMethod
-    public void after() throws IllegalAccessException, PulsarAdminException {
-        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                orignalAuthorizationService, true);
-        superUserAdmin.namespaces().deleteNamespace("public/default", true);
+    public void after() throws Exception {
+        deleteNamespaceWithRetry("public/default", true, superUserAdmin);
         superUserAdmin.namespaces().createNamespace("public/default");
     }
 
