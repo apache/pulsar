@@ -105,8 +105,12 @@ public class BrokerBookieIsolationTest {
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();
+            pulsarService = null;
         }
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     /**

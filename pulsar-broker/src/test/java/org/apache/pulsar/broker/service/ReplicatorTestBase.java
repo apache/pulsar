@@ -348,22 +348,18 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     public void resetConfig1() {
         config1 = new ServiceConfiguration();
-        setConfig1DefaultValue();
     }
 
     public void resetConfig2() {
         config2 = new ServiceConfiguration();
-        setConfig2DefaultValue();
     }
 
     public void resetConfig3() {
         config3 = new ServiceConfiguration();
-        setConfig3DefaultValue();
     }
 
     public void resetConfig4() {
         config4 = new ServiceConfiguration();
-        setConfig4DefaultValue();
     }
 
     private int inSec(int time, TimeUnit unit) {
@@ -379,29 +375,60 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             executor = null;
         }
 
-        admin1.close();
-        admin2.close();
-        admin3.close();
-        admin4.close();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
+        if (admin3 != null) {
+            admin3.close();
+            admin3 = null;
+        }
+        if (admin4 != null) {
+            admin4.close();
+            admin4 = null;
+        }
 
         if (pulsar4 != null) {
             pulsar4.close();
+            pulsar4 = null;
         }
         if (pulsar3 != null) {
             pulsar3.close();
+            pulsar3 = null;
         }
         if (pulsar2 != null) {
             pulsar2.close();
+            pulsar2 = null;
         }
         if (pulsar1 != null) {
             pulsar1.close();
+            pulsar1 = null;
         }
 
-        bkEnsemble1.stop();
-        bkEnsemble2.stop();
-        bkEnsemble3.stop();
-        bkEnsemble4.stop();
-        globalZkS.stop();
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (bkEnsemble3 != null) {
+            bkEnsemble3.stop();
+            bkEnsemble3 = null;
+        }
+        if (bkEnsemble4 != null) {
+            bkEnsemble4.stop();
+            bkEnsemble4 = null;
+        }
+        if (globalZkS != null) {
+            globalZkS.stop();
+            globalZkS = null;
+        }
 
         resetConfig1();
         resetConfig2();

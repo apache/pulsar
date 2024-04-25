@@ -99,8 +99,14 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        this.additionalPulsarTestContext.close();
+        if (additionalPulsarTestContext != null) {
+            additionalPulsarTestContext.close();
+            additionalPulsarTestContext = null;
+        }
         super.internalCleanup();
+        pulsar1 = pulsar2 = null;
+        primaryLoadManager = secondaryLoadManager = null;
+        channel1 = channel2 = null;
     }
 
     @BeforeMethod(alwaysRun = true)
