@@ -23,6 +23,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -110,11 +111,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         this.writerCaches = Caffeine.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .removalListener((namespaceName, writer, cause) -> {
-                    ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
-                        log.error("[{}] Close writer error.", namespaceName, ex);
-                        return null;
-                    });
+                    try {
+                        ((SystemTopicClient.Writer) writer).close();
+                    } catch (IOException e) {
+                        log.error("[{}] Close writer error.", namespaceName, e);
+                    }
                 })
+                .executor(pulsarService.getExecutor())
                 .buildAsync((namespaceName, executor) -> {
                     SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                             .createTopicPoliciesSystemTopicClient(namespaceName);
@@ -740,4 +743,21 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
+
+    @Override
+    public void close() throws Exception {
+        writerCaches.synchronous().invalidateAll();
+        readerCaches.values().forEach(future -> {
+            if (future != null && !future.isCompletedExceptionally()) {
+                future.thenAccept(reader -> {
+                    try {
+                        reader.close();
+                    } catch (IOException e) {
+                        log.error("Failed to close reader.", e);
+                    }
+                });
+            }
+        });
+        readerCaches.clear();
+    }
 }
