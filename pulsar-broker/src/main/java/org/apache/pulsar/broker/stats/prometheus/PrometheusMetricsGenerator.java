@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.prometheus.client.Collector;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -192,8 +193,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             crc = new CRC32();
             this.bufferSize = Math.max(Math.min(resolveChunkSize(bufAllocator), readableBytes), 8192);
             this.bufAllocator = bufAllocator;
-            this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 1);
-            allocateBuffer();
+            this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 2);
+            allocateCompressBuffer();
         }
 
         /**
@@ -218,37 +219,66 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                 // write gzip header
                 compressBuffer.put(GZIP_HEADER);
             }
+            // update the CRC32 checksum calculation
             nioBuffer.mark();
             crc.update(nioBuffer);
             nioBuffer.reset();
+            // pass the input buffer to the deflater
             deflater.setInput(nioBuffer);
+            // when the input buffer is the last one, set the flag to finish the deflater
             if (isLast) {
                 deflater.finish();
             }
-            while (!deflater.needsInput() && !deflater.finished()) {
-                int written = deflater.deflate(compressBuffer);
-                if (written == 0 && !compressBuffer.hasRemaining()) {
-                    backingCompressBuffer.setIndex(0, compressBuffer.position());
-                    resultBuffer.addComponent(true, backingCompressBuffer);
-                    allocateBuffer();
+            int written = -1;
+            // the deflater may need multiple calls to deflate the input buffer
+            // the completion is checked by the deflater.needsInput() method for buffers that aren't the last buffer
+            // for the last buffer, the completion is checked by the deflater.finished() method
+            while (!isLast && !deflater.needsInput() || isLast && !deflater.finished()) {
+                // when the previous deflater.deflate call returns 0 (and needsInput/finished returns false),
+                // it means that the output buffer is full.
+                // append the compressed buffer to the result buffer and allocate a new buffer.
+                if (written == 0) {
+                    if (compressBuffer.position() > 0) {
+                        appendCompressBufferToResultBuffer();
+                        allocateCompressBuffer();
+                    } else {
+                        // this is an unexpected case, throw an exception to prevent an infinite loop
+                        throw new IllegalStateException(
+                                "Deflater didn't write any bytes while the compress buffer is empty.");
+                    }
                 }
+                written = deflater.deflate(compressBuffer);
             }
             if (isLast) {
-                // write gzip footer, integer values are in little endian byte order
-                compressBuffer.order(ByteOrder.LITTLE_ENDIAN);
-                // write CRC32 checksum
-                compressBuffer.putInt((int) crc.getValue());
-                // write uncompressed size
-                compressBuffer.putInt(deflater.getTotalIn());
-                // append the last compressed buffer
-                backingCompressBuffer.setIndex(0, compressBuffer.position());
-                resultBuffer.addComponent(true, backingCompressBuffer);
+                // append the last compressed buffer when it is not empty
+                if (compressBuffer.position() > 0) {
+                    appendCompressBufferToResultBuffer();
+                } else {
+                    // release an unused empty buffer
+                    backingCompressBuffer.release();
+                }
                 backingCompressBuffer = null;
                 compressBuffer = null;
+
+                // write gzip trailer, 2 integers (CRC32 checksum and uncompressed size)
+                ByteBuffer trailerBuf = ByteBuffer.allocate(2 * Integer.BYTES);
+                // integer values are in little endian byte order
+                trailerBuf.order(ByteOrder.LITTLE_ENDIAN);
+                // write CRC32 checksum
+                trailerBuf.putInt((int) crc.getValue());
+                // write uncompressed size
+                trailerBuf.putInt(deflater.getTotalIn());
+                trailerBuf.flip();
+                resultBuffer.addComponent(true, Unpooled.wrappedBuffer(trailerBuf));
             }
         }
 
-        private void allocateBuffer() {
+        private void appendCompressBufferToResultBuffer() {
+            backingCompressBuffer.setIndex(0, compressBuffer.position());
+            resultBuffer.addComponent(true, backingCompressBuffer);
+        }
+
+        private void allocateCompressBuffer() {
             backingCompressBuffer = bufAllocator.directBuffer(bufferSize);
             compressBuffer = backingCompressBuffer.nioBuffer(0, bufferSize);
         }
@@ -283,7 +313,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         this.clock = clock;
     }
 
-    private ByteBuf generate0(List<PrometheusRawMetricsProvider> metricsProviders) {
+    protected ByteBuf generateMetrics(List<PrometheusRawMetricsProvider> metricsProviders) {
         ByteBuf buf = allocateMultipartCompositeDirectBuffer();
         boolean exceptionHappens = false;
         //Used in namespace/topic and transaction aggregators as share metric names
@@ -343,7 +373,9 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         int totalLen = 0;
         while (totalLen < initialBufferSize) {
             totalLen += chunkSize;
-            buf.addComponent(false, byteBufAllocator.directBuffer(chunkSize));
+            // increase the capacity in increments of chunkSize to preallocate the buffers
+            // in the composite buffer
+            buf.capacity(totalLen);
         }
         return buf;
     }
@@ -493,7 +525,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     CompletableFuture<ResponseBuffer> bufferFuture = newMetricsBuffer.getBufferFuture();
                     executor.execute(() -> {
                         try {
-                            bufferFuture.complete(new ResponseBuffer(generate0(metricsProviders)));
+                            bufferFuture.complete(new ResponseBuffer(generateMetrics(metricsProviders)));
                         } catch (Exception e) {
                             bufferFuture.completeExceptionally(e);
                         } finally {
