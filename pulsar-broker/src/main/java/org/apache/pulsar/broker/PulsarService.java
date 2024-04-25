@@ -444,7 +444,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 return closeFuture;
             }
             LOG.info("Closing PulsarService");
-            brokerService.unloadNamespaceBundlesGracefully();
+            if (brokerService != null) {
+                brokerService.unloadNamespaceBundlesGracefully();
+            }
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
