@@ -116,9 +116,18 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
     protected void cleanup() throws Exception {
         config = null;
         markCurrentSetupNumberCleaned();
-        admin.close();
-        pulsar.close();
-        bkEnsemble.stop();
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
 }

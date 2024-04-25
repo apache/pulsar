@@ -48,6 +48,7 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
             } catch (Exception e) {
                 log.error("Error in stopping ZK server", e);
             }
+            testZKServer = null;
         }
     }
 

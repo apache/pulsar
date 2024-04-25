@@ -131,11 +131,26 @@ public class PulsarWorkerAssignmentTest {
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
-            pulsarClient.close();
-            admin.close();
-            functionsWorkerService.stop();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Exception e) {
             log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
         } finally {

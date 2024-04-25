@@ -130,9 +130,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
-        admin1.namespaces().removeBacklogQuota("pulsar/ns");
-        admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-        admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
+        if (admin1 != null) {
+            admin1.namespaces().removeBacklogQuota("pulsar/ns");
+            admin1.namespaces().removeBacklogQuota("pulsar/ns1");
+            admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
+        }
     }
 
     @Override
