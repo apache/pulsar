@@ -192,7 +192,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             crc = new CRC32();
             this.bufferSize = Math.max(Math.min(resolveChunkSize(bufAllocator), readableBytes), 8192);
             this.bufAllocator = bufAllocator;
-            this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 1);
+            this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 2);
             allocateBuffer();
         }
 
