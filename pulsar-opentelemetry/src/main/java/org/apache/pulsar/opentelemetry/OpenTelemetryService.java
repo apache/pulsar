@@ -21,6 +21,7 @@ package org.apache.pulsar.opentelemetry;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -43,6 +44,8 @@ public class OpenTelemetryService implements Closeable {
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final OpenTelemetrySdk openTelemetrySdk;
+
+    private final RuntimeMetrics runtimeMetrics;
 
     /**
      * Instantiates the OpenTelemetry SDK. All attributes are overridden by system properties or environment
@@ -95,6 +98,9 @@ public class OpenTelemetryService implements Closeable {
         }
 
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
+
+        // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
+        runtimeMetrics = RuntimeMetrics.builder(openTelemetrySdk).enableAllFeatures().build();
     }
 
     public OpenTelemetry getOpenTelemetry() {
@@ -103,6 +109,9 @@ public class OpenTelemetryService implements Closeable {
 
     @Override
     public void close() {
+        if (runtimeMetrics != null) {
+            runtimeMetrics.close();
+        }
         openTelemetrySdk.close();
     }
 }
