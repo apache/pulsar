@@ -355,22 +355,18 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     public void resetConfig1() {
         config1 = new ServiceConfiguration();
-        setConfig1DefaultValue();
     }
 
     public void resetConfig2() {
         config2 = new ServiceConfiguration();
-        setConfig2DefaultValue();
     }
 
     public void resetConfig3() {
         config3 = new ServiceConfiguration();
-        setConfig3DefaultValue();
     }
 
     public void resetConfig4() {
         config4 = new ServiceConfiguration();
-        setConfig4DefaultValue();
     }
 
     private int inSec(int time, TimeUnit unit) {
