@@ -193,7 +193,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             this.bufferSize = Math.max(Math.min(resolveChunkSize(bufAllocator), readableBytes), 8192);
             this.bufAllocator = bufAllocator;
             this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 2);
-            allocateBuffer();
+            allocateCompressBuffer();
         }
 
         /**
@@ -238,9 +238,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                 // append the compressed buffer to the result buffer and allocate a new buffer.
                 if (written == 0) {
                     if (compressBuffer.position() > 0) {
-                        backingCompressBuffer.setIndex(0, compressBuffer.position());
-                        resultBuffer.addComponent(true, backingCompressBuffer);
-                        allocateBuffer();
+                        appendCompressBufferToResultBuffer();
+                        allocateCompressBuffer();
                     } else {
                         // this is an unexpected case, throw an exception to prevent an infinite loop
                         throw new IllegalStateException(
@@ -252,8 +251,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             if (isLast) {
                 // append the last compressed buffer when it is not empty
                 if (compressBuffer.position() > 0) {
-                    backingCompressBuffer.setIndex(0, compressBuffer.position());
-                    resultBuffer.addComponent(true, backingCompressBuffer);
+                    appendCompressBufferToResultBuffer();
                 } else {
                     // release an unused empty buffer
                     backingCompressBuffer.release();
@@ -274,7 +272,12 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             }
         }
 
-        private void allocateBuffer() {
+        private void appendCompressBufferToResultBuffer() {
+            backingCompressBuffer.setIndex(0, compressBuffer.position());
+            resultBuffer.addComponent(true, backingCompressBuffer);
+        }
+
+        private void allocateCompressBuffer() {
             backingCompressBuffer = bufAllocator.directBuffer(bufferSize);
             compressBuffer = backingCompressBuffer.nioBuffer(0, bufferSize);
         }
