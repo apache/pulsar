@@ -75,7 +75,7 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        if (entriesCount != 0) {
+        if (entriesCount != 0 && lastPosition == null) {
             lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
         }
         if (log.isDebugEnabled()) {
@@ -83,16 +83,14 @@ class OpReadEntry implements ReadEntriesCallback {
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
         }
 
-        List<Entry> filteredEntries = Collections.emptyList();
+        List<Entry> filteredEntries;
         if (entriesCount != 0) {
             filteredEntries = cursor.filterReadEntries(returnedEntries);
             entries.addAll(filteredEntries);
         }
 
-        // if entries have been filtered out then try to skip reading of already deletedMessages in that range
-        final Position nexReadPosition = entriesCount != filteredEntries.size()
-                ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
-        updateReadPosition(nexReadPosition);
+        final Position nextReadPosition = cursor.getNextAvailablePosition(lastPosition);
+        updateReadPosition(nextReadPosition);
         checkReadCompletion();
     }
 

@@ -2110,15 +2110,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             entryIds.add(entryId);
         }
 
+        PositionImpl lastReadPosition = PositionImpl.get(ledger.getId(), lastEntry);
         if (entryIds.isEmpty()) {
             // Move `readPosition` of `cursor`.
-            PositionImpl position = PositionImpl.get(ledger.getId(), lastEntry);
-            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, position);
+            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, lastReadPosition);
             return;
         }
 
         List<Pair<Long, Long>> ranges = toRanges(entryIds);
-        ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry);
+        ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry, lastReadPosition);
         for (Pair<Long, Long> pair : ranges) {
             long start = pair.getLeft();
             long end = pair.getRight();
@@ -2149,13 +2149,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         private final SortedSet<Long> entryIds;
         private final List<Entry> entries;
         private final OpReadEntry callback;
-        private boolean completed = false;
+        private volatile boolean completed = false;
+        private final PositionImpl lastReadPosition;
 
         @VisibleForTesting
-        public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback) {
+        public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback,
+                                        PositionImpl lastReadPosition) {
             this.entryIds = entryIdSet;
             this.entries = new ArrayList<>(entryIdSet.size());
             this.callback = callback;
+            this.lastReadPosition = lastReadPosition;
         }
 
         @Override
@@ -2169,7 +2172,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             completed = true;
             entries.sort(Comparator.comparingLong(Entry::getEntryId));
-            callback.readEntriesComplete(entries, ctx);
+            callback.internalReadEntriesComplete(entries, ctx, lastReadPosition);
         }
 
         @Override

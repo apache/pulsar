@@ -3452,7 +3452,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             PositionImpl nextPosition = range.upperEndpoint().getNext();
             return (nextPosition != null && nextPosition.compareTo(position) > 0) ? nextPosition : position.getNext();
         }
-        return position.getNext();
+        return ledger.getNextValidPosition(position);
     }
 
     public Position getNextLedgerPosition(long currentLedgerId) {
