@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -38,9 +39,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.TimeUnit;
-
 @Test(groups = "broker-impl")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
@@ -49,7 +47,8 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     public static Object[][] loadManagerClassName() {
         return new Object[][]{
                 {ModularLoadManagerImpl.class.getName()},
-                {ExtensibleLoadManagerImpl.class.getName()}
+                // TODO: Disabled since this triggers a OOME in tests
+                //{ExtensibleLoadManagerImpl.class.getName()}
         };
     }
 
