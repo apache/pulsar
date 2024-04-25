@@ -100,7 +100,10 @@ public class OpenTelemetryService implements Closeable {
         openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
 
         // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
-        runtimeMetrics = RuntimeMetrics.builder(openTelemetrySdk).enableAllFeatures().build();
+        runtimeMetrics = RuntimeMetrics.builder(openTelemetrySdk)
+                .enableAllFeatures()
+                .enableExperimentalJmxTelemetry()
+                .build();
     }
 
     public OpenTelemetry getOpenTelemetry() {
