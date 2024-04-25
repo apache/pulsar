@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -212,7 +213,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 0);
 
         // markDelete position should be one position behind read position
-        assertEquals(cursor.getReadPosition(), cursor.getMarkDeletedPosition().getNext());
+        assertEquals(cursor.getReadPosition(),
+                cursor.getNextAvailablePosition((PositionImpl) cursor.getMarkDeletedPosition()));
 
         producer.close();
         consumer2.close();
