@@ -59,8 +59,6 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -69,6 +67,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -76,6 +75,7 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -379,19 +379,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub0")
                 .consumerName("consumer1")
                 .subscribe();
-        // @Cleanup
-        // Consumer<V2Data> consumer2 = pulsarClient.newConsumer(schemaV2)
-        //         .topic(topic)
-        //         .subscriptionType(SubscriptionType.Shared)
-        //         .subscriptionName("sub0")
-        //         .consumerName("consumerAfterLostLedger2")
-        //         .subscribe();
-        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
 
-        SchemaAndMetadata schemaAndMetadata0 = schemaRegistryService.getSchema(TopicName.get(topic)
-                .getSchemaName(), new LongSchemaVersion(0)).get();
-        SchemaAndMetadata schemaAndMetadata1 = schemaRegistryService.getSchema(TopicName.get(topic)
-                .getSchemaName(), new LongSchemaVersion(1)).get();
+        assertEquals(2, admin.schemas().getAllSchemas(topic).size());
 
         // delete ledger
         String key = TopicName.get(topic).getSchemaName();
@@ -414,34 +403,64 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             consumer1.acknowledge(msg);
         }
 
-        // try to fix the lost schema ledger
-        if (lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
-            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(0), schemaAndMetadata0.schema);
-            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                    .getSchemaName(), new LongSchemaVersion(1), schemaAndMetadata1.schema).join();
-        } else if (lostSchemaLedgerIndexes.contains(0) && !lostSchemaLedgerIndexes.contains(1)) {
-            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(0), schemaAndMetadata0.schema).join();
-        } else if (!lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
-            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
-                            .getSchemaName(), new LongSchemaVersion(1), schemaAndMetadata1.schema).join();
+        // try to complement the lost schema ledger
+        PostSchemaPayload v1Payload = new PostSchemaPayload();
+        v1Payload.setType("AVRO");
+        PostSchemaPayload v2Payload = new PostSchemaPayload();
+        v2Payload.setType("AVRO");
+        Map<String, String> v1Properties = new HashMap<>();
+        v1Properties.put("complementSchemaEnabled", "true");
+        v1Properties.put("complementSchemaVersion", "0");
+        Map<String, String> v2Properties = new HashMap<>();
+        v2Properties.put("complementSchemaEnabled", "true");
+        v2Properties.put("complementSchemaVersion", "1");
+
+        if (lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.size() == 1) {
+            SchemaInfo schemaInfo = schemaV1.getSchemaInfo();
+            v1Payload.setSchema(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8));
+            v1Properties.putAll(schemaInfo.getProperties());
+            v1Payload.setProperties(v1Properties);
+            admin.schemas().createSchema(topic, v1Payload);
+        } else if (lostSchemaLedgerIndexes.contains(1) && lostSchemaLedgerIndexes.size() == 1) {
+            SchemaInfo schemaInfo = schemaV2.getSchemaInfo();
+            v2Payload.setSchema(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8));
+            v2Properties.putAll(schemaInfo.getProperties());
+            v2Payload.setProperties(v2Properties);
+            admin.schemas().createSchema(topic, v2Payload);
+        } else if (lostSchemaLedgerIndexes.size() == 2) {
+            SchemaInfo v1SchemaInfo = schemaV1.getSchemaInfo();
+            v1Payload.setSchema(new String(v1SchemaInfo.getSchema(), StandardCharsets.UTF_8));
+            v1Properties.putAll(v1SchemaInfo.getProperties());
+            v1Payload.setProperties(v1Properties);
+            admin.schemas().createSchema(topic, v1Payload);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertEquals(1, admin.schemas().getAllSchemas(topic).size());
+            });
+
+            SchemaInfo v2SchemaInfo = schemaV2.getSchemaInfo();
+            v2Payload.setSchema(new String(v2SchemaInfo.getSchema(), StandardCharsets.UTF_8));
+            v2Properties.putAll(v2SchemaInfo.getProperties());
+            v2Payload.setProperties(v2Properties);
+            admin.schemas().createSchema(topic, v2Payload);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(2, admin.schemas().getAllSchemas(topic).size());
+            });
         }
 
-        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+        assertEquals(2, admin.schemas().getAllSchemas(topic).size());
 
-        @Cleanup
-        Producer<V1Data> producerAfterLostLedger1 = pulsarClient.newProducer(schemaV1)
-                .topic(topic)
-                .producerName("producerAfterLostLedger1")
-                .create();
-        assertNotNull(producerAfterLostLedger1.send(new V1Data(10)));
         @Cleanup
         Producer<V2Data> producerAfterLostLedger2 = pulsarClient.newProducer(schemaV2)
                 .topic(topic)
                 .producerName("producerAfterLostLedger2")
                 .create();
         assertNotNull(producerAfterLostLedger2.send(new V2Data(10, 10)));
+        @Cleanup
+        Producer<V1Data> producerAfterLostLedger1 = pulsarClient.newProducer(schemaV1)
+                .topic(topic)
+                .producerName("producerAfterLostLedger1")
+                .create();
+        assertNotNull(producerAfterLostLedger1.send(new V1Data(10)));
 
         @Cleanup
         Consumer<V1Data> consumerAfterLostLedger1 = pulsarClient.newConsumer(schemaV1)
@@ -462,6 +481,17 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         producer2.send(new V2Data(11, 11));
         assertNotNull(consumerAfterLostLedger2.receive(3, TimeUnit.SECONDS));
+
+        for (int i = 0; i < numMessages; i++) {
+            producer1.send(new V1Data(i));
+            producer2.send(new V2Data(i, i + 1));
+        }
+        for (int i = 0; i < numMessages; i++) {
+            Message<V1Data> msg = consumer1.receive(3, TimeUnit.SECONDS);
+            consumer1.acknowledge(msg);
+        }
+
+        assertEquals(2, admin.schemas().getAllSchemas(topic).size());
 
         producer1.close();
         producer2.close();
