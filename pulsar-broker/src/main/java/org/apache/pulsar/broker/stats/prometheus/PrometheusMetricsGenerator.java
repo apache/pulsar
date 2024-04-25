@@ -288,7 +288,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         this.clock = clock;
     }
 
-    private ByteBuf generate0(List<PrometheusRawMetricsProvider> metricsProviders) {
+    protected ByteBuf generateMetrics(List<PrometheusRawMetricsProvider> metricsProviders) {
         ByteBuf buf = allocateMultipartCompositeDirectBuffer();
         boolean exceptionHappens = false;
         //Used in namespace/topic and transaction aggregators as share metric names
@@ -498,7 +498,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     CompletableFuture<ResponseBuffer> bufferFuture = newMetricsBuffer.getBufferFuture();
                     executor.execute(() -> {
                         try {
-                            bufferFuture.complete(new ResponseBuffer(generate0(metricsProviders)));
+                            bufferFuture.complete(new ResponseBuffer(generateMetrics(metricsProviders)));
                         } catch (Exception e) {
                             bufferFuture.completeExceptionally(e);
                         } finally {
