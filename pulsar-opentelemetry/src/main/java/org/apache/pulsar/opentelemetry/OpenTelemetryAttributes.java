@@ -29,4 +29,9 @@ public interface OpenTelemetryAttributes {
      * {@link OpenTelemetryService}.
      */
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
+
+    /**
+     * The name of the Pulsar namespace.
+     */
+    AttributeKey<String> PULSAR_NAMESPACE = AttributeKey.stringKey("pulsar.namespace");
 }
