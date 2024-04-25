@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static java.util.Map.entry;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.destination_storage;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.message_age;
@@ -893,14 +894,14 @@ public class BacklogQuotaManagerTest {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic1)
                 .build();
         var metrics = openTelemetryMetricReader.collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, attributes,
+        assertMetricLongGaugeValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_LIMIT_TIME, attributes,
                 backlogTimeLimit);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_EVICTION_COUNTER, Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
                         .build(),
                 1);
-        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, attributes,
+        assertMetricLongGaugeValue(metrics, OpenTelemetryTopicStats.BACKLOG_QUOTA_AGE, attributes,
                 value -> assertThat(value).isGreaterThanOrEqualTo(delaySeconds));
     }
 

@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import java.util.Map;
@@ -45,13 +44,12 @@ public class BrokerOpenTelemetryTestUtil {
     public static void assertMetricDoubleSumValue(Collection<MetricData> metrics, String metricName,
                                                   Attributes attributes, Consumer<Double> valueConsumer) {
         assertThat(metrics)
-                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasDoubleSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            OpenTelemetryAssertions.assertThat(point.getAttributes())
-                                                    .isEqualTo(attributes);
+                                            assertThat(point.getAttributes()).isEqualTo(attributes);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
@@ -64,13 +62,30 @@ public class BrokerOpenTelemetryTestUtil {
     public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName,
                                                 Attributes attributes, Consumer<Long> valueConsumer) {
         assertThat(metrics)
-                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasLongSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            OpenTelemetryAssertions.assertThat(point.getAttributes())
-                                                    .isEqualTo(attributes);
+                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            valueConsumer.accept(point.getValue());
+                                        }))));
+    }
+
+    public static void assertMetricLongGaugeValue(Collection<MetricData> metrics, String metricName,
+                                                  Attributes attributes, long expected) {
+        assertMetricLongGaugeValue(metrics, metricName, attributes, actual -> assertThat(actual).isEqualTo(expected));
+    }
+
+    public static void assertMetricLongGaugeValue(Collection<MetricData> metrics, String metricName,
+                                                  Attributes attributes, Consumer<Long> valueConsumer) {
+        assertThat(metrics)
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongGaugeSatisfying(gauge -> gauge.satisfies(
+                                pointData -> assertThat(pointData.getPoints()).anySatisfy(
+                                        point -> {
+                                            assertThat(point.getAttributes()).isEqualTo(attributes);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
