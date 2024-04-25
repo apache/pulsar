@@ -240,22 +240,48 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         log.info("--- Shutting down ---");
 
         // Stop brokers.
-        client1.close();
-        client2.close();
-        admin1.close();
-        admin2.close();
+        if (client1 != null) {
+            client1.close();
+            client1 = null;
+        }
+        if (client2 != null) {
+            client2.close();
+            client2 = null;
+        }
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
         if (pulsar2 != null) {
             pulsar2.close();
+            pulsar2 = null;
         }
         if (pulsar1 != null) {
             pulsar1.close();
+            pulsar1 = null;
         }
 
         // Stop ZK and BK.
-        bkEnsemble1.stop();
-        bkEnsemble2.stop();
-        brokerConfigZk1.stop();
-        brokerConfigZk2.stop();
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (brokerConfigZk1 != null) {
+            brokerConfigZk1.stop();
+            brokerConfigZk1 = null;
+        }
+        if (brokerConfigZk2 != null) {
+            brokerConfigZk2.stop();
+            brokerConfigZk2 = null;
+        }
 
         // Reset configs.
         config1 = new ServiceConfiguration();
