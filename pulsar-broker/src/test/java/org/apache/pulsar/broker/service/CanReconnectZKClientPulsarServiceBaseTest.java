@@ -223,6 +223,5 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
 
         // Reset configs.
         config = new ServiceConfiguration();
-        setConfigDefaults(config, clusterName, bkEnsemble, brokerConfigZk);
     }
 }
