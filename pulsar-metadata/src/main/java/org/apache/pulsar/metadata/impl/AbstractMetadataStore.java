@@ -517,7 +517,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    private boolean isClosed() {
+    protected boolean isClosed() {
         return isClosed.get();
     }
 
