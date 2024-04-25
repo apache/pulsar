@@ -68,15 +68,20 @@ public class ZookeeperServerTest implements Closeable {
     }
 
     public void stop() throws IOException {
-        zks.shutdown();
-        serverFactory.shutdown();
+        if (zks != null) {
+            zks.shutdown();
+            zks = null;
+        }
+        if (serverFactory != null) {
+            serverFactory.shutdown();
+            serverFactory = null;
+        }
         log.info("Stopped ZK server at {}", hostPort);
     }
 
     @Override
     public void close() throws IOException {
-        zks.shutdown();
-        serverFactory.shutdown();
+        stop();
         zkTmpDir.delete();
     }
 
