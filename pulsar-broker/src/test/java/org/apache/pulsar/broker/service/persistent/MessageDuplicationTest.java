@@ -33,11 +33,16 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.*;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -50,9 +55,11 @@ import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -489,5 +496,33 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 });
         messageDeduplication.purgeInactiveProducers();
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
+    }
+
+
+    @Test
+    public void testMessageDeduplicationShouldNotWorkForSystemTopic() throws PulsarAdminException {
+        final String localName = UUID.randomUUID().toString();
+        final String namespace = "prop/ns-abc";
+        final String prefix = "persistent://%s/".formatted(namespace);
+        final String topic = prefix + localName;
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // broker level policies
+        final String eventSystemTopic = prefix + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final Optional<Topic> optionalTopic = pulsar.getBrokerService().getTopic(eventSystemTopic, true).join();
+        assertTrue(optionalTopic.isPresent());
+        final Topic ptRef = optionalTopic.get();
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
+
+        // namespace level policies
+        admin.namespaces().setDeduplicationStatus(namespace, true);
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
+
+        // topic level policies
+        admin.topicPolicies().setDeduplicationStatus(eventSystemTopic, true);
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
     }
 }

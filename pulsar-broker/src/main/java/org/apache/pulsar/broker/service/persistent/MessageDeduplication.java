@@ -473,7 +473,7 @@ public class MessageDeduplication {
     }
 
     private boolean isDeduplicationEnabled() {
-        return topic.getHierarchyTopicPolicies().getDeduplicationEnabled().get();
+        return topic.isDeduplicationEnabled();
     }
 
     /**
