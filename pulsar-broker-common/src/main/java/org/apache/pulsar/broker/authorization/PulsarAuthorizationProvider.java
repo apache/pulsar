@@ -111,11 +111,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     } else {
                         if (isNotBlank(subscription)) {
-                            // validate if role is authorized to access subscription. (skip validation if authorization
-                            // list is empty)
+                            // validate if role is authorized to access subscription.
                             Set<String> roles = policies.get().auth_policies
                                     .getSubscriptionAuthentication().get(subscription);
-                            if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                            if (roles == null || roles.isEmpty() || !roles.contains(role)) {
                                 log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                                 return CompletableFuture.completedFuture(false);
                             }
