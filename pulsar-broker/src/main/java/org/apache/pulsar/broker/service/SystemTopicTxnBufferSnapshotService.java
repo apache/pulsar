@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -156,7 +155,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                 future.thenAccept(writer -> {
                     try {
                         writer.close();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         log.error("Failed to close writer for namespace {}", entry.getKey(), e);
                     }
                 });

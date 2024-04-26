@@ -23,7 +23,6 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +112,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 .removalListener((namespaceName, writer, cause) -> {
                     try {
                         ((SystemTopicClient.Writer) writer).close();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         log.error("[{}] Close writer error.", namespaceName, e);
                     }
                 })
@@ -752,7 +751,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 future.thenAccept(reader -> {
                     try {
                         reader.close();
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         log.error("Failed to close reader.", e);
                     }
                 });
