@@ -37,7 +37,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * Topic policies service.
  */
 @InterfaceStability.Evolving
-public interface TopicPoliciesService {
+public interface TopicPoliciesService extends AutoCloseable {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
     long DEFAULT_GET_TOPIC_POLICY_TIMEOUT = 30_000;
@@ -236,6 +236,11 @@ public interface TopicPoliciesService {
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void close() {
             //No-op
         }
     }
