@@ -472,7 +472,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 }
             }).exceptionally(ex -> {
                 deleteFuture.completeExceptionally(
-                        new TopicBusyException("Failed to close clients before deleting topic."));
+                        new TopicBusyException("Failed to close clients before deleting topic.",
+                                FutureUtil.unwrapCompletionException(ex)));
                 return null;
             });
         } finally {
