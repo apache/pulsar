@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -56,10 +58,15 @@ public class NamespaceResources extends BaseResources<Policies> {
     private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
+        this(localStore, configurationStore, operationTimeoutSec, ForkJoinPool.commonPool());
+    }
+
+    public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec,
+                              Executor executor) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
-        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
+        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec, executor);
         this.localStore = localStore;
     }
 
@@ -245,9 +252,11 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
         private static final String PARTITIONED_TOPIC_PATH = "/admin/partitioned-topics";
+        private final Executor executor;
 
-        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec) {
+        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
+            this.executor = executor;
         }
 
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
@@ -385,7 +394,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                         future.complete(deleteResult);
                     }
                 });
-            });
+            }, executor);
 
             return future;
         }
