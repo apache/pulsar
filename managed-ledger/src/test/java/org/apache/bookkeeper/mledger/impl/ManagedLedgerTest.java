@@ -4395,28 +4395,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long ledgerId = ledger.currentLedger.getId();
 
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
-        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[1])), null);
-        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[3])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 7,  new byte[7])), null);
         callback.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), null);
+        // After call readEntriesFailed, the following readEntriesComplete should be ignored.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[5])), null);
 
         latch.await();
         // should not fail
         assertFalse(failed.get());
-        assertEquals(entries.size(), 5);
+        assertEquals(entries.size(), 2);
 
-        // Manually trigger the callback
-        Entry entry1 = entries.get(0);
-        Entry entry3 = entries.get(1);
-        Entry entry5 = entries.get(2);
-        assertEquals(entry1.getData().length, 1);
-        assertEquals(entry3.getData().length, 1);
-        assertEquals(entry5.getData().length, 1);
+        // `entries` should be only the entries with entryId 1 and 3.
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 3);
 
-        // Read from ledger.
-        Entry entry7 = entries.get(3);
-        Entry entry9 = entries.get(4);
-        assertNotEquals(entry7.getData().length, 1);
-        assertNotEquals(entry9.getData().length, 1);
+        // ReadPosition should be updated to [4]
+        assertEquals(cursor.getReadPosition().getEntryId(), 4);
     }
 
     @Test

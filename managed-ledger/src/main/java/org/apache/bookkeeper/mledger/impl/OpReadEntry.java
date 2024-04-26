@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -29,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +102,14 @@ class OpReadEntry implements ReadEntriesCallback {
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+        internalReadEntriesFailed(null, exception, ctx);
+    }
+
+    void internalReadEntriesFailed(Collection<Entry> ret, ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
+        if (CollectionUtils.isNotEmpty(ret)) {
+            entries.addAll(ret);
+        }
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them

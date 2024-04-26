@@ -2171,7 +2171,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
             completed = true;
+            // Make sure the entries are in the correct order
             entries.sort(Comparator.comparingLong(Entry::getEntryId));
+            // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered, so we need to pass
+            // the `lastReadPosition([5])` to make sure the cursor read position is correct.
             callback.internalReadEntriesComplete(entries, ctx, lastReadPosition);
         }
 
@@ -2183,18 +2186,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             completed = true;
             // If there are entries been read success, try to let the read operation success as possible.
             List<Entry> entries = filterEntries();
-            if (entries.isEmpty()) {
-                callback.readEntriesFailed(exception, ctx);
-            } else {
-                callback.readEntriesComplete(entries, ctx);
+            if (!entries.isEmpty()) {
+                // Move the read position of the cursor to the next position of the last read entry,
+                // or we will deliver the same entry to the consumer more than once.
+                Entry entry = entries.get(entries.size() - 1);
+                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                PositionImpl nextReadPosition = callback.cursor.getNextAvailablePosition(position);
+                callback.updateReadPosition(nextReadPosition);
             }
+            callback.internalReadEntriesFailed(entries, exception, ctx);
         }
 
+        /**
+         * Filter the entries that have been read success.
+         * <p>
+         * If we want to read [1, 2, 3, 4, 5], but only read [1, 2, 4, 5] successfully, [3] is read failed,
+         * only return [1,2] to the caller, to make sure the read operation success as possible
+         * and keep the ordering guarantee.
+         *
+         * @return filtered entries
+         */
         private List<Entry> filterEntries() {
             if (entries.isEmpty()) {
                 return Collections.emptyList();
             }
-            // Make sure the `readPosition` of `cursor` could be moved correctly.
             List<Entry> entries = new ArrayList<>();
             for (long entryId : entryIds) {
                 if (this.entries.isEmpty()) {
