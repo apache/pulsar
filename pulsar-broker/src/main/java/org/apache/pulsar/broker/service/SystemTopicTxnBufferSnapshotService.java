@@ -151,8 +151,26 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     public void close() throws Exception {
         for (Map.Entry<NamespaceName, SystemTopicClient<T>> entry : clients.entrySet()) {
-            entry.getValue().close();
+            try {
+                entry.getValue().close();
+            } catch (Exception e) {
+                log.error("Failed to close system topic client for namespace {}", entry.getKey(), e);
+            }
         }
+        clients.clear();
+        for (Map.Entry<NamespaceName, ReferenceCountedWriter<T>> entry : refCountedWriterMap.entrySet()) {
+            CompletableFuture<SystemTopicClient.Writer<T>> future = entry.getValue().getFuture();
+            if (!future.isCompletedExceptionally()) {
+                future.thenAccept(writer -> {
+                    try {
+                        writer.close();
+                    } catch (Exception e) {
+                        log.error("Failed to close writer for namespace {}", entry.getKey(), e);
+                    }
+                });
+            }
+        }
+        refCountedWriterMap.clear();
     }
 
 }
