@@ -2484,6 +2484,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // the last closed ledger should be the penultimate one.
         LedgerInfo lastClosedLeger = ledgers.get(ledgers.size() - 2);
         assertTrue(lastClosedLeger.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
+        ml2.close();
     }
 
     @Test
