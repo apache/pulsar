@@ -1470,7 +1470,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }).exceptionally(ex->{
                     unfenceTopicToResume();
                     deleteFuture.completeExceptionally(
-                            new TopicBusyException("Failed to close clients before deleting topic."));
+                            new TopicBusyException("Failed to close clients before deleting topic.",
+                                    FutureUtil.unwrapCompletionException(ex)));
                     return null;
                 });
 
