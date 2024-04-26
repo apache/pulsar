@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The tests in this class should be denied in a production pulsar cluster. they are very dangerous, which leads to
- * a lot of topic deletion namespace policies not correct.
+ * a lot of topic deletion and makes namespace policies being incorrect.
  */
 @Slf4j
 @Test(groups = "broker-impl")
