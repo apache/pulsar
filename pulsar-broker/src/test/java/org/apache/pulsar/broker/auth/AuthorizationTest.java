@@ -56,6 +56,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setClusterName("c1");
+        conf.setSystemTopicEnabled(false);
+        conf.setForceDeleteNamespaceAllowed(true);
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
@@ -96,8 +98,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
-                EnumSet.of(AuthAction.consume));
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, "other-role", EnumSet.of(AuthAction.consume));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
@@ -167,8 +170,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null));
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
-                EnumSet.of(AuthAction.produce));
+        String topic1 = "persistent://p1/c1/ns1/ds1";
+        admin.topics().createNonPartitionedTopic(topic1);
+        admin.topics().grantPermission(topic1, "my.*", EnumSet.of(AuthAction.produce));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null));
@@ -231,7 +235,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
 
-        admin.namespaces().deleteNamespace("p1/c1/ns1");
+        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
     }
