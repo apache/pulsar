@@ -20,6 +20,10 @@
 package org.apache.pulsar.broker.admin;
 
 import io.jsonwebtoken.Jwts;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -32,11 +36,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 @Test(groups = "broker-admin")
 public class NamespaceAuthZTest extends MockedPulsarStandalone {
@@ -160,5 +159,44 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
             superUserAdmin.namespaces().revokePermissionsOnNamespace(namespace, subject);
         }
         superUserAdmin.topics().delete(topic, true);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testOffloadThresholdInSeconds() {
+        final String namespace = "public/default";
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().getOffloadThresholdInSeconds(namespace));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().setOffloadThresholdInSeconds(namespace, 10000));
+    }
+
+    @Test
+    @SneakyThrows
+    public void testMaxSubscriptionsPerTopic() {
+        final String namespace = "public/default";
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().getMaxSubscriptionsPerTopic(namespace));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().setMaxSubscriptionsPerTopic(namespace, 100));
+
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.namespaces().removeMaxSubscriptionsPerTopic(namespace));
     }
 }
