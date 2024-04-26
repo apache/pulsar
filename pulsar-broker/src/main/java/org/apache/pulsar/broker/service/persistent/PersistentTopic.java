@@ -53,7 +53,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Value;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
