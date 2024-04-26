@@ -161,12 +161,8 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     private void validateProducer() {
-        if (producer == null || !producer.isConnected()) {
+        if (producer == null) {
             try {
-                if (producer != null) {
-                    producer.close();
-                }
-                producer = null;
                 startProducer();
                 log.info("Restarted producer on {}", topic);
             } catch (Exception e) {
