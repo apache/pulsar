@@ -132,6 +132,10 @@ public class BrokerServiceException extends Exception {
         public TopicBusyException(String msg) {
             super(msg);
         }
+
+        public TopicBusyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicNotFoundException extends BrokerServiceException {
