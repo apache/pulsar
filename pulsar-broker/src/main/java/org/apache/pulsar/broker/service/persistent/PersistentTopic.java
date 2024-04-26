@@ -330,11 +330,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * Event: Topic delete.
      *  the three futures will be initialized as "waiting for clients disconnect".
      */
-    @AllArgsConstructor
     private class CloseFutures {
-        private final CompletableFuture<Void> waitDisconnectClients;
-        private final CompletableFuture<Void> notWaitDisconnectClients;
         private final CompletableFuture<Void> transferring;
+        private final CompletableFuture<Void> notWaitDisconnectClients;
+        private final CompletableFuture<Void> waitDisconnectClients;
+
+        public CloseFutures(CompletableFuture<Void> transferring, CompletableFuture<Void> waitDisconnectClients,
+                            CompletableFuture<Void> notWaitDisconnectClients) {
+            this.transferring = transferring;
+            this.waitDisconnectClients = waitDisconnectClients;
+            this.notWaitDisconnectClients = notWaitDisconnectClients;
+        }
     }
 
     private static class TopicStatsHelper {
