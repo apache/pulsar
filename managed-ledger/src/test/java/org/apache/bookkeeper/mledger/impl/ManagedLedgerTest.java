@@ -2445,7 +2445,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void testTimestampOnWorkingLedger() throws Exception {
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
@@ -2472,19 +2472,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ml.addEntry("msg02".getBytes());
 
+        // reopen a new ml2
         ml.close();
-        // Thread.sleep(1000);
-        iter = ml.getLedgersInfoAsList().iterator();
-        ts = -1;
-        while (iter.hasNext()) {
-            LedgerInfo i = iter.next();
-            if (iter.hasNext()) {
-                assertTrue(ts <= i.getTimestamp(), i.toString());
-                ts = i.getTimestamp();
-            } else {
-                assertTrue(i.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
-            }
-        }
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) factory.open("my_test_ledger", conf);
+
+        List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
+        // after reopen ledgers will be 2 + 1(new open, not contain any entries)
+        assertEquals(ledgers.size(), 3);
+
+        // the last closed ledger should be the penultimate one.
+        LedgerInfo lastClosedLeger = ledgers.get(ledgers.size() - 2);
+        assertTrue(lastClosedLeger.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
+        ml2.close();
     }
 
     @Test
