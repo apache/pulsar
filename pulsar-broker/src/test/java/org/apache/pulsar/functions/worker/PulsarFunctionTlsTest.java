@@ -202,11 +202,13 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                    pulsarAdmins[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (fnWorkerServices[i] != null) {
                     fnWorkerServices[i].stop();
+                    fnWorkerServices[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
@@ -221,9 +223,13 @@ public class PulsarFunctionTlsTest {
                             getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].getConfiguration()
                             .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i] = null;
                 }
             }
-            bkEnsemble.stop();
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (tempDirectories[i] != null) {

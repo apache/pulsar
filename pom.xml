@@ -137,7 +137,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.26.0</commons-compress.version>
 
-    <bookkeeper.version>4.16.5</bookkeeper.version>
+    <bookkeeper.version>4.17.0</bookkeeper.version>
     <zookeeper.version>3.9.2</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -153,7 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.3.8</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
-    <slf4j.version>1.7.32</slf4j.version>
+    <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
     <bouncycastle.version>1.78</bouncycastle.version>
@@ -168,9 +168,9 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <byte-buddy.version>1.14.12</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
-    <protobuf3.version>3.19.6</protobuf3.version>
+    <protobuf3.version>3.22.3</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.55.3</grpc.version>
+    <grpc.version>1.56.0</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -248,7 +248,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.5</jetcd.version>
-    <oxia.version>0.1.0</oxia.version>
+    <oxia.version>0.1.6</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
@@ -278,6 +278,7 @@ flexible messaging model and an intuitive client API.</description>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
+    <consolecaptor.version>1.0.3</consolecaptor.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -350,6 +351,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclusion>
                 <groupId>org.yaml</groupId>
                 <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>*</artifactId>
             </exclusion>
         </exclusions>
       </dependency>
@@ -458,6 +463,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
           </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -1192,7 +1201,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.streamnative.oxia</groupId>
         <artifactId>oxia-client</artifactId>
         <version>${oxia.version}</version>
-        <classifier>shaded</classifier>
       </dependency>
       <dependency>
         <groupId>io.streamnative.oxia</groupId>
@@ -1581,6 +1589,10 @@ flexible messaging model and an intuitive client API.</description>
         <exclusion>
           <groupId>org.apache.zookeeper</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j-slf4j-impl</artifactId>
+          <groupId>org.apache.logging.log4j</groupId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -2697,6 +2709,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <!-- For the BDB JE dependency -->
+    <repository>
+      <id>oracle.releases</id>
+      <url>https://download.oracle.com/maven</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
