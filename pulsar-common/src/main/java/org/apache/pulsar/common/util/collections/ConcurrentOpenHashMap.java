@@ -353,55 +353,20 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         V get(K key, int keyHash) {
-            long stamp = tryOptimisticRead();
-            boolean acquiredLock = false;
-
-            // add local variable here, so OutOfBound won't happen
-            Object[] table = this.table;
-            // calculate table.length / 2 as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
-
+            long stamp = readLock();
             try {
-                while (true) {
-                    // First try optimistic locking
-                    K storedKey = (K) table[bucket];
-                    V storedValue = (V) table[bucket + 1];
-
-                    if (!acquiredLock && validate(stamp)) {
-                        // The values we have read are consistent
-                        if (key.equals(storedKey)) {
-                            return storedValue;
-                        } else if (storedKey == EmptyKey) {
-                            // Not found
-                            return null;
-                        }
-                    } else {
-                        // Fallback to acquiring read lock
-                        if (!acquiredLock) {
-                            stamp = readLock();
-                            acquiredLock = true;
-
-                            // update local variable
-                            table = this.table;
-                            bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
-                            storedKey = (K) table[bucket];
-                            storedValue = (V) table[bucket + 1];
-                        }
-
-                        if (key.equals(storedKey)) {
-                            return storedValue;
-                        } else if (storedKey == EmptyKey) {
-                            // Not found
-                            return null;
-                        }
-                    }
-
-                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
+                int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
+                K storedKey = (K) table[bucket];
+                V storedValue = (V) table[bucket + 1];
+                if (key.equals(storedKey)) {
+                    return storedValue;
+                } else if (storedKey == EmptyKey) {
+                    // Not found
+                    return null;
                 }
+                return null;
             } finally {
-                if (acquiredLock) {
-                    unlockRead(stamp);
-                }
+                unlockRead(stamp);
             }
         }
 

@@ -312,52 +312,19 @@ public class ConcurrentOpenHashSet<V> {
         }
 
         boolean contains(V value, int keyHash) {
-            long stamp = tryOptimisticRead();
-            boolean acquiredLock = false;
-
-            // add local variable here, so OutOfBound won't happen
-            V[] values = this.values;
-            // calculate table.length as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(keyHash, values.length);
-
+            long stamp = readLock();
             try {
-                while (true) {
-                    // First try optimistic locking
-                    V storedValue = values[bucket];
-
-                    if (!acquiredLock && validate(stamp)) {
-                        // The values we have read are consistent
-                        if (value.equals(storedValue)) {
-                            return true;
-                        } else if (storedValue == EmptyValue) {
-                            // Not found
-                            return false;
-                        }
-                    } else {
-                        // Fallback to acquiring read lock
-                        if (!acquiredLock) {
-                            stamp = readLock();
-                            acquiredLock = true;
-
-                            // update local variable
-                            values = this.values;
-                            bucket = signSafeMod(keyHash, values.length);
-                            storedValue = values[bucket];
-                        }
-
-                        if (value.equals(storedValue)) {
-                            return true;
-                        } else if (storedValue == EmptyValue) {
-                            // Not found
-                            return false;
-                        }
-                    }
-                    bucket = (bucket + 1) & (values.length - 1);
+                int bucket = signSafeMod(keyHash, values.length);
+                V storedValue = values[bucket];
+                if (value.equals(storedValue)) {
+                    return true;
+                } else if (storedValue == EmptyValue) {
+                    // Not found
+                    return false;
                 }
+                return false;
             } finally {
-                if (acquiredLock) {
-                    unlockRead(stamp);
-                }
+                unlockRead(stamp);
             }
         }
 

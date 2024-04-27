@@ -325,56 +325,20 @@ public class ConcurrentLongHashMap<V> {
         }
 
         V get(long key, int keyHash) {
-            long stamp = tryOptimisticRead();
-            boolean acquiredLock = false;
-
-            // add local variable here, so OutOfBound won't happen
-            long[] keys = this.keys;
-            V[] values = this.values;
-            // calculate table.length as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(keyHash, values.length);
-
+            long stamp = readLock();
             try {
-                while (true) {
-                    // First try optimistic locking
-                    long storedKey = keys[bucket];
-                    V storedValue = values[bucket];
-
-                    if (!acquiredLock && validate(stamp)) {
-                        // The values we have read are consistent
-                        if (storedKey == key) {
-                            return storedValue != DeletedValue ? storedValue : null;
-                        } else if (storedValue == EmptyValue) {
-                            // Not found
-                            return null;
-                        }
-                    } else {
-                        // Fallback to acquiring read lock
-                        if (!acquiredLock) {
-                            stamp = readLock();
-                            acquiredLock = true;
-
-                            // update local variable
-                            keys = this.keys;
-                            values = this.values;
-                            bucket = signSafeMod(keyHash, values.length);
-                            storedKey = keys[bucket];
-                            storedValue = values[bucket];
-                        }
-
-                        if (storedKey == key) {
-                            return storedValue != DeletedValue ? storedValue : null;
-                        } else if (storedValue == EmptyValue) {
-                            // Not found
-                            return null;
-                        }
-                    }
-                    bucket = (bucket + 1) & (values.length - 1);
+                int bucket = signSafeMod(keyHash, values.length);
+                long storedKey = keys[bucket];
+                V storedValue = values[bucket];
+                if (storedKey == key) {
+                    return storedValue != DeletedValue ? storedValue : null;
+                } else if (storedValue == EmptyValue) {
+                    // Not found
+                    return null;
                 }
+                return null;
             } finally {
-                if (acquiredLock) {
-                    unlockRead(stamp);
-                }
+                unlockRead(stamp);
             }
         }
 

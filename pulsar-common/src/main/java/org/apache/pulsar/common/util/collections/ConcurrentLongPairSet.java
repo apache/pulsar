@@ -350,55 +350,20 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
 
         boolean contains(long item1, long item2, int hash) {
-            long stamp = tryOptimisticRead();
-            boolean acquiredLock = false;
-
-            // add local variable here, so OutOfBound won't happen
-            long[] table = this.table;
-            // calculate table.length / 2 as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(hash, table.length / ITEM_SIZE);
-
+            long stamp = readLock();
             try {
-                while (true) {
-                    // First try optimistic locking
-                    long storedItem1 = table[bucket];
-                    long storedItem2 = table[bucket + 1];
-
-                    if (!acquiredLock && validate(stamp)) {
-                        // The values we have read are consistent
-                        if (item1 == storedItem1 && item2 == storedItem2) {
-                            return true;
-                        } else if (storedItem1 == EmptyItem) {
-                            // Not found
-                            return false;
-                        }
-                    } else {
-                        // Fallback to acquiring read lock
-                        if (!acquiredLock) {
-                            stamp = readLock();
-                            acquiredLock = true;
-
-                            // update local variable
-                            table = this.table;
-                            bucket = signSafeMod(hash, table.length / ITEM_SIZE);
-                            storedItem1 = table[bucket];
-                            storedItem2 = table[bucket + 1];
-                        }
-
-                        if (item1 == storedItem1 && item2 == storedItem2) {
-                            return true;
-                        } else if (storedItem1 == EmptyItem) {
-                            // Not found
-                            return false;
-                        }
-                    }
-
-                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
+                int bucket = signSafeMod(hash, table.length / ITEM_SIZE);
+                long storedItem1 = table[bucket];
+                long storedItem2 = table[bucket + 1];
+                if (item1 == storedItem1 && item2 == storedItem2) {
+                    return true;
+                } else if (storedItem1 == EmptyItem) {
+                    // Not found
+                    return false;
                 }
+                return false;
             } finally {
-                if (acquiredLock) {
-                    unlockRead(stamp);
-                }
+                unlockRead(stamp);
             }
         }
 
