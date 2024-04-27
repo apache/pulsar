@@ -351,17 +351,19 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
         boolean contains(long item1, long item2, int hash) {
             long stamp = readLock();
+            int bucket = signSafeMod(hash, table.length / ITEM_SIZE);
             try {
-                int bucket = signSafeMod(hash, table.length / ITEM_SIZE);
-                long storedItem1 = table[bucket];
-                long storedItem2 = table[bucket + 1];
-                if (item1 == storedItem1 && item2 == storedItem2) {
-                    return true;
-                } else if (storedItem1 == EmptyItem) {
-                    // Not found
-                    return false;
+                while (true) {
+                    long storedItem1 = table[bucket];
+                    long storedItem2 = table[bucket + 1];
+                    if (item1 == storedItem1 && item2 == storedItem2) {
+                        return true;
+                    } else if (storedItem1 == EmptyItem) {
+                        // Not found
+                        return false;
+                    }
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
-                return false;
             } finally {
                 unlockRead(stamp);
             }

@@ -354,17 +354,19 @@ public class ConcurrentOpenHashMap<K, V> {
 
         V get(K key, int keyHash) {
             long stamp = readLock();
+            int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
             try {
-                int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
-                K storedKey = (K) table[bucket];
-                V storedValue = (V) table[bucket + 1];
-                if (key.equals(storedKey)) {
-                    return storedValue;
-                } else if (storedKey == EmptyKey) {
-                    // Not found
-                    return null;
+                while (true) {
+                    K storedKey = (K) table[bucket];
+                    V storedValue = (V) table[bucket + 1];
+                    if (key.equals(storedKey)) {
+                        return storedValue;
+                    } else if (storedKey == EmptyKey) {
+                        // Not found
+                        return null;
+                    }
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
-                return null;
             } finally {
                 unlockRead(stamp);
             }

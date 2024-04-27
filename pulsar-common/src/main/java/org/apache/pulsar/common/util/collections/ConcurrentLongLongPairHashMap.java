@@ -344,19 +344,21 @@ public class ConcurrentLongLongPairHashMap {
 
         LongPair get(long key1, long key2, int keyHash) {
             long stamp = readLock();
+            int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
             try {
-                int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
-                long storedKey1 = table[bucket];
-                long storedKey2 = table[bucket + 1];
-                long storedValue1 = table[bucket + 2];
-                long storedValue2 = table[bucket + 3];
-                if (key1 == storedKey1 && key2 == storedKey2) {
-                    return new LongPair(storedValue1, storedValue2);
-                } else if (storedKey1 == EmptyKey) {
-                    // Not found
-                    return null;
+                while (true) {
+                    long storedKey1 = table[bucket];
+                    long storedKey2 = table[bucket + 1];
+                    long storedValue1 = table[bucket + 2];
+                    long storedValue2 = table[bucket + 3];
+                    if (key1 == storedKey1 && key2 == storedKey2) {
+                        return new LongPair(storedValue1, storedValue2);
+                    } else if (storedKey1 == EmptyKey) {
+                        // Not found
+                        return null;
+                    }
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
-                return null;
             } finally {
                 unlockRead(stamp);
             }

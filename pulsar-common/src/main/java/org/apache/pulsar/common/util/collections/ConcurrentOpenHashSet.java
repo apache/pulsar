@@ -313,16 +313,18 @@ public class ConcurrentOpenHashSet<V> {
 
         boolean contains(V value, int keyHash) {
             long stamp = readLock();
+            int bucket = signSafeMod(keyHash, values.length);
             try {
-                int bucket = signSafeMod(keyHash, values.length);
-                V storedValue = values[bucket];
-                if (value.equals(storedValue)) {
-                    return true;
-                } else if (storedValue == EmptyValue) {
-                    // Not found
-                    return false;
+                while (true) {
+                    V storedValue = values[bucket];
+                    if (value.equals(storedValue)) {
+                        return true;
+                    } else if (storedValue == EmptyValue) {
+                        // Not found
+                        return false;
+                    }
+                    bucket = (bucket + 1) & (values.length - 1);
                 }
-                return false;
             } finally {
                 unlockRead(stamp);
             }

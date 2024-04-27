@@ -326,17 +326,19 @@ public class ConcurrentLongHashMap<V> {
 
         V get(long key, int keyHash) {
             long stamp = readLock();
+            int bucket = signSafeMod(keyHash, values.length);
             try {
-                int bucket = signSafeMod(keyHash, values.length);
-                long storedKey = keys[bucket];
-                V storedValue = values[bucket];
-                if (storedKey == key) {
-                    return storedValue != DeletedValue ? storedValue : null;
-                } else if (storedValue == EmptyValue) {
-                    // Not found
-                    return null;
+                while (true) {
+                    long storedKey = keys[bucket];
+                    V storedValue = values[bucket];
+                    if (storedKey == key) {
+                        return storedValue != DeletedValue ? storedValue : null;
+                    } else if (storedValue == EmptyValue) {
+                        // Not found
+                        return null;
+                    }
+                    bucket = (bucket + 1) & (values.length - 1);
                 }
-                return null;
             } finally {
                 unlockRead(stamp);
             }
