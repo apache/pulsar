@@ -83,6 +83,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -174,6 +175,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -3632,6 +3634,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public CompletableFuture<Position> getLastDispatchablePosition() {
+        PositionImpl maxReadPosition = getMaxReadPosition();
+        // If `maxReadPosition` is not equal to `LastPosition`. It means that there are uncommitted transactions.
+        // so return `maxRedPosition` directly.
+        if (maxReadPosition.compareTo((PositionImpl) getLastPosition()) != 0) {
+            return CompletableFuture.completedFuture(maxReadPosition);
+        } else {
+            return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
+                MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+                // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
+                return !Markers.isServerOnlyMarker(md);
+            });
+        }
     }
 
     @Override
