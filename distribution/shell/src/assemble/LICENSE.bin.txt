@@ -425,6 +425,7 @@ BSD 3-clause "New" or "Revised" License
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
     - slf4j-api-2.0.13.jar
+    - jcl-over-slf4j-2.0.13.jar
  * The Checker Framework
     - checker-qual-3.33.0.jar
 
