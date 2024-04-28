@@ -3647,7 +3647,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
                 MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
                 // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
-                return !Markers.isServerOnlyMarker(md);
+                if (Markers.isServerOnlyMarker(md)) {
+                    return false;
+                } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
+                    // Filter-out transaction aborted messages.
+                    TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
+                    return !isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+                }
+                return true;
             }, maxReadPosition);
         }
     }

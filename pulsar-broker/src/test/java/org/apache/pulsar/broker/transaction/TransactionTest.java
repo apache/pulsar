@@ -1946,4 +1946,37 @@ public class TransactionTest extends TransactionTestBase {
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
     }
+
+    @Test
+    public void testPersistentTopicGetLastDispatchablePositionWithTxn() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testPersistentTopicGetLastDispatchablePositionWithTxn";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+
+        // send a normal message
+        MessageIdImpl msgId = (MessageIdImpl) producer.send(UUID.randomUUID().toString());
+
+        // send 3 txn messages
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+
+        // abort the txn
+        txn.abort().get();
+
+        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
+
+        // get last dispatchable position
+        PositionImpl lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+    }
 }
