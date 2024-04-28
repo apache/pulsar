@@ -67,10 +67,7 @@ import lombok.Cleanup;
 import lombok.Lombok;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -1959,7 +1956,8 @@ public class TransactionTest extends TransactionTestBase {
 
 
         // send a normal message
-        MessageIdImpl msgId = (MessageIdImpl) producer.send(UUID.randomUUID().toString());
+        String body = UUID.randomUUID().toString();
+        MessageIdImpl msgId = (MessageIdImpl) producer.send(body);
 
         // send 3 txn messages
         Transaction txn = pulsarClient.newTransaction().build().get();
@@ -1978,5 +1976,17 @@ public class TransactionTest extends TransactionTestBase {
 
         // the last dispatchable position should be the message id of the normal message
         assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<Message<String>> messages = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            messages.add(reader.readNext());
+        }
+        assertEquals(messages.size(), 1);
+        assertEquals(messages.get(0).getValue(), body);
     }
 }
