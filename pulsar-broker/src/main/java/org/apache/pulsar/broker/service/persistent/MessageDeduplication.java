@@ -27,7 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -133,8 +133,9 @@ public class MessageDeduplication {
 
     private final String replicatorPrefix;
 
-
-    private final AtomicBoolean snapshotTaking = new AtomicBoolean(false);
+    private volatile CompletableFuture<Void> snapshotFuture;
+    private static final AtomicReferenceFieldUpdater<MessageDeduplication, CompletableFuture> SNAPSHOT_FUTURE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(MessageDeduplication.class, CompletableFuture.class, "snapshotFuture");
 
     public MessageDeduplication(PulsarService pulsar, PersistentTopic topic, ManagedLedger managedLedger) {
         this.pulsar = pulsar;
@@ -438,38 +439,51 @@ public class MessageDeduplication {
         }
     }
 
-    private void takeSnapshot(Position position) {
+    private CompletableFuture<Void> takeSnapshot(Position position) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
-
-        if (!snapshotTaking.compareAndSet(false, true)) {
-            return;
+        final var future = new CompletableFuture<Void>();
+        // conditional optimistic locking implementation
+        while (!SNAPSHOT_FUTURE_UPDATER.compareAndSet(this, null, future)) {
+            // if we have a current snapshot future, return it then
+            final CompletableFuture<Void> oldFuture = SNAPSHOT_FUTURE_UPDATER.get(this);
+            if (oldFuture != null) {
+                return oldFuture;
+            }
+            Thread.onSpinWait();
         }
 
-        Map<String, Long> snapshot = new TreeMap<>();
-        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
-                snapshot.put(producerName, sequenceId);
-            }
-        });
-
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
+        try {
+            Map<String, Long> snapshot = new TreeMap<>();
+            highestSequencedPersisted.forEach((producerName, sequenceId) -> {
+                if (snapshot.size() < maxNumberOfProducers) {
+                    snapshot.put(producerName, sequenceId);
                 }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-            }
+            });
 
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
-                snapshotTaking.set(false);
-            }
-        }, null);
+            getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
+                    }
+                    lastSnapshotTimestamp = System.currentTimeMillis();
+                    SNAPSHOT_FUTURE_UPDATER.set(MessageDeduplication.this, null);
+                    future.complete(null);
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                    SNAPSHOT_FUTURE_UPDATER.set(MessageDeduplication.this, null);
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+        } catch (Throwable ex) {
+            future.completeExceptionally(ex);
+        }
+        return future;
     }
 
     private boolean isDeduplicationEnabled() {
@@ -540,26 +554,46 @@ public class MessageDeduplication {
         return sequenceId != null ? sequenceId : -1;
     }
 
-    public void takeSnapshot() {
+
+    /**
+     * Taking the deduplication snapshot to avoid replaying very large logs.
+     *
+     * @return The completable future of snapshot taking task
+     */
+    public CompletableFuture<Void> takeSnapshot() {
+        return takeSnapshot(false);
+    }
+
+    /**
+     * Taking the deduplication snapshot to avoid replaying very large logs.
+     * Note: this method may return the snapshotting future to support concurrent control,
+     *       which means this method does not ensure you trigger a new position for snapshotting.
+     *
+     * @param force Force taking snapshot without interval check
+     * @return The completable future of snapshot taking task
+     */
+    public CompletableFuture<Void> takeSnapshot(boolean force) {
         if (!isEnabled()) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
-        Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
-        long currentTimeStamp = System.currentTimeMillis();
-        if (interval == null || interval <= 0
+        if (!force) {
+            Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
+            long currentTimeStamp = System.currentTimeMillis();
+            if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
-            return;
+                return CompletableFuture.completedFuture(null);
+            }
         }
         PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
         if (position == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
         if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        takeSnapshot(position);
+        return takeSnapshot(position);
     }
 
     @VisibleForTesting
