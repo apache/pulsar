@@ -3648,7 +3648,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
                 // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
                 return !Markers.isServerOnlyMarker(md);
-            });
+            }, maxReadPosition);
         }
     }
 

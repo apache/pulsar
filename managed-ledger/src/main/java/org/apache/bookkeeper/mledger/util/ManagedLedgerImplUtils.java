@@ -35,13 +35,13 @@ public class ManagedLedgerImplUtils {
      * Reverse find last valid position one-entry by one-entry.
      */
     public static CompletableFuture<Position> asyncGetLastValidPosition(final ManagedLedgerImpl ledger,
-                                                                        final Predicate<Entry> predicate) {
+                                                                        final Predicate<Entry> predicate,
+                                                                        final PositionImpl startPosition) {
         CompletableFuture<Position> future = new CompletableFuture<>();
-        PositionImpl lastPosition = (PositionImpl) ledger.getLastConfirmedEntry();
-        if (!ledger.isValidPosition(lastPosition)) {
-            future.complete(lastPosition);
+        if (!ledger.isValidPosition(startPosition)) {
+            future.complete(startPosition);
         } else {
-            internalAsyncReverseFindPositionOneByOne(ledger, predicate, lastPosition, future);
+            internalAsyncReverseFindPositionOneByOne(ledger, predicate, startPosition, future);
         }
         return future;
     }
