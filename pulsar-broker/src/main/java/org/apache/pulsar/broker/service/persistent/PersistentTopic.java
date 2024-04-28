@@ -49,6 +49,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -85,7 +86,6 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -1693,7 +1693,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         CompletableFuture<Void> disconnectClientsInCurrentCall = null;
         // Note: "disconnectClientsToCache" is a non-able value, it is null when close type is transferring.
-        MutableObject<CompletableFuture<Void>> disconnectClientsToCache = new MutableObject<>();
+        AtomicReference<CompletableFuture<Void>> disconnectClientsToCache = new AtomicReference<>();
         switch (closeType) {
             case transferring -> {
                 disconnectClientsInCurrentCall = FutureUtil.waitForAll(futures);
@@ -1701,12 +1701,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
             case notWaitDisconnectClients -> {
                 disconnectClientsInCurrentCall = CompletableFuture.completedFuture(null);
-                disconnectClientsToCache.setValue(FutureUtil.waitForAll(futures));
+                disconnectClientsToCache.set(FutureUtil.waitForAll(futures));
                 break;
             }
             case waitDisconnectClients -> {
                 disconnectClientsInCurrentCall = FutureUtil.waitForAll(futures);
-                disconnectClientsToCache.setValue(disconnectClientsInCurrentCall);
+                disconnectClientsToCache.set(disconnectClientsInCurrentCall);
             }
         }
 
@@ -1749,7 +1749,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 FutureUtil.completeAfterAll(closeFutures.transferring, closeFuture);
                 FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, closeFuture);
                 FutureUtil.completeAfterAll(closeFutures.waitDisconnectClients,
-                        closeFuture.thenCompose(ignore -> disconnectClientsToCache.getValue()));
+                        closeFuture.thenCompose(ignore -> disconnectClientsToCache.get().exceptionally(ex -> {
+                            // Since the managed ledger has been closed, eat the error of clients disconnection.
+                            log.error("[{}] Closed managed ledger, but disconnect clients failed,"
+                                    + " this topic will be marked closed", topic, ex);
+                            return null;
+                        })));
                 break;
             }
             case waitDisconnectClients -> {
