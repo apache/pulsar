@@ -237,8 +237,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         int readNum = 0;
         while (reader.hasMessageAvailable()) {
             Message<byte[]> message = reader.readNext(10, TimeUnit.SECONDS);
-            log.info("Receive message: " + new String(message.getValue()) + " msgId: " + message.getMessageId());
             assertNotNull(message);
+            log.info("Receive message: " + new String(message.getValue()) + " msgId: " + message.getMessageId());
             readNum++;
         }
         assertEquals(readNum, numMessages);
