@@ -656,7 +656,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Subscriptions that will be ignored by ttl check. Default is empty."
     )
-    private Set<String> SubscriptionsIgnoredByTtl = new TreeSet<>();
+    private Set<String> subscriptionsIgnoredByTtl = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_POLICIES,
