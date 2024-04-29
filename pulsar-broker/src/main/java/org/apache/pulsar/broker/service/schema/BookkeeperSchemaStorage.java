@@ -52,6 +52,7 @@ import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -716,6 +717,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return source.exceptionally(t -> {
             if (t.getCause() != null
                     && (t.getCause() instanceof SchemaException)
+                    && !(t.getCause() instanceof IncompatibleSchemaException)
                     && !((SchemaException) t.getCause()).isRecoverable()) {
                 // Meeting NoSuchLedgerExistsException, NoSuchEntryException or
                 // NoSuchLedgerExistsOnMetadataServerException when reading schemas in

@@ -18,27 +18,35 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 
 @Slf4j
 public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
-    protected final String defaultNamespace = defaultTenant + "/default";
+    protected final String replicatedNamespace = defaultTenant + "/default";
+    protected final String nonReplicatedNamespace = defaultTenant + "/ns1";
 
     protected final String cluster1 = "r1";
     protected URL url1;
@@ -135,15 +143,43 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         admin2.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
                 Sets.newHashSet(cluster1, cluster2)));
 
-        admin1.namespaces().createNamespace(defaultNamespace, Sets.newHashSet(cluster1, cluster2));
-        admin2.namespaces().createNamespace(defaultNamespace);
+        admin1.namespaces().createNamespace(replicatedNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin2.namespaces().createNamespace(replicatedNamespace);
+        admin1.namespaces().createNamespace(nonReplicatedNamespace);
+        admin2.namespaces().createNamespace(nonReplicatedNamespace);
     }
 
     protected void cleanupTopics(CleanupTopicAction cleanupTopicAction) throws Exception {
-        admin1.namespaces().setNamespaceReplicationClusters(defaultNamespace, Collections.singleton(cluster1));
-        admin1.namespaces().unload(defaultNamespace);
+        cleanupTopics(replicatedNamespace, cleanupTopicAction);
+    }
+
+    protected void cleanupTopics(String namespace, CleanupTopicAction cleanupTopicAction) throws Exception {
+        waitChangeEventsInit(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1));
+        admin1.namespaces().unload(namespace);
         cleanupTopicAction.run();
-        admin1.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        waitChangeEventsInit(namespace);
+    }
+
+    protected void waitChangeEventsInit(String namespace) {
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false)
+                .join().get();
+        Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
+            TopicStatsImpl topicStats = topic.getStats(true, false, false);
+            topicStats.getSubscriptions().entrySet().forEach(entry -> {
+                // No wait for compaction.
+                if (COMPACTION_SUBSCRIPTION.equals(entry.getKey())) {
+                    return;
+                }
+                // No wait for durable cursor.
+                if (entry.getValue().isDurable()) {
+                    return;
+                }
+                Assert.assertTrue(entry.getValue().getMsgBacklog() == 0, entry.getKey());
+            });
+        });
     }
 
     protected interface CleanupTopicAction {
@@ -166,7 +202,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                    LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -185,35 +221,70 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setLoadBalancerSheddingEnabled(false);
     }
 
     @Override
     protected void cleanup() throws Exception {
+        // delete namespaces.
+        waitChangeEventsInit(replicatedNamespace);
+        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
+        admin1.namespaces().deleteNamespace(replicatedNamespace);
+        admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
+        admin2.namespaces().deleteNamespace(replicatedNamespace);
+        admin1.namespaces().deleteNamespace(nonReplicatedNamespace);
+        admin2.namespaces().deleteNamespace(nonReplicatedNamespace);
+
+        // shutdown.
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
 
         // Stop brokers.
-        client1.close();
-        client2.close();
-        admin1.close();
-        admin2.close();
+        if (client1 != null) {
+            client1.close();
+            client1 = null;
+        }
+        if (client2 != null) {
+            client2.close();
+            client2 = null;
+        }
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
         if (pulsar2 != null) {
             pulsar2.close();
+            pulsar2 = null;
         }
         if (pulsar1 != null) {
             pulsar1.close();
+            pulsar1 = null;
         }
 
         // Stop ZK and BK.
-        bkEnsemble1.stop();
-        bkEnsemble2.stop();
-        brokerConfigZk1.stop();
-        brokerConfigZk2.stop();
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (brokerConfigZk1 != null) {
+            brokerConfigZk1.stop();
+            brokerConfigZk1 = null;
+        }
+        if (brokerConfigZk2 != null) {
+            brokerConfigZk2.stop();
+            brokerConfigZk2 = null;
+        }
 
         // Reset configs.
         config1 = new ServiceConfiguration();
-        setConfigDefaults(config1, cluster1, bkEnsemble1, brokerConfigZk1);
         config2 = new ServiceConfiguration();
-        setConfigDefaults(config2, cluster2, bkEnsemble2, brokerConfigZk2);
     }
 }

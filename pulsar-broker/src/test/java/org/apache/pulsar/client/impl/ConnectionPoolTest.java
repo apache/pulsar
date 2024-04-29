@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -68,7 +69,8 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testSingleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -118,7 +120,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testDoubleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -143,7 +145,8 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(0);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
                 InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
@@ -166,7 +169,8 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(5);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
                 InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
@@ -233,8 +237,10 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
             }
         };
 
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop,
-                (Supplier<ClientCnx>) () -> new ClientCnx(conf, eventLoop), Optional.of(resolver));
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
+                        (Supplier<ClientCnx>) () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop),
+                        Optional.of(resolver));
 
 
         ClientCnx cnx = pool.getConnection(

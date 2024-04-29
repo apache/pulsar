@@ -105,7 +105,9 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
     }
 
-
+    protected void enableTransaction() {
+        serviceConfiguration.setTransactionCoordinatorEnabled(true);
+    }
 
     protected void configureDefaultAuthorization() {
         serviceConfiguration.setAuthorizationEnabled(true);

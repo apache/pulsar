@@ -53,6 +53,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -180,7 +181,7 @@ public class PulsarClientImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = Mockito.spy(new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");
 
         HashedWheelTimer timer = new HashedWheelTimer();
@@ -205,7 +206,7 @@ public class PulsarClientImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("");
         initializeEventLoopGroup(conf);
-        try (ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup)) {
+        try (ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup)) {
             assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
         } finally {
             // Externally passed eventLoopGroup should not be shutdown.

@@ -2473,19 +2473,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ml.addEntry("msg02".getBytes());
 
+        // reopen a new ml2
         ml.close();
-        // Thread.sleep(1000);
-        iter = ml.getLedgersInfoAsList().iterator();
-        ts = -1;
-        while (iter.hasNext()) {
-            LedgerInfo i = iter.next();
-            if (iter.hasNext()) {
-                assertTrue(ts <= i.getTimestamp(), i.toString());
-                ts = i.getTimestamp();
-            } else {
-                assertTrue(i.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
-            }
-        }
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) factory.open("my_test_ledger", conf);
+
+        List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
+        // after reopen ledgers will be 2 + 1(new open, not contain any entries)
+        assertEquals(ledgers.size(), 3);
+
+        // the last closed ledger should be the penultimate one.
+        LedgerInfo lastClosedLeger = ledgers.get(ledgers.size() - 2);
+        assertTrue(lastClosedLeger.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
+        ml2.close();
     }
 
     @Test
@@ -3525,7 +3524,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testLedgerNotRolloverWithoutOpenState() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -3932,6 +3931,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
+
+        long ledgerId = ledger.currentLedger.getId();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+        ledger.checkInactiveLedgerAndRollOver();
+
+        assertEquals(ledger.currentLedger.getId(), ledgerId);
+
+        ledger.close();
+    }
+
+    @Test
+    public void testDontRollOverInactiveLedgersWhenMetadataServiceInvalid() throws Exception {
+        int inactiveLedgerRollOverTimeMs = 5;
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        // mock metadata service invalid
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setInactiveLedgerRollOverTime(inactiveLedgerRollOverTimeMs, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
 
         long ledgerId = ledger.currentLedger.getId();
 

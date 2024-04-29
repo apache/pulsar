@@ -1032,6 +1032,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     + consumerName), ctx);
             return;
         } else if (!cursor.isDurable()) {
+            cursor.setState(ManagedCursorImpl.State.Closed);
             cursors.removeCursor(consumerName);
             deactivateCursorByName(consumerName);
             callback.deleteCursorComplete(ctx);
@@ -3700,7 +3701,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
             // This means it has jumped to the last position
             if (nextLedgerId == null) {
-                if (currentLedgerEntries == 0) {
+                if (currentLedgerEntries == 0 && currentLedger != null) {
                     return PositionImpl.get(currentLedger.getId(), 0);
                 }
                 return lastConfirmedEntry.getNext();
@@ -3814,13 +3815,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
-        if (cursor instanceof NonDurableCursorImpl) {
-            if (cursor.isActive()) {
-                this.waitingCursors.add(cursor);
-            }
-        } else {
-            this.waitingCursors.add(cursor);
-        }
+        this.waitingCursors.add(cursor);
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
@@ -4478,9 +4473,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public boolean checkInactiveLedgerAndRollOver() {
-        long currentTimeMs = System.currentTimeMillis();
-        if (currentLedgerEntries > 0 && inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs
-                + inactiveLedgerRollOverTimeMs)) {
+        if (factory.isMetadataServiceAvailable()
+                && currentLedgerEntries > 0
+                && inactiveLedgerRollOverTimeMs > 0
+                && System.currentTimeMillis() > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
             if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
                 LedgerHandle currentLedger = this.currentLedger;

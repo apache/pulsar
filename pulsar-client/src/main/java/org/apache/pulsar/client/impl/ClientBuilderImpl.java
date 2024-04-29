@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.opentelemetry.api.OpenTelemetry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.List;
@@ -118,6 +119,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder openTelemetry(OpenTelemetry openTelemetry) {
+        conf.setOpenTelemetry(openTelemetry);
         return this;
     }
 

@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newCloseConsumer;
@@ -1291,7 +1292,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .schemaType(schema == null ? null : schema.getType())
                                                 .build();
                                         if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
-                                            return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                            return ignoreUnrecoverableBKException
+                                                    (topic.addSchemaIfIdleOrCheckCompatible(schema))
                                                     .thenCompose(v -> topic.subscribe(option));
                                         } else {
                                             return topic.subscribe(option);
@@ -1374,7 +1376,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             // Send error back to client, only if not completed already.
                             if (consumerFuture.completeExceptionally(exception)) {
                                 commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception),
+                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
                                         exception.getCause().getMessage());
                             }
                             consumers.remove(consumerId, consumerFuture);
@@ -2172,29 +2174,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            topic.checkIfTransactionBufferRecoverCompletely(true).thenRun(() -> {
-                Position lastPosition = ((PersistentTopic) topic).getMaxReadPosition();
-                int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            topic.checkIfTransactionBufferRecoverCompletely(true)
+                 .thenCompose(__ -> topic.getLastDispatchablePosition())
+                 .thenApply(lastPosition -> {
+                     int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-                Position markDeletePosition = null;
-                if (consumer.getSubscription() instanceof PersistentSubscription) {
-                    markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
-                            .getMarkDeletedPosition();
-                }
+                     Position markDeletePosition = null;
+                     if (consumer.getSubscription() instanceof PersistentSubscription) {
+                         markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
+                                 .getMarkDeletedPosition();
+                     }
 
-                getLargestBatchIndexWhenPossible(
-                        topic,
-                        (PositionImpl) lastPosition,
-                        (PositionImpl) markDeletePosition,
-                        partitionIndex,
-                        requestId,
-                        consumer.getSubscription().getName(),
-                        consumer.readCompacted());
-            }).exceptionally(e -> {
-                writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
-                        ServerError.UnknownError, "Failed to recover Transaction Buffer."));
-                return null;
-            });
+                     getLargestBatchIndexWhenPossible(
+                             topic,
+                             (PositionImpl) lastPosition,
+                             (PositionImpl) markDeletePosition,
+                             partitionIndex,
+                             requestId,
+                             consumer.getSubscription().getName(),
+                             consumer.readCompacted());
+                    return null;
+                 }).exceptionally(e -> {
+                     writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+                             ServerError.UnknownError, "Failed to recover Transaction Buffer."));
+                     return null;
+                 });
         } else {
             writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
                     ServerError.MetadataError, "Consumer not found"));
@@ -2504,9 +2508,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion());
         }
 
+        final String topic = commandGetSchema.getTopic();
         String schemaName;
         try {
-            schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
+            schemaName = TopicName.get(topic).getSchemaName();
         } catch (Throwable t) {
             commandSender.sendGetSchemaErrorResponse(requestId, ServerError.InvalidTopicName, t.getMessage());
             return;
@@ -2515,7 +2520,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
                 commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
-                        String.format("Topic not found or no-schema %s", commandGetSchema.getTopic()));
+                        String.format("Topic not found or no-schema %s", topic));
             } else {
                 commandSender.sendGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version);

@@ -1799,12 +1799,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                         any(), eq(null)
                 );
 
-        replicator.disconnect(false);
-        replicator.disconnect(false);
+        replicator.terminate();
+        replicator.terminate();
 
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2)).createProducerAsync(any(), any(), any());
+        verify(clientImpl, Mockito.times(1)).createProducerAsync(any(), any(), any());
     }
 
     @Test

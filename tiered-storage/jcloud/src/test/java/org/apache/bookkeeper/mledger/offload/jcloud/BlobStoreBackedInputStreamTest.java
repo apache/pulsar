@@ -32,6 +32,7 @@ import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
@@ -142,8 +143,8 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         assertStreamsMatchByBytes(toTest, toCompare);
     }
 
-    @Test(expectedExceptions = IOException.class)
-    public void testErrorOnRead() throws Exception {
+    @Test(expectedExceptions = KeyNotFoundException.class)
+    public void testNotFoundOnRead() throws Exception {
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);

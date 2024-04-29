@@ -46,7 +46,7 @@ public interface SubscriptionStats {
     double getMessageAckRate();
 
     /** Chunked message dispatch rate. */
-    int getChunkedMessageRate();
+    double getChunkedMessageRate();
 
     /** Number of entries in the subscription backlog. */
     long getMsgBacklog();

@@ -147,7 +147,7 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
-    private long negtiveUnackedMsgsTimestamp;
+    private long negativeUnackedMsgsTimestamp;
 
     @Getter
     private final SchemaType schemaType;
@@ -286,16 +286,29 @@ public class Consumer {
                 totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
     }
 
+    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker, long epoch) {
+        return sendMessages(entries, null, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                totalChunkedMessages, redeliveryTracker, epoch);
+    }
+
     /**
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
+    public Future<Void> sendMessages(final List<? extends Entry> entries,
+                                     final List<Integer> stickyKeyHashes,
+                                     EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
-                                     int totalMessages, long totalBytes, long totalChunkedMessages,
-                                     RedeliveryTracker redeliveryTracker, long epoch) {
+                                     int totalMessages,
+                                     long totalBytes,
+                                     long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker,
+                                     long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -323,7 +336,7 @@ public class Consumer {
                 // because this consumer is possible to disconnect at this time.
                 if (pendingAcks != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    int stickyKeyHash = getStickyKeyHash(entry);
+                    int stickyKeyHash = stickyKeyHashes == null ? getStickyKeyHash(entry) : stickyKeyHashes.get(i);
                     long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     if (ackSet != null) {
                         unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
@@ -1102,8 +1115,8 @@ public class Consumer {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
-        if (unackedMsgs < 0 && System.currentTimeMillis() - negtiveUnackedMsgsTimestamp >= 10_000) {
-            negtiveUnackedMsgsTimestamp = System.currentTimeMillis();
+        if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
+            negativeUnackedMsgsTimestamp = System.currentTimeMillis();
             log.warn("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;

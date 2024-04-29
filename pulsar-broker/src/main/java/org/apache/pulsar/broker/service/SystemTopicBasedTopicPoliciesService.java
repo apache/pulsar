@@ -32,8 +32,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import org.apache.commons.lang3.concurrent.ConcurrentInitializer;
+import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -70,7 +73,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private final PulsarService pulsarService;
     private final HashSet localCluster;
     private final String clusterName;
-    private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    private final ConcurrentInitializer<NamespaceEventsSystemTopicFactory>
+            namespaceEventsSystemTopicFactoryLazyInitializer = new LazyInitializer<>() {
+        @Override
+        protected NamespaceEventsSystemTopicFactory initialize() {
+            try {
+                return new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
+            } catch (PulsarServerException e) {
+                log.error("Create namespace event system topic factory error.", e);
+                throw new RuntimeException(e);
+            }
+        }
+    };
 
     @VisibleForTesting
     final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
@@ -96,13 +112,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         this.writerCaches = Caffeine.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .removalListener((namespaceName, writer, cause) -> {
-                    ((SystemTopicClient.Writer) writer).closeAsync().exceptionally(ex -> {
-                        log.error("[{}] Close writer error.", namespaceName, ex);
-                        return null;
-                    });
+                    try {
+                        ((SystemTopicClient.Writer) writer).close();
+                    } catch (Exception e) {
+                        log.error("[{}] Close writer error.", namespaceName, e);
+                    }
                 })
+                .executor(pulsarService.getExecutor())
                 .buildAsync((namespaceName, executor) -> {
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                    if (closed.get()) {
+                        return CompletableFuture.failedFuture(
+                                new BrokerServiceException(getClass().getName() + " is closed."));
+                    }
+                    SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                             .createTopicPoliciesSystemTopicClient(namespaceName);
                     return systemTopicClient.newWriterAsync();
                 });
@@ -301,7 +323,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             result.complete(null);
             return result;
         }
-        SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+        SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                 .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
         systemTopicClient.newReaderAsync().thenAccept(r ->
                 fetchTopicPoliciesAsyncAndCloseReader(r, topicName, null, result));
@@ -368,12 +390,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
             NamespaceName namespace) {
+        if (closed.get()) {
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException(getClass().getName() + " is closed."));
+        }
         try {
             createSystemTopicFactoryIfNeeded();
         } catch (PulsarServerException ex) {
             return FutureUtil.failedFuture(ex);
         }
-        final SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+        final SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                 .createTopicPoliciesSystemTopicClient(namespace);
         return systemTopicClient.newReaderAsync();
     }
@@ -416,6 +442,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
+        if (closed.get()) {
+            future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
+            cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+            return;
+        }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to check the move events for the system topic",
@@ -497,6 +528,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * #{@link SystemTopicBasedTopicPoliciesService#getTopicPoliciesAsync(TopicName)} method to block loading topic.
      */
     private void readMorePoliciesAsync(SystemTopicClient.Reader<PulsarEvent> reader) {
+        if (closed.get()) {
+            cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+            return;
+        }
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
@@ -561,7 +596,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.error("Failed to create system topic factory");
                         break;
                     }
-                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                    SystemTopicClient<PulsarEvent> systemTopicClient = getNamespaceEventsSystemTopicFactory()
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
                             -> writer.deleteAsync(getEventKey(topicName),
@@ -595,29 +630,39 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void createSystemTopicFactoryIfNeeded() throws PulsarServerException {
-        if (namespaceEventsSystemTopicFactory == null) {
-            synchronized (this) {
-                if (namespaceEventsSystemTopicFactory == null) {
-                    try {
-                        namespaceEventsSystemTopicFactory =
-                                new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
-                    } catch (PulsarServerException e) {
-                        log.error("Create namespace event system topic factory error.", e);
-                        throw e;
-                    }
-                }
-            }
+        try {
+            getNamespaceEventsSystemTopicFactory();
+        } catch (Exception e) {
+            throw new PulsarServerException(e);
+        }
+    }
+
+    private NamespaceEventsSystemTopicFactory getNamespaceEventsSystemTopicFactory() {
+        try {
+            return namespaceEventsSystemTopicFactoryLazyInitializer.get();
+        } catch (Exception e) {
+            log.error("Create namespace event system topic factory error.", e);
+            throw new RuntimeException(e);
         }
     }
 
     private void fetchTopicPoliciesAsyncAndCloseReader(SystemTopicClient.Reader<PulsarEvent> reader,
                                                        TopicName topicName, TopicPolicies policies,
                                                        CompletableFuture<TopicPolicies> future) {
+        if (closed.get()) {
+            future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
+            reader.closeAsync().whenComplete((v, e) -> {
+                if (e != null) {
+                    log.error("[{}] Close reader error.", topicName, e);
+                }
+            });
+            return;
+        }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
             }
-            if (hasMore) {
+            if (hasMore != null && hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
                     if (e != null) {
                         future.completeExceptionally(e);
@@ -641,7 +686,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     }
                 });
             } else {
-                future.complete(policies);
+                if (!future.isDone()) {
+                    future.complete(policies);
+                }
                 reader.closeAsync().whenComplete((v, e) -> {
                     if (e != null) {
                         log.error("[{}] Close reader error.", topicName, e);
@@ -725,4 +772,23 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
+
+    @Override
+    public void close() throws Exception {
+        if (closed.compareAndSet(false, true)) {
+            writerCaches.synchronous().invalidateAll();
+            readerCaches.values().forEach(future -> {
+                if (future != null && !future.isCompletedExceptionally()) {
+                    future.thenAccept(reader -> {
+                        try {
+                            reader.close();
+                        } catch (Exception e) {
+                            log.error("Failed to close reader.", e);
+                        }
+                    });
+                }
+            });
+            readerCaches.clear();
+        }
+    }
 }

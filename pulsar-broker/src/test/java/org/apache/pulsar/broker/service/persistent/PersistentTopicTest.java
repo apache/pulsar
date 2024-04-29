@@ -65,11 +65,11 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -80,6 +80,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -111,6 +112,11 @@ public class PersistentTopicTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override protected void doInitConf() throws Exception {
+        super.doInitConf();
+        this.conf.setManagedLedgerCursorBackloggedThreshold(10);
     }
 
     /**
@@ -361,7 +367,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         latch.await(10, TimeUnit.SECONDS);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
+        PrometheusMetricsTestUtil.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
 
         Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
@@ -681,7 +687,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)persistentTopic.getManagedLedger();
         final ManagedCursor spyCursor= spy(ledger.newNonDurableCursor(PositionImpl.LATEST, "sub-2"));
         doAnswer((invocation) -> {
-            Thread.sleep(10_000);
+            Thread.sleep(5_000);
             invocation.callRealMethod();
             return null;
         }).when(spyCursor).asyncReadEntriesOrWait(any(int.class), any(long.class),
@@ -707,5 +713,53 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .untilAsserted(() -> {
                     assertEquals(ledger.getWaitingCursorsCount(), 0);
         });
+    }
+
+    @Test
+    public void testAddWaitingCursorsForNonDurable2() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = "persistent://prop/ns-test/testAddWaitingCursors2";
+        admin.topics().createNonPartitionedTopic(topicName);
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub-1").subscribe().close();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topicName).create();
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
+        }
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sub-2").subscribe();
+        int count = 0;
+        while(true) {
+            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 100);
+        Thread.sleep(3_000);
+        for (int i = 0; i < 100; i ++) {
+            producer.sendAsync("test-" + i);
+        }
+        while(true) {
+            final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                count++;
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(count, 200);
     }
 }

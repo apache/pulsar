@@ -53,6 +53,16 @@
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-extension-incubator</artifactId>
+    </dependency>
+
+    <dependency>
       <!-- this module only need by the real client, client inside broker no need this module -->
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
@@ -76,7 +86,6 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>

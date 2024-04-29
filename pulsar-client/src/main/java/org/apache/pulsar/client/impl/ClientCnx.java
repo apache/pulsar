@@ -32,6 +32,7 @@ import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
+import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -60,6 +61,9 @@ import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
@@ -201,6 +205,9 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
+    private final Counter connectionsOpenedCounter;
+    private final Counter connectionsClosedCounter;
+
     private static class RequestTime {
         private final long creationTimeNanos;
         final long requestId;
@@ -236,12 +243,13 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-
-    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
+    public ClientCnx(InstrumentProvider instrumentProvider,
+                     ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+        this(instrumentProvider, conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
     }
 
-    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion) {
+    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                     int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
@@ -257,11 +265,19 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
+        this.connectionsOpenedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
+                        "The number of connections opened", null, Attributes.empty());
+        this.connectionsClosedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.closed", Unit.Connections,
+                        "The number of connections closed", null, Attributes.empty());
+
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        connectionsOpenedCounter.increment();
         this.localAddress = ctx.channel().localAddress();
         this.remoteAddress = ctx.channel().remoteAddress();
 
@@ -304,6 +320,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        connectionsClosedCounter.increment();
         lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {

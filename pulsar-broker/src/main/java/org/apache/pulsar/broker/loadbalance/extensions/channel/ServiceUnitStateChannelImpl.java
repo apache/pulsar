@@ -83,12 +83,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListen
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -293,6 +293,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     log.info("Closed the channel producer.");
                 }
             }
+
+            PulsarClusterMetadataSetup.createTenantIfAbsent
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
+
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
@@ -1377,8 +1381,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight non-system bundle override messages.", e);
         }
 
@@ -1401,8 +1405,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight system bundle override messages.", e);
         }
 
@@ -1427,7 +1431,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
             return loadManager.selectAsync(
-                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit), Set.of(inactiveBroker))
+                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit),
+                            Set.of(inactiveBroker), LookupOptions.builder().build())
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
@@ -1580,8 +1585,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
+            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+        } catch (Exception e) {
             log.error("Failed to flush the in-flight messages.", e);
         }
 
