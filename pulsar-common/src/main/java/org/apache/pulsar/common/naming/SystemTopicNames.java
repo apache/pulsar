@@ -95,4 +95,9 @@ public class SystemTopicNames {
         TopicName nonPartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
         return isEventSystemTopic(nonPartitionedTopicName) || isTransactionInternalName(nonPartitionedTopicName);
     }
+
+    public static boolean isSystemTopic(String topicName) {
+        TopicName nonPartitionedTopicName = TopicName.getPartitionedTopicName(topicName);
+        return isEventSystemTopic(nonPartitionedTopicName) || isTransactionInternalName(nonPartitionedTopicName);
+    }
 }

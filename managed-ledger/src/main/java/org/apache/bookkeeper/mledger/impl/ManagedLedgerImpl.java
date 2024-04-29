@@ -128,6 +128,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -2475,6 +2476,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
         if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
                 || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            return;
+        }
+        // do not support offload non-persistent topics
+        if (name.contains("/non-persistent/")) {
+            return;
+        }
+        // do not support offload system topics
+        String topicName = name.replace("/persistent/", "/");
+        if (SystemTopicNames.isSystemTopic(topicName)) {
             return;
         }
 
