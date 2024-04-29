@@ -60,6 +60,14 @@ public class ElasticSearchConfig implements Serializable {
     private String indexName;
 
     @FieldDoc(
+            required = false,
+            defaultValue = "INDEX",
+            help = "The type of the index. If the target index is data stream,"
+                + "This value must be set to \"DATA_STREAM\"."
+    )
+    private IndexType indexType = IndexType.INDEX;
+
+    @FieldDoc(
         required = false,
         defaultValue = "_doc",
         help = "The type name that the connector writes messages to, with the default value set to _doc."
@@ -338,6 +346,11 @@ public class ElasticSearchConfig implements Serializable {
         NONE,
         SHA256,
         SHA512
+    }
+
+    public enum IndexType {
+        INDEX,
+        DATA_STREAM
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {

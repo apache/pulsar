@@ -31,6 +31,7 @@ import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.RandomExponentialRetry;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
 import org.apache.pulsar.io.elasticsearch.client.RestClient;
+import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.refresh.RefreshRequest;
@@ -229,7 +230,7 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         if (!Strings.isNullOrEmpty(documentId)) {
             indexRequest.id(documentId);
         }
-        indexRequest.type(config.getTypeName());
+
         indexRequest.source(documentSource, XContentType.JSON);
 
         IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
@@ -245,7 +246,6 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     public boolean deleteDocument(String index, String documentId) throws IOException {
         DeleteRequest deleteRequest = Requests.deleteRequest(index);
         deleteRequest.id(documentId);
-        deleteRequest.type(config.getTypeName());
         DeleteResponse deleteResponse = client.delete(deleteRequest, RequestOptions.DEFAULT);
         if (log.isDebugEnabled()) {
             log.debug("delete result {}", deleteResponse.getResult());
@@ -296,12 +296,23 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     }
 
     @Override
-    public void appendIndexRequest(BulkProcessor.BulkIndexRequest request) throws IOException {
+    public void appendCreateRequest(BulkProcessor.BulkCreateRequest request) throws IOException {
         IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         if (!Strings.isNullOrEmpty(request.getDocumentId())) {
             indexRequest.id(request.getDocumentId());
         }
-        indexRequest.type(config.getTypeName());
+        indexRequest.source(request.getDocumentSource(), XContentType.JSON);
+        indexRequest = indexRequest.opType(DocWriteRequest.OpType.CREATE);
+        internalBulkProcessor.add(indexRequest);
+    }
+
+    @Override
+    public void appendIndexRequest(BulkProcessor.BulkIndexRequest request) throws IOException {
+        IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
+        var documentId = request.getDocumentId();
+        if (documentId != null && !documentId.isEmpty()) {
+            indexRequest.id(documentId);
+        }
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
         internalBulkProcessor.add(indexRequest);
     }
@@ -310,7 +321,6 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     public void appendDeleteRequest(BulkProcessor.BulkDeleteRequest request) throws IOException {
         DeleteRequest deleteRequest = new DeleteRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         deleteRequest.id(request.getDocumentId());
-        deleteRequest.type(config.getTypeName());
         internalBulkProcessor.add(deleteRequest);
     }
 

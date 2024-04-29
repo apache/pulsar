@@ -23,6 +23,7 @@ import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperationVariant;
+import co.elastic.clients.elasticsearch.core.bulk.CreateOperation;
 import co.elastic.clients.elasticsearch.core.bulk.DeleteOperation;
 import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,6 +85,23 @@ public class ElasticBulkProcessor implements BulkProcessor {
                     config.getBulkFlushIntervalInMs(),
                     TimeUnit.MILLISECONDS);
         }
+    }
+
+    @Override
+    public void appendCreateRequest(BulkCreateRequest request) throws IOException {
+        final Map mapped = mapper.readValue(request.getDocumentSource(), Map.class);
+
+        final CreateOperation<Map> createOperation = new CreateOperation.Builder<Map>()
+                .index(request.getIndex())
+                .id(request.getDocumentId())
+                .document(mapped)
+                .build();
+
+        long sourceLength = 0;
+        if (config.getBulkSizeInMb() > 0) {
+            sourceLength = request.getDocumentSource().getBytes(StandardCharsets.UTF_8).length;
+        }
+        add(BulkOperationWithPulsarRecord.createOperation(createOperation, request.getRecord(), sourceLength));
     }
 
     @Override
@@ -211,6 +229,13 @@ public class ElasticBulkProcessor implements BulkProcessor {
          * /server/src/main/java/org/elasticsearch/action/bulk/BulkRequest.java#L61.
          */
         private static final int REQUEST_OVERHEAD = 50;
+
+        public static BulkOperationWithPulsarRecord createOperation(CreateOperation createOperation,
+                                                                    Record pulsarRecord,
+                                                                    long sourceLength) {
+            long estimatedSizeInBytes = REQUEST_OVERHEAD + sourceLength;
+            return new BulkOperationWithPulsarRecord(createOperation, pulsarRecord, estimatedSizeInBytes);
+        }
 
         public static BulkOperationWithPulsarRecord indexOperation(IndexOperation indexOperation,
                                                                    Record pulsarRecord,
