@@ -654,6 +654,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "Default auto-creation of namespace bundles if auto-creation is not already configured at namespace policies."
+    )
+    private Set<String> SubscriptionsIgnoredByTtl = new TreeSet<>();
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable the deletion of inactive topics.\n"
         + "If only enable this option, will not clean the metadata of partitioned topic."

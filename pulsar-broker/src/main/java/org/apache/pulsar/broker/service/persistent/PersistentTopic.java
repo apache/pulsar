@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -278,6 +279,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
+    private Set<String> subscriptionsIgnoredByTtl = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -413,6 +415,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             shadowSourceTopic = null;
         }
+        subscriptionsIgnoredByTtl = brokerService.pulsar().getConfiguration().getSubscriptionsIgnoredByTtl();
     }
 
     @Override
@@ -1933,7 +1936,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())) {
+                if (!isCompactionSubscription(sub.getName())
+                        && (subscriptionsIgnoredByTtl.isEmpty()
+                            || !subscriptionsIgnoredByTtl.contains(sub.getName()))) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
