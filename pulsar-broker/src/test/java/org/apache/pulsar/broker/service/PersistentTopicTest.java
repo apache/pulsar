@@ -2321,5 +2321,4 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(topic, times(0)).publishTxnMessage(any(), any(), any());
     }
 
-
 }
