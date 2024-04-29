@@ -654,7 +654,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default auto-creation of namespace bundles if auto-creation is not already configured at namespace policies."
+        doc = "Subscriptions that will be ignored by ttl check. Default is empty."
     )
     private Set<String> SubscriptionsIgnoredByTtl = new TreeSet<>();
 
