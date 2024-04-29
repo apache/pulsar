@@ -138,6 +138,11 @@ func (gi *goInstance) startFunction(function function) error {
 		log.Errorf("setup log appender failed, error is:%v", err)
 		return err
 	}
+	err = gi.setupSecretsProvider()
+	if err != nil {
+		log.Errorf("setup secret provider failed, error is:%v", err)
+		return err
+	}
 
 	idleDuration := getIdleTimeout(time.Millisecond * gi.context.instanceConf.killAfterIdle)
 	idleTimer := time.NewTimer(idleDuration)
@@ -494,6 +499,19 @@ func (gi *goInstance) addLogTopicHandler() {
 	for _, logByte := range log.StrEntry {
 		gi.context.logAppender.Append([]byte(logByte))
 	}
+}
+
+func (gi *goInstance) setupSecretsProvider() error {
+	switch gi.context.instanceConf.secretsProviderClassName {
+	case "ClearTextSecretsProvider":
+		gi.context.secretsProvider = &ClearTextSecretsProvider{}
+	case "EnvironmentBasedSecretsProvider":
+		gi.context.secretsProvider = &EnvironmentBasedSecretsProvider{}
+	default:
+		return fmt.Errorf("unknown secretsProviderClassName: %s",
+			gi.context.instanceConf.secretsProviderClassName)
+	}
+	return nil
 }
 
 func (gi *goInstance) closeLogTopic() {

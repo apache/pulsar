@@ -123,7 +123,9 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(
+                instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",
+                "http://localhost:8080", "ClearTextSecretsProvider", "", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -174,6 +176,8 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
         Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
         Assert.assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
+        Assert.assertEquals(goInstanceConfig.get("secretsProviderClassName"), "ClearTextSecretsProvider");
+        Assert.assertEquals(goInstanceConfig.get("secretsProviderConfig"), "");
     }
 
     @DataProvider(name = "k8sRuntime")

@@ -57,6 +57,9 @@ public class GoInstanceConfig {
     private boolean autoAck;
     private int parallelism;
 
+    private String secretsProviderClassName = "";
+    private String secretsProviderConfig = "";
+
     private int subscriptionType;
     private long timeoutMs;
     private String subscriptionName = "";
