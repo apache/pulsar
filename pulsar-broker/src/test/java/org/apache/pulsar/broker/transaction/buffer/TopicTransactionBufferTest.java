@@ -313,6 +313,15 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|tx2:abort->1:7|
         txn2.abort().get(5, TimeUnit.SECONDS);
         assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // Handle the case of the maxReadPosition < lastPosition, but it's an aborted transactional message.
+        Transaction txn3 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        producer.newMessage(txn3).send();
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+        txn3.abort().get(5, TimeUnit.SECONDS);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
     }
 
     /**

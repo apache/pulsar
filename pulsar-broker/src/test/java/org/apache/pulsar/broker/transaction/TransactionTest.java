@@ -105,17 +105,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStorePro
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -1981,16 +1971,35 @@ public class TransactionTest extends TransactionTestBase {
         // the last dispatchable position should be the message id of the normal message
         assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
 
+
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .create();
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
         List<Message<String>> messages = new ArrayList<>();
         while (reader.hasMessageAvailable()) {
             messages.add(reader.readNext());
         }
         assertEquals(messages.size(), 1);
         assertEquals(messages.get(0).getValue(), body);
+
+        txn1.abort().get(5, TimeUnit.SECONDS);
+
+        @Cleanup
+        Reader<String> reader1 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<Message<String>> messages1 = new ArrayList<>();
+        while (reader1.hasMessageAvailable()) {
+            messages1.add(reader1.readNext());
+        }
+        assertEquals(messages1.size(), 1);
+        assertEquals(messages1.get(0).getValue(), body);
     }
 }
