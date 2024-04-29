@@ -1308,7 +1308,8 @@ public class BrokerService implements Closeable {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
         } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
-            return FutureUtil.failedFuture(e);
+            topicFuture.completeExceptionally(e);
+            return topicFuture;
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
