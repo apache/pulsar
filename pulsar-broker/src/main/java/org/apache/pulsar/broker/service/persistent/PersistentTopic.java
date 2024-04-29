@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -258,6 +259,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile long lastDataMessagePublishedTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
+
+    private volatile CloseFutures closeFutures;
+
+    /***
+     * We use 2 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
+     * the in-progress one when it is called the second time.
+     *
+     * The topic closing will be called the below scenarios:
+     * 1. Calling "pulsar-admin topics unload". Relate to {@link CloseFutures#waitDisconnectClients}.
+     * 2. Namespace bundle unloading. The unloading topic triggered by unloading namespace bundles will not wait for
+     *    clients disconnect. See {@link CloseFutures#notWaitDisconnectClients}.
+     *
+     * The two futures will be setting as the below rule:
+     * Event: Topic close.
+     * - If the first one closing is called by "close and not wait for clients disconnect":
+     *   - {@link CloseFutures#waitDisconnectClients} will be initialized as "waiting for clients disconnect".
+     * - If the first one closing is called by "close and wait for clients disconnect", the two futures will be
+     *   initialized as "waiting for clients disconnect".
+     * Event: Topic delete.
+     *  the three futures will be initialized as "waiting for clients disconnect".
+     */
+    private class CloseFutures {
+        private final CompletableFuture<Void> notWaitDisconnectClients;
+        private final CompletableFuture<Void> waitDisconnectClients;
+
+        public CloseFutures(CompletableFuture<Void> waitDisconnectClients,
+                            CompletableFuture<Void> notWaitDisconnectClients) {
+            this.waitDisconnectClients = waitDisconnectClients;
+            this.notWaitDisconnectClients = notWaitDisconnectClients;
+        }
+    }
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -1356,8 +1388,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
+            // Mark the progress of close to prevent close calling concurrently.
+            this.closeFutures = new CloseFutures(new CompletableFuture(), new CompletableFuture());
 
-            return getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
+            CompletableFuture<Void> res = getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
                         .getPartitionedTopicResources().runWithMarkDeleteAsync(TopicName.get(topic), () -> {
                 CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
@@ -1460,6 +1494,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         unfenceTopicToResume();
                     }
                 });
+
+            FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, res);
+            FutureUtil.completeAfter(closeFutures.waitDisconnectClients, res);
+            return res;
         } finally {
             lock.writeLock().unlock();
         }
@@ -1470,6 +1508,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return close(false);
     }
 
+    private enum CloseTypes {
+        notWaitDisconnectClients,
+        waitDisconnectClients;
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
@@ -1478,19 +1521,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     @Override
     public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
+        CloseTypes closeType;
+        if (closeWithoutWaitingClientDisconnect) {
+            closeType = CloseTypes.notWaitDisconnectClients;
+        } else {
+            // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
+            // forcefully wants to close managed-ledger without waiting all resources to be closed.
+            closeType = CloseTypes.waitDisconnectClients;
+        }
 
         lock.writeLock().lock();
         try {
-            // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
-            // forcefully wants to close managed-ledger without waiting all resources to be closed.
-            if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
-                fenceTopicToCloseOrDelete();
-            } else {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
-                closeFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
-                return closeFuture;
+            // Return in-progress future if exists.
+            if (isClosingOrDeleting) {
+                switch (closeType) {
+                    case notWaitDisconnectClients -> {
+                        return closeFutures.notWaitDisconnectClients;
+                    }
+                    case waitDisconnectClients -> {
+                        return closeFutures.waitDisconnectClients;
+                    }
+                }
             }
+            // No in-progress closing.
+            fenceTopicToCloseOrDelete();
+            this.closeFutures = new CloseFutures(new CompletableFuture(), new CompletableFuture());
         } finally {
             lock.writeLock().unlock();
         }
@@ -1528,11 +1584,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
 
-        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
-                ? CompletableFuture.completedFuture(null)
-                : FutureUtil.waitForAll(futures);
+        CompletableFuture<Void> disconnectClientsInCurrentCall = null;
+        AtomicReference<CompletableFuture<Void>> disconnectClientsToCache = new AtomicReference<>();
+        switch (closeType) {
+            case notWaitDisconnectClients -> {
+                disconnectClientsInCurrentCall = CompletableFuture.completedFuture(null);
+                disconnectClientsToCache.set(FutureUtil.waitForAll(futures));
+                break;
+            }
+            case waitDisconnectClients -> {
+                disconnectClientsInCurrentCall = FutureUtil.waitForAll(futures);
+                disconnectClientsToCache.set(disconnectClientsInCurrentCall);
+            }
+        }
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-        clientCloseFuture.thenRun(() -> {
+        Runnable closeLedgerAfterCloseClients = () -> {
             // After having disconnected all producers/consumers, close the managed ledger
             ledger.asyncClose(new CloseCallback() {
                 @Override
@@ -1547,12 +1614,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     disposeTopic(closeFuture);
                 }
             }, null);
-        }).exceptionally(exception -> {
+        };
+        disconnectClientsInCurrentCall.thenRun(closeLedgerAfterCloseClients).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             unfenceTopicToResume();
             closeFuture.completeExceptionally(exception);
             return null;
         });
+
+        switch (closeType) {
+            case notWaitDisconnectClients -> {
+                FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, closeFuture);
+                FutureUtil.completeAfterAll(closeFutures.waitDisconnectClients,
+                        closeFuture.thenCompose(ignore -> disconnectClientsToCache.get().exceptionally(ex -> {
+                            // Since the managed ledger has been closed, eat the error of clients disconnection.
+                            log.error("[{}] Closed managed ledger, but disconnect clients failed,"
+                                    + " this topic will be marked closed", topic, ex);
+                            return null;
+                        })));
+                break;
+            }
+            case waitDisconnectClients -> {
+                FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, closeFuture);
+                FutureUtil.completeAfterAll(closeFutures.waitDisconnectClients, closeFuture);
+            }
+        }
 
         return closeFuture;
     }
@@ -1839,10 +1925,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     lock.readLock().lock();
                     try {
                         if (isClosingOrDeleting) {
-                            // Whether is "transferring" or not, do not create new replicator.
+                            // Do not create new replicator.
                             log.info("[{}] Skip to create replicator because this topic is closing."
-                                    + " remote cluster: {}. State of transferring : {}",
-                                    topic, remoteCluster, transferring);
+                                    + " remote cluster: {}.",
+                                    topic, remoteCluster);
                             return;
                         }
                         Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {

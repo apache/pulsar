@@ -25,6 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -232,7 +233,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    private void injectMockReplicatorProducerBuilder(
+    private Runnable injectMockReplicatorProducerBuilder(
                                 BiFunction<ProducerConfigurationData, ProducerImpl, ProducerImpl> producerDecorator)
             throws Exception {
         String cluster2 = pulsar2.getConfig().getClusterName();
@@ -252,7 +253,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 replicationClients = WhiteboxImpl.getInternalState(brokerService, "replicationClients");
         PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
         PulsarClient spyClient = spy(internalClient);
-        replicationClients.put(cluster2, spyClient);
+        assertTrue(replicationClients.remove(cluster2, internalClient));
+        assertNull(replicationClients.putIfAbsent(cluster2, spyClient));
 
         // Inject producer decorator.
         doAnswer(invocation -> {
@@ -281,6 +283,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             }).when(spyProducerBuilder).createAsync();
             return spyProducerBuilder;
         }).when(spyClient).newProducer(any(Schema.class));
+
+        // Return a cleanup injection task;
+        return () -> {
+            assertTrue(replicationClients.remove(cluster2, spyClient));
+            assertNull(replicationClients.putIfAbsent(cluster2, internalClient));
+        };
     }
 
     private SpyCursor spyCursor(PersistentTopic persistentTopic, String cursorName) throws Exception {
@@ -374,7 +382,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   If the retry counter is larger than 6, the next creation will be slow enough to close Replicator.
         final AtomicInteger createProducerCounter = new AtomicInteger();
         final int failTimes = 6;
-        injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
+        Runnable taskToClearInjection = injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
             if (topicName.equals(producerCnf.getTopicName())) {
                 // There is a switch to determine create producer successfully or not.
                 if (createProducerCounter.incrementAndGet() > failTimes) {
@@ -433,6 +441,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // cleanup.
+        taskToClearInjection.run();
         cleanupTopics(() -> {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
@@ -537,7 +546,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   If the retry counter is larger than 6, the next creation will be slow enough to close Replicator.
         final AtomicInteger createProducerCounter = new AtomicInteger();
         final int failTimes = 6;
-        injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
+        Runnable taskToClearInjection = injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
             if (topicName.equals(producerCnf.getTopicName())) {
                 // There is a switch to determine create producer successfully or not.
                 if (createProducerCounter.incrementAndGet() > failTimes) {
@@ -599,6 +608,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // cleanup.
+        taskToClearInjection.run();
         cleanupTopics(namespaceName, () -> {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
@@ -620,8 +630,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         final org.apache.pulsar.broker.service.Producer mockProducer =
                 mock(org.apache.pulsar.broker.service.Producer.class);
         doAnswer(invocation -> CompletableFuture.failedFuture(new RuntimeException("mocked error")))
-                .when(mockProducer).disconnect(any());
-        doAnswer(invocation -> CompletableFuture.failedFuture(new RuntimeException("mocked error")))
                 .when(mockProducer).disconnect();
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
@@ -631,7 +639,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         GeoPersistentReplicator replicator1 =
                 (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
         try {
-            persistentTopic.close(true, false).join();
+            persistentTopic.close(false).join();
             fail("Expected close fails due to a producer close fails");
         } catch (Exception ex) {
             log.info("Expected error: {}", ex.getMessage());
@@ -650,8 +658,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertTrue(replicator2.producer != null && replicator2.producer.isConnected());
         });
 
-        // cleanup.
+        // cleanup the injection.
         persistentTopic.getProducers().remove(mockProducerName, mockProducer);
+        // cleanup.
         producer1.close();
         cleanupTopics(() -> {
             admin1.topics().delete(topicName);
