@@ -1954,6 +1954,9 @@ public class TransactionTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
+
 
         // send a normal message
         String body = UUID.randomUUID().toString();
@@ -1965,15 +1968,16 @@ public class TransactionTest extends TransactionTestBase {
         producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
         producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
 
-        // abort the txn
-        txn.abort().get();
-
-        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
-        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
-
         // get last dispatchable position
         PositionImpl lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
 
+        // abort the txn
+        txn.abort().get(5, TimeUnit.SECONDS);
+
+        // get last dispatchable position
+        lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
         // the last dispatchable position should be the message id of the normal message
         assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
 
