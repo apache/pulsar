@@ -27,6 +27,21 @@ on:
       - 'pulsar-function-go/**'
   workflow_dispatch:
 
+permissions:
+  actions: write
+  checks: write
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: none
+  packages: read
+  pages: none
+  pull-requests: read
+  repository-projects: none
+  security-events: write
+  statuses: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
