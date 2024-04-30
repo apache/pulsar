@@ -19,14 +19,18 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.AsyncCloseable;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -46,6 +50,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     private static final Logger log = LoggerFactory.getLogger(PulsarMetadataEventSynchronizer.class);
     protected PulsarService pulsar;
     protected BrokerService brokerService;
+    @Getter
     protected String topicName;
     protected PulsarClientImpl client;
     protected volatile Producer<MetadataEvent> producer;
@@ -53,19 +58,31 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     private final CopyOnWriteArrayList<Function<MetadataEvent, CompletableFuture<Void>>>
     listeners = new CopyOnWriteArrayList<>();
 
-    private volatile boolean started = false;
+    static final AtomicReferenceFieldUpdater<PulsarMetadataEventSynchronizer, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(PulsarMetadataEventSynchronizer.class, State.class, "state");
+    private volatile State state;
     public static final String SUBSCRIPTION_NAME = "metadata-syncer";
     private static final int MAX_PRODUCER_PENDING_SIZE = 1000;
     protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0,
             TimeUnit.MILLISECONDS);
+    private volatile CompletableFuture<Void> closeFuture;
 
-    public PulsarMetadataEventSynchronizer(PulsarService pulsar, String topicName) throws PulsarServerException {
+    public enum State {
+        Init,
+        Starting_Producer,
+        Starting_Consumer,
+        Started,
+        Closing,
+        Closed;
+    }
+
+    public PulsarMetadataEventSynchronizer(PulsarService pulsar, String topicName) {
         this.pulsar = pulsar;
         this.brokerService = pulsar.getBrokerService();
         this.topicName = topicName;
+        this.state = State.Init;
         if (!StringUtils.isNotBlank(topicName)) {
             log.info("Metadata synchronizer is disabled");
-            return;
         }
     }
 
@@ -74,10 +91,11 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             log.info("metadata topic doesn't exist.. skipping metadata synchronizer init..");
             return;
         }
+        log.info("Metadata event synchronizer is starting on topic {}", topicName);
         this.client = (PulsarClientImpl) pulsar.getClient();
-        startProducer();
-        startConsumer();
-        log.info("Metadata event synchronizer started on topic {}", topicName);
+        if (STATE_UPDATER.compareAndSet(this, State.Init, State.Starting_Producer)) {
+            startProducer();
+        }
     }
 
     @Override
@@ -98,7 +116,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     private void publishAsync(MetadataEvent event, CompletableFuture<Void> future) {
-        if (!started) {
+        if (!isProducerStarted()) {
             log.info("Producer is not started on {}, failed to publish {}", topicName, event);
             future.completeExceptionally(new IllegalStateException("producer is not started yet"));
         }
@@ -119,9 +137,21 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).enableBatching(false).enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE).createAsync().thenAccept(prod -> {
-                    producer = prod;
-                    started = true;
-                    log.info("producer is created successfully {}", topicName);
+                    if (STATE_UPDATER.compareAndSet(this, State.Starting_Producer, State.Starting_Consumer)) {
+                        producer = prod;
+                        log.info("producer is created successfully {}", topicName);
+                        PulsarMetadataEventSynchronizer.this.startConsumer();
+                    } else {
+                        State stateTransient = state;
+                        log.info("[{}] Closing the new producer because the synchronizer state is {}", prod,
+                                stateTransient);
+                        CompletableFuture closeProducer = new CompletableFuture<>();
+                        closeResource(prod, closeProducer);
+                        closeProducer.thenRun(() -> {
+                            log.info("[{}] Closed the new producer because the synchronizer state is {}", prod,
+                                    stateTransient);
+                        });
+                    }
                 }).exceptionally(ex -> {
                     long waitTimeMs = backOff.next();
                     log.warn("[{}] Failed to create producer ({}), retrying in {} s", topicName, ex.getMessage(),
@@ -133,6 +163,9 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     private void startConsumer() {
+        if (isClosed()) {
+            log.info("[{}] Skip to start new consumer because the synchronizer is closed", topicName);
+        }
         if (consumer != null) {
             return;
         }
@@ -168,8 +201,18 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                     }
                 });
         consumerBuilder.subscribeAsync().thenAccept(consumer -> {
-            log.info("successfully created consumer {}", topicName);
-            this.consumer = consumer;
+            if (STATE_UPDATER.compareAndSet(this, State.Starting_Consumer, State.Started)) {
+                this.consumer = consumer;
+                log.info("successfully created consumer {}", topicName);
+            } else {
+                State stateTransient = state;
+                log.info("[{}] Closing the new consumer because the synchronizer state is {}", stateTransient);
+                CompletableFuture closeConsumer = new CompletableFuture<>();
+                closeResource(consumer, closeConsumer);
+                closeConsumer.thenRun(() -> {
+                    log.info("[{}] Closed the new consumer because the synchronizer state is {}", stateTransient);
+                });
+            }
         }).exceptionally(ex -> {
             long waitTimeMs = backOff.next();
             log.warn("[{}] Failed to create consumer ({}), retrying in {} s", topicName, ex.getMessage(),
@@ -181,19 +224,63 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     public boolean isStarted() {
-        return started;
+        return this.state != State.Started;
+    }
+
+    public boolean isProducerStarted() {
+        return this.state.ordinal() > State.Starting_Producer.ordinal()
+                && this.state.ordinal() < State.Closing.ordinal();
+    }
+
+    public boolean isClosed() {
+        return this.state == State.Closing || this.state == State.Closed;
     }
 
     @Override
-    public void close() {
-        started = false;
-        if (producer != null) {
-            producer.closeAsync();
-            producer = null;
+    public synchronized CompletableFuture<Void> closeAsync() {
+        while (true) {
+            if (isClosed()) {
+                return closeFuture;
+            }
+            if (STATE_UPDATER.compareAndSet(this, State.Init, State.Closing)
+                || STATE_UPDATER.compareAndSet(this, State.Starting_Producer, State.Closing)
+                || STATE_UPDATER.compareAndSet(this, State.Starting_Consumer, State.Closing)
+                || STATE_UPDATER.compareAndSet(this, State.Started, State.Closing)) {
+                break;
+            }
         }
-        if (consumer != null) {
-            consumer.closeAsync();
-            consumer = null;
+        CompletableFuture<Void> closeProducer = new CompletableFuture<>();
+        CompletableFuture<Void> closeConsumer = new CompletableFuture<>();
+        closeResource(producer, closeProducer);
+        closeResource(consumer, closeConsumer);
+        // Add logs.
+        closeProducer.thenRun(() -> log.info("Successfully close producer {}", topicName));
+        closeConsumer.thenRun(() -> log.info("Successfully close consumer {}", topicName));
+
+        closeFuture = FutureUtil.waitForAll(Arrays.asList(closeProducer, closeConsumer));
+        closeFuture.thenRun(() -> {
+            this.state = State.Closed;
+            log.info("Successfully close metadata store synchronizer {}", topicName);
+        });
+        return closeFuture;
+    }
+
+    private void closeResource(final AsyncCloseable asyncCloseable, final CompletableFuture<Void> future) {
+        if (asyncCloseable == null) {
+            future.complete(null);
+            return;
         }
+        asyncCloseable.closeAsync().whenComplete((ignore, ex) -> {
+            if (ex == null) {
+                future.complete(null);
+                return;
+            }
+            // Retry.
+            long waitTimeMs = backOff.next();
+            log.warn("[{}] Exception: '{}' occurred while trying to close the %s. Retrying again in {} s.",
+                    topicName, ex.getMessage(), asyncCloseable.getClass().getSimpleName(), waitTimeMs / 1000.0, ex);
+            brokerService.executor().schedule(() -> closeResource(asyncCloseable, future), waitTimeMs,
+                    TimeUnit.MILLISECONDS);
+        });
     }
 }

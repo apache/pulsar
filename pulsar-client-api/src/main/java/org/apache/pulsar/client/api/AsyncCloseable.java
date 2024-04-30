@@ -16,38 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.api;
+package org.apache.pulsar.client.api;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
-/**
- * Metadata synchronizer to notify and synchronize metadata change events.
- */
-public interface MetadataEventSynchronizer {
+public interface AsyncCloseable {
 
-    /**
-     * Notify metadata change event.
-     * @param event
-     *            metadata change event.
-     * @return
-     */
-    CompletableFuture<Void> notify(MetadataEvent event);
-
-    /**
-     * Register notification listener to sync metadata event in local cluster.
-     * @param event
-     */
-    void registerSyncListener(Function<MetadataEvent, CompletableFuture<Void>> event);
-
-    /**
-     * Name of current cluster served by the Synchronizer.
-     * @return clusterName
-     */
-    String getClusterName();
-
-    /**
-     * close synchronizer resources.
-     */
     CompletableFuture<Void> closeAsync();
 }

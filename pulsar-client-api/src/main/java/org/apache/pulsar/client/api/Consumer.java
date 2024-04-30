@@ -34,7 +34,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Consumer<T> extends Closeable, MessageAcknowledger {
+public interface Consumer<T> extends Closeable, MessageAcknowledger, AsyncCloseable {
 
     /**
      * Get a topic for the consumer.
@@ -470,6 +470,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      *
      * @return a future that can be used to track the completion of the operation
      */
+    @Override
     CompletableFuture<Void> closeAsync();
 
     /**

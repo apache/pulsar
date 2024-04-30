@@ -608,12 +608,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             closeLocalMetadataStore();
+            if (configMetadataSynchronizer != null) {
+                configMetadataSynchronizer.closeAsync();
+            }
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
-                if (configMetadataSynchronizer != null) {
-                    configMetadataSynchronizer.close();
-                    configMetadataSynchronizer = null;
-                }
             }
 
             if (transactionExecutorProvider != null) {
@@ -1165,7 +1164,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             localMetadataStore.close();
         }
         if (localMetadataSynchronizer != null) {
-            localMetadataSynchronizer.close();
+            localMetadataSynchronizer.closeAsync();
             localMetadataSynchronizer = null;
         }
     }
@@ -1926,6 +1925,71 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             return compactionServiceFactory.newTopicCompactionService(topic);
         } catch (Throwable e) {
             return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    public void initConfigMetadataSynchronizerIfNeeded() {
+        mutex.lock();
+        try {
+            final String newTopic = config.getConfigurationMetadataSyncEventTopic();
+            final PulsarMetadataEventSynchronizer oldSynchronizer = configMetadataSynchronizer;
+            // Skip if not support.
+            if (!(configurationMetadataStore instanceof MetadataStoreExtended)) {
+                LOG.info(
+                        "Skip to update Metadata Synchronizer because of the Configuration Metadata Store using[{}]"
+                                + " does not support.", configurationMetadataStore.getClass().getName());
+                return;
+            }
+            // Skip if no changes.
+            //   case-1: both null.
+            //   case-2: both topics are the same.
+            if ((oldSynchronizer == null && StringUtils.isBlank(newTopic))) {
+                LOG.info("Skip to update Metadata Synchronizer because the topic[null] does not changed.");
+            }
+            if (StringUtils.isNotBlank(newTopic) && oldSynchronizer != null) {
+                TopicName newTopicName = TopicName.get(newTopic);
+                TopicName oldTopicName = TopicName.get(oldSynchronizer.getTopicName());
+                if (newTopicName.equals(oldTopicName)) {
+                    LOG.info("Skip to update Metadata Synchronizer because the topic[{}] does not changed.",
+                            oldTopicName);
+                }
+            }
+            // Update(null or not null).
+            //   1.set the new one.
+            //   2.close the old one.
+            //   3.async start the new one.
+            if (StringUtils.isBlank(newTopic)) {
+                configMetadataSynchronizer = null;
+            } else {
+                configMetadataSynchronizer = new PulsarMetadataEventSynchronizer(this, newTopic);
+            }
+            // close the old one and start the new one.
+            PulsarMetadataEventSynchronizer newSynchronizer = configMetadataSynchronizer;
+            MetadataStoreExtended metadataStoreExtended = (MetadataStoreExtended) configurationMetadataStore;
+            metadataStoreExtended.updateMetadataEventSynchronizer(newSynchronizer);
+            Runnable startNewSynchronizer = () -> {
+                if (newSynchronizer == null) {
+                    return;
+                }
+                try {
+                    newSynchronizer.start();
+                } catch (Exception e) {
+                    // It only occurs when get internal client fails.
+                    LOG.error("Start Metadata Synchronizer with topic {} failed.",
+                            newTopic, e);
+                }
+            };
+            executor.submit(() -> {
+                if (oldSynchronizer != null) {
+                    oldSynchronizer.closeAsync().whenComplete((ignore, ex) -> {
+                        startNewSynchronizer.run();
+                    });
+                } else {
+                    startNewSynchronizer.run();
+                }
+            });
+        } finally {
+            mutex.unlock();
         }
     }
 }

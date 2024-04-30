@@ -55,7 +55,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private final AsyncOxiaClient client;
 
     private final String identity;
-    private final Optional<MetadataEventSynchronizer> synchronizer;
+    private Optional<MetadataEventSynchronizer> synchronizer;
 
     OxiaMetadataStore(
             @NonNull String serviceAddress,
@@ -69,7 +69,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         if (!metadataStoreConfig.isBatchingEnabled()) {
             linger = 0;
         }
-        this.synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
+        updateMetadataEventSynchronizer(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
         client =
                 OxiaClientBuilder.create(serviceAddress)
@@ -284,6 +284,12 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return synchronizer;
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = Optional.ofNullable(synchronizer);
+        registerSyncListener(this.synchronizer);
     }
 
     private record PathWithPutResult(String path, PutResult result) {}

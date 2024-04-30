@@ -31,7 +31,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Producer<T> extends Closeable {
+public interface Producer<T> extends Closeable, AsyncCloseable {
 
     /**
      * @return the topic which producer is publishing to
@@ -183,6 +183,7 @@ public interface Producer<T> extends Closeable {
      *
      * @return a future that can used to track when the producer has been closed
      */
+    @Override
     CompletableFuture<Void> closeAsync();
 
     /**
