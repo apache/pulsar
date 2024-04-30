@@ -279,7 +279,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
-    private Set<String> subscriptionsIgnoredByTtl = new TreeSet<>();
+    private Set<String> systemCursorNames = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -415,7 +415,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             shadowSourceTopic = null;
         }
-        subscriptionsIgnoredByTtl = brokerService.pulsar().getConfiguration().getSubscriptionsIgnoredByTtl();
+        systemCursorNames = brokerService.pulsar().getConfiguration().getSystemCursorNames();
     }
 
     @Override
@@ -1936,9 +1936,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())
-                        && (subscriptionsIgnoredByTtl.isEmpty()
-                            || !subscriptionsIgnoredByTtl.contains(sub.getName()))) {
+                if (systemCursorNames.contains(sub.getName())) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
