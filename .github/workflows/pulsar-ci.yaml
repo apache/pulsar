@@ -888,7 +888,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         with:
           sarif_file: 'trivy-results.sarif'
