@@ -2870,6 +2870,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return false;
     }
 
+    @Override
+    public void rolloverCursorsInBackground() {
+        if (cursors.hasDurableCursors()) {
+            executor.execute(() -> {
+                cursors.forEach(ManagedCursor::periodicRollover);
+            });
+        }
+    }
+
     protected void doDeleteLedgers(List<LedgerInfo> ledgersToDelete) {
         PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
         // Update metadata
