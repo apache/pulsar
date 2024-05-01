@@ -866,4 +866,11 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    /**
+     * Called by the system to trigger perdiodic rollover in absence of activity.
+     */
+    default boolean periodicRollover() {
+        return false;
+    }
 }
