@@ -272,9 +272,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     ContextImpl setupContext() throws PulsarClientException {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+        ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
                 pulsarAdmin, clientBuilder);
+        } finally {
+            Thread.currentThread().setContextClassLoader(clsLoader);
+        }
     }
 
     public interface AsyncResultConsumer {
