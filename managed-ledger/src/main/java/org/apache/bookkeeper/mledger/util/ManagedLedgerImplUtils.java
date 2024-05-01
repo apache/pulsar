@@ -63,8 +63,7 @@ public class ManagedLedgerImplUtils {
                     if (!ledger.isValidPosition(previousPosition)) {
                         future.complete(previousPosition);
                     } else {
-                        internalAsyncReverseFindPositionOneByOne(ledger, predicate,
-                                ledger.getPreviousPosition((PositionImpl) position), future);
+                        internalAsyncReverseFindPositionOneByOne(ledger, predicate, previousPosition, future);
                     }
                 } catch (Exception e) {
                     future.completeExceptionally(e);
