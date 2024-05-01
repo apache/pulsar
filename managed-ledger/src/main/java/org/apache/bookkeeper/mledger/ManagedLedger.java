@@ -632,6 +632,11 @@ public interface ManagedLedger {
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
+     * Rollover cursors in background if needed.
+     */
+    default void rolloverCursorsInBackground() {}
+
+    /**
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
      * used to delete information about this ledger in the ManagedCursor.
      */
