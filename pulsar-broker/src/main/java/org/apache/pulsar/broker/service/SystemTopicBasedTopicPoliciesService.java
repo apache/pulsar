@@ -543,7 +543,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } else {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                            log.info("Closing the topic policies reader for {}", reader.getSystemTopic().getTopicName());
+                            log.info("Closing the topic policies reader for {}",
+                                    reader.getSystemTopic().getTopicName());
                             cleanCacheAndCloseReader(
                                     reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                         } else {
