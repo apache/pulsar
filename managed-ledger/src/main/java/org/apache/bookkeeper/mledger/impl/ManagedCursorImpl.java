@@ -3113,12 +3113,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             lh1.getId());
                 }
 
-                if (shouldCloseLedger(lh1)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
-                    }
-                    startCreatingNewMetadataLedger();
-                }
+                rolloverLedgerIfNeeded(lh1);
 
                 mbean.persistToLedger(true);
                 mbean.addWriteCursorLedgerSize(data.length);
@@ -3134,6 +3129,35 @@ public class ManagedCursorImpl implements ManagedCursor {
                 persistPositionToMetaStore(mdEntry, callback);
             }
         }, null);
+    }
+
+    public boolean periodicRollover() {
+        LedgerHandle lh = cursorLedger;
+        if (State.Open.equals(STATE_UPDATER.get(this))
+                && lh != null && lh.getLength() > 0) {
+            boolean triggered = rolloverLedgerIfNeeded(lh);
+            if (triggered) {
+                log.info("[{}] Periodic rollover triggered for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+            } else {
+                log.debug("[{}] Periodic rollover skipped for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+
+            }
+            return triggered;
+        }
+        return false;
+    }
+
+    boolean rolloverLedgerIfNeeded(LedgerHandle lh1) {
+        if (shouldCloseLedger(lh1)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
+            }
+            startCreatingNewMetadataLedger();
+            return true;
+        }
+        return false;
     }
 
     void persistPositionToMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {

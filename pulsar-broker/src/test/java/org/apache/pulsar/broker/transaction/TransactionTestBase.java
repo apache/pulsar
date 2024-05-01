@@ -169,6 +169,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                     PulsarTestContext.builder()
                             .brokerInterceptor(new CounterBrokerInterceptor())
                             .spyByDefault()
+                            .enableOpenTelemetry(true)
                             .config(conf);
             if (i > 0) {
                 testContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContexts.get(0));
