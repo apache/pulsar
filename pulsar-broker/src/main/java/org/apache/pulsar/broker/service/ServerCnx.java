@@ -366,7 +366,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(brokerInterceptor, this);
         this.service.getPulsarStats().recordConnectionCreate();
-        this.service.getPulsarStats().getBrokerOperabilityMetrics().recordConnectionState(isActive, this.state);
+        updateStateAndCounters(this.state /* no change */);
         cnxsPerThread.get().add(this);
     }
 
