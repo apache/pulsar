@@ -4821,6 +4821,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
+    /**
+     * It verifies that consumer receives configured number of messages into the batch.
+     * @throws Exception
+     */
+    @Test
+    public void testBatchReceiveWithMaxBatchSize() throws Exception {
+        int maxBatchSize = 100;
+        final int internalQueueSize = 10;
+        final int maxBytes = 2000000;
+        final int timeOutInSeconds = 900;
+        final String topic = "persistent://my-property/my-ns/testBatchReceive";
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumBytes(maxBytes)
+                .maxNumMessages(maxBatchSize).timeout(timeOutInSeconds, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(internalQueueSize)
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).send();
+        }
+
+        assertEquals(consumer.batchReceive().size(), maxBatchSize);
+    }
+
     private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {
         if (messageId2.getLedgerId() < messageId1.getLedgerId()) {
             return -1;
