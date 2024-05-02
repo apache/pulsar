@@ -4329,10 +4329,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        if (pulsarClient == null) {
-            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-        }
-
         final String topic = "persistent://my-property/my-ns/accessSchema";
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
@@ -4382,7 +4378,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             fail();
         } finally {
             pulsarClient.shutdown();
-            pulsarClient = null;
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
             admin.schemas().deleteSchema(topic);
         }
     }

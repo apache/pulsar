@@ -85,7 +85,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -131,7 +132,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
         Thread thread2 = new Thread(() -> {
             try {
-                PerformanceProducer.main(newArgs.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(newArgs.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -169,23 +171,23 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000)
     public void testBatchingDisabled() throws Exception {
-        PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
+        PerformanceProducer producer = new PerformanceProducer();
 
         int producerId = 0;
 
         String topic = testTopic + UUID.randomUUID();
-        arguments.topics = List.of(topic);
-        arguments.msgRate = 10;
-        arguments.serviceURL = pulsar.getBrokerServiceUrl();
-        arguments.numMessages = 500;
-        arguments.disableBatching = true;
+        producer.topics = List.of(topic);
+        producer.msgRate = 10;
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+        producer.numMessages = 500;
+        producer.disableBatching = true;
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .enableTransaction(arguments.isEnableTransaction);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(producer)
+                .enableTransaction(producer.isEnableTransaction);
         @Cleanup
         PulsarClient client = clientBuilder.build();
-
-        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client,
+                producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
@@ -196,7 +198,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -227,7 +230,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
         new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 log.error("Failed to start perf producer");
             }
