@@ -204,7 +204,7 @@ public class BaseResources<T> {
                 log.info("Path {} did not exist in metadata store", path);
                 future.complete(null);
             } else if (ex != null) {
-                log.info("Cannot path from metadata store: {}", path, ex);
+                log.info("Failed to delete path from metadata store: {}", path, ex);
                 future.completeExceptionally(ex);
             } else {
                 log.info("Deleted path from metadata store: {}", path);
