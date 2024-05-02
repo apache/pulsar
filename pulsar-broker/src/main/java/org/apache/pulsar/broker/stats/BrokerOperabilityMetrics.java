@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.ObservableLongCounter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,11 +31,12 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.stats.Metrics;
 
 /**
  */
-public class BrokerOperabilityMetrics {
+public class BrokerOperabilityMetrics implements AutoCloseable {
     private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
@@ -43,6 +49,17 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionActive;
 
 
+    public static final String CONNECTION_COUNTER_METRIC_NAME = "pulsar.broker.connection.count";
+    private final LongCounter connCounter;
+    private final ObservableLongCounter connectionCounter;
+
+    public static final AttributeKey<Boolean> CHANNEL_STATUS_KEY = AttributeKey.booleanKey("pulsar.channel.active");
+    public static final AttributeKey<String> CONNECTION_STATUS_KEY = AttributeKey.stringKey("pulsar.connection.status");
+    private static final Attributes CONNECTION_STATUS_OPENED = Attributes.of(CONNECTION_STATUS_KEY, "opened");
+    private static final Attributes CONNECTION_STATUS_CLOSED = Attributes.of(CONNECTION_STATUS_KEY, "closed");
+    private static final Attributes CONNECTION_STATUS_SUCCESS = Attributes.of(CONNECTION_STATUS_KEY, "success");
+    private static final Attributes CONNECTION_STATUS_FAILURE = Attributes.of(CONNECTION_STATUS_KEY, "failure");
+
     public BrokerOperabilityMetrics(PulsarService pulsar) {
         this.metricsList = new ArrayList<>();
         this.localCluster = pulsar.getConfiguration().getClusterName();
@@ -53,6 +70,31 @@ public class BrokerOperabilityMetrics {
         this.connectionCreateFailCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();
         this.connectionActive = new LongAdder();
+
+        connectionCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(CONNECTION_COUNTER_METRIC_NAME)
+                .setDescription("Number of connections")
+                .setUnit("{connection}")
+                .buildWithCallback(this::recordOpenTelemetryMetrics);
+
+        connCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder("pulsar.broker.channel.count")
+                .setDescription("Number of connections")
+                .setUnit("{connection}")
+                .build();
+    }
+
+    @Override
+    public void close() throws Exception {
+        connectionCounter.close();
+    }
+
+    private void recordOpenTelemetryMetrics(ObservableLongMeasurement measurement) {
+        measurement.record(connectionTotalCreatedCount.sum(), CONNECTION_STATUS_OPENED);
+        measurement.record(connectionTotalClosedCount.sum(), CONNECTION_STATUS_CLOSED);
+
+        measurement.record(connectionCreateSuccessCount.sum(), CONNECTION_STATUS_SUCCESS);
+        measurement.record(connectionCreateFailCount.sum(), CONNECTION_STATUS_FAILURE);
     }
 
     public List<Metrics> getMetrics() {
@@ -140,4 +182,10 @@ public class BrokerOperabilityMetrics {
     public void recordConnectionCreateFail() {
         this.connectionCreateFailCount.increment();
     }
+
+    public void recordConnectionState(boolean isActive, ServerCnx.State state) {
+        var attributes = Attributes.of(CHANNEL_STATUS_KEY, isActive, CONNECTION_STATUS_KEY, state.name().toLowerCase());
+        connCounter.add(1, attributes);
+    }
+
 }
