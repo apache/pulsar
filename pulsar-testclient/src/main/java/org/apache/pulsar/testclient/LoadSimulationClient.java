@@ -41,20 +41,20 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
-import picocli.CommandLine.ScopeType;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
  * this class are controlled across a network via LoadSimulationController.
  */
-public class LoadSimulationClient {
+@Command(name = "simulation-client",
+        description = "Simulate client load by maintaining producers and consumers for topics.")
+public class LoadSimulationClient extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
     // Values for command encodings.
@@ -65,7 +65,7 @@ public class LoadSimulationClient {
     public static final byte STOP_GROUP_COMMAND = 4;
     public static final byte FIND_COMMAND = 5;
 
-    private final ExecutorService executor;
+    private ExecutorService executor;
     // Map from a message size to a cached byte[] of that size.
     private final Map<Integer, byte[]> payloadCache;
 
@@ -73,12 +73,10 @@ public class LoadSimulationClient {
     private final Map<String, TradeUnit> topicsToTradeUnits;
 
     // Pulsar admin to create namespaces with.
-    private final PulsarAdmin admin;
+    private PulsarAdmin admin;
 
     // Pulsar client to create producers and consumers with.
-    private final PulsarClient client;
-
-    private final int port;
+    private PulsarClient client;
 
     // A TradeUnit is a Consumer and Producer pair. The rate of message
     // consumption as well as size may be changed at
@@ -172,22 +170,17 @@ public class LoadSimulationClient {
     }
 
     // picocli arguments for starting a LoadSimulationClient.
-    @Command(description = "Simulate client load by maintaining producers and consumers for topics.",
-            showDefaultValues = true, scope = ScopeType.INHERIT)
-    private static class MainArguments {
-        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
 
-        @Option(names = { "--port" }, description = "Port to listen on for controller", required = true)
-        public int port;
+    @Option(names = { "--port" }, description = "Port to listen on for controller", required = true)
+    public int port;
 
-        @Option(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
-        public String serviceURL;
+    @Option(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
+    public String serviceURL;
 
-        @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
-        public long memoryLimit = 0L;
-    }
+    @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+        + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+    public long memoryLimit = 0L;
+
 
     // Configuration class for initializing or modifying TradeUnits.
     private static class TradeConfiguration {
@@ -312,54 +305,40 @@ public class LoadSimulationClient {
     private static final MessageListener<byte[]> ackListener = Consumer::acknowledgeAsync;
 
     /**
-     * Create a LoadSimulationClient with the given picocli arguments.
+     * Create a LoadSimulationClient with the given picocli this.
      *
-     * @param arguments
-     *            Arguments to configure this from.
      */
-    public LoadSimulationClient(final MainArguments arguments) throws Exception {
+    public LoadSimulationClient() throws PulsarClientException {
+        super("simulation-client");
         payloadCache = new ConcurrentHashMap<>();
         topicsToTradeUnits = new ConcurrentHashMap<>();
-
-        admin = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.serviceURL)
-                    .build();
-        client = PulsarClient.builder()
-                    .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
-                    .serviceUrl(arguments.serviceURL)
-                    .connectionsPerBroker(4)
-                    .ioThreads(Runtime.getRuntime().availableProcessors())
-                    .statsInterval(0, TimeUnit.SECONDS)
-                    .build();
-        port = arguments.port;
-        executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
     }
 
     /**
-     * Start a client with command line arguments.
+     * Start a client with command line this.
      *
-     * @param args
-     *            Command line arguments to pass in.
      */
-    public static void main(String[] args) throws Exception {
-        final MainArguments mainArguments = new MainArguments();
-        CommandLine commander = new CommandLine(mainArguments);
-        commander.setCommandName("pulsar-perf simulation-client");
-        try {
-            commander.parseArgs(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
+    @Override
+    public void run() throws Exception {
+        admin = PulsarAdmin.builder()
+                .serviceHttpUrl(this.serviceURL)
+                .build();
+        client = PulsarClient.builder()
+                .memoryLimit(this.memoryLimit, SizeUnit.BYTES)
+                .serviceUrl(this.serviceURL)
+                .connectionsPerBroker(4)
+                .ioThreads(Runtime.getRuntime().availableProcessors())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
         PerfClientUtils.printJVMInformation(log);
-        (new LoadSimulationClient(mainArguments)).run();
+        this.start();
     }
 
     /**
      * Start listening for controller commands to create producers and consumers.
      */
-    public void run() throws Exception {
+    public void start() throws Exception {
         final ServerSocket serverSocket = new ServerSocket(port);
 
         while (true) {

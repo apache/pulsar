@@ -133,7 +133,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
         Thread thread = new Thread(() -> {
             try {
-                PerformanceTransaction.main(args.split(" "));
+                new PerformanceTransaction().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -184,7 +184,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                new PerformanceProducer().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -237,7 +237,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         Thread thread = new Thread(() -> {
             try {
                 log.info("");
-                PerformanceConsumer.main(args.split(" "));
+                new PerformanceConsumer().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
