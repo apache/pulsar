@@ -350,6 +350,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        log.info("Deleting path: {} (v. {})", path, expectedVersion);
         if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
@@ -395,11 +396,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
 
             metadataCaches.forEach(c -> c.invalidate(path));
+            log.info("Deleted path: {} (v. {})", path, expectedVersion);
         });
     }
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
+        log.info("Deleting recursively path: {}", path);
         if (isClosed()) {
             return FutureUtil.failedFuture(
                     new MetadataStoreException.AlreadyClosedException());
@@ -409,13 +412,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         children.stream()
                                 .map(child -> deleteRecursive(path + "/" + child))
                                 .collect(Collectors.toList())))
-                .thenCompose(__ -> exists(path))
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
+                .thenCompose(__ -> {
+                    log.info("After deleting all children, now deleting path: {}", path);
+                    return deleteIfExists(path, Optional.empty());
                 });
     }
 
