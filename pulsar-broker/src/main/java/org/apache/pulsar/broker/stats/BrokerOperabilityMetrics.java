@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
 /**
@@ -41,11 +42,12 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
 
-    public BrokerOperabilityMetrics(String localCluster, String brokerName) {
+
+    public BrokerOperabilityMetrics(PulsarService pulsar) {
         this.metricsList = new ArrayList<>();
-        this.localCluster = localCluster;
+        this.localCluster = pulsar.getConfiguration().getClusterName();
         this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
-        this.brokerName = brokerName;
+        this.brokerName = pulsar.getAdvertisedAddress();
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionCreateSuccessCount = new LongAdder();
         this.connectionCreateFailCount = new LongAdder();
