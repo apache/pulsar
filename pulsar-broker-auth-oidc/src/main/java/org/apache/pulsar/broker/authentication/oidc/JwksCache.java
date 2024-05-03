@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication.oidc;
 
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS;
@@ -93,7 +94,7 @@ public class JwksCache {
 
     CompletableFuture<Jwk> getJwk(String jwksUri, String keyId) {
         if (jwksUri == null) {
-            authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+            authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
             return CompletableFuture.failedFuture(new IllegalArgumentException("jwksUri must not be null."));
         }
         return getJwkAndMaybeReload(Optional.of(jwksUri), keyId, false);
@@ -141,12 +142,10 @@ public class JwksCache {
                                 reader.readValue(result.getResponseBodyAsBytes());
                         future.complete(convertToJwks(jwksUri, jwks));
                     } catch (AuthenticationException e) {
-                        authenticationProvider.incrementFailureMetric(
-                                AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
                         future.completeExceptionally(e);
                     } catch (Exception e) {
-                        authenticationProvider.incrementFailureMetric(
-                                AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
                         future.completeExceptionally(new AuthenticationException(
                                 "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
                     }
@@ -156,7 +155,7 @@ public class JwksCache {
 
     CompletableFuture<Jwk> getJwkFromKubernetesApiServer(String keyId) {
         if (openidApi == null) {
-            authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+            authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
             return CompletableFuture.failedFuture(new AuthenticationException(
                     "Failed to retrieve public key from Kubernetes API server: Kubernetes fallback is not enabled."));
         }
@@ -169,8 +168,7 @@ public class JwksCache {
             openidApi.getServiceAccountIssuerOpenIDKeysetAsync(new ApiCallback<String>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
-                    authenticationProvider.incrementFailureMetric(
-                            AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                    authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
                     // We want the message and responseBody here: https://github.com/kubernetes-client/java/issues/2066.
                     future.completeExceptionally(
                             new AuthenticationException("Failed to retrieve public key from Kubernetes API server. "
@@ -183,12 +181,10 @@ public class JwksCache {
                         HashMap<String, Object> jwks = reader.readValue(result);
                         future.complete(convertToJwks("Kubernetes API server", jwks));
                     } catch (AuthenticationException e) {
-                        authenticationProvider.incrementFailureMetric(
-                                AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
                         future.completeExceptionally(e);
                     } catch (Exception e) {
-                        authenticationProvider.incrementFailureMetric(
-                                AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
                         future.completeExceptionally(new AuthenticationException(
                                 "Error retrieving public key at Kubernetes API server: " + e.getMessage()));
                     }
@@ -205,7 +201,7 @@ public class JwksCache {
                 }
             });
         } catch (ApiException e) {
-            authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+            authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
             future.completeExceptionally(
                     new AuthenticationException("Failed to retrieve public key from Kubernetes API server: "
                             + e.getMessage()));
@@ -219,7 +215,7 @@ public class JwksCache {
                 return jwk;
             }
         }
-        authenticationProvider.incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+        authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);
         throw new IllegalArgumentException("No JWK found for Key ID " + keyId);
     }
 
