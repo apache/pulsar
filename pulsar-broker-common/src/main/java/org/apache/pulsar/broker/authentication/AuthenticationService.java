@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.slf4j.Logger;
@@ -51,6 +53,10 @@ public class AuthenticationService implements Closeable {
     private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
+        this(conf, new AuthenticationMetrics(OpenTelemetry.noop().getMeter("noop")));
+    }
+
+    public AuthenticationService(ServiceConfiguration conf, AuthenticationMetrics authenticationMetrics) throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
@@ -70,6 +76,11 @@ public class AuthenticationService implements Closeable {
                     providerList.add(provider);
                 }
 
+                var authenticationProviderParameters = AuthenticationProvider.InitParameters.builder()
+                        .config(conf)
+                        .authenticationMetrics(authenticationMetrics)
+                        .build();
+
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
                     AuthenticationProvider provider;
                     if (entry.getValue().size() == 1) {
@@ -77,7 +88,7 @@ public class AuthenticationService implements Closeable {
                     } else {
                         provider = new AuthenticationProviderList(entry.getValue());
                     }
-                    provider.initialize(conf);
+                    provider.initialize(authenticationProviderParameters);
                     providers.put(provider.getAuthMethodName(), provider);
                     LOG.info("[{}] has been loaded.",
                         entry.getValue().stream().map(

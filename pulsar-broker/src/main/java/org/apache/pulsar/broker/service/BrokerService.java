@@ -383,7 +383,8 @@ public class BrokerService implements Closeable {
                 .name("pulsar-backlog-quota-checker")
                 .numThreads(1)
                 .build();
-        this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
+        this.authenticationService =
+                new AuthenticationService(pulsar.getConfiguration(), pulsar.getOpenTelemetry().getOpenTelemetry());
         this.blockedDispatchers =
                 ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
         this.topicFactory = createPersistentTopicFactory();

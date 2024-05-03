@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.Closeable;
@@ -45,6 +46,10 @@ public class PulsarBrokerOpenTelemetry implements Closeable {
                 .builderCustomizer(builderCustomizer)
                 .build();
         meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.broker");
+    }
+
+    public OpenTelemetry getOpenTelemetry() {
+        return openTelemetryService.getOpenTelemetry();
     }
 
     @Override
