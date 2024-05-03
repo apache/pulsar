@@ -28,7 +28,7 @@ public abstract class AuthenticationProviderBase implements AuthenticationProvid
     @Override
     @Deprecated
     public final void initialize(ServiceConfiguration config) throws IOException {
-        initialize(InitParameters.builder().config(config).build());
+        throw new UnsupportedOperationException("This method is deprecated and should not be used");
     }
 
     @Override
