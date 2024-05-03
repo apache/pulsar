@@ -36,7 +36,7 @@ import org.apache.pulsar.common.api.AuthData;
  * An authentication provider wraps a list of auth providers.
  */
 @Slf4j
-public class AuthenticationProviderList implements AuthenticationProvider {
+public class AuthenticationProviderList extends AuthenticationProviderBase {
 
     private interface AuthProcessor<T, W> {
 
@@ -214,9 +214,9 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(InitParameters parameters) throws IOException {
         for (AuthenticationProvider ap : providers) {
-            ap.initialize(config);
+            ap.initialize(parameters);
         }
     }
 

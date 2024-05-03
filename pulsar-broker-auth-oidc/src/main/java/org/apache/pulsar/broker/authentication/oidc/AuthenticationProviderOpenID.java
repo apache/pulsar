@@ -54,9 +54,9 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import okhttp3.OkHttpClient;
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderBase;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -85,10 +85,8 @@ import org.slf4j.LoggerFactory;
  * Supported algorithms are: RS256, RS384, RS512, ES256, ES384, ES512 where the naming conventions follow
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
-public class AuthenticationProviderOpenID implements AuthenticationProvider {
+public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
-
-    private static final String SIMPLE_NAME = AuthenticationProviderOpenID.class.getSimpleName();
 
     // Must match the value used by the OAuth2 Client Plugin.
     private static final String AUTH_METHOD_NAME = "token";
@@ -149,7 +147,10 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private ApiClient k8sApiClient;
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(InitParameters initParameters) throws IOException {
+        super.initialize(initParameters);
+
+        var config = initParameters.getConfig();
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
         this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);
@@ -181,8 +182,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
         k8sApiClient = fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
-        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
-        this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
+        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(this, config, httpClient, k8sApiClient);
+        this.jwksCache = new JwksCache(this, config, httpClient, k8sApiClient);
     }
 
     @Override
@@ -219,7 +220,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return authenticateToken(token)
                 .whenComplete((jwt, e) -> {
                     if (jwt != null) {
-                        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                        incrementSuccessMetric();
                     }
                     // Failure metrics are incremented within methods above
                 });
@@ -461,10 +462,6 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_VERIFYING_JWT);
             throw new AuthenticationException("JWT verification failed: " + e.getMessage());
         }
-    }
-
-    static void incrementFailureMetric(AuthenticationExceptionCode code) {
-        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, AUTH_METHOD_NAME, code);
     }
 
     /**

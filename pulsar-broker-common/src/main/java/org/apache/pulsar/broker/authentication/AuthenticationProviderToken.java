@@ -31,13 +31,17 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -47,8 +51,9 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.stats.MetricsUtil;
 
-public class AuthenticationProviderToken implements AuthenticationProvider {
+public class AuthenticationProviderToken extends AuthenticationProviderBase {
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -83,12 +88,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             .name("pulsar_expired_token_total")
             .help("Pulsar expired token")
             .register();
+    private LongCounter expiredTokensCounter;
 
     private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
             .name("pulsar_expiring_token_minutes")
             .help("The remaining time of expiring token in minutes")
             .buckets(5, 10, 60, 240)
             .register();
+    private DoubleHistogram expiringTokenSeconds;
 
     private Key validationKey;
     private String roleClaim;
@@ -124,7 +131,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+    public void initialize(InitParameters initParameters) throws IOException, IllegalArgumentException {
+        super.initialize(initParameters);
+
+        var meter = initParameters.getOpenTelemetry().getMeter("org.apache.pulsar.authentication");
+        expiredTokensCounter = meter.counterBuilder("pulsar.token.expired.count")
+                .setUnit("{token}")
+                .build();
+        expiringTokenSeconds = meter.histogramBuilder("pulsar.token.duration")
+                .setUnit("s")
+                .build();
+
+        var config = initParameters.getConfig();
         String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -174,7 +192,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
         // Parse Token by validating
         String role = getPrincipal(authenticateToken(token));
-        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        incrementSuccessMetric();
         return role;
     }
 
@@ -263,14 +281,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
-            if (jwt.getBody().getExpiration() != null) {
-                expiringTokenMinutesMetrics.observe(
-                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+            var expiration = jwt.getBody().getExpiration();
+            if (expiration != null) {
+                var durationMs = expiration.getTime() - new Date().getTime();
+                expiringTokenMinutesMetrics.observe(durationMs / 60_000.0d);
+                expiringTokenSeconds.record(MetricsUtil.convertToSeconds(durationMs, TimeUnit.MILLISECONDS));
             }
             return jwt;
         } catch (JwtException e) {
             if (e instanceof ExpiredJwtException) {
                 expiredTokenMetrics.inc();
+                expiredTokensCounter.add(1);
             }
             incrementFailureMetric(ErrorCode.INVALID_TOKEN);
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());

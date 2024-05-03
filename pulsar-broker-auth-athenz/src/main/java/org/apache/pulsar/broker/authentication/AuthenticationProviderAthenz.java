@@ -28,12 +28,10 @@ import java.security.PublicKey;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AuthenticationProviderAthenz implements AuthenticationProvider {
+public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
 
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";
 
@@ -53,7 +51,10 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(InitParameters initParameters) throws IOException {
+        super.initialize(initParameters);
+
+        var config = initParameters.getConfig();
         String domainNames;
         if (config.getProperty(DOMAIN_NAME_LIST) != null) {
             domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);
@@ -141,7 +142,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
                     log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
-                    AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                    incrementSuccessMetric();
                     return token.getPrincipal();
                 } else {
                     errorCode = ErrorCode.INVALID_TOKEN;

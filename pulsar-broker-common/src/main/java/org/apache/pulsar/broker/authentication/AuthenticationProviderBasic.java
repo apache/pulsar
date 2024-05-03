@@ -36,11 +36,10 @@ import org.apache.commons.codec.digest.Crypt;
 import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
-public class AuthenticationProviderBasic implements AuthenticationProvider {
+public class AuthenticationProviderBasic extends AuthenticationProviderBase {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
@@ -74,7 +73,8 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(InitParameters initParameters) throws IOException {
+        var config = initParameters.getConfig();
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
         if (StringUtils.isEmpty(data)) {
             data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);
@@ -138,7 +138,7 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             incrementFailureMetric(errorCode);
             throw exception;
         }
-        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        incrementSuccessMetric();
         return userId;
     }
 

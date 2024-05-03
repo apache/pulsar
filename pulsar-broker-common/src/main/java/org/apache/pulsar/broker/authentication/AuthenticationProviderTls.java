@@ -22,10 +22,8 @@ import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
-public class AuthenticationProviderTls implements AuthenticationProvider {
+public class AuthenticationProviderTls extends AuthenticationProviderBase {
 
     private enum ErrorCode {
         UNKNOWN,
@@ -35,11 +33,6 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
-        // noop
-    }
-
-    @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
         // noop
     }
 
@@ -96,7 +89,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 errorCode = ErrorCode.INVALID_CN;
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            incrementSuccessMetric();
         } catch (AuthenticationException exception) {
             incrementFailureMetric(errorCode);
             throw exception;
