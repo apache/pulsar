@@ -740,11 +740,16 @@ public class Commands {
     }
 
     public static ByteBuf newCloseConsumer(
-            long consumerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
+            long consumerId, long requestId, String assignedBrokerId, String assignedBrokerUrl,
+            String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
         CommandCloseConsumer commandCloseConsumer = cmd.setCloseConsumer()
             .setConsumerId(consumerId)
             .setRequestId(requestId);
+
+        if (assignedBrokerId != null) {
+            commandCloseConsumer.setAssignedBrokerId(assignedBrokerId);
+        }
 
         if (assignedBrokerUrl != null) {
             commandCloseConsumer.setAssignedBrokerServiceUrl(assignedBrokerUrl);
@@ -776,15 +781,21 @@ public class Commands {
 
     public static ByteBuf newCloseProducer(
             long producerId, long requestId) {
-        return newCloseProducer(producerId, requestId, null, null);
+        return newCloseProducer(producerId, requestId, null, null, null);
     }
 
     public static ByteBuf newCloseProducer(
-            long producerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
+            long producerId, long requestId, String assignedBrokerId, String assignedBrokerUrl,
+            String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_PRODUCER);
         CommandCloseProducer commandCloseProducer = cmd.setCloseProducer()
                 .setProducerId(producerId)
                 .setRequestId(requestId);
+
+        if (assignedBrokerId != null) {
+            commandCloseProducer
+                    .setAssignedBrokerId(assignedBrokerId);
+        }
 
         if (assignedBrokerUrl != null) {
             commandCloseProducer
@@ -947,10 +958,13 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static BaseCommand newLookupResponseCommand(String brokerServiceUrl, String brokerServiceUrlTls,
-        boolean authoritative, LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
+    public static BaseCommand newLookupResponseCommand(String brokerId, String brokerServiceUrl,
+                                                       String brokerServiceUrlTls, boolean authoritative,
+                                                       LookupType lookupType, long requestId,
+                                                       boolean proxyThroughServiceUrl) {
         BaseCommand cmd = localCmd(Type.LOOKUP_RESPONSE);
         CommandLookupTopicResponse response = cmd.setLookupTopicResponse()
+                .setBrokerId(brokerId)
                 .setResponse(lookupType)
                 .setRequestId(requestId)
                 .setAuthoritative(authoritative)
@@ -965,10 +979,12 @@ public class Commands {
         return cmd;
     }
 
-    public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-            LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
-        return serializeWithSize(newLookupResponseCommand(brokerServiceUrl, brokerServiceUrlTls, authoritative,
-                lookupType, requestId, proxyThroughServiceUrl));
+    public static ByteBuf newLookupResponse(String brokerId, String brokerServiceUrl, String brokerServiceUrlTls,
+                                            boolean authoritative,
+                                            LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
+        return serializeWithSize(
+                newLookupResponseCommand(brokerId, brokerServiceUrl, brokerServiceUrlTls, authoritative,
+                        lookupType, requestId, proxyThroughServiceUrl));
     }
 
     public static BaseCommand newLookupErrorResponseCommand(ServerError error, String errorMsg, long requestId) {

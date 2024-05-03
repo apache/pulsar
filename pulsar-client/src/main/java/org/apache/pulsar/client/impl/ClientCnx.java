@@ -819,8 +819,10 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
         final long producerId = closeProducer.getProducerId();
-        log.info("[{}] Broker notification of closed producer: {}, assignedBrokerUrl: {}, assignedBrokerUrlTls: {}",
+        log.info("[{}] Broker notification of closed producer: {}, assignedBrokerId: {}, assignedBrokerUrl: {}, "
+                        + "assignedBrokerUrlTls: {}",
                 remoteAddress, producerId,
+                closeProducer.hasAssignedBrokerId() ? closeProducer.getAssignedBrokerId() : null,
                 closeProducer.hasAssignedBrokerServiceUrl() ? closeProducer.getAssignedBrokerServiceUrl() : null,
                 closeProducer.hasAssignedBrokerServiceUrlTls() ? closeProducer.getAssignedBrokerServiceUrlTls() : null);
         ProducerImpl<?> producer = producers.remove(producerId);

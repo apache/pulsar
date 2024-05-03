@@ -64,7 +64,7 @@ public interface PulsarCommandSender {
 
     void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers);
 
-    void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
+    void sendLookupResponse(String brokerId, String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
                             CommandLookupTopicResponse.LookupType response, long requestId,
                             boolean proxyThroughServiceUrl);
 

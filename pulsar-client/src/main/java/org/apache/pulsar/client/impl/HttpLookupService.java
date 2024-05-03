@@ -128,8 +128,9 @@ public class HttpLookupService implements LookupService {
                 }
 
                 InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress,
-                        false /* HTTP lookups never use the proxy */));
+                return CompletableFuture.completedFuture(
+                        new LookupTopicResult(lookupData.getBrokerId(), brokerAddress, brokerAddress,
+                                false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
                 log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());

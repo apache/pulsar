@@ -29,6 +29,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @ToString
 public class LookupTopicResult {
+    private final String brokerId;
     private final InetSocketAddress logicalAddress;
     private final InetSocketAddress physicalAddress;
     private final boolean isUseProxy;

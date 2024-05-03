@@ -358,7 +358,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String candidateBroker2 = "localhost:3000";
         String broker2Url = "pulsar://localhost:6660";
         LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        lr.setBrokerId(candidateBroker1);
+        LocalBrokerData ld = new LocalBrokerData(candidateBroker2, "http://" + candidateBroker2, null, broker2Url, null);
         String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
         String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
@@ -394,7 +395,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String listener = "listenerName";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker, null, brokerUrl, null, advertisedListeners);
+        LocalBrokerData ld = new LocalBrokerData(candidateBroker, "http://" + candidateBroker, null, brokerUrl, null,
+                advertisedListeners);
         String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
         pulsar.getLocalMetadataStore().put(path,

@@ -146,7 +146,7 @@ public class TopicOwnerTest {
             if (pulsarService == null) {
                 return (CompletableFuture<Optional<LookupResult>>) invocation.callRealMethod();
             }
-            LookupResult lookupResult = new LookupResult(
+            LookupResult lookupResult = new LookupResult(pulsarService.getBrokerId(),
                     pulsarService.getWebServiceAddress(),
                     pulsarService.getWebServiceAddressTls(),
                     pulsarService.getBrokerServiceUrl(),

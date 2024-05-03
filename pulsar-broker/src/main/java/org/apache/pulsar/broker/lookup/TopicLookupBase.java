@@ -217,7 +217,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(),
                             cluster);
                 }
-                validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
+                validationFuture.complete(newLookupResponse(null, differentClusterData.getBrokerServiceUrl(),
                         differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
                         requestId, false));
             } else {
@@ -245,10 +245,11 @@ public class TopicLookupBase extends PulsarWebResource {
                                                 requestId));
                                         return;
                                     }
-                                    validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                            peerClusterData.getBrokerServiceUrlTls(), true,
-                                            LookupType.Redirect, requestId,
-                                            false));
+                                    validationFuture.complete(
+                                            newLookupResponse(null, peerClusterData.getBrokerServiceUrl(),
+                                                    peerClusterData.getBrokerServiceUrlTls(), true,
+                                                    LookupType.Redirect, requestId,
+                                                    false));
                         }).exceptionally(ex -> {
                             Throwable throwable = FutureUtil.unwrapCompletionException(ex);
                             if (throwable instanceof RestException restException){
@@ -311,13 +312,16 @@ public class TopicLookupBase extends PulsarWebResource {
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
-                                        newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                newAuthoritative, LookupType.Redirect, requestId, false));
+                                        newLookupResponse(lookupData.getBrokerId(), lookupData.getBrokerUrl(),
+                                                lookupData.getBrokerUrlTls(), newAuthoritative, LookupType.Redirect,
+                                                requestId, false));
                             } else {
                                 ServiceConfiguration conf = pulsarService.getConfiguration();
-                                lookupfuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
-                                        lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
-                                        requestId, shouldRedirectThroughServiceUrl(conf, lookupData)));
+                                lookupfuture.complete(
+                                        newLookupResponse(lookupData.getBrokerId(), lookupData.getBrokerUrl(),
+                                                lookupData.getBrokerUrlTls(), true /* authoritative */,
+                                                LookupType.Connect, requestId,
+                                                shouldRedirectThroughServiceUrl(conf, lookupData)));
                             }
                         }).exceptionally(ex -> {
                             handleLookupError(lookupfuture, topicName.toString(), clientAppId, requestId, ex);

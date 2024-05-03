@@ -176,13 +176,14 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         HttpLookupService lookupService = new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors);
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
-        LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,
+        LookupResult lookupResult = new LookupResult(pulsar.getBrokerId(), pulsar.getWebServiceAddress(), null,
                 pulsar.getBrokerServiceUrl(), null, true);
         Optional<LookupResult> optional = Optional.of(lookupResult);
         InetSocketAddress address = InetSocketAddress.createUnresolved("192.168.0.1", 8080);
         NamespaceEphemeralData namespaceEphemeralData =
-                new NamespaceEphemeralData("pulsar://" + address.getHostName() + ":" + address.getPort(),
-                null, "http://192.168.0.1:8081", null, false);
+                new NamespaceEphemeralData("192.168.0.1:8081",
+                        "pulsar://" + address.getHostName() + ":" + address.getPort(),
+                        null, "http://192.168.0.1:8081", null, false);
         LookupResult lookupResult2 = new LookupResult(namespaceEphemeralData);
         Optional<LookupResult> optional2 = Optional.of(lookupResult2);
         doReturn(CompletableFuture.completedFuture(optional), CompletableFuture.completedFuture(optional2))

@@ -198,7 +198,7 @@ public class LoadBalancerTest {
             log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
 
             LoadReport loadReport = ObjectMapperFactory.getMapper().reader().readValue(loadReportData, LoadReport.class);
-            assertEquals(loadReport.getName(), lookupAddresses[i]);
+            assertEquals(loadReport.getBrokerId(), lookupAddresses[i]);
 
             // Check Initial Ranking is populated in both the brokers
             Field ranking = ((SimpleLoadManagerImpl) pulsarServices[i].getLoadManager().get()).getClass()
@@ -229,7 +229,7 @@ public class LoadBalancerTest {
     public void testUpdateLoadReportAndCheckUpdatedRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
-            lr.setName(lookupAddresses[i]);
+            lr.setBrokerId(lookupAddresses[i]);
             SystemResourceUsage sru = new SystemResourceUsage();
             sru.setBandwidthIn(new ResourceUsage(256, 1024000));
             sru.setBandwidthOut(new ResourceUsage(250, 1024000));
@@ -308,7 +308,7 @@ public class LoadBalancerTest {
     public void testBrokerRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
-            lr.setName(lookupAddresses[i]);
+            lr.setBrokerId(lookupAddresses[i]);
             SystemResourceUsage sru = new SystemResourceUsage();
             sru.setBandwidthIn(new ResourceUsage(0, 1024000));
             sru.setBandwidthOut(new ResourceUsage(0, 1024000));
@@ -361,7 +361,7 @@ public class LoadBalancerTest {
             pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
 
             LoadReport lr = new LoadReport();
-            lr.setName(lookupAddresses[i]);
+            lr.setBrokerId(lookupAddresses[i]);
             SystemResourceUsage sru = new SystemResourceUsage();
             sru.setBandwidthIn(new ResourceUsage(0, 1024000));
             sru.setBandwidthOut(new ResourceUsage(0, 1024000));
@@ -444,7 +444,7 @@ public class LoadBalancerTest {
     private void writeLoadReportsForDynamicQuota(long timestamp) throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
-            lr.setName(lookupAddresses[i]);
+            lr.setBrokerId(lookupAddresses[i]);
             lr.setTimestamp(timestamp);
             SystemResourceUsage sru = new SystemResourceUsage();
             sru.setBandwidthIn(new ResourceUsage(5000 * (10 + i * 5), 1024000));
@@ -603,7 +603,7 @@ public class LoadBalancerTest {
         // namespace 01~09 need to be split
         // namespace 08~10 don't need or cannot be split
         LoadReport lr = new LoadReport();
-        lr.setName(lookupAddresses[0]);
+        lr.setBrokerId(lookupAddresses[0]);
         lr.setSystemResourceUsage(new SystemResourceUsage());
 
         Map<String, NamespaceBundleStats> bundleStats = new HashMap<String, NamespaceBundleStats>();

@@ -114,7 +114,7 @@ public class RedirectManager {
             });
             var selectedBroker = candidateBrokers.get((int) (Math.random() * candidateBrokers.size()));
 
-            return Optional.of(new LookupResult(selectedBroker.getWebServiceUrl(),
+            return Optional.of(new LookupResult(selectedBroker.getBrokerId(), selectedBroker.getWebServiceUrl(),
                     selectedBroker.getWebServiceUrlTls(),
                     selectedBroker.getPulsarServiceUrl(),
                     selectedBroker.getPulsarServiceUrlTls(),

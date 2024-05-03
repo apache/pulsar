@@ -30,6 +30,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import io.netty.util.NetUtil;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -166,7 +167,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerAddress(), null, true,
+            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerId(), getBrokerAddress(), null, true,
                     LookupType.Connect, lookup.getRequestId(), false));
         }
 
@@ -307,7 +308,7 @@ public class MockBrokerService {
             startMockBrokerService();
             log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
-            lookupData = new LookupData(getBrokerAddress(), null,
+            lookupData = new LookupData(getBrokerId(), getBrokerAddress(), null,
                     getHttpAddress(), null);
         } catch (Exception e) {
             log.error("Error starting mock service", e);
@@ -447,6 +448,10 @@ public class MockBrokerService {
 
     public String getBrokerAddress() {
         return String.format("pulsar://localhost:%d", ((InetSocketAddress) listenChannel.localAddress()).getPort());
+    }
+
+    public String getBrokerId() {
+        return NetUtil.toSocketAddressString((InetSocketAddress) listenChannel.localAddress());
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockBrokerService.class);

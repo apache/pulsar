@@ -172,10 +172,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
-                                   CommandLookupTopicResponse.LookupType response,
+    public void sendLookupResponse(String brokerId, String brokerServiceUrl, String brokerServiceUrlTls,
+                                   boolean authoritative, CommandLookupTopicResponse.LookupType response,
                                    long requestId, boolean proxyThroughServiceUrl) {
-        BaseCommand command = Commands.newLookupResponseCommand(brokerServiceUrl, brokerServiceUrlTls,
+        BaseCommand command = Commands.newLookupResponseCommand(brokerId, brokerServiceUrl, brokerServiceUrlTls,
                 authoritative, response, requestId, proxyThroughServiceUrl);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);

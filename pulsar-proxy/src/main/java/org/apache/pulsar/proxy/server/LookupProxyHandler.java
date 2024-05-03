@@ -157,6 +157,7 @@ public class LookupProxyHandler {
                         Commands.newLookupErrorResponse(getServerError(t), t.getMessage(), clientRequestId));
                 } else {
                     String brokerUrl = resolveBrokerUrlFromLookupDataResult(r);
+                    String brokerId = r.brokerId;
                     if (r.redirect) {
                         // Need to try the lookup again on a different broker
                         performLookup(clientRequestId, topic, brokerUrl, r.authoritative, numberOfRetries - 1);
@@ -170,10 +171,10 @@ public class LookupProxyHandler {
                         // will connect back.
                         if (log.isDebugEnabled()) {
                             log.debug("Successfully perform lookup '{}' for topic '{}'"
-                                            + " with clientReq Id '{}' and lookup-broker {}",
-                                    addr, topic, clientRequestId, brokerUrl);
+                                            + " with clientReq Id '{}' and lookup-broker id '{}'",
+                                    addr, topic, clientRequestId, brokerId);
                         }
-                        writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
+                        writeAndFlush(Commands.newLookupResponse(brokerId, brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
                     }
                 }

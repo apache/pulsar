@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
@@ -31,7 +33,8 @@ import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 /**
  * Defines the information required to broker lookup.
  */
-public record BrokerLookupData (String webServiceUrl,
+public record BrokerLookupData (@JsonProperty("name") String brokerId,
+                                String webServiceUrl,
                                 String webServiceUrlTls,
                                 String pulsarServiceUrl,
                                 String pulsarServiceUrlTls,
@@ -42,6 +45,12 @@ public record BrokerLookupData (String webServiceUrl,
                                 String loadManagerClassName,
                                 long startTimestamp,
                                 String brokerVersion) implements ServiceLookupData {
+    @JsonGetter("name")
+    @Override
+    public String getBrokerId() {
+        return this.brokerId;
+    }
+
     @Override
     public String getWebServiceUrl() {
         return this.webServiceUrl();
@@ -91,16 +100,16 @@ public record BrokerLookupData (String webServiceUrl,
             }
             URI url = listener.getBrokerServiceUrl();
             URI urlTls = listener.getBrokerServiceUrlTls();
-            return new LookupResult(webServiceUrl, webServiceUrlTls,
+            return new LookupResult(getBrokerId(), webServiceUrl, webServiceUrlTls,
                     url == null ? null : url.toString(),
                     urlTls == null ? null : urlTls.toString(), LookupResult.Type.BrokerUrl, false);
         }
-        return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
+        return new LookupResult(getBrokerId(), webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 LookupResult.Type.BrokerUrl, false);
     }
 
     public NamespaceEphemeralData toNamespaceEphemeralData() {
-        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
-                false, advertisedListeners);
+        return new NamespaceEphemeralData(getBrokerId(), pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl,
+                webServiceUrlTls, false, advertisedListeners);
     }
 }
