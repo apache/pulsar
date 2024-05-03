@@ -924,8 +924,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 log.info("It should time out due to invalid url");
-            } catch (IllegalStateException e) {
-                fail("It should not fail with corrupted reader state");
+            } catch (IllegalArgumentException e) {
+                fail("It should not fail with corrupt reader state");
             }
         }
     }

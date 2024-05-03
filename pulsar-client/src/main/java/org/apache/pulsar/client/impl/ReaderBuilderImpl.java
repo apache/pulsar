@@ -87,8 +87,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         }
 
         boolean isStartMsgIdExist = conf.getStartMessageId() != null && conf.getStartMessageId() != MessageId.earliest;
-        if (isStartMsgIdExist && conf.getStartMessageFromRollbackDurationInSec() > 0
-                || conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
+        if ((isStartMsgIdExist && conf.getStartMessageFromRollbackDurationInSec() > 0)
+                || (conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0)) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
                             "Start message id or start message from roll back must be specified but they cannot be"
