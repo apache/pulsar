@@ -26,13 +26,13 @@ public class GenerateDocumentionTest {
 
     @Test
     public void testGenerateDocumention() throws Exception {
-        CmdGenerateDocumentation.main(new String[]{});
+        new CmdGenerateDocumentation().run(new String[]{});
     }
 
     @Test
     public void testSpecifyModuleName() throws Exception {
         String[] args = new String[]{"-n", "produce", "-n", "consume"};
-        CmdGenerateDocumentation.main(args);
+        new CmdGenerateDocumentation().run(args);
     }
 
     private static final String DESC = "desc";

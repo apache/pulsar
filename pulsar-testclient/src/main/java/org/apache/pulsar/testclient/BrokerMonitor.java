@@ -46,17 +46,17 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
-import picocli.CommandLine.ScopeType;
 
 /**
  * Monitors brokers and prints to the console information about their system resource usages, their topic and bundle
  * counts, their message rates, and other metrics.
  */
-public class BrokerMonitor {
+@Command(name = "monitor-brokers",
+        description = "Monitors brokers and prints to the console information about their system "
+        + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+public class BrokerMonitor extends CmdBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
     private static final String BROKER_ROOT = "/loadbalance/brokers";
@@ -88,6 +88,7 @@ public class BrokerMonitor {
     private Map<String, Object> loadData;
 
     private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
+
     static {
         // Makes the table length about 120.
         localTableMaker.elementLength = 14;
@@ -95,6 +96,7 @@ public class BrokerMonitor {
     }
 
     private static final FixedColumnLengthTableMaker globalTableMaker = new FixedColumnLengthTableMaker();
+
     static {
         globalTableMaker.decimalFormatter = "%.2f";
         globalTableMaker.topBorder = '*';
@@ -126,7 +128,7 @@ public class BrokerMonitor {
 
     // Helper method to initialize rows which hold message data.
     private static void initMessageRow(final Object[] row, final double messageRateIn, final double messageRateOut,
-            final double messageThroughputIn, final double messageThroughputOut) {
+                                       final double messageThroughputIn, final double messageThroughputOut) {
         initRow(row, messageRateIn, messageRateOut, messageRateIn + messageRateOut,
                 messageThroughputIn / 1024,
                 messageThroughputOut / 1024, (messageThroughputIn + messageThroughputOut) / 1024);
@@ -391,7 +393,7 @@ public class BrokerMonitor {
 
         // Print the broker data in a tabular form for a broker using ModularLoadManagerImpl.
         private synchronized void printBrokerData(final String broker, final LocalBrokerData localBrokerData,
-                final TimeAverageBrokerData timeAverageData) {
+                                                  final TimeAverageBrokerData timeAverageData) {
             loadData.put(broker, localBrokerData);
 
             // Initialize the constant rows.
@@ -435,19 +437,15 @@ public class BrokerMonitor {
         }
     }
 
-    // picocli arguments class.
-    @Command(description = "Monitors brokers and prints to the console information about their system "
-            + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.",
-            showDefaultValues = true, scope = ScopeType.INHERIT)
-    private static class Arguments {
-        @Option(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    @Option(names = {"--connect-string"}, description = "Zookeeper or broker connect string", required = true)
+    public String connectString = null;
 
-        @Option(names = { "--connect-string" }, description = "Zookeeper or broker connect string", required = true)
-        public String connectString = null;
+    @Option(names = {"--extensions"}, description = "true to monitor Load Balance Extensions.")
+    boolean extensions = false;
 
-        @Option(names = { "--extensions" }, description = "true to monitor Load Balance Extensions.")
-        boolean extensions = false;
+
+    public BrokerMonitor() {
+        super("monitor-brokers");
     }
 
     /**
@@ -456,6 +454,7 @@ public class BrokerMonitor {
      * @param zkClient Client to create this from.
      */
     public BrokerMonitor(final ZooKeeper zkClient) {
+        super("monitor-brokers");
         loadData = new ConcurrentHashMap<>();
         this.zkClient = zkClient;
     }
@@ -479,6 +478,7 @@ public class BrokerMonitor {
     private TableView<BrokerLoadData> brokerLoadDataTableView;
 
     private BrokerMonitor(String brokerServiceUrl) {
+        super("monitor-brokers");
         try {
             PulsarClient client = PulsarClient.builder()
                     .memoryLimit(0, SizeUnit.BYTES)
@@ -541,32 +541,16 @@ public class BrokerMonitor {
         }
     }
 
-    /**
-     * Run a monitor from command line arguments.
-     *
-     * @param args Arguments for the monitor.
-     */
-    public static void main(String[] args) throws Exception {
-        final Arguments arguments = new Arguments();
-        final CommandLine commander = new CommandLine(arguments);
-        commander.setCommandName("pulsar-perf monitor-brokers");
-
-        try {
-            commander.parseArgs(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
-
-
-        if (arguments.extensions) {
-            final BrokerMonitor monitor = new BrokerMonitor(arguments.connectString);
+    @Override
+    public void run() throws Exception {
+        if (this.extensions) {
+            final BrokerMonitor monitor = new BrokerMonitor(this.connectString);
             monitor.startBrokerLoadDataStoreMonitor();
         } else {
-            final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
+            final ZooKeeper zkClient = new ZooKeeper(this.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
             final BrokerMonitor monitor = new BrokerMonitor(zkClient);
             monitor.start();
         }
     }
+
 }

@@ -133,6 +133,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
     protected volatile long publishRateLimitedTimes = 0L;
+    private static final AtomicLongFieldUpdater<AbstractTopic> TOTAL_RATE_LIMITED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "totalPublishRateLimitedCounter");
+    protected volatile long totalPublishRateLimitedCounter = 0L;
 
     private static final AtomicIntegerFieldUpdater<AbstractTopic> USER_CREATED_PRODUCER_COUNTER_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(AbstractTopic.class, "userCreatedProducerCount");
@@ -897,6 +900,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public long increasePublishLimitedTimes() {
+        TOTAL_RATE_LIMITED_UPDATER.incrementAndGet(this);
         return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
@@ -1183,6 +1187,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public long getBytesOutCounter() {
         return bytesOutFromRemovedSubscriptions.longValue()
                 + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
+    }
+
+    public long getTotalPublishRateLimitCounter() {
+        return TOTAL_RATE_LIMITED_UPDATER.get(this);
     }
 
     private long sumSubscriptions(ToLongFunction<AbstractSubscription> toCounter) {

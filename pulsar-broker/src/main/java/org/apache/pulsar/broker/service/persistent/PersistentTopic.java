@@ -50,6 +50,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -83,6 +84,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -174,6 +176,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -274,6 +277,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Getter
     private final ExecutorService orderedExecutor;
 
+    private volatile CloseFutures closeFutures;
+
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
 
@@ -295,6 +300,50 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static class EstimateTimeBasedBacklogQuotaCheckResult {
         boolean truncateBacklogToMatchQuota;
         Long estimatedOldestUnacknowledgedMessageTimestamp;
+    }
+
+    /***
+     * We use 3 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
+     * the in-progress one when it is called the second time.
+     *
+     * The topic closing will be called the below scenarios:
+     * 1. Calling "pulsar-admin topics unload". Relate to {@link CloseFutures#waitDisconnectClients}.
+     * 2. Namespace bundle transfer or unloading.
+     *   a. The unloading topic triggered by unloading namespace bundles will not wait for clients disconnect. Relate
+     *     to {@link CloseFutures#notWaitDisconnectClients}.
+     *   b. The unloading topic triggered by unloading namespace bundles was seperated to two steps when using
+     *     {@link ExtensibleLoadManagerImpl}.
+     *     b-1. step-1: fence the topic on the original Broker, and do not trigger reconnections of clients. Relate
+     *       to {@link CloseFutures#transferring}. This step is a half closing.
+     *     b-2. step-2: send the owner broker information to clients and disconnect clients. Relate
+     *       to {@link CloseFutures#notWaitDisconnectClients}.
+     *
+     * The three futures will be setting as the below rule:
+     * Event: Topic close.
+     * - If the first one closing is called by "close and not disconnect clients":
+     *   - {@link CloseFutures#transferring} will be initialized as "close and not disconnect clients".
+     *   - {@link CloseFutures#waitDisconnectClients} ang {@link CloseFutures#notWaitDisconnectClients} will be empty,
+     *     the second closing will do a new close after {@link CloseFutures#transferring} is completed.
+     * - If the first one closing is called by "close and not wait for clients disconnect":
+     *   - {@link CloseFutures#waitDisconnectClients} will be initialized as "waiting for clients disconnect".
+     *   - {@link CloseFutures#notWaitDisconnectClients} ang {@link CloseFutures#transferring} will be
+     *     initialized as "not waiting for clients disconnect" .
+     * - If the first one closing is called by "close and wait for clients disconnect", the three futures will be
+     *   initialized as "waiting for clients disconnect".
+     * Event: Topic delete.
+     *  the three futures will be initialized as "waiting for clients disconnect".
+     */
+    private class CloseFutures {
+        private final CompletableFuture<Void> transferring;
+        private final CompletableFuture<Void> notWaitDisconnectClients;
+        private final CompletableFuture<Void> waitDisconnectClients;
+
+        public CloseFutures(CompletableFuture<Void> transferring, CompletableFuture<Void> waitDisconnectClients,
+                            CompletableFuture<Void> notWaitDisconnectClients) {
+            this.transferring = transferring;
+            this.waitDisconnectClients = waitDisconnectClients;
+            this.notWaitDisconnectClients = notWaitDisconnectClients;
+        }
     }
 
     private static class TopicStatsHelper {
@@ -1415,8 +1464,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
+            // Mark the progress of close to prevent close calling concurrently.
+            this.closeFutures =
+                    new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
 
-            return getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
+            CompletableFuture<Void> res = getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
                         .getPartitionedTopicResources().runWithMarkDeleteAsync(TopicName.get(topic), () -> {
                 CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
@@ -1526,6 +1578,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         unfenceTopicToResume();
                     }
                 });
+
+            FutureUtil.completeAfter(closeFutures.transferring, res);
+            FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, res);
+            FutureUtil.completeAfter(closeFutures.waitDisconnectClients, res);
+            return res;
         } finally {
             lock.writeLock().unlock();
         }
@@ -1541,6 +1598,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return close(true, closeWithoutWaitingClientDisconnect);
     }
 
+    private enum CloseTypes {
+        transferring,
+        notWaitDisconnectClients,
+        waitDisconnectClients;
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
@@ -1551,32 +1614,57 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> close(
             boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect) {
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-
         lock.writeLock().lock();
-        try {
-            if (!disconnectClients) {
-                transferring = true;
-            }
+        // Choose the close type.
+        CloseTypes closeType;
+        if (!disconnectClients) {
+            closeType = CloseTypes.transferring;
+        } else if (closeWithoutWaitingClientDisconnect) {
+            closeType = CloseTypes.notWaitDisconnectClients;
+        } else {
             // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
             // forcefully wants to close managed-ledger without waiting all resources to be closed.
-            if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
-                fenceTopicToCloseOrDelete();
+            closeType = CloseTypes.waitDisconnectClients;
+        }
+        /** Maybe there is a in-progress half closing task. see the section 2-b-1 of {@link CloseFutures}. **/
+        CompletableFuture<Void> inProgressTransferCloseTask = null;
+        try {
+            // Return in-progress future if exists.
+            if (isClosingOrDeleting) {
+                if (closeType == CloseTypes.transferring) {
+                    return closeFutures.transferring;
+                }
+                if (closeType == CloseTypes.notWaitDisconnectClients && closeFutures.notWaitDisconnectClients != null) {
+                    return closeFutures.notWaitDisconnectClients;
+                }
+                if (closeType == CloseTypes.waitDisconnectClients && closeFutures.waitDisconnectClients != null) {
+                    return closeFutures.waitDisconnectClients;
+                }
+                if (transferring) {
+                    inProgressTransferCloseTask = closeFutures.transferring;
+                }
+            }
+            fenceTopicToCloseOrDelete();
+            if (closeType == CloseTypes.transferring) {
+                transferring = true;
+                this.closeFutures = new CloseFutures(new CompletableFuture(), null, null);
             } else {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
-                closeFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
-                return closeFuture;
+                this.closeFutures =
+                        new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
             }
         } finally {
             lock.writeLock().unlock();
         }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        if (inProgressTransferCloseTask != null) {
+            futures.add(inProgressTransferCloseTask);
+        }
 
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.terminate()));
-        if (disconnectClients) {
+        if (closeType != CloseTypes.transferring) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                 brokerService.getPulsar(), topic).thenAccept(lookupData -> {
                     producers.values().forEach(producer -> futures.add(producer.disconnect(lookupData)));
@@ -1614,39 +1702,78 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
 
-        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
-                ? CompletableFuture.completedFuture(null)
-                : FutureUtil.waitForAll(futures);
+        CompletableFuture<Void> disconnectClientsInCurrentCall = null;
+        // Note: "disconnectClientsToCache" is a non-able value, it is null when close type is transferring.
+        AtomicReference<CompletableFuture<Void>> disconnectClientsToCache = new AtomicReference<>();
+        switch (closeType) {
+            case transferring -> {
+                disconnectClientsInCurrentCall = FutureUtil.waitForAll(futures);
+                break;
+            }
+            case notWaitDisconnectClients -> {
+                disconnectClientsInCurrentCall = CompletableFuture.completedFuture(null);
+                disconnectClientsToCache.set(FutureUtil.waitForAll(futures));
+                break;
+            }
+            case waitDisconnectClients -> {
+                disconnectClientsInCurrentCall = FutureUtil.waitForAll(futures);
+                disconnectClientsToCache.set(disconnectClientsInCurrentCall);
+            }
+        }
 
-        clientCloseFuture.thenRun(() -> {
-            // After having disconnected all producers/consumers, close the managed ledger
-            ledger.asyncClose(new CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    if (disconnectClients) {
-                        // Everything is now closed, remove the topic from map
-                        disposeTopic(closeFuture);
-                    } else {
-                        closeFuture.complete(null);
-                    }
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        Runnable closeLedgerAfterCloseClients = (() -> ledger.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                if (closeType != CloseTypes.transferring) {
+                    // Everything is now closed, remove the topic from map
+                    disposeTopic(closeFuture);
+                } else {
+                    closeFuture.complete(null);
                 }
+            }
 
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    if (disconnectClients) {
-                        disposeTopic(closeFuture);
-                    } else {
-                        closeFuture.complete(null);
-                    }
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
+                if (closeType != CloseTypes.transferring) {
+                    disposeTopic(closeFuture);
+                } else {
+                    closeFuture.complete(null);
                 }
-            }, null);
-        }).exceptionally(exception -> {
+            }
+        }, null));
+
+        disconnectClientsInCurrentCall.thenRun(closeLedgerAfterCloseClients).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             unfenceTopicToResume();
             closeFuture.completeExceptionally(exception);
             return null;
         });
+
+        switch (closeType) {
+            case transferring -> {
+                FutureUtil.completeAfterAll(closeFutures.transferring, closeFuture);
+                break;
+            }
+            case notWaitDisconnectClients -> {
+                FutureUtil.completeAfterAll(closeFutures.transferring, closeFuture);
+                FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, closeFuture);
+                FutureUtil.completeAfterAll(closeFutures.waitDisconnectClients,
+                        closeFuture.thenCompose(ignore -> disconnectClientsToCache.get().exceptionally(ex -> {
+                            // Since the managed ledger has been closed, eat the error of clients disconnection.
+                            log.error("[{}] Closed managed ledger, but disconnect clients failed,"
+                                    + " this topic will be marked closed", topic, ex);
+                            return null;
+                        })));
+                break;
+            }
+            case waitDisconnectClients -> {
+                FutureUtil.completeAfterAll(closeFutures.transferring, closeFuture);
+                FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, closeFuture);
+                FutureUtil.completeAfterAll(closeFutures.waitDisconnectClients, closeFuture);
+            }
+        }
 
         return closeFuture;
     }
@@ -3632,6 +3759,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public CompletableFuture<Position> getLastDispatchablePosition() {
+        PositionImpl maxReadPosition = getMaxReadPosition();
+        // If `maxReadPosition` is not equal to `LastPosition`. It means that there are uncommitted transactions.
+        // so return `maxRedPosition` directly.
+        if (maxReadPosition.compareTo((PositionImpl) getLastPosition()) != 0) {
+            return CompletableFuture.completedFuture(maxReadPosition);
+        } else {
+            return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
+                MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+                // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
+                return !Markers.isServerOnlyMarker(md);
+            }, maxReadPosition);
+        }
     }
 
     @Override
