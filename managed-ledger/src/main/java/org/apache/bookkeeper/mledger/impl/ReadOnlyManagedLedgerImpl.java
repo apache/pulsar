@@ -135,7 +135,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             }
         }
 
-        return new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
+        return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
     }
 
     @Override
