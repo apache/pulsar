@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -29,6 +30,8 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Builder;
+import lombok.Value;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
@@ -47,7 +50,26 @@ public interface AuthenticationProvider extends Closeable {
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated(since = "3.3.0")
     void initialize(ServiceConfiguration config) throws IOException;
+
+    @Value
+    @Builder
+    class InitParameters {
+        ServiceConfiguration config;
+        AuthenticationMetrics authenticationMetrics;
+        OpenTelemetry openTelemetry;
+    }
+
+    /**
+     * Perform initialization for the authentication provider.
+     *
+     * @throws IOException
+     *             if the initialization fails
+     */
+    default void initialize(InitParameters params) throws IOException {
+        initialize(params.config);
+    }
 
     /**
      * @return the authentication method name supported by this provider
