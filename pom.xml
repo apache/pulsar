@@ -182,7 +182,7 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
-    <aws-sdk.version>1.12.262</aws-sdk.version>
+    <aws-sdk.version>1.12.638</aws-sdk.version>
     <avro.version>1.11.3</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
@@ -196,8 +196,9 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
+    <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
+    <debezium.oracle.version>2.2.0.Final</debezium.oracle.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
@@ -763,20 +764,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
+        <artifactId>slf4j-bom</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>jcl-over-slf4j</artifactId>
-        <version>${slf4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
