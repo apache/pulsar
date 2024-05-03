@@ -41,6 +41,7 @@ public class AuthenticationMetrics {
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name
      */
+    @Deprecated
     public static void authenticateSuccess(String providerName, String authMethod) {
         authSuccessMetrics.labels(providerName, authMethod).inc();
     }
@@ -66,6 +67,7 @@ public class AuthenticationMetrics {
      * @param authMethod Authentication method name.
      * @param errorCode Error code.
      */
+    @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
         authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
     }
@@ -85,6 +87,7 @@ public class AuthenticationMetrics {
     }
 
     public void recordSuccess(String providerName, String authMethod) {
+        authenticateSuccess(providerName, authMethod);
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, "success");
@@ -92,6 +95,7 @@ public class AuthenticationMetrics {
     }
 
     public void recordFailure(String providerName, String authMethod, Enum<?> errorCode) {
+        authenticateFailure(providerName, authMethod, errorCode);
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, "failure",
