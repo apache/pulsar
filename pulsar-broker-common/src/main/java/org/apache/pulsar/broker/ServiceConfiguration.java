@@ -654,9 +654,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "System subscriptions that will be ignored by ttl check. Default is __compaction."
+        doc = "Additional system subscriptions that will be ignored by ttl check. Default is empty."
     )
-    private Set<String> systemCursorNames = Set.of("__compaction");
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_POLICIES,
