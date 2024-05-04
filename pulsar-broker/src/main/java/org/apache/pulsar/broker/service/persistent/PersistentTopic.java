@@ -1936,7 +1936,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (systemCursorNames.contains(sub.getName())) {
+                if (!systemCursorNames.contains(sub.getName())) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
