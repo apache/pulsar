@@ -1181,7 +1181,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new LeaderElectionService(coordinationService, getBrokerId(), getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
-                        LOG.info("This broker was elected leader");
+                        LOG.info("This broker {} was elected leader", getBrokerId());
                         if (getConfiguration().isLoadBalancerEnabled()) {
                             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
                                     .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
@@ -1202,10 +1202,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         if (leaderElectionService != null) {
                             final Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
                             if (currentLeader.isPresent()) {
-                                LOG.info("This broker is a follower. Current leader is {}",
+                                LOG.info("This broker {} is a follower. Current leader is {}", getBrokerId(),
                                         currentLeader);
                             } else {
-                                LOG.info("This broker is a follower. No leader has been elected yet");
+                                LOG.info("This broker {} is a follower. No leader has been elected yet", getBrokerId());
                             }
 
                         }

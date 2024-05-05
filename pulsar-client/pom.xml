@@ -59,7 +59,7 @@
 
     <dependency>
       <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-extension-incubator</artifactId>
+      <artifactId>opentelemetry-api-incubator</artifactId>
     </dependency>
 
     <dependency>

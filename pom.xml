@@ -196,8 +196,9 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
+    <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
+    <debezium.oracle.version>2.2.0.Final</debezium.oracle.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
@@ -255,10 +256,11 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.34.1</opentelemetry.version>
-    <opentelemetry.alpha.version>1.34.1-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>1.32.1-alpha</opentelemetry.instrumentation.version>
-    <opentelemetry.semconv.version>1.23.1-alpha</opentelemetry.semconv.version>
+    <opentelemetry.version>1.37.0</opentelemetry.version>
+    <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
+    <opentelemetry.instrumentation.version>1.33.2</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
+    <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
 
     <!-- test dependencies -->
@@ -763,20 +765,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
+        <artifactId>slf4j-bom</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>jcl-over-slf4j</artifactId>
-        <version>${slf4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -1506,8 +1498,17 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.instrumentation</groupId>
-        <artifactId>opentelemetry-resources</artifactId>
+        <artifactId>opentelemetry-instrumentation-bom</artifactId>
         <version>${opentelemetry.instrumentation.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+        <version>${opentelemetry.instrumentation.alpha.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.semconv</groupId>
