@@ -775,6 +775,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
         assertEquals(cursor.getConfig(), persistentTopic.getManagedLedger().getConfig());
 
+        subscribe.close();
         admin.topics().delete(topicName);
     }
 
