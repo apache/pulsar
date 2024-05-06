@@ -397,7 +397,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     // May need to update the cursor position
                     newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
                     // May need to trigger offloading
-                    newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+                    if (config.isTriggerOffloadOnTopicLoad()) {
+                        newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+                    }
                 }
 
                 @Override
