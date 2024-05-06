@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.NULL_OFFLOAD_PROMISE;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
@@ -395,6 +396,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                     // May need to update the cursor position
                     newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                    // May need to trigger offloading
+                    newledger.maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
                 }
 
                 @Override
