@@ -208,7 +208,7 @@ public class CmdSources extends CmdBase {
             localRunArgs.add("--sourceConfig");
             localRunArgs.add(new Gson().toJson(sourceConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) {
+                if (field.getName().toUpperCase().startsWith("DEPRECATED")) {
                     continue;
                 }
                 if (field.getName().contains("$")) {

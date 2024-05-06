@@ -206,7 +206,7 @@ public class CmdSinks extends CmdBase {
             localRunArgs.add("--sinkConfig");
             localRunArgs.add(new Gson().toJson(sinkConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) {
+                if (field.getName().toUpperCase().startsWith("DEPRECATED")) {
                     continue;
                 }
                 if (field.getName().contains("$")) {
