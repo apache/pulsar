@@ -154,7 +154,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         });
 
         when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, UserProfile>>>) invocation -> kvSchema);
-        when(mockRecord.getEventTime()).thenAnswer(invocation -> System.currentTimeMillis());
+        when(mockRecord.getEventTime()).thenAnswer(invocation -> Optional.of(System.currentTimeMillis()));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -218,7 +218,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(1);
         verify(mockRecord, times(1)).ack();
-        String value = getHitIdAtIndex("test-formatted-index-", 0);
+        String value = getHitIdAtIndex("test-formatted-index-*", 0);
         assertTrue(StringUtils.isNotBlank(value));
     }
 
