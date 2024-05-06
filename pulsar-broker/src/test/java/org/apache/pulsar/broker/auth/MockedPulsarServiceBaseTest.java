@@ -275,15 +275,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         if (brokerGateway != null) {
             brokerGateway.close();
+            brokerGateway = null;
         }
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+
         resetConfig();
         callCloseables(closeables);
         closeables.clear();
         onCleanup();
+
+        // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
+        pulsar = null;
+        mockZooKeeper = null;
+        mockZooKeeperGlobal = null;
     }
 
     protected void closeAdmin() {
