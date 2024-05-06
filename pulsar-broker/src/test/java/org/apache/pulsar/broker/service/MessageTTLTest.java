@@ -155,7 +155,7 @@ public class MessageTTLTest extends BrokerTestBase {
         Set<String> ignoredSubscriptions = new HashSet<>();
         ignoredSubscriptions.add(subName);
         int defaultTtl = 5;
-        conf.setSystemCursorNames(ignoredSubscriptions);
+        conf.setAdditionalSystemCursorNames(ignoredSubscriptions);
         conf.setTtlDurationDefaultInSeconds(defaultTtl);
         super.baseSetup();
 
@@ -190,7 +190,7 @@ public class MessageTTLTest extends BrokerTestBase {
         // The message should not expire because the subscription is ignored.
         assertEquals(subscription.getNumberOfEntriesInBacklog(false), 10);
 
-        conf.setSystemCursorNames(new TreeSet<>());
+        conf.setAdditionalSystemCursorNames(new TreeSet<>());
     }
 
     @Test
