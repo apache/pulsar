@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -197,8 +198,8 @@ public class CmdSinks extends CmdBase {
             }
         }
 
-        @Override
-        public void runCmd() throws Exception {
+        @VisibleForTesting
+        List<String> getLocalRunArgs() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
             List<String> localRunArgs = new LinkedList<>();
@@ -218,7 +219,12 @@ public class CmdSinks extends CmdBase {
                     localRunArgs.add(value.toString());
                 }
             }
-            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            return localRunArgs;
+        }
+
+        @Override
+        public void runCmd() throws Exception {
+            ProcessBuilder processBuilder = new ProcessBuilder(getLocalRunArgs()).inheritIO();
             Process process = processBuilder.start();
             process.waitFor();
         }
