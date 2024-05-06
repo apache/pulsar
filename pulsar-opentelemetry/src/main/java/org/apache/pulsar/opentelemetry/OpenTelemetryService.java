@@ -30,6 +30,7 @@ import io.opentelemetry.semconv.ResourceAttributes;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Builder;
 import org.apache.commons.lang3.StringUtils;
@@ -43,9 +44,9 @@ public class OpenTelemetryService implements Closeable {
     public static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
-    private final OpenTelemetrySdk openTelemetrySdk;
+    private final AtomicReference<OpenTelemetrySdk> openTelemetrySdkReference = new AtomicReference<>();
 
-    private final RuntimeMetrics runtimeMetrics;
+    private final AtomicReference<RuntimeMetrics> runtimeMetricsReference = new AtomicReference<>();
 
     /**
      * Instantiates the OpenTelemetry SDK. All attributes are overridden by system properties or environment
@@ -97,24 +98,28 @@ public class OpenTelemetryService implements Closeable {
             builderCustomizer.accept(sdkBuilder);
         }
 
-        openTelemetrySdk = sdkBuilder.build().getOpenTelemetrySdk();
+        openTelemetrySdkReference.set(sdkBuilder.build().getOpenTelemetrySdk());
 
         // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
-        runtimeMetrics = RuntimeMetrics.builder(openTelemetrySdk)
+        runtimeMetricsReference.set(RuntimeMetrics.builder(openTelemetrySdkReference.get())
                 .enableAllFeatures()
                 .enableExperimentalJmxTelemetry()
-                .build();
+                .build());
     }
 
     public OpenTelemetry getOpenTelemetry() {
-        return openTelemetrySdk;
+        return openTelemetrySdkReference.get();
     }
 
     @Override
     public void close() {
+        RuntimeMetrics runtimeMetrics = runtimeMetricsReference.getAndSet(null);
         if (runtimeMetrics != null) {
             runtimeMetrics.close();
         }
-        openTelemetrySdk.close();
+        OpenTelemetrySdk openTelemetrySdk = openTelemetrySdkReference.getAndSet(null);
+        if (openTelemetrySdk != null) {
+            openTelemetrySdk.close();
+        }
     }
 }
