@@ -96,5 +96,5 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -D
 
 # Enable semantically stable telemetry for JVM metrics, unless otherwise overridden by the user.
 if [ -z "$OTEL_SEMCONV_STABILITY_OPT_IN" ]; then
-  OTEL_SEMCONV_STABILITY_OPT_IN=jvm
+  export OTEL_SEMCONV_STABILITY_OPT_IN=jvm
 fi
