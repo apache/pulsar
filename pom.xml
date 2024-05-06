@@ -1513,7 +1513,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.opentelemetry.instrumentation</groupId>
         <artifactId>opentelemetry-runtime-telemetry-java17</artifactId>
-        <version>${opentelemetry.instrumentation.version}</version>
+        <version>${opentelemetry.instrumentation.alpha.version}</version>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.semconv</groupId>
