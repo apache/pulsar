@@ -1511,11 +1511,6 @@ flexible messaging model and an intuitive client API.</description>
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>io.opentelemetry.instrumentation</groupId>
-        <artifactId>opentelemetry-runtime-telemetry-java17</artifactId>
-        <version>${opentelemetry.instrumentation.alpha.version}</version>
-      </dependency>
-      <dependency>
         <groupId>io.opentelemetry.semconv</groupId>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
