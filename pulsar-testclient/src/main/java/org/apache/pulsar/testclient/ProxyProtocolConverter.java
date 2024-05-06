@@ -16,27 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.converters;
+package org.apache.pulsar.testclient;
 
-import static org.apache.pulsar.cli.ValueValidationUtil.emptyCheck;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.converters.BaseConverter;
-import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import picocli.CommandLine.ITypeConverter;
 
-public class TimeUnitToSecondsConverter extends BaseConverter<Long> {
-
-    public TimeUnitToSecondsConverter(String optionName) {
-        super(optionName);
-    }
+public class ProxyProtocolConverter implements ITypeConverter<ProxyProtocol> {
 
     @Override
-    public Long convert(String str) {
-        emptyCheck(getOptionName(), str);
-        try {
-            return TimeUnit.SECONDS.toSeconds(
-                    RelativeTimeUtil.parseRelativeTimeInSeconds(str.trim()));
-        } catch (IllegalArgumentException exception) {
-            throw new ParameterException("For input " + getOptionName() + ": " + exception.getMessage());
+    public ProxyProtocol convert(String value) throws Exception {
+        String proxyProtocolString = StringUtils.trimToNull(value);
+        if (proxyProtocolString != null) {
+            return ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
         }
+        return null;
     }
 }

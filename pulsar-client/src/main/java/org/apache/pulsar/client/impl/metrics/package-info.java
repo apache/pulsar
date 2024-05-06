@@ -16,15 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.validators;
 
-import com.beust.jcommander.IValueValidator;
-import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtil;
-
-public class NonNegativeValueValidator implements IValueValidator<Long> {
-    @Override
-    public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtil.minValueCheck(name, value, 0L);
-    }
-}
+/**
+ * Pulsar Client OTel metrics utilities
+ */
+package org.apache.pulsar.client.impl.metrics;

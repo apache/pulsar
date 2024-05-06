@@ -25,7 +25,9 @@ import (
 	"time"
 
 	"github.com/apache/pulsar/pulsar-function-go/conf"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // This is the config passed to the Golang Instance. Contains all the information
@@ -121,6 +123,15 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
 		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
 		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
+	}
+	// parse the raw function details and ignore the unmarshal error(fallback to original way)
+	if cfg.FunctionDetails != "" {
+		functionDetails := pb.FunctionDetails{}
+		if err := protojson.Unmarshal([]byte(cfg.FunctionDetails), &functionDetails); err != nil {
+			log.Errorf("Failed to unmarshal function details: %v", err)
+		} else {
+			instanceConf.funcDetails = functionDetails
+		}
 	}
 
 	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {

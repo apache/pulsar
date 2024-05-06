@@ -19,12 +19,12 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 public class FunctionWorkerStarterTest {
     @Test
@@ -43,9 +43,9 @@ public class FunctionWorkerStarterTest {
 
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
                 if (fieldHasAnno) {
-                    Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                    Option fieldAnno = field.getAnnotation(Option.class);
                     String[] names = fieldAnno.names();
                     String nameStr = Arrays.asList(names).toString();
                     nameStr = nameStr.substring(1, nameStr.length() - 1);

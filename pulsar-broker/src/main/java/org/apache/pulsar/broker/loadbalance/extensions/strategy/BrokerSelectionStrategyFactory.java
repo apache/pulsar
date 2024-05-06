@@ -16,15 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.cli.validators;
+package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
-import com.beust.jcommander.IValueValidator;
-import com.beust.jcommander.ParameterException;
-import org.apache.pulsar.cli.ValueValidationUtil;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-public class MinNegativeOneValidator implements IValueValidator<Long> {
-    @Override
-    public void validate(String name, Long value) throws ParameterException {
-        ValueValidationUtil.minValueCheck(name, value, -1L);
-    }
+@InterfaceStability.Stable
+public interface BrokerSelectionStrategyFactory {
+
+    BrokerSelectionStrategy createBrokerSelectionStrategy();
 }

@@ -59,6 +59,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
@@ -383,11 +384,12 @@ public class ProxyConnection extends PulsarHandler {
                         service.getConfiguration().isForwardAuthorizationCredentials(), this);
             } else {
                 clientCnxSupplier =
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise);
+                        () -> new ClientCnx(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
+                                protocolVersionToAdvertise);
             }
 
             if (this.connectionPool == null) {
-                this.connectionPool = new ConnectionPool(clientConf, service.getWorkerGroup(),
+                this.connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
                         clientCnxSupplier,
                         Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())));
             } else {

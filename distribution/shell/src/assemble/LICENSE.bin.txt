@@ -309,7 +309,6 @@ pulsar-client-cpp/lib/checksum/crc32c_sw.cc
 This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
- * JCommander -- jcommander-1.82.jar
  * Picocli
      - picocli-4.7.5.jar
      - picocli-shell-jline3-4.7.5.jar
@@ -334,6 +333,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar
+ * Swagger -- swagger-annotations-1.6.2.jar
  * DataSketches
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
@@ -347,35 +347,36 @@ The Apache Software License, Version 2.0
     - commons-text-1.10.0.jar
     - commons-compress-1.26.0.jar
  * Netty
-    - netty-buffer-4.1.105.Final.jar
-    - netty-codec-4.1.105.Final.jar
-    - netty-codec-dns-4.1.105.Final.jar
-    - netty-codec-http-4.1.105.Final.jar
-    - netty-codec-socks-4.1.105.Final.jar
-    - netty-codec-haproxy-4.1.105.Final.jar
-    - netty-common-4.1.105.Final.jar
-    - netty-handler-4.1.105.Final.jar
-    - netty-handler-proxy-4.1.105.Final.jar
-    - netty-resolver-4.1.105.Final.jar
-    - netty-resolver-dns-4.1.105.Final.jar
-    - netty-transport-4.1.105.Final.jar
-    - netty-transport-classes-epoll-4.1.105.Final.jar
-    - netty-transport-native-epoll-4.1.105.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.105.Final.jar
-    - netty-transport-native-unix-common-4.1.105.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.61.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.61.Final.jar
+    - netty-buffer-4.1.108.Final.jar
+    - netty-codec-4.1.108.Final.jar
+    - netty-codec-dns-4.1.108.Final.jar
+    - netty-codec-http-4.1.108.Final.jar
+    - netty-codec-socks-4.1.108.Final.jar
+    - netty-codec-haproxy-4.1.108.Final.jar
+    - netty-common-4.1.108.Final.jar
+    - netty-handler-4.1.108.Final.jar
+    - netty-handler-proxy-4.1.108.Final.jar
+    - netty-resolver-4.1.108.Final.jar
+    - netty-resolver-dns-4.1.108.Final.jar
+    - netty-transport-4.1.108.Final.jar
+    - netty-transport-classes-epoll-4.1.108.Final.jar
+    - netty-transport-native-epoll-4.1.108.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.108.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.108.Final.jar
+    - netty-transport-native-unix-common-4.1.108.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.65.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.65.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.105.Final.jar
-    - netty-resolver-dns-native-macos-4.1.105.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.105.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.108.Final.jar
+    - netty-resolver-dns-native-macos-4.1.108.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.108.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -383,15 +384,19 @@ The Apache Software License, Version 2.0
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
  * Log4J
-    - log4j-api-2.18.0.jar
-    - log4j-core-2.18.0.jar
-    - log4j-slf4j-impl-2.18.0.jar
-    - log4j-web-2.18.0.jar
+    - log4j-api-2.23.1.jar
+    - log4j-core-2.23.1.jar
+    - log4j-slf4j2-impl-2.23.1.jar
+    - log4j-web-2.23.1.jar
+ * OpenTelemetry
+    - opentelemetry-api-1.37.0.jar
+    - opentelemetry-api-incubator-1.37.0-alpha.jar
+    - opentelemetry-context-1.37.0.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.16.4.jar
-    - cpu-affinity-4.16.4.jar
-    - circe-checksum-4.16.4.jar
+    - bookkeeper-common-allocator-4.17.0.jar
+    - cpu-affinity-4.17.0.jar
+    - circe-checksum-4.17.0.jar
   * AirCompressor
      - aircompressor-0.20.jar
  * AsyncHttpClient
@@ -419,13 +424,13 @@ BSD 3-clause "New" or "Revised" License
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - slf4j-api-1.7.32.jar
+    - slf4j-api-2.0.13.jar
  * The Checker Framework
     - checker-qual-3.33.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
+   - protobuf-java-3.22.3.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -441,13 +446,13 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - aopalliance-repackaged-2.6.1.jar
     - osgi-resource-locator-1.0.3.jar
  * Jersey
-    - jersey-client-2.34.jar
-    - jersey-common-2.34.jar
-    - jersey-entity-filtering-2.34.jar
-    - jersey-media-json-jackson-2.34.jar
-    - jersey-media-multipart-2.34.jar
-    - jersey-hk2-2.34.jar
- * Mimepull -- mimepull-1.9.13.jar
+    - jersey-client-2.41.jar
+    - jersey-common-2.41.jar
+    - jersey-entity-filtering-2.41.jar
+    - jersey-media-json-jackson-2.41.jar
+    - jersey-media-multipart-2.41.jar
+    - jersey-hk2-2.41.jar
+ * Mimepull -- mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation
@@ -469,10 +474,10 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.75.jar
-    - bcprov-ext-jdk18on-1.75.jar
-    - bcprov-jdk18on-1.75.jar
-    - bcutil-jdk18on-1.75.jar
+    - bcpkix-jdk18on-1.78.jar
+    - bcprov-ext-jdk18on-1.78.jar
+    - bcprov-jdk18on-1.78.jar
+    - bcutil-jdk18on-1.78.jar
 
 ------------------------
 

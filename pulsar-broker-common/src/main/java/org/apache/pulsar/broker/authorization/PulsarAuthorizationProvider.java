@@ -597,6 +597,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case COMPACT:
                             case OFFLOAD:
                             case UNLOAD:
+                            case TRIM_TOPIC:
                             case DELETE_METADATA:
                             case UPDATE_METADATA:
                             case ADD_BUNDLE_RANGE:

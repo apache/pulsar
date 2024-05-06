@@ -420,7 +420,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.close(true, Optional.empty())));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
@@ -477,7 +477,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 }
             }).exceptionally(ex -> {
                 deleteFuture.completeExceptionally(
-                        new TopicBusyException("Failed to close clients before deleting topic."));
+                        new TopicBusyException("Failed to close clients before deleting topic.",
+                                FutureUtil.unwrapCompletionException(ex)));
                 return null;
             });
         } finally {
@@ -523,7 +524,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        replicators.forEach((cluster, replicator) -> futures.add(replicator.terminate()));
         if (disconnectClients) {
             futures.add(ExtensibleLoadManagerImpl.getAssignedBrokerLookupData(
                 brokerService.getPulsar(), topic).thenAccept(lookupData -> {
@@ -582,14 +583,15 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     public CompletableFuture<Void> stopReplProducers() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.terminate()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
     @Override
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
-        if (!name.isGlobal() || NamespaceService.isHeartbeatNamespace(name)) {
+        if (!name.isGlobal() || NamespaceService.isHeartbeatNamespace(name)
+                || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -662,7 +664,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         String name = NonPersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
-        replicators.get(remoteCluster).disconnect().thenRun(() -> {
+        replicators.get(remoteCluster).terminate().thenRun(() -> {
             log.info("[{}] Successfully removed replicator {}", name, remoteCluster);
             replicators.remove(remoteCluster);
 
@@ -996,6 +998,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         Optional<ClusterUrl> url = getMigratedClusterUrl();
         if (url.isPresent()) {
             this.migrated = true;
@@ -1027,7 +1033,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators = getReplicators();
         replicators.forEach((r, replicator) -> {
-            futures.add(replicator.disconnect());
+            futures.add(replicator.terminate());
         });
         return FutureUtil.waitForAll(futures);
     }

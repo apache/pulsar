@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,9 +44,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
@@ -62,8 +65,6 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PolicyName;
-import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -482,9 +483,9 @@ public abstract class AdminResource extends PulsarWebResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        return validateClusterOwnershipAsync(topicName.getCluster())
+        return validateTopicOperationAsync(topicName, TopicOperation.LOOKUP)
+                .thenCompose(__ -> validateClusterOwnershipAsync(topicName.getCluster()))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
@@ -623,35 +624,82 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
         getNamespaceReplicatedClustersAsync(namespaceName)
-                .thenAccept(clusters -> {
-                    for (String cluster : clusters) {
-                        if (!cluster.equals(pulsar().getConfiguration().getClusterName())) {
-                            // this call happens in the background without async composition. completion is logged.
-                            pulsar().getPulsarResources().getClusterResources()
-                                    .getClusterAsync(cluster)
-                                    .thenCompose(clusterDataOp ->
-                                            ((TopicsImpl) pulsar().getBrokerService()
-                                                    .getClusterPulsarAdmin(cluster,
-                                                            clusterDataOp).topics())
-                                                    .createPartitionedTopicAsync(
-                                                            topicName.getPartitionedTopicName(),
-                                                            numPartitions,
-                                                            true, null))
-                                    .whenComplete((__, ex) -> {
-                                        if (ex != null) {
-                                            log.error(
-                                                    "[{}] Failed to create partitioned topic {} in cluster {}.",
-                                                    clientAppId(), topicName, cluster, ex);
-                                        } else {
-                                            log.info(
-                                                    "[{}] Successfully created partitioned topic {} in "
-                                                            + "cluster {}",
-                                                    clientAppId(), topicName, cluster);
-                                        }
-                                    });
-                        }
+            .thenAccept(clusters -> {
+                // this call happens in the background without async composition. completion is logged.
+                internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions);
+            });
+    }
+
+    protected Map<String, CompletableFuture<Void>> internalCreatePartitionedTopicToReplicatedClustersInBackground(
+            Set<String> clusters, int numPartitions) {
+        final String shortTopicName = topicName.getPartitionedTopicName();
+        Map<String, CompletableFuture<Void>> tasksForAllClusters = new HashMap<>();
+        for (String cluster : clusters) {
+            if (cluster.equals(pulsar().getConfiguration().getClusterName())) {
+                continue;
+            }
+            ClusterResources clusterResources = pulsar().getPulsarResources().getClusterResources();
+            CompletableFuture<Void> createRemoteTopicFuture = new CompletableFuture<>();
+            tasksForAllClusters.put(cluster, createRemoteTopicFuture);
+            clusterResources.getClusterAsync(cluster).whenComplete((clusterData, ex1) -> {
+                if (ex1 != null) {
+                    // Unexpected error, such as NPE. Catch all error to avoid the "createRemoteTopicFuture" stuck.
+                    log.error("[{}] An un-expected error occurs when trying to create partitioned topic {} in cluster"
+                                    + " {}.", clientAppId(), topicName, cluster, ex1);
+                    createRemoteTopicFuture.completeExceptionally(new RestException(ex1));
+                    return;
+                }
+                // Get cluster data success.
+                TopicsImpl topics =
+                        (TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
+                topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
+                        .whenComplete((ignore, ex2) -> {
+                    if (ex2 == null) {
+                        // Create success.
+                        log.info("[{}] Successfully created partitioned topic {} in cluster {}",
+                                clientAppId(), topicName, cluster);
+                        createRemoteTopicFuture.complete(null);
+                        return;
+                    }
+                    // Create topic on the remote cluster error.
+                    Throwable unwrapEx2 = FutureUtil.unwrapCompletionException(ex2);
+                    // The topic has been created before, check the partitions count is expected.
+                    if (unwrapEx2 instanceof PulsarAdminException.ConflictException) {
+                        topics.getPartitionedTopicMetadataAsync(shortTopicName).whenComplete((topicMeta, ex3) -> {
+                            if (ex3 != null) {
+                                // Unexpected error, such as NPE. Catch all error to avoid the
+                                // "createRemoteTopicFuture" stuck.
+                                log.error("[{}] Failed to check remote-cluster's topic metadata when creating"
+                                                + " partitioned topic {} in cluster {}.",
+                                        clientAppId(), topicName, cluster, ex3);
+                                createRemoteTopicFuture.completeExceptionally(new RestException(ex3));
+                            }
+                            // Call get partitioned metadata of remote cluster success.
+                            if (topicMeta.partitions == numPartitions) {
+                                log.info("[{}] Skip created partitioned topic {} in cluster {},  because that {}",
+                                        clientAppId(), topicName, cluster, unwrapEx2.getMessage());
+                                createRemoteTopicFuture.complete(null);
+                            } else {
+                                String errorMsg = String.format("[%s] There is an exists topic %s with different"
+                                                + " partitions %s on the remote cluster %s, you want to create it"
+                                                + " with partitions %s",
+                                        clientAppId(), shortTopicName, topicMeta.partitions, cluster,
+                                        numPartitions);
+                                log.error(errorMsg);
+                                createRemoteTopicFuture.completeExceptionally(
+                                        new RestException(Status.PRECONDITION_FAILED, errorMsg));
+                            }
+                        });
+                    } else {
+                        // An HTTP error was responded from the remote cluster.
+                        log.error("[{}] Failed to create partitioned topic {} in cluster {}.",
+                                clientAppId(), topicName, cluster, ex2);
+                        createRemoteTopicFuture.completeExceptionally(new RestException(unwrapEx2));
                     }
                 });
+            });
+        }
+        return tasksForAllClusters;
     }
 
     /**
@@ -714,10 +762,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
-        return validateTopicPolicyOperationAsync(topicName,
-                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ)
-                .thenCompose((__) -> getSchemaCompatibilityStrategyAsyncWithoutAuth()).whenComplete((__, ex) -> {
+        return getSchemaCompatibilityStrategyAsyncWithoutAuth().whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
                                 clientAppId(), topicName, ex);

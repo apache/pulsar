@@ -40,6 +40,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.common.Attributes;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -79,6 +80,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
@@ -91,6 +93,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -142,6 +146,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -182,7 +187,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testTopicTransactionMetrics() throws Exception {
-        final String topic = "persistent://tnx/ns1/test_transaction_topic";
+        final String topic = BrokerTestUtil.newUniqueName("persistent://tnx/ns1/test_transaction_topic");
 
         @Cleanup
         Producer<byte[]> producer = this.pulsarClient.newProducer()
@@ -216,6 +221,33 @@ public class TransactionTest extends TransactionTestBase {
         assertEquals(stats.committedTxnCount, 1);
         assertEquals(stats.abortedTxnCount, 1);
         assertEquals(stats.ongoingTxnCount, 1);
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .build();
+
+        var metrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
+                        .build(),
+                1);
     }
 
     @Test
@@ -1517,7 +1549,7 @@ public class TransactionTest extends TransactionTestBase {
             fail("Expect failure by PendingAckHandle closed, but success");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            Assert.assertTrue(t instanceof BrokerServiceException);
         }
     }
 

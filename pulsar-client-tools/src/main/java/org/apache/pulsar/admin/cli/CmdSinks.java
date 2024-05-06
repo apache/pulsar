@@ -404,6 +404,9 @@ public class CmdSinks extends CmdBase {
         protected String transformFunctionConfig;
         @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
 
         protected SinkConfig sinkConfig;
 
@@ -602,6 +605,9 @@ public class CmdSinks extends CmdBase {
             if (null != logTopic) {
                 sinkConfig.setLogTopic(logTopic);
             }
+            if (null != runtimeFlags) {
+                sinkConfig.setRuntimeFlags(runtimeFlags);
+            }
 
             // check if configs are valid
             validateSinkConfigs(sinkConfig);
@@ -617,7 +623,7 @@ public class CmdSinks extends CmdBase {
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
 
             if (isBlank(sinkConfig.getArchive())) {
-                throw new ParameterException("Sink archive not specfied");
+                throw new ParameterException("Sink archive not specified");
             }
 
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);

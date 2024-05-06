@@ -355,15 +355,19 @@ public class ManagedCursorImpl implements ManagedCursor {
             final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
 
-        final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
-
         Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
+        if (!isDurable()) {
+            this.cursorProperties = Collections.unmodifiableMap(newProperties);
+            updateCursorPropertiesResult.complete(null);
+            return updateCursorPropertiesResult;
+        }
+
         ManagedCursorInfo copy = ManagedCursorInfo
                 .newBuilder(ManagedCursorImpl.this.managedCursorInfo)
                 .clearCursorProperties()
                 .addAllCursorProperties(buildStringPropertiesMap(newProperties))
                 .build();
-
+        final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(),
                 name, copy, lastCursorLedgerStat, new MetaStoreCallback<>() {
                     @Override
@@ -986,13 +990,18 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
             }
 
+            if (isClosed()) {
+                callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
+                return;
+            }
+
             if (!hasMoreEntries()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Still no entries available. Register for notification", ledger.getName(),
                             name);
                 }
                 // Let the managed ledger know we want to be notified whenever a new entry is published
-                ledger.waitingCursors.add(this);
+                ledger.addWaitingCursor(this);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Skip notification registering since we do have entries available",
@@ -1274,7 +1283,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (proposedReadPosition.equals(PositionImpl.EARLIEST)) {
             newReadPosition = ledger.getFirstPosition();
         } else if (proposedReadPosition.equals(PositionImpl.LATEST)) {
-            newReadPosition = ledger.getLastPosition().getNext();
+            newReadPosition = ledger.getNextValidPosition(ledger.getLastPosition());
         } else {
             newReadPosition = proposedReadPosition;
         }
@@ -3104,12 +3113,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             lh1.getId());
                 }
 
-                if (shouldCloseLedger(lh1)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
-                    }
-                    startCreatingNewMetadataLedger();
-                }
+                rolloverLedgerIfNeeded(lh1);
 
                 mbean.persistToLedger(true);
                 mbean.addWriteCursorLedgerSize(data.length);
@@ -3125,6 +3129,35 @@ public class ManagedCursorImpl implements ManagedCursor {
                 persistPositionToMetaStore(mdEntry, callback);
             }
         }, null);
+    }
+
+    public boolean periodicRollover() {
+        LedgerHandle lh = cursorLedger;
+        if (State.Open.equals(STATE_UPDATER.get(this))
+                && lh != null && lh.getLength() > 0) {
+            boolean triggered = rolloverLedgerIfNeeded(lh);
+            if (triggered) {
+                log.info("[{}] Periodic rollover triggered for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+            } else {
+                log.debug("[{}] Periodic rollover skipped for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+
+            }
+            return triggered;
+        }
+        return false;
+    }
+
+    boolean rolloverLedgerIfNeeded(LedgerHandle lh1) {
+        if (shouldCloseLedger(lh1)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
+            }
+            startCreatingNewMetadataLedger();
+            return true;
+        }
+        return false;
     }
 
     void persistPositionToMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {

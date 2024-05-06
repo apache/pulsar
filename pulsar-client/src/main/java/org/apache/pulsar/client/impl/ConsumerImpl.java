@@ -34,6 +34,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -91,6 +92,10 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.Unit;
+import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -216,8 +221,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
 
+    private final Counter messagesReceivedCounter;
+    private final Counter bytesReceivedCounter;
+    private final UpDownCounter messagesPrefetchedGauge;
+    private final UpDownCounter bytesPrefetchedGauge;
+    private final Counter consumersOpenedCounter;
+    private final Counter consumersClosedCounter;
+    private final Counter consumerAcksCounter;
+    private final Counter consumerNacksCounter;
+
+    private final Counter consumerDlqMessagesCounter;
+
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
+    private volatile boolean hasSoughtByTimestamp = false;
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -388,7 +405,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
+        InstrumentProvider ip = client.instrumentProvider();
+        Attributes attrs = Attributes.builder().put("pulsar.subscription", subscription).build();
+        consumersOpenedCounter = ip.newCounter("pulsar.client.consumer.opened", Unit.Sessions,
+                "The number of consumer sessions opened", topic, attrs);
+        consumersClosedCounter = ip.newCounter("pulsar.client.consumer.closed", Unit.Sessions,
+                "The number of consumer sessions closed", topic, attrs);
+        messagesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.count", Unit.Messages,
+                "The number of messages explicitly received by the consumer application", topic, attrs);
+        bytesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.size", Unit.Bytes,
+                "The number of bytes explicitly received by the consumer application", topic, attrs);
+        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.count", Unit.Messages,
+                "The number of messages currently sitting in the consumer receive queue", topic, attrs);
+        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
+                "The total size in bytes of messages currently sitting in the consumer receive queue", topic, attrs);
+
+        consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
+                "The number of acknowledged messages", topic, attrs);
+        consumerNacksCounter = ip.newCounter("pulsar.client.consumer.message.nack", Unit.Messages,
+                "The number of negatively acknowledged messages", topic, attrs);
+        consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.message.dlq", Unit.Messages,
+                "The number of messages sent to DLQ", topic, attrs);
         grabCnx();
+
+        consumersOpenedCounter.increment();
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -551,6 +591,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String, Long> properties,
                                                     TransactionImpl txn) {
+        consumerAcksCounter.increment();
+
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
             PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
@@ -572,6 +614,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
                                                     Map<String, Long> properties, TransactionImpl txn) {
+        consumerAcksCounter.increment();
+
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
             PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
@@ -667,6 +711,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .value(retryMessage.getData())
                                         .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
+                            consumerDlqMessagesCounter.increment();
+
                             doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
                                 result.complete(null);
                             }).exceptionally(ex -> {
@@ -759,6 +805,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void negativeAcknowledge(MessageId messageId) {
+        consumerNacksCounter.increment();
         negativeAcksTracker.add(messageId);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
@@ -767,6 +814,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void negativeAcknowledge(Message<?> message) {
+        consumerNacksCounter.increment();
         negativeAcksTracker.add(message);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
@@ -776,6 +824,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
+        getConnectionHandler().setMaxMessageSize(cnx.getMaxMessageSize());
 
         final State state = getState();
         if (state == State.Closing || state == State.Closed) {
@@ -1046,6 +1095,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return closeFuture;
         }
 
+        consumersClosedCounter.increment();
+
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
@@ -1238,6 +1289,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void executeNotifyCallback(final MessageImpl<T> message) {
+        messagesPrefetchedGauge.increment();
+        bytesPrefetchedGauge.add(message.size());
+
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
@@ -1730,6 +1784,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
         lastDequeuedMessageId = msg.getMessageId();
 
+        messagesPrefetchedGauge.decrement();
+        messagesReceivedCounter.increment();
+
+        bytesPrefetchedGauge.subtract(msg.size());
+        bytesReceivedCounter.add(msg.size());
+
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
         } else {
@@ -1896,7 +1956,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (checkMaxMessageSize && payloadSize > ClientCnx.getMaxMessageSize()) {
+        if (checkMaxMessageSize && payloadSize > getConnectionHandler().getMaxMessageSize()) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}][{}] Got corrupted payload message size {} at {}", topic, subscription, payloadSize,
                     messageId);
@@ -2251,7 +2311,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 new PulsarClientException("Only support seek by messageId or timestamp"));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,
+                                                      Long seekTimestamp, String seekBy) {
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
@@ -2268,11 +2329,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(new IllegalStateException(message));
         }
         seekFuture = new CompletableFuture<>();
-        seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, opTimeoutMs);
+        seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, opTimeoutMs);
         return seekFuture;
     }
 
-    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy,
+    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, Long seekTimestamp, String seekBy,
                                    final Backoff backoff, final AtomicLong remainingTime) {
         ClientCnx cnx = cnx();
         if (isConnected() && cnx != null) {
@@ -2280,6 +2341,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             seekMessageId = (MessageIdAdv) seekId;
             log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
+            final boolean originalHasSoughtByTimestamp = hasSoughtByTimestamp;
+            hasSoughtByTimestamp = (seekTimestamp != null);
             cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
                 log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
                 acknowledgmentsGroupingTracker.flushAndClean();
@@ -2303,6 +2366,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }).exceptionally(e -> {
                 seekMessageId = originSeekMessageId;
+                hasSoughtByTimestamp = originalHasSoughtByTimestamp;
                 log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
 
                 failSeek(
@@ -2325,7 +2389,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}] [{}] Could not get connection while seek -- Will try again in {} ms",
                         topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekBy, backoff, remainingTime);
+                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
             }, nextDelay, TimeUnit.MILLISECONDS);
         }
     }
@@ -2342,7 +2406,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         String seekBy = String.format("the timestamp %d", timestamp);
         long requestId = client.newRequestId();
         return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
-                MessageId.earliest, seekBy);
+                MessageId.earliest, timestamp, seekBy);
     }
 
     @Override
@@ -2368,7 +2432,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
         }
-        return seekAsyncInternal(requestId, seek, messageId, seekBy);
+        return seekAsyncInternal(requestId, seek, messageId, null, seekBy);
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
@@ -2388,13 +2452,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
+            // If the last seek is called with timestamp, startMessageId cannot represent the position to start, so we
+            // have to get the mark-delete position from the GetLastMessageId response to compare as well.
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
-            if (MessageId.latest.equals(startMessageId)) {
-
+            final boolean hasSoughtByTimestamp = this.hasSoughtByTimestamp;
+            if (MessageId.latest.equals(startMessageId) || hasSoughtByTimestamp) {
                 CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
                 // if the consumer is configured to read inclusive then we need to seek to the last message
-                if (resetIncludeHead) {
+                if (resetIncludeHead && !hasSoughtByTimestamp) {
                     future = future.thenCompose((lastMessageIdResponse) ->
                             seekAsync(lastMessageIdResponse.lastMessageId)
                                     .thenApply((ignore) -> lastMessageIdResponse));

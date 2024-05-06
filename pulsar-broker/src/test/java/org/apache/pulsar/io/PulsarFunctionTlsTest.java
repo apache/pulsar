@@ -180,10 +180,22 @@ public class PulsarFunctionTlsTest {
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         try {
-            functionAdmin.close();
-            functionsWorkerService.stop();
-            workerServer.stop();
-            bkEnsemble.stop();
+            if (functionAdmin != null) {
+                functionAdmin.close();
+                functionAdmin = null;
+            }
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
+            if (workerServer != null) {
+                workerServer.stop();
+                workerServer = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();

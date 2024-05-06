@@ -16,41 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
 
-public final class WindowWrap<T> {
-    private final long interval;
-    private long start;
-    private T value;
+package org.apache.pulsar.client.impl.metrics;
 
-    public WindowWrap(long interval, long windowStart, T value) {
-        this.interval = interval;
-        this.start = windowStart;
-        this.value = value;
-    }
+public enum Unit {
+    Bytes,
 
-    public long interval() {
-        return this.interval;
-    }
+    Messages,
 
-    public long start() {
-        return this.start;
-    }
+    Seconds,
 
-    public T value() {
-        return value;
-    }
+    Connections,
 
-    public void value(T value) {
-        this.value = value;
-    }
+    Sessions,
 
-    public WindowWrap<T> resetWindowStart(long startTime) {
-        this.start = startTime;
-        return this;
-    }
+    None,
 
-    public boolean isTimeInWindow(long timeMillis) {
-        return start <= timeMillis && timeMillis < start + interval;
+    ;
+
+    public String toString() {
+        switch (this) {
+            case Bytes:
+                return "By";
+
+            case Messages:
+                return "{message}";
+
+            case Seconds:
+                return "s";
+
+            case Connections:
+                return "{connection}";
+
+            case Sessions:
+                return "{session}";
+
+            case None:
+            default:
+                return "1";
+        }
     }
 }
