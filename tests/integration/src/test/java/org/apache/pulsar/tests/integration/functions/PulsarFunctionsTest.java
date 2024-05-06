@@ -1960,8 +1960,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     .newProducer(Schema.STRING)
                     .topic(inputTopic)
                     .create();
+            List<Long> timestamps = new ArrayList<>();
             for (int i = 0; i < numMessages; i++) {
-                producer.send("message" + i);
+                long timeMillis = System.currentTimeMillis();
+                timestamps.add(timeMillis);
+                producer.newMessage().eventTime(timeMillis).value("message" + i).send();
             }
 
             getFunctionInfoSuccess(functionName);
@@ -1972,6 +1975,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
                 log.info("Received: {}", msg.getValue());
                 assertEquals(msg.getValue(), "message" + i + "!");
+                assertEquals(msg.getEventTime(), timestamps.get(i));
                 assertEquals(msg.getProperty("input_topic"), "persistent://" + inputTopic);
             }
         } finally {
