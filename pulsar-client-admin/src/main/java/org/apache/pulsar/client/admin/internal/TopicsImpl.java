@@ -44,6 +44,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -666,6 +667,20 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public InputStream streamInternalStats(String topic, boolean metadata) throws PulsarAdminException {
+        return sync(() -> streamInternalStatsAsync(topic, metadata));
+    }
+
+    @Override
+    public CompletableFuture<InputStream> streamInternalStatsAsync(String topic, boolean metadata) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "internalStats");
+        path = path.queryParam("metadata", metadata);
+        CompletableFuture<InputStream> future = new CompletableFuture<>();
+        return asyncGetRequest(path, new FutureCallback<InputStream>() {});
+    }
+
+    @Override
     public String getInternalInfo(String topic) throws PulsarAdminException {
         return sync(() -> getInternalInfoAsync(topic));
     }
@@ -749,6 +764,18 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-internalStats");
         return asyncGetRequest(path, new FutureCallback<PartitionedTopicInternalStats>(){});
+    }
+
+    @Override
+    public InputStream streamPartitionedInternalStats(String topic) throws PulsarAdminException {
+        return sync(() -> streamPartitionedInternalStatsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<InputStream> streamPartitionedInternalStatsAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "partitioned-internalStats");
+        return asyncGetRequest(path, new FutureCallback<InputStream>(){});
     }
 
     @Override

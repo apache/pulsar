@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1200,6 +1201,26 @@ public interface Topics {
      */
     PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
 
+
+    /**
+     * Get the internal stats for the topic in a streaming fashion.
+     * <p/>
+     *
+     * @param topic
+     *            topic name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return the topic statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    InputStream streamInternalStats(String topic, boolean metadata) throws PulsarAdminException;
+
     /**
      * Get the internal stats for the topic.
      * <p/>
@@ -1228,6 +1249,17 @@ public interface Topics {
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+
+    /**
+     * Get the internal stats for the topic asynchronously in a streaming fashion.
+     *
+     * @param topic
+     *            topic Name
+     * @param metadata
+     *            flag to include ledger metadata
+     * @return a future that can be used to track when the internal topic statistics are returned
+     */
+    CompletableFuture<InputStream> streamInternalStatsAsync(String topic, boolean metadata);
 
     /**
      * Get the internal stats for the topic asynchronously.
@@ -1392,6 +1424,27 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic);
+
+
+    /**
+     * Get the stats for the partitioned topic in a streaming fashion.
+     *
+     * @param topic
+     *            topic name
+     * @return
+     * @throws PulsarAdminException
+     */
+    InputStream streamPartitionedInternalStats(String topic)
+            throws PulsarAdminException;
+
+    /**
+     * Get the stats-internal for the partitioned topic asynchronously in a streaming fashion.
+     *
+     * @param topic
+     *            topic Name
+     * @return a future that can be used to track when the partitioned topic statistics are returned
+     */
+    CompletableFuture<InputStream> streamPartitionedInternalStatsAsync(String topic);
 
     /**
      * Delete a subscription.
