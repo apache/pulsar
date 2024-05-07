@@ -22,6 +22,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -51,6 +52,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private final Backoff backoff;
     private final FutureUtil.Sequencer<Void> sequencer;
     private final ScheduledExecutorService executor;
+    private ScheduledFuture<?> revalidateTask;
 
     private enum State {
         Init,
@@ -105,6 +107,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         state = State.Releasing;
+        if (revalidateTask != null) {
+            revalidateTask.cancel(true);
+        }
+
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         store.delete(path, Optional.of(version))
@@ -222,6 +228,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
      * This method is thread-safe and it will perform multiple re-validation operations in turn.
      */
     synchronized CompletableFuture<Void> silentRevalidateOnce() {
+        if (state != State.Valid) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         return sequencer.sequential(() -> revalidate(value))
                 .thenRun(() -> {
                     log.info("Successfully revalidated the lock on {}", path);
@@ -244,7 +254,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             long delayMillis = backoff.next();
                             log.warn("Failed to revalidate the lock at {}: {} - Retrying in {} seconds", path,
                                     realCause.getMessage(), delayMillis / 1000.0);
-                            executor.schedule(this::silentRevalidateOnce, delayMillis, TimeUnit.MILLISECONDS);
+                            revalidateTask = executor.schedule(this::silentRevalidateOnce, delayMillis, TimeUnit.MILLISECONDS);
                         }
                     }
                     return null;
