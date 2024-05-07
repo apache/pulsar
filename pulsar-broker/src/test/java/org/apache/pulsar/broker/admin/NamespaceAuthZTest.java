@@ -129,10 +129,14 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     public void cleanup() {
         if (superUserAdmin != null) {
             superUserAdmin.close();
+            superUserAdmin = null;
         }
         if (tenantManagerAdmin != null) {
             tenantManagerAdmin.close();
+            tenantManagerAdmin = null;
         }
+        pulsarClient = null;
+        authorizationService = null;
         close();
     }
 

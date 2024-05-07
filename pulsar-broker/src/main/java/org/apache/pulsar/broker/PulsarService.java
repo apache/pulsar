@@ -517,9 +517,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
-            if (this.loadSheddingTask != null) {
-                this.loadSheddingTask.cancel();
-            }
+            cancelLoadBalancerTasks();
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -1183,20 +1181,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker {} was elected leader", getBrokerId());
                         if (getConfiguration().isLoadBalancerEnabled()) {
-                            long resourceQuotaUpdateInterval = TimeUnit.MINUTES
-                                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
-
-                            if (loadSheddingTask != null) {
-                                loadSheddingTask.cancel();
-                            }
-                            if (loadResourceQuotaTask != null) {
-                                loadResourceQuotaTask.cancel(false);
-                            }
-                            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
-                            loadSheddingTask.start();
-                            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
-                                    new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
-                                    resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+                            startLoadBalancerTasks();
                         }
                     } else {
                         if (leaderElectionService != null) {
@@ -1209,18 +1194,35 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             }
 
                         }
-                        if (loadSheddingTask != null) {
-                            loadSheddingTask.cancel();
-                            loadSheddingTask = null;
-                        }
-                        if (loadResourceQuotaTask != null) {
-                            loadResourceQuotaTask.cancel(false);
-                            loadResourceQuotaTask = null;
-                        }
+                        cancelLoadBalancerTasks();
                     }
                 });
 
         leaderElectionService.start();
+    }
+
+    private synchronized void cancelLoadBalancerTasks() {
+        if (loadSheddingTask != null) {
+            loadSheddingTask.cancel();
+            loadSheddingTask = null;
+        }
+        if (loadResourceQuotaTask != null) {
+            loadResourceQuotaTask.cancel(false);
+            loadResourceQuotaTask = null;
+        }
+    }
+
+    private synchronized void startLoadBalancerTasks() {
+        cancelLoadBalancerTasks();
+        if (isRunning()) {
+            long resourceQuotaUpdateInterval = TimeUnit.MINUTES
+                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
+            loadSheddingTask.start();
+            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
+                    new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
+                    resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+        }
     }
 
     protected void acquireSLANamespace() {
