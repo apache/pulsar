@@ -37,7 +37,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
-import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * Entry reader that fulfill read request by streamline the read instead of reading with micro batch.
