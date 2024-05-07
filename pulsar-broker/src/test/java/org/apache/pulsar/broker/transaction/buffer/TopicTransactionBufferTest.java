@@ -280,9 +280,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         for (int i = 0; i < 3; i++) {
             expectedLastMessageID = (MessageIdImpl) producer.newMessage().send();
         }
-        assertMessageId(consumer, expectedLastMessageID);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
         // 2.2 Case2: send 2 ongoing transactional messages and 2 original messages.
-        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5|1:6|.
+        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5.
         Transaction txn1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
@@ -291,25 +291,37 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
                 .get();
+
+        // |1:0|1:1|1:2|txn1:1:3|
         producer.newMessage(txn1).send();
-        // expectedLastMessageID1 == 1:4
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|
         MessageIdImpl expectedLastMessageID1 = (MessageIdImpl) producer.newMessage().send();
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|
         producer.newMessage(txn2).send();
-        // expectedLastMessageID2 == 1:6
-        MessageIdImpl expectedLastMessageID2 = (MessageIdImpl) producer.newMessage().send();
 
         // 2.2.1 Last message ID will not change when txn1 and txn2 do not end.
-        assertMessageId(consumer, expectedLastMessageID);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
 
         // 2.2.2 Last message ID will update to 1:4 when txn1 committed.
-        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5|1:6|tx1:commit->1:7|
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|
         txn1.commit().get(5, TimeUnit.SECONDS);
-        assertMessageId(consumer, expectedLastMessageID1);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
 
-        // 2.2.3 Last message ID will update to 1:6 when txn2 aborted.
-        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5|1:6|tx1:commit->1:7|tx2:abort->1:8|
+        // 2.2.3 Last message ID will still to 1:4 when txn2 aborted.
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|tx2:abort->1:7|
         txn2.abort().get(5, TimeUnit.SECONDS);
-        assertMessageId(consumer, expectedLastMessageID2);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // Handle the case of the maxReadPosition < lastPosition, but it's an aborted transactional message.
+        Transaction txn3 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        producer.newMessage(txn3).send();
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+        txn3.abort().get(5, TimeUnit.SECONDS);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
     }
 
     /**
@@ -368,7 +380,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         });
     }
 
-    private void assertMessageId(Consumer<?> consumer, MessageIdImpl expected) throws Exception {
+    private void assertGetLastMessageId(Consumer<?> consumer, MessageIdImpl expected) throws Exception {
         TopicMessageIdImpl actual = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
         assertEquals(expected.getEntryId(), actual.getEntryId());
         assertEquals(expected.getLedgerId(), actual.getLedgerId());

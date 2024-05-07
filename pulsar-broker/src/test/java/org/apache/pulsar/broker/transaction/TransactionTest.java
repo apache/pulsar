@@ -1898,4 +1898,73 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(result, List.of("V4", "V5", "V6"));
     }
 
+
+    @Test
+    public void testPersistentTopicGetLastDispatchablePositionWithTxn() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testPersistentTopicGetLastDispatchablePositionWithTxn";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
+
+
+        // send a normal message
+        String body = UUID.randomUUID().toString();
+        MessageIdImpl msgId = (MessageIdImpl) producer.send(body);
+
+        // send 3 txn messages
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+
+        // get last dispatchable position
+        PositionImpl lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+
+        // abort the txn
+        txn.abort().get(5, TimeUnit.SECONDS);
+
+        // get last dispatchable position
+        lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        List<Message<String>> messages = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            messages.add(reader.readNext());
+        }
+        assertEquals(messages.size(), 1);
+        assertEquals(messages.get(0).getValue(), body);
+
+        txn1.abort().get(5, TimeUnit.SECONDS);
+
+        @Cleanup
+        Reader<String> reader1 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<Message<String>> messages1 = new ArrayList<>();
+        while (reader1.hasMessageAvailable()) {
+            messages1.add(reader1.readNext());
+        }
+        assertEquals(messages1.size(), 1);
+        assertEquals(messages1.get(0).getValue(), body);
+    }
 }
