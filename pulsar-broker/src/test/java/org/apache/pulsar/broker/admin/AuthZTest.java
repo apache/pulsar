@@ -47,6 +47,21 @@ public class AuthZTest extends MockedPulsarStandalone {
     protected static final String TENANT_ADMIN_TOKEN = Jwts.builder()
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
+    @Override
+    public void close() throws Exception {
+        if (superUserAdmin != null) {
+            superUserAdmin.close();
+            superUserAdmin = null;
+        }
+        if (tenantManagerAdmin != null) {
+            tenantManagerAdmin.close();
+            tenantManagerAdmin = null;
+        }
+        authorizationService = null;
+        orignalAuthorizationService = null;
+        super.close();
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void before() throws IllegalAccessException {
         orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
