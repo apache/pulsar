@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 

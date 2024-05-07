@@ -29,6 +29,7 @@ import lombok.Setter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
