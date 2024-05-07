@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.failsafe.Failsafe;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.io.sources.PulsarIOSourceRunner;
@@ -43,11 +44,11 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
     private int numMessages;
     private boolean jsonWithEnvelope;
     private PulsarClient client;
-    
+
     public PulsarIODebeziumSourceRunner(PulsarCluster cluster, String functionRuntimeType, String converterClassName,
             String tenant, String ns, String sourceName, String outputTopic, int numMessages, boolean jsonWithEnvelope,
             String consumeTopicName, PulsarClient client) {
-        super(cluster, functionRuntimeType);
+        super(cluster, functionRuntimeType, SizeUnit.MEGA_BYTES.toBytes(200));
         this.converterClassName = converterClassName;
         this.tenant = tenant;
         this.namespace = ns;

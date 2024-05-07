@@ -51,8 +51,15 @@ import net.jodah.failsafe.Failsafe;
 @Slf4j
 public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
-	public PulsarIOSinkRunner(PulsarCluster cluster, String functionRuntimeType) {
+    private final long runtimeInstanceRamBytes;
+
+    public PulsarIOSinkRunner(PulsarCluster cluster, String functionRuntimeType) {
+        this(cluster, functionRuntimeType, RUNTIME_INSTANCE_RAM_BYTES);
+    }
+
+    public PulsarIOSinkRunner(PulsarCluster cluster, String functionRuntimeType, long runtimeInstanceRamBytes) {
 		super(cluster, functionRuntimeType);
+        this.runtimeInstanceRamBytes = runtimeInstanceRamBytes;
 	}
 
 	@SuppressWarnings({ "rawtypes" })
@@ -156,7 +163,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
-                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+                    "--ram", String.valueOf(runtimeInstanceRamBytes)
             };
         } else {
             commands = new String[] {
@@ -169,7 +176,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--classname", tester.getSinkClassName(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
-                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+                    "--ram", String.valueOf(runtimeInstanceRamBytes)
             };
         }
         log.info("Run command : {}", StringUtils.join(commands, ' '));
@@ -196,7 +203,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
                     "--parallelism", "2",
-                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+                    "--ram", String.valueOf(runtimeInstanceRamBytes)
             };
         } else {
             commands = new String[] {
@@ -210,7 +217,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
                     "--parallelism", "2",
-                    "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+                    "--ram", String.valueOf(runtimeInstanceRamBytes)
             };
         }
         log.info("Run command : {}", StringUtils.join(commands, ' '));

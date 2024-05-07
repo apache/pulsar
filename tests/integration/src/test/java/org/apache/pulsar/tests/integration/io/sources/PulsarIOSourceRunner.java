@@ -50,8 +50,15 @@ import net.jodah.failsafe.Failsafe;
 @Slf4j
 public class PulsarIOSourceRunner extends PulsarIOTestRunner {
 
+    private final long runtimeInstanceRamBytes;
+
     public PulsarIOSourceRunner(PulsarCluster cluster, String functionRuntimeType) {
+        this(cluster, functionRuntimeType, RUNTIME_INSTANCE_RAM_BYTES);
+    }
+
+    public PulsarIOSourceRunner(PulsarCluster cluster, String functionRuntimeType, long runtimeInstanceRamBytes) {
 		super(cluster, functionRuntimeType);
+        this.runtimeInstanceRamBytes = runtimeInstanceRamBytes;
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -132,7 +139,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
             "--source-type", tester.sourceType(),
             "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
             "--destinationTopicName", outputTopicName,
-            "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+            "--ram", String.valueOf(runtimeInstanceRamBytes)
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));
@@ -158,7 +165,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
                 "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
                 "--destinationTopicName", outputTopicName,
                 "--parallelism", "2",
-                "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
+                "--ram", String.valueOf(runtimeInstanceRamBytes)
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));
