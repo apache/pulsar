@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +32,11 @@ public class BackoffBuilder {
 
     public BackoffBuilder() {
         this.initial = 0;
+        this.unitInitial = TimeUnit.MILLISECONDS;
         this.max = 0;
+        this.unitMax = TimeUnit.MILLISECONDS;
         this.mandatoryStop = 0;
+        this.unitMandatoryStop = TimeUnit.MILLISECONDS;
         this.clock = Clock.systemDefaultZone();
     }
 
