@@ -481,12 +481,10 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.streamnative.oxia-oxia-client-0.1.6.jar
-    - io.streamnative.oxia-oxia-client-metrics-api-0.1.6.jar
+    - io.streamnative.oxia-oxia-client-api-0.2.0.jar
+    - io.streamnative.oxia-oxia-client-0.2.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
-  * Project reactor
-    - io.projectreactor-reactor-core-3.5.2.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar
@@ -552,9 +550,6 @@ BSD 3-clause "New" or "Revised" License
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
  * JLine3 -- org.jline-jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
- * Reactive gRPC
-    - com.salesforce.servicelibs-reactive-grpc-common-1.2.4.jar -- ../licenses/LICENSE-Reactive-gRPC.txt
-    - com.salesforce.servicelibs-reactor-grpc-stub-1.2.4.jar -- ../licenses/LICENSE-Reactive-gRPC.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- ../licenses/LICENSE-HdrHistogram.txt
