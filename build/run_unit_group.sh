@@ -85,6 +85,7 @@ function test_group_broker_group_2() {
 
 function test_group_broker_group_3() {
   mvn_test -pl pulsar-broker -Dgroups='broker-admin'
+  mvn_test -pl pulsar-broker -Dgroups='broker-admin-isolated' -DtestForkCount=1 -DtestReuseFork=false
 }
 
 function test_group_broker_group_4() {
