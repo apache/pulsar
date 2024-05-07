@@ -246,7 +246,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private static final byte[] EMPTY_VALUE = new byte[0];
-    private static final Set<PutOption> IF_RECORD_DOES_NOT_EXIST = Collections.singleton(PutOption.IfRecordDoesNotExist);
+    private static final Set<PutOption> IF_RECORD_DOES_NOT_EXIST =
+            Collections.singleton(PutOption.IfRecordDoesNotExist);
 
     private CompletableFuture<Void> createParents(String path) {
         var parent = parent(path);
