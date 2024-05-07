@@ -42,6 +42,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.kerby</groupId>
       <artifactId>kerby-config</artifactId>
       <version>${kerby.version}</version>
