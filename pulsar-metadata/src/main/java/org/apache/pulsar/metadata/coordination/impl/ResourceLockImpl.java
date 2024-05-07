@@ -254,7 +254,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             long delayMillis = backoff.next();
                             log.warn("Failed to revalidate the lock at {}: {} - Retrying in {} seconds", path,
                                     realCause.getMessage(), delayMillis / 1000.0);
-                            revalidateTask = executor.schedule(this::silentRevalidateOnce, delayMillis, TimeUnit.MILLISECONDS);
+                            revalidateTask =
+                                    executor.schedule(this::silentRevalidateOnce, delayMillis, TimeUnit.MILLISECONDS);
                         }
                     }
                     return null;
