@@ -31,6 +31,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
