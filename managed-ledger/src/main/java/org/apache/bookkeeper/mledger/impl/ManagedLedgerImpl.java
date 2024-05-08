@@ -2810,6 +2810,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
+    public void rolloverCursorsInBackground() {
+        if (cursors.hasDurableCursors()) {
+            executor.execute(() -> {
+                cursors.forEach(ManagedCursor::periodicRollover);
+            });
+        }
+    }
+
     /**
      * @param ledgerId the ledger handle which maybe will be released.
      * @return if the ledger handle was released.
@@ -3703,7 +3712,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
             // This means it has jumped to the last position
             if (nextLedgerId == null) {
-                if (currentLedgerEntries == 0) {
+                if (currentLedgerEntries == 0 && currentLedger != null) {
                     return PositionImpl.get(currentLedger.getId(), 0);
                 }
                 return lastConfirmedEntry.getNext();

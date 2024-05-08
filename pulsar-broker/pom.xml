@@ -177,6 +177,13 @@
     </dependency>
 
     <dependency>
+      <groupId>io.github.hakky54</groupId>
+      <artifactId>consolecaptor</artifactId>
+      <version>${consolecaptor.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>io.streamnative.oxia</groupId>
       <artifactId>oxia-testcontainers</artifactId>
       <scope>test</scope>
@@ -488,12 +495,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-sdk-testing</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

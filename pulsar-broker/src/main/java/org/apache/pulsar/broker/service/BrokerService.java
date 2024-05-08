@@ -309,6 +309,7 @@ public class BrokerService implements Closeable {
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
 
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
+    private volatile boolean unloaded = false;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -744,7 +745,7 @@ public class BrokerService implements Closeable {
                 if (ot.isPresent()) {
                     Replicator r = ot.get().getReplicators().get(clusterName);
                     if (r != null && r.isConnected()) {
-                        r.disconnect(false).whenComplete((v, e) -> f.complete(null));
+                        r.terminate().whenComplete((v, e) -> f.complete(null));
                         return;
                     }
                 }
@@ -926,9 +927,13 @@ public class BrokerService implements Closeable {
     }
 
     public void unloadNamespaceBundlesGracefully(int maxConcurrentUnload, boolean closeWithoutWaitingClientDisconnect) {
+        if (unloaded) {
+            return;
+        }
         try {
             log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
+            long disableBrokerStartTime = System.nanoTime();
             if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null) {
                 try {
                     pulsar.getLoadManager().get().disableBroker();
@@ -937,6 +942,10 @@ public class BrokerService implements Closeable {
                     // still continue and release bundle ownership as broker's registration node doesn't exist.
                 }
             }
+            double disableBrokerTimeSeconds =
+                    TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - disableBrokerStartTime))
+                            / 1000.0;
+            log.info("Disable broker in load manager completed in {} seconds", disableBrokerTimeSeconds);
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
@@ -966,6 +975,8 @@ public class BrokerService implements Closeable {
             }
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
+        } finally {
+            unloaded = true;
         }
     }
 
@@ -1254,7 +1265,8 @@ public class BrokerService implements Closeable {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
         } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
-            return FutureUtil.failedFuture(e);
+            topicFuture.completeExceptionally(e);
+            return topicFuture;
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
@@ -2108,6 +2120,7 @@ public class BrokerService implements Closeable {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
                             managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                            managedLedger.rolloverCursorsInBackground();
                         }
                 );
             }

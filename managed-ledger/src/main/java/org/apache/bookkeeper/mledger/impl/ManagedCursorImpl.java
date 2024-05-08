@@ -2187,8 +2187,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
                 persistPositionToMetaStore(mdEntry, cb);
             } else {
-                mdEntry.callback.markDeleteFailed(new ManagedLedgerException("Create new cursor ledger failed"),
-                        mdEntry.ctx);
+                cb.operationFailed(new ManagedLedgerException("Switch new cursor ledger failed"));
             }
         } else {
             persistPositionToLedger(cursorLedger, mdEntry, cb);
@@ -2861,9 +2860,19 @@ public class ManagedCursorImpl implements ManagedCursor {
                 synchronized (pendingMarkDeleteOps) {
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
-                    // Note: if the stat is NoLedger, will persist the mark deleted position to metadata store.
-                    // Before giving up, try to persist the position in the metadata store.
-                    flushPendingMarkDeletes();
+                    // There are two case may cause switch ledger fails.
+                    // 1. No enough BKs; BKs are in read-only mode...
+                    // 2. Write ZK fails.
+                    // Regarding the case "No enough BKs", try to persist the position in the metadata store before
+                    // giving up.
+                    if (!(exception instanceof MetaStoreException)) {
+                        flushPendingMarkDeletes();
+                    } else {
+                        while (!pendingMarkDeleteOps.isEmpty()) {
+                            MarkDeleteEntry entry = pendingMarkDeleteOps.poll();
+                            entry.callback.markDeleteFailed(exception, entry.ctx);
+                        }
+                    }
                 }
             }
         });
@@ -3113,12 +3122,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             lh1.getId());
                 }
 
-                if (shouldCloseLedger(lh1)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
-                    }
-                    startCreatingNewMetadataLedger();
-                }
+                rolloverLedgerIfNeeded(lh1);
 
                 mbean.persistToLedger(true);
                 mbean.addWriteCursorLedgerSize(data.length);
@@ -3134,6 +3138,35 @@ public class ManagedCursorImpl implements ManagedCursor {
                 persistPositionToMetaStore(mdEntry, callback);
             }
         }, null);
+    }
+
+    public boolean periodicRollover() {
+        LedgerHandle lh = cursorLedger;
+        if (State.Open.equals(STATE_UPDATER.get(this))
+                && lh != null && lh.getLength() > 0) {
+            boolean triggered = rolloverLedgerIfNeeded(lh);
+            if (triggered) {
+                log.info("[{}] Periodic rollover triggered for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+            } else {
+                log.debug("[{}] Periodic rollover skipped for cursor {} (length={} bytes)",
+                        ledger.getName(), name, lh.getLength());
+
+            }
+            return triggered;
+        }
+        return false;
+    }
+
+    boolean rolloverLedgerIfNeeded(LedgerHandle lh1) {
+        if (shouldCloseLedger(lh1)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Need to create new metadata ledger for cursor {}", ledger.getName(), name);
+            }
+            startCreatingNewMetadataLedger();
+            return true;
+        }
+        return false;
     }
 
     void persistPositionToMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {

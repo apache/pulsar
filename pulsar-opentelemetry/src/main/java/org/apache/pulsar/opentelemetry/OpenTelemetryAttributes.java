@@ -29,4 +29,44 @@ public interface OpenTelemetryAttributes {
      * {@link OpenTelemetryService}.
      */
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
+
+    /**
+     * The name of the Pulsar namespace.
+     */
+    AttributeKey<String> PULSAR_NAMESPACE = AttributeKey.stringKey("pulsar.namespace");
+
+    /**
+     * The name of the Pulsar tenant.
+     */
+    AttributeKey<String> PULSAR_TENANT = AttributeKey.stringKey("pulsar.tenant");
+
+    /**
+     * The Pulsar topic domain.
+     */
+    AttributeKey<String> PULSAR_DOMAIN = AttributeKey.stringKey("pulsar.domain");
+
+    /**
+     * The name of the Pulsar topic.
+     */
+    AttributeKey<String> PULSAR_TOPIC = AttributeKey.stringKey("pulsar.topic");
+
+    /**
+     * The partition index of a Pulsar topic.
+     */
+    AttributeKey<Long> PULSAR_PARTITION_INDEX = AttributeKey.longKey("pulsar.partition.index");
+
+    /**
+     * The status of the Pulsar transaction.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
+
+    /**
+     * The status of the Pulsar compaction operation.
+     */
+    AttributeKey<String> PULSAR_COMPACTION_STATUS = AttributeKey.stringKey("pulsar.compaction.status");
+
+    /**
+     * The type of the backlog quota.
+     */
+    AttributeKey<String> PULSAR_BACKLOG_QUOTA_TYPE = AttributeKey.stringKey("pulsar.backlog.quota.type");
 }
