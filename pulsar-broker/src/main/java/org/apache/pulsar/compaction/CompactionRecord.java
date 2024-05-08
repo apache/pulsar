@@ -51,14 +51,6 @@ public class CompactionRecord {
     public final Rate writeRate = new Rate();
     public final Rate readRate = new Rate();
 
-    public void reset() {
-        compactionRemovedEventCount.reset();
-        compactionSucceedCount.reset();
-        compactionFailedCount.reset();
-        compactionDurationTimeInMills.reset();
-        writeLatencyStats.reset();
-    }
-
     public void addCompactionRemovedEvent() {
         lastCompactionRemovedEventCountOp.increment();
         compactionRemovedEventCount.increment();
