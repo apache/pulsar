@@ -4429,6 +4429,323 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testPersistIndividual() throws Exception {
+        final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        final String cursorName0 = "c0";
+        final String cursorName1 = "c1";
+        final String cursorName2 = "c2";
+        final String cursorName3 = "c3";
+        final String cursorName4 = "c4";
+        final String cursorName5 = "c5";
+        final String cursorName6 = "c6";
+        final String cursorName7 = "c7";
+        final String cursorName8 = "c8";
+        final String cursorName9 = "c9";
+        final String cursorName10 = "c10";
+        final String cursorName11 = "c11";
+        final String cursorName12 = "c12";
+        final String cursorName13 = "c13";
+        final String cursorName14 = "c14";
+        final String cursorName15 = "c15";
+        final byte[] data = new byte[]{1,2,3};
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, managedLedgerConfig);
+        ManagedCursorImpl cursor0 = (ManagedCursorImpl) ml.openCursor(cursorName0);
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ml.openCursor(cursorName1);
+        ManagedCursorImpl cursor2 = (ManagedCursorImpl) ml.openCursor(cursorName2);
+        ManagedCursorImpl cursor3 = (ManagedCursorImpl) ml.openCursor(cursorName3);
+        ManagedCursorImpl cursor4 = (ManagedCursorImpl) ml.openCursor(cursorName4);
+        ManagedCursorImpl cursor5 = (ManagedCursorImpl) ml.openCursor(cursorName5);
+        ManagedCursorImpl cursor6 = (ManagedCursorImpl) ml.openCursor(cursorName6);
+        ManagedCursorImpl cursor7 = (ManagedCursorImpl) ml.openCursor(cursorName7);
+        ManagedCursorImpl cursor8 = (ManagedCursorImpl) ml.openCursor(cursorName8);
+        ManagedCursorImpl cursor9 = (ManagedCursorImpl) ml.openCursor(cursorName9);
+        ManagedCursorImpl cursor10 = (ManagedCursorImpl) ml.openCursor(cursorName10);
+        ManagedCursorImpl cursor11 = (ManagedCursorImpl) ml.openCursor(cursorName11);
+        ManagedCursorImpl cursor12 = (ManagedCursorImpl) ml.openCursor(cursorName12);
+        ManagedCursorImpl cursor13 = (ManagedCursorImpl) ml.openCursor(cursorName13);
+        ManagedCursorImpl cursor14 = (ManagedCursorImpl) ml.openCursor(cursorName14);
+        ManagedCursorImpl cursor15 = (ManagedCursorImpl) ml.openCursor(cursorName15);
+
+        // Write 100 entries in 10 ledgers.
+        PositionImpl[][] positions = new PositionImpl[10][];
+        for (int i = 0; i < 10; i++) {
+            positions[i] = new PositionImpl[10];
+            for (int j = 0; j < 10; j++) {
+                positions[i][j] = (PositionImpl) ml.addEntry(data);
+            }
+            ml.currentLedger.close();
+            ml.ledgerClosed(ml.currentLedger);
+        }
+
+        List<MLDataFormats.MessageRange> rangeList = null;
+        // No ack.
+        rangeList = cursor0.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 0);
+
+        // Ack: 0:0
+        cursor0.delete(positions[0][0]);
+        rangeList = cursor0.buildIndividualDeletedMessageRanges();
+        // Since the position 0:0 is the first entry, cursor will just update mark delete position.
+        // Will not trace individual info.
+        assertEquals(rangeList.size(), 0);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor0);
+
+        // Ack: 0:0, 0:3
+        cursor1.delete(positions[0][2]);
+        rangeList = cursor1.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 1);
+        assertEquals(rangeList.get(0).getLowerEndpoint().getLedgerId(), positions[0][1].getLedgerId());
+        assertEquals(rangeList.get(0).getLowerEndpoint().getEntryId(), positions[0][1].getEntryId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getLedgerId(), positions[0][2].getLedgerId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getEntryId(), positions[0][2].getEntryId());
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor1);
+
+        // Ack: 0:0~4:5, 4:7~9:9.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i == 4 && j == 6) {
+                    continue;
+                }
+                cursor2.delete(positions[i][j]);
+            }
+        }
+        rangeList = cursor2.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 1);
+        assertEquals(rangeList.get(0).getLowerEndpoint().getLedgerId(), positions[4][6].getLedgerId());
+        assertEquals(rangeList.get(0).getLowerEndpoint().getEntryId(), positions[4][6].getEntryId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getLedgerId(), positions[9][9].getLedgerId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getEntryId(), positions[9][9].getEntryId());
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor2);
+
+        // Ack: 0:1~4:5, 4:7~9:9.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i == 0 && j == 0) {
+                    continue;
+                }
+                if (i == 4 && j == 6) {
+                    continue;
+                }
+                cursor3.delete(positions[i][j]);
+            }
+        }
+        rangeList = cursor3.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 2);
+        assertEquals(rangeList.get(0).getLowerEndpoint().getLedgerId(), positions[0][0].getLedgerId());
+        assertEquals(rangeList.get(0).getLowerEndpoint().getEntryId(), positions[0][0].getEntryId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getLedgerId(), positions[4][5].getLedgerId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getEntryId(), positions[4][5].getEntryId());
+        assertEquals(rangeList.get(1).getLowerEndpoint().getLedgerId(), positions[4][6].getLedgerId());
+        assertEquals(rangeList.get(1).getLowerEndpoint().getEntryId(), positions[4][6].getEntryId());
+        assertEquals(rangeList.get(1).getUpperEndpoint().getLedgerId(), positions[9][9].getLedgerId());
+        assertEquals(rangeList.get(1).getUpperEndpoint().getEntryId(), positions[9][9].getEntryId());
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor3);
+
+        // Ack:: 0:1~9:8.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i == 0 && j == 0) {
+                    continue;
+                }
+                if (i == 9 && j == 9) {
+                    continue;
+                }
+                cursor4.delete(positions[i][j]);
+            }
+        }
+        rangeList = cursor4.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 1);
+        assertEquals(rangeList.get(0).getLowerEndpoint().getLedgerId(), positions[0][0].getLedgerId());
+        assertEquals(rangeList.get(0).getLowerEndpoint().getEntryId(), positions[0][0].getEntryId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getLedgerId(), positions[9][8].getLedgerId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getEntryId(), positions[9][8].getEntryId());
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor4);
+
+        // Ack:: 0:1~9:9.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i == 0 && j == 0) {
+                    continue;
+                }
+                cursor5.delete(positions[i][j]);
+            }
+        }
+        rangeList = cursor5.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 1);
+        assertEquals(rangeList.get(0).getLowerEndpoint().getLedgerId(), positions[0][0].getLedgerId());
+        assertEquals(rangeList.get(0).getLowerEndpoint().getEntryId(), positions[0][0].getEntryId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getLedgerId(), positions[9][9].getLedgerId());
+        assertEquals(rangeList.get(0).getUpperEndpoint().getEntryId(), positions[9][9].getEntryId());
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor5);
+
+        // Ack odd-numbered entries.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j % 2 == 1) {
+                    cursor6.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor6.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 50);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor6);
+
+        // Ack even-numbered entries.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j % 2 == 0) {
+                    cursor7.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor7.buildIndividualDeletedMessageRanges();
+        // The first position will not trigger a new position-range, so the range count should reduce one.
+        assertEquals(rangeList.size(), 50 - 1);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor7);
+
+        // Ack odd-numbered ledgers.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i % 2 == 1) {
+                    cursor8.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor8.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 5);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor8);
+
+        // Ack even-numbered ledgers.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i % 2 == 0) {
+                    cursor9.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor9.buildIndividualDeletedMessageRanges();
+        // The first ledger will not trigger a new position-range, so the range count should reduce one.
+        assertEquals(rangeList.size(), 5 - 1);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor9);
+
+        // Ack entries which between 0 and 5.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j >= 0 && j < 5) {
+                    cursor10.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor10.buildIndividualDeletedMessageRanges();
+        // The first position-range will not trigger a new position-range, so the range count should reduce one.
+        assertEquals(rangeList.size(), 10 - 1);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor10);
+
+        // Ack entries which between 5 and 10.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j >= 5 && j < 10) {
+                    cursor11.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor11.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 10);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor11);
+
+        // Ack entries which between 4 and 6.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j >= 4 && j < 6) {
+                    cursor12.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor12.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 10);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor12);
+
+        // Ack entries which between 4 and 6 or equals 0.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j == 0) {
+                    cursor13.delete(positions[i][j]);
+                }
+                if (j >= 4 && j < 6) {
+                    cursor13.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor13.buildIndividualDeletedMessageRanges();
+        // The first position-range will not trigger a new position-range, so the range count should reduce one.
+        assertEquals(rangeList.size(), 20 - 1);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor13);
+
+        // Ack entries which between 4 and 6 or equals 1.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (j == 1) {
+                    cursor14.delete(positions[i][j]);
+                }
+                if (j >= 4 && j < 6) {
+                    cursor14.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor14.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 20);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor14);
+
+        // Ack ledgers which between 4 and 6 or equals 1.
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (i == 1) {
+                    cursor15.delete(positions[i][j]);
+                }
+                if (i >= 4 && i < 6) {
+                    cursor15.delete(positions[i][j]);
+                }
+            }
+        }
+        rangeList = cursor15.buildIndividualDeletedMessageRanges();
+        assertEquals(rangeList.size(), 2);
+        verifyTheAckInfoIsSameAsRecovered(ml, cursor15);
+
+        // cleanup.
+        ml.close();
+        factory.delete(mlName);
+    }
+
+    private void verifyTheAckInfoIsSameAsRecovered(ManagedLedgerImpl ml, ManagedCursorImpl cursor) throws Exception {
+        String cursorName = cursor.getName();
+        String beforePersist = cursor.getIndividuallyDeletedMessagesSet().toString();
+        cursor.close();
+        ml.getCursors().removeCursor(cursorName);
+
+        ManagedCursorImpl cursorRecovered = new ManagedCursorImpl(ml.bookKeeper, ml.config, ml, cursorName);
+        CompletableFuture<Void> recoverFuture = new CompletableFuture<>();
+        cursorRecovered.recover(new VoidCallback(){
+            @Override
+            public void operationComplete() {
+                recoverFuture.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recoverFuture.completeExceptionally(exception);
+            }
+        });
+        recoverFuture.get();
+        String afterRecover = cursorRecovered.getIndividuallyDeletedMessagesSet().toString();
+        assertEquals(afterRecover, beforePersist);
+
+        // cleanup.
+        cursorRecovered.close();
+        ml.getCursors().removeCursor(cursorName);
+    }
+
+    @Test
     public void testReadEntriesWithSkip() throws ManagedLedgerException, InterruptedException, ExecutionException {
         int readMaxNumber = 10;
         int sendNumber = 20;

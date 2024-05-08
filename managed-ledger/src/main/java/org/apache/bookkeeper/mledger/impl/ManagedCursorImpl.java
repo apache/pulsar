@@ -32,6 +32,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -49,7 +50,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -92,9 +92,10 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -118,6 +119,22 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         return 0;
     };
+
+    private static final FastThreadLocal<MLDataFormats.NestedPositionInfo.Builder> NESTED_POSITION_BUILDER =
+            new FastThreadLocal<>() {
+                protected MLDataFormats.NestedPositionInfo.Builder initialValue() throws Exception {
+                    return MLDataFormats.NestedPositionInfo
+                            .newBuilder();
+                }
+            };
+
+    private static final FastThreadLocal<MLDataFormats.MessageRange.Builder> NESTED_RANGE_BUILDER =
+            new FastThreadLocal<>() {
+                protected MLDataFormats.MessageRange.Builder initialValue() throws Exception {
+                    return MLDataFormats.MessageRange.newBuilder();
+                }
+            };
+
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
@@ -3020,51 +3037,97 @@ public class ManagedCursorImpl implements ManagedCursor {
         return stringProperties;
     }
 
-    private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
+    @VisibleForTesting
+    List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
         lock.readLock().lock();
         try {
-            if (individualDeletedMessages.isEmpty()) {
-                this.individualDeletedMessagesSerializedSize = 0;
-                return Collections.emptyList();
-            }
-
-            MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
-                    .newBuilder();
-
-            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange
-                    .newBuilder();
-
-            AtomicInteger acksSerializedSize = new AtomicInteger(0);
-            List<MessageRange> rangeList = new ArrayList<>();
-
+            // Result and tools.
+            final List<MLDataFormats.MessageRange> rangeList = new ArrayList<>();
+            final MLDataFormats.NestedPositionInfo.Builder posBuilder = NESTED_POSITION_BUILDER.get();
+            final MLDataFormats.MessageRange.Builder rangeBuilder = NESTED_RANGE_BUILDER.get();
+            // Variables for the loop.
+            final MutableObject<long[]> preNode = new MutableObject<>();
+            preNode.setValue(new long[4]);
+            final MutableObject<long[]> startNodeForMerge = new MutableObject<>();
+            startNodeForMerge.setValue(new long[]{-1, -1});
+            final MutableObject<PositionImpl> nextPosOfPreNode = new MutableObject<>();
+            final MutableInt mergeNodeCounter = new MutableInt();
+            // Loop.
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
-                MLDataFormats.NestedPositionInfo lowerPosition = nestedPositionBuilder
-                        .setLedgerId(lowerKey)
-                        .setEntryId(lowerValue)
-                        .build();
+                // If there is no entry between the previous node and the current node, the previous node is not the
+                // last node to merge.
+                // Else: the previous node is the last node to merge.
+                if (mergeNodeCounter.getValue() > 0) {
+                    if (lowerKey > nextPosOfPreNode.getValue().getLedgerId()
+                            || lowerValue >= nextPosOfPreNode.getValue().getEntryId()) {
+                        rangeList.add(buildMessageRangeForPersist(rangeBuilder, posBuilder,
+                                startNodeForMerge.getValue()[0], startNodeForMerge.getValue()[1],
+                                preNode.getValue()[2], preNode.getValue()[3]));
+                        mergeNodeCounter.setValue(0);
+                        startNodeForMerge.getValue()[0] = -1;
+                    }
+                }
+                // If the node is the last node of a ledger: current node is not the last node to merge.
+                // Else: current node is the last node to merge.
+                PositionImpl nexPos = ledger.getNextValidPosition(PositionImpl.get(upperKey, upperValue));
+                if (nexPos.getLedgerId() > upperKey) {
+                    if (startNodeForMerge.getValue()[0] == -1) {
+                        // Is the first node to merge.
+                        startNodeForMerge.getValue()[0] = lowerKey;
+                        startNodeForMerge.getValue()[1] = lowerValue;
+                        mergeNodeCounter.setValue(1);
+                    } else {
+                        // Is not the first node to merge.
+                        mergeNodeCounter.increment();
+                    }
+                } else {
+                    if (mergeNodeCounter.getValue().equals(0)) {
+                        rangeList.add(buildMessageRangeForPersist(rangeBuilder, posBuilder,
+                                lowerKey, lowerValue, upperKey, upperValue));
+                    } else {
+                        rangeList.add(buildMessageRangeForPersist(rangeBuilder, posBuilder,
+                                startNodeForMerge.getValue()[0], startNodeForMerge.getValue()[1], upperKey,
+                                upperValue));
+                        startNodeForMerge.getValue()[0] = -1;
+                    }
+                    mergeNodeCounter.setValue(0);
+                    nextPosOfPreNode.setValue(null);
+                }
 
-                MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder
-                        .setLedgerId(upperKey)
-                        .setEntryId(upperValue)
-                        .build();
-
-                MessageRange messageRange = messageRangeBuilder
-                        .setLowerEndpoint(lowerPosition)
-                        .setUpperEndpoint(upperPosition)
-                        .build();
-
-                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
-                rangeList.add(messageRange);
-
+                nextPosOfPreNode.setValue(nexPos);
+                preNode.getValue()[0] = lowerKey;
+                preNode.getValue()[1] = lowerValue;
+                preNode.getValue()[2] = upperKey;
+                preNode.getValue()[3] = upperValue;
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
-
-            this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
-            individualDeletedMessages.resetDirtyKeys();
+            // If the last node still can be merged with next, it should be the last range.
+            if (mergeNodeCounter.getValue() > 0) {
+                rangeList.add(buildMessageRangeForPersist(rangeBuilder, posBuilder, startNodeForMerge.getValue()[0],
+                                startNodeForMerge.getValue()[1], preNode.getValue()[2], preNode.getValue()[3]));
+            }
             return rangeList;
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private MLDataFormats.MessageRange buildMessageRangeForPersist(MLDataFormats.MessageRange.Builder rangeBuilder,
+                                                                   MLDataFormats.NestedPositionInfo.Builder posBuilder,
+                                                                   long lowerKey, long lowerValue, long upperKey,
+                                                                   long upperValue) {
+        MLDataFormats.NestedPositionInfo lowerPosition = posBuilder
+                .setLedgerId(lowerKey)
+                .setEntryId(lowerValue)
+                .build();
+        MLDataFormats.NestedPositionInfo upperPosition = posBuilder
+                .setLedgerId(upperKey)
+                .setEntryId(upperValue)
+                .build();
+        return rangeBuilder
+                .setLowerEndpoint(lowerPosition)
+                .setUpperEndpoint(upperPosition)
+                .build();
     }
 
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
