@@ -91,6 +91,7 @@ public class Consumer {
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
     private final LongAdder bytesOutCounter;
+    private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
 
     private volatile long lastConsumedTimestamp;
@@ -184,6 +185,7 @@ public class Consumer {
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
+        this.messageAckCounter = new LongAdder();
         this.messageAckRate = new Rate();
         this.appId = appId;
 
@@ -240,6 +242,7 @@ public class Consumer {
         this.msgRedeliver = null;
         this.msgOutCounter = null;
         this.bytesOutCounter = null;
+        this.messageAckCounter = null;
         this.messageAckRate = null;
         this.pendingAcks = null;
         this.stats = null;
@@ -502,6 +505,7 @@ public class Consumer {
         return future
                 .thenApply(v -> {
                     this.messageAckRate.recordEvent(v);
+                    this.messageAckCounter.add(v);
                     return null;
                 });
     }
@@ -920,6 +924,10 @@ public class Consumer {
 
     public long getBytesOutCounter() {
         return bytesOutCounter.longValue();
+    }
+
+    public long getMessageAckCounter() {
+        return messageAckCounter.sum();
     }
 
     public int getUnackedMessages() {
