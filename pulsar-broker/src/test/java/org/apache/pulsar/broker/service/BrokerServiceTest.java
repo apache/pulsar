@@ -1799,7 +1799,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         };
 
         final BrokerService brokerService = pulsar.getBrokerService();
-        final String namespace = "public/" + UUID.randomUUID();
+        final String namespace = "prop/" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
 
