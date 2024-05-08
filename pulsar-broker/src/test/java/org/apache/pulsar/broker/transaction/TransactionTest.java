@@ -1052,10 +1052,10 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
+    public void testNotChangeMaxReadPositionCountWhenCheckIfNoSnapshot() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
+                .getTopic(NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
@@ -1063,9 +1063,9 @@ public class TransactionTest extends TransactionTestBase {
 
         AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(buffer);
         Field changeTimeField = TopicTransactionBuffer
-                .class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+                .class.getDeclaredField("changeMaxReadPositionCount");
         changeTimeField.setAccessible(true);
-        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) changeTimeField.get(buffer);
+        AtomicLong changeMaxReadPositionCount = (AtomicLong) changeTimeField.get(buffer);
 
         Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
         field1.setAccessible(true);
@@ -1074,10 +1074,10 @@ public class TransactionTest extends TransactionTestBase {
                     TopicTransactionBufferState.State state = (TopicTransactionBufferState.State) field1.get(buffer);
                     Assert.assertEquals(state, TopicTransactionBufferState.State.NoSnapshot);
         });
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
         buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
     }
 
