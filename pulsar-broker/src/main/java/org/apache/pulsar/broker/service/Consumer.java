@@ -90,6 +90,7 @@ public class Consumer {
     private final Rate msgOut;
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
+    private final LongAdder msgRedeliverCounter;
     private final LongAdder bytesOutCounter;
     private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
@@ -183,6 +184,7 @@ public class Consumer {
         this.msgOut = new Rate();
         this.chunkedMessageRate = new Rate();
         this.msgRedeliver = new Rate();
+        this.msgRedeliverCounter = new LongAdder();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.messageAckCounter = new LongAdder();
@@ -240,6 +242,7 @@ public class Consumer {
         this.consumerName = consumerName;
         this.msgOut = null;
         this.msgRedeliver = null;
+        this.msgRedeliverCounter = null;
         this.msgOutCounter = null;
         this.bytesOutCounter = null;
         this.messageAckCounter = null;
@@ -930,6 +933,10 @@ public class Consumer {
         return messageAckCounter.sum();
     }
 
+    public long getMessageRedeliverCounter() {
+        return msgRedeliverCounter.sum();
+    }
+
     public int getUnackedMessages() {
         return unackedMessages;
     }
@@ -1067,6 +1074,8 @@ public class Consumer {
             }
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
+            msgRedeliverCounter.add(totalRedeliveryMessages.intValue());
+
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
@@ -1099,6 +1108,7 @@ public class Consumer {
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+        msgRedeliverCounter.add(totalRedeliveryMessages);
 
         int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
 
