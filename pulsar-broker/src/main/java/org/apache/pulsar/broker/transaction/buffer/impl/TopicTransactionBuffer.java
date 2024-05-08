@@ -77,7 +77,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final LinkedMap<TxnID, PositionImpl> ongoingTxns = new LinkedMap<>();
 
     // when change max read position, the count will +1. Take snapshot will reset the count.
-    private final AtomicLong changeMaxReadPositionTimes = new AtomicLong();
+    private final AtomicLong changeMaxReadPositionCount = new AtomicLong();
 
     private final LongAdder txnCommittedCounter = new LongAdder();
 
@@ -429,15 +429,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void takeSnapshotByChangeTimes() {
-        if (changeMaxReadPositionTimes.get() >= takeSnapshotIntervalNumber) {
-            this.changeMaxReadPositionTimes.set(0);
+        if (changeMaxReadPositionCount.get() >= takeSnapshotIntervalNumber) {
+            this.changeMaxReadPositionCount.set(0);
             this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
     }
 
     private void takeSnapshotByTimeout() {
-        if (changeMaxReadPositionTimes.get() > 0) {
-            this.changeMaxReadPositionTimes.set(0);
+        if (changeMaxReadPositionCount.get() > 0) {
+            this.changeMaxReadPositionCount.set(0);
             this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
@@ -454,7 +454,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         }
         if (preMaxReadPosition.compareTo(this.maxReadPosition) != 0) {
-            this.changeMaxReadPositionTimes.getAndIncrement();
+            this.changeMaxReadPositionCount.getAndIncrement();
         }
     }
 
@@ -489,7 +489,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
                     maxReadPosition = position;
-                    changeMaxReadPositionTimes.incrementAndGet();
+                    changeMaxReadPositionCount.incrementAndGet();
                 }
             }
         }
