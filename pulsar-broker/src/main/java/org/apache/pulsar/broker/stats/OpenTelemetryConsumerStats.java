@@ -52,13 +52,13 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
     private final ObservableLongMeasurement messageUnacknowledgedCounter;
 
     // Replaces pulsar_consumer_blocked_on_unacked_messages
-    public static final String MESSAGE_BLOCKED_ON_UNACKNOWLEDGED_MESSAGES_GAUGE = "pulsar.broker.consumer.message.unack.blocked";
+    public static final String MESSAGE_BLOCKED_ON_UNACKNOWLEDGED_MESSAGES_GAUGE =
+            "pulsar.broker.consumer.message.unack.blocked";
     private final ObservableLongMeasurement messageBlockedOnUnacknowledgedMessagesGauge;
 
     // Replaces pulsar_consumer_available_permits
     public static final String MESSAGE_PERMITS_COUNTER = "pulsar.broker.consumer.permit.count";
     private final ObservableLongMeasurement messagePermitsCounter;
-
 
     private final BatchCallback batchCallback;
 
@@ -86,7 +86,7 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         messageRedeliverCounter = meter
                 .counterBuilder(MESSAGE_REDELIVER_COUNTER)
                 .setUnit("{message}")
-                .setDescription("The total number of message acknowledgments that have been redelivered to this consumer.")
+                .setDescription("The total number of messages that have been redelivered to this consumer.")
                 .buildObserver();
 
         messageUnacknowledgedCounter = meter
