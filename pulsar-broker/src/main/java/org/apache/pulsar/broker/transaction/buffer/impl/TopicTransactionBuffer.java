@@ -76,8 +76,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      */
     private final LinkedMap<TxnID, PositionImpl> ongoingTxns = new LinkedMap<>();
 
-    // when add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
-    private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
+    // when change max read position, the count will +1. Take snapshot will reset the count.
+    private final AtomicLong changeMaxReadPositionCount = new AtomicLong();
 
     private final LongAdder txnCommittedCounter = new LongAdder();
 
@@ -432,15 +432,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void takeSnapshotByChangeTimes() {
-        if (changeMaxReadPositionAndAddAbortTimes.get() >= takeSnapshotIntervalNumber) {
-            this.changeMaxReadPositionAndAddAbortTimes.set(0);
+        if (changeMaxReadPositionCount.get() >= takeSnapshotIntervalNumber) {
+            this.changeMaxReadPositionCount.set(0);
             this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
     }
 
     private void takeSnapshotByTimeout() {
-        if (changeMaxReadPositionAndAddAbortTimes.get() > 0) {
-            this.changeMaxReadPositionAndAddAbortTimes.set(0);
+        if (changeMaxReadPositionCount.get() > 0) {
+            this.changeMaxReadPositionCount.set(0);
             this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
@@ -474,7 +474,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         PositionImpl preMaxReadPosition = this.maxReadPosition;
         this.maxReadPosition = newPosition;
         if (preMaxReadPosition.compareTo(this.maxReadPosition) < 0) {
-            this.changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+            this.changeMaxReadPositionCount.getAndIncrement();
             if (!disableCallback) {
                 maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
             }
