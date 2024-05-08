@@ -58,6 +58,10 @@
       <groupId>io.opentelemetry.semconv</groupId>
       <artifactId>opentelemetry-semconv</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-runtime-telemetry-java17</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -129,6 +133,16 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <otel.semconv-stability.opt-in>jvm</otel.semconv-stability.opt-in>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>
