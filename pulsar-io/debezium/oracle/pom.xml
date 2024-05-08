@@ -48,8 +48,7 @@
     <dependency>
       <groupId>io.debezium</groupId>
       <artifactId>debezium-connector-oracle</artifactId>
-      <version>${debezium.oracle.version}</version>
-      <scope>runtime</scope>
+      <version>${debezium.version}</version>
     </dependency>
 
   </dependencies>

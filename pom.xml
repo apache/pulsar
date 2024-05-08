@@ -198,7 +198,6 @@ flexible messaging model and an intuitive client API.</description>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
-    <debezium.oracle.version>2.2.0.Final</debezium.oracle.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
