@@ -2530,8 +2530,8 @@ public class BrokerService implements Closeable {
             } else {
                 // This case only occurs when it is a customized item.
                 // See: https://github.com/apache/pulsar/blob/master/pip/pip-300.md.
-                log.info("k:{} v:{} Skip to update configuration in memory because it is a customized item, only"
-                        + " trigger an event listeners.", configKey, newValueStr);
+                log.info("Skip update customized dynamic configuration {}/{} in memory, only trigger an event"
+                        + " listeners.", configKey, newValueStr);
                 existingValue = configFieldWrapper.lastDynamicValue;
                 newValue = newValueStr == null ? configFieldWrapper.defaultValue : newValueStr;
             }
