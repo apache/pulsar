@@ -1975,7 +1975,13 @@ public class BrokerService implements Closeable {
                     topicLevelOffloadPolicies,
                     OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
-            if (NamespaceService.isSystemServiceNamespace(namespace.toString())) {
+            if (NamespaceService.isSystemServiceNamespace(namespace.toString())
+                || SystemTopicNames.isSystemTopic(topicName)) {
+                /*
+                 Avoid setting broker internal system topics using off-loader because some of them are the
+                 preconditions of other topics. The slow replying log speed will cause a delay in all the topic
+                 loading.(timeout)
+                 */
                 managedLedgerConfig.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
             } else  {
                 if (topicLevelOffloadPolicies != null) {
