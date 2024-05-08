@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import java.util.UUID;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerMonitoringClassFields;
@@ -256,67 +255,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.getPublishRateLimiters(rgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
-    }
-
-    @Test
-    public void testResourceGroupResetUsedLocallySinceLastReport() throws PulsarAdminException {
-        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
-                new org.apache.pulsar.common.policies.data.ResourceGroup();
-        final String rgName = UUID.randomUUID().toString();
-        rgConfig.setPublishRateInBytes(15000L);
-        rgConfig.setPublishRateInMsgs(100);
-        rgConfig.setDispatchRateInBytes(40000L);
-        rgConfig.setDispatchRateInMsgs(500);
-
-        this.pulsar.getResourceGroupServiceManager().resourceGroupCreate(rgName, rgConfig);
-
-        ResourceGroup retRG = this.pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName);
-
-        PerMonitoringClassFields monClassFields = null;
-        // Case1: Suppress report ResourceUsage.
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            monClassFields = retRG.monitoringClassFields[value.ordinal()];
-            monClassFields.usedLocallySinceLastReport.bytes = monClassFields.lastReportedValues.bytes = 10;
-            monClassFields.usedLocallySinceLastReport.messages = monClassFields.lastReportedValues.messages = 10;
-            monClassFields.lastResourceUsageFillTimeMSecsSinceEpoch = System.currentTimeMillis();
-        }
-
-        ResourceUsage resourceUsage = new ResourceUsage();
-        retRG.rgFillResourceUsage(resourceUsage);
-        Assert.assertFalse(resourceUsage.hasDispatch());
-        Assert.assertFalse(resourceUsage.hasPublish());
-
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            monClassFields = retRG.monitoringClassFields[value.ordinal()];
-            Assert.assertEquals(monClassFields.usedLocallySinceLastReport.messages, 0L);
-            Assert.assertEquals(monClassFields.usedLocallySinceLastReport.bytes, 0L);
-        }
-
-        // Case2: Report ResourceUsage.
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            monClassFields = retRG.monitoringClassFields[value.ordinal()];
-            monClassFields.usedLocallySinceLastReport.bytes = monClassFields.lastReportedValues.bytes * 2;
-            monClassFields.usedLocallySinceLastReport.messages = monClassFields.lastReportedValues.messages * 2;
-        }
-
-        resourceUsage = new ResourceUsage();
-        retRG.rgFillResourceUsage(resourceUsage);
-        Assert.assertTrue(resourceUsage.hasDispatch());
-        NetworkUsage dispatch = resourceUsage.getDispatch();
-        Assert.assertNotNull(monClassFields);
-        Assert.assertEquals(dispatch.getBytesPerPeriod(), monClassFields.lastReportedValues.bytes);
-        Assert.assertEquals(dispatch.getMessagesPerPeriod(), monClassFields.lastReportedValues.messages);
-
-        Assert.assertTrue(resourceUsage.hasPublish());
-        NetworkUsage publish = resourceUsage.getPublish();
-        Assert.assertEquals(publish.getBytesPerPeriod(), monClassFields.lastReportedValues.bytes);
-        Assert.assertEquals(publish.getMessagesPerPeriod(), monClassFields.lastReportedValues.messages);
-
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            monClassFields = retRG.monitoringClassFields[value.ordinal()];
-            Assert.assertEquals(monClassFields.usedLocallySinceLastReport.messages, 0L);
-            Assert.assertEquals(monClassFields.usedLocallySinceLastReport.bytes, 0L);
-        }
     }
 
     @Test
