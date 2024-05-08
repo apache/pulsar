@@ -92,7 +92,7 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
                 .buildObserver();
 
         messageUnacknowledgedCounter = meter
-                .counterBuilder(MESSAGE_UNACKNOWLEDGED_COUNTER)
+                .upDownCounterBuilder(MESSAGE_UNACKNOWLEDGED_COUNTER)
                 .setUnit("{message}")
                 .setDescription("The total number of messages unacknowledged by this consumer.")
                 .buildObserver();
@@ -100,14 +100,14 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         messageBlockedOnUnacknowledgedMessagesGauge = meter
                 .gaugeBuilder(MESSAGE_BLOCKED_ON_UNACKNOWLEDGED_MESSAGES_GAUGE)
                 .ofLongs()
-                .setUnit("Boolean")
-                .setDescription("TODO: Indicates whether a consumer is blocked on acknowledged messages or not.")
+                .setUnit("1")
+                .setDescription("Indicates whether a consumer is blocked on acknowledged messages or not.")
                 .buildObserver();
 
         messagePermitsCounter = meter
-                .counterBuilder(MESSAGE_PERMITS_COUNTER)
+                .upDownCounterBuilder(MESSAGE_PERMITS_COUNTER)
                 .setUnit("{permit}")
-                .setDescription("The total number of available permits for this consumer.")
+                .setDescription("The number of permits currently available for this consumer.")
                 .buildObserver();
 
         batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
@@ -137,17 +137,19 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
     }
 
     private void recordMetricsForConsumer(Consumer consumer) {
+        var subscription = consumer.getSubscription();
+        var topic = subscription.getTopic();
+
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
                 .build();
 
-        messageOutCounter.record(dummyValue, attributes);
-        bytesOutCounter.record(dummyValue, attributes);
-        messageAckCounter.record(dummyValue, attributes);
-        messageRedeliverCounter.record(dummyValue, attributes);
-        messageUnacknowledgedCounter.record(dummyValue, attributes);
-        messageBlockedOnUnacknowledgedMessagesGauge.record(dummyValue, attributes);
-        messagePermitsCounter.record(dummyValue, attributes);
-
+        messageOutCounter.record(consumer.getMsgOutCounter(), attributes);
+        bytesOutCounter.record(consumer.getBytesOutCounter(), attributes);
+        messageAckCounter.record(consumer.getMessageAckCounter(), attributes);
+        messageRedeliverCounter.record(consumer.getMessageRedeliverCounter(), attributes);
+        messageUnacknowledgedCounter.record(consumer.getUnackedMessages(), attributes);
+        messageBlockedOnUnacknowledgedMessagesGauge.record(consumer.isBlocked() ? 1 : 0, attributes);
+        messagePermitsCounter.record(consumer.getAvailablePermits(), attributes);
     }
 }
