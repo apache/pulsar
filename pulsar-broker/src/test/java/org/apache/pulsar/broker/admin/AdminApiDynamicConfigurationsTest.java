@@ -26,6 +26,7 @@ import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -68,5 +69,22 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
                 fail("PulsarAdminException should be thrown");
             }
         }
+    }
+
+    @Test
+    public void testDeleteIntDynamicConfig() throws PulsarAdminException {
+        // Record the default value;
+        int defaultValue = pulsar.getConfig().getMaxConcurrentTopicLoadRequest();
+        // Set dynamic config.
+        int newValue = defaultValue + 1000;
+        admin.brokers().updateDynamicConfiguration("maxConcurrentTopicLoadRequest", newValue + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), newValue);
+        });
+        // Verify: it has been reverted to the default value.
+        admin.brokers().deleteDynamicConfiguration("maxConcurrentTopicLoadRequest");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), defaultValue);
+        });
     }
 }

@@ -230,7 +230,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public List<String> getDynamicConfigurationName() {
         validateSuperUserAccess();
-        return BrokerService.getDynamicConfiguration();
+        return pulsar().getBrokerService().getDynamicConfiguration();
     }
 
     @GET
@@ -253,11 +253,11 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue) {
-        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
-        if (BrokerService.isDynamicConfiguration(configName)) {
+        if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                 Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
                 configurationMap.put(configName, configValue);
@@ -451,7 +451,7 @@ public class BrokersBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
-        if (!BrokerService.isDynamicConfiguration(configName)) {
+        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
