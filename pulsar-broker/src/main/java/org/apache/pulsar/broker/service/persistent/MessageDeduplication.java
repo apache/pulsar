@@ -217,7 +217,7 @@ public class MessageDeduplication {
      * returning a future to track the completion of the task
      */
     public CompletableFuture<Void> checkStatus() {
-        boolean shouldBeEnabled = isDeduplicationEnabled();
+        boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
             if (status == Status.Recovering || status == Status.Removing) {
                 // If there's already a transition happening, check later for status
@@ -470,10 +470,6 @@ public class MessageDeduplication {
                 snapshotTaking.set(false);
             }
         }, null);
-    }
-
-    private boolean isDeduplicationEnabled() {
-        return topic.getHierarchyTopicPolicies().getDeduplicationEnabled().get();
     }
 
     /**
