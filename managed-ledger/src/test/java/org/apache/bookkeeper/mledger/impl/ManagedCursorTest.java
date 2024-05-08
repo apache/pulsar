@@ -271,6 +271,48 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    void testSwitchLedgerFailed() throws Exception {
+        final String cursorName = "c1";
+        final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        mlConfig.setMaxEntriesPerLedger(1);
+        mlConfig.setMetadataMaxEntriesPerLedger(1);
+        mlConfig.setThrottleMarkDelete(Double.MAX_VALUE);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursor cursor = ml.openCursor(cursorName);
+
+        List<Position> positionList = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positionList.add(ml.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+
+        // Inject an error when persistent at the third time.
+        AtomicInteger persistentCounter = new AtomicInteger();
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("mock error"), (op, path) -> {
+            if (path.equals(String.format("/managed-ledgers/%s/%s", mlName, cursorName))
+                    && persistentCounter.incrementAndGet() == 3) {
+                log.info("Trigger an error");
+                return true;
+            }
+            return false;
+        });
+
+        // Verify: the cursor can be recovered after it fails once.
+        int failedCount = 0;
+        for (Position position : positionList) {
+            try {
+                cursor.markDelete(position);
+            } catch (Exception ex) {
+                failedCount++;
+            }
+        }
+        assertEquals(failedCount, 1);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
     void testPersistentMarkDeleteIfSwitchCursorLedgerFailed() throws Exception {
         final int entryCount = 10;
         final String cursorName = "c1";

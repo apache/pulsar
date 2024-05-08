@@ -38,11 +38,7 @@ public class ManagedLedgerImplUtils {
                                                                         final Predicate<Entry> predicate,
                                                                         final PositionImpl startPosition) {
         CompletableFuture<Position> future = new CompletableFuture<>();
-        if (!ledger.isValidPosition(startPosition)) {
-            future.complete(startPosition);
-        } else {
-            internalAsyncReverseFindPositionOneByOne(ledger, predicate, startPosition, future);
-        }
+        internalAsyncReverseFindPositionOneByOne(ledger, predicate, startPosition, future);
         return future;
     }
 
@@ -50,6 +46,10 @@ public class ManagedLedgerImplUtils {
                                                                  final Predicate<Entry> predicate,
                                                                  final PositionImpl position,
                                                                  final CompletableFuture<Position> future) {
+        if (!ledger.isValidPosition(position)) {
+            future.complete(position);
+            return;
+        }
         ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
@@ -60,12 +60,7 @@ public class ManagedLedgerImplUtils {
                         return;
                     }
                     PositionImpl previousPosition = ledger.getPreviousPosition((PositionImpl) position);
-                    if (!ledger.isValidPosition(previousPosition)) {
-                        future.complete(previousPosition);
-                    } else {
-                        internalAsyncReverseFindPositionOneByOne(ledger, predicate,
-                                ledger.getPreviousPosition((PositionImpl) position), future);
-                    }
+                    internalAsyncReverseFindPositionOneByOne(ledger, predicate, previousPosition, future);
                 } catch (Exception e) {
                     future.completeExceptionally(e);
                 } finally {

@@ -193,7 +193,10 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
     public void close() throws Exception {
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
+            pulsarTestContext = null;
         }
+        pulsarService = null;
+        serviceInternalAdmin = null;
     }
 
     // Utils
