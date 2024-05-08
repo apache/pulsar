@@ -52,11 +52,6 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
     public static final String MESSAGE_UNACKNOWLEDGED_COUNTER = "pulsar.broker.consumer.message.unack.count";
     private final ObservableLongMeasurement messageUnacknowledgedCounter;
 
-    // Replaces pulsar_consumer_blocked_on_unacked_messages
-    public static final String MESSAGE_BLOCKED_ON_UNACKNOWLEDGED_MESSAGES_GAUGE =
-            "pulsar.broker.consumer.message.unack.blocked";
-    private final ObservableLongMeasurement messageBlockedOnUnacknowledgedMessagesGauge;
-
     // Replaces pulsar_consumer_available_permits
     public static final String MESSAGE_PERMITS_COUNTER = "pulsar.broker.consumer.permit.count";
     private final ObservableLongMeasurement messagePermitsCounter;
@@ -96,13 +91,6 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
                 .setDescription("The total number of messages unacknowledged by this consumer.")
                 .buildObserver();
 
-        messageBlockedOnUnacknowledgedMessagesGauge = meter
-                .gaugeBuilder(MESSAGE_BLOCKED_ON_UNACKNOWLEDGED_MESSAGES_GAUGE)
-                .ofLongs()
-                .setUnit("1")
-                .setDescription("Indicates whether a consumer is blocked on acknowledged messages or not.")
-                .buildObserver();
-
         messagePermitsCounter = meter
                 .upDownCounterBuilder(MESSAGE_PERMITS_COUNTER)
                 .setUnit("{permit}")
@@ -126,7 +114,6 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
                 messageAckCounter,
                 messageRedeliverCounter,
                 messageUnacknowledgedCounter,
-                messageBlockedOnUnacknowledgedMessagesGauge,
                 messagePermitsCounter);
     }
 
@@ -157,8 +144,11 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         bytesOutCounter.record(consumer.getBytesOutCounter(), attributes);
         messageAckCounter.record(consumer.getMessageAckCounter(), attributes);
         messageRedeliverCounter.record(consumer.getMessageRedeliverCounter(), attributes);
-        messageUnacknowledgedCounter.record(consumer.getUnackedMessages(), attributes);
-        messageBlockedOnUnacknowledgedMessagesGauge.record(consumer.isBlocked() ? 1 : 0, attributes);
+        messageUnacknowledgedCounter.record(consumer.getUnackedMessages(),
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_CONSUMER_BLOCKED, consumer.isBlocked())
+                        .build());
         messagePermitsCounter.record(consumer.getAvailablePermits(), attributes);
     }
 }

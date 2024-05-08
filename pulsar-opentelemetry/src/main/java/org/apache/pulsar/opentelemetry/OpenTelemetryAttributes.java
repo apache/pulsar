@@ -76,6 +76,11 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Long> PULSAR_CONSUMER_ID = AttributeKey.longKey("pulsar.consumer.id");
 
     /**
+     * Indicates whether the consumer is currently blocked on unacknowledged messages or not.
+     */
+    AttributeKey<Boolean> PULSAR_CONSUMER_BLOCKED = AttributeKey.booleanKey("pulsar.consumer.blocked");
+
+    /**
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
