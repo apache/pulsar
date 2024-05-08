@@ -2054,10 +2054,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    public boolean isDeduplicationEnabled() {
-        return messageDeduplication.isEnabled();
-    }
-
     @Override
     public int getNumberOfConsumers() {
         int count = 0;
@@ -3820,6 +3816,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return ledger.isMigrated();
     }
 
+    public boolean isDeduplicationEnabled() {
+        return getHierarchyTopicPolicies().getDeduplicationEnabled().get();
+    }
+
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
         return this.subscriptions.get(subName).getTransactionInPendingAckStats(txnID);
     }
@@ -3844,4 +3844,5 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public Optional<TopicName> getShadowSourceTopic() {
         return Optional.ofNullable(shadowSourceTopic);
     }
+
 }
