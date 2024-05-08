@@ -61,10 +61,8 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
 
 
     private final BatchCallback batchCallback;
-    private final PulsarService pulsar;
 
     public OpenTelemetryConsumerStats(PulsarService pulsar) {
-        this.pulsar = pulsar;
         var meter = pulsar.getOpenTelemetry().getMeter();
 
         messageOutCounter = meter
