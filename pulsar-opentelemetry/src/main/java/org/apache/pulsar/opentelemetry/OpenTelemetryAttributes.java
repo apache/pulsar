@@ -56,6 +56,26 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Long> PULSAR_PARTITION_INDEX = AttributeKey.longKey("pulsar.partition.index");
 
     /**
+     * The name of the Pulsar subscription.
+     */
+    AttributeKey<String> PULSAR_SUBSCRIPTION_NAME = AttributeKey.stringKey("pulsar.subscription.name");
+
+    /**
+     * The type of the Pulsar subscription.
+     */
+    AttributeKey<String> PULSAR_SUBSCRIPTION_TYPE = AttributeKey.stringKey("pulsar.subscription.type");
+
+    /**
+     * The name of the Pulsar consumer.
+     */
+    AttributeKey<String> PULSAR_CONSUMER_NAME = AttributeKey.stringKey("pulsar.consumer.name");
+
+    /**
+     * The ID of the Pulsar consumer.
+     */
+    AttributeKey<Long> PULSAR_CONSUMER_ID = AttributeKey.longKey("pulsar.consumer.id");
+
+    /**
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");

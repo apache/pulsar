@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryConsumerStats implements AutoCloseable {
@@ -136,11 +137,21 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
 
     private void recordMetricsForConsumer(Consumer consumer) {
         var subscription = consumer.getSubscription();
-        var topic = subscription.getTopic();
+        var topicName = TopicName.get(subscription.getTopic().getName());
 
-        var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
-                .build();
+        var builder = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.consumerName())
+                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumer.consumerId())
+                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscription.getName())
+                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, consumer.subType().toString())
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+        if (topicName.isPartitioned()) {
+            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+        }
+        var attributes = builder.build();
 
         messageOutCounter.record(consumer.getMsgOutCounter(), attributes);
         bytesOutCounter.record(consumer.getBytesOutCounter(), attributes);
