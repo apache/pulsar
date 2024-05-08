@@ -210,6 +210,16 @@ public interface Topic {
 
     void checkCursorsToCacheEntries();
 
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
+
     void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
