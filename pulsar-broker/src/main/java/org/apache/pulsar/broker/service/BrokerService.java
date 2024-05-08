@@ -229,8 +229,7 @@ public class BrokerService implements Closeable {
     private final OrderedExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
-    private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
-            prepareDynamicConfigurationMap();
+    private final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap;
     private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
@@ -299,6 +298,7 @@ public class BrokerService implements Closeable {
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
+        this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -2310,36 +2310,72 @@ public class BrokerService implements Closeable {
         if (dynamicConfigResources != null) {
             dynamicConfigResources.getDynamicConfigurationAsync()
                     .thenAccept(optMap -> {
+                        // Case some dynamic configs have been removed.
+                        dynamicConfigurationMap.forEach((configKey, fieldWrapper) -> {
+                            boolean configRemoved = optMap.isEmpty() || !optMap.get().containsKey(configKey);
+                            if (fieldWrapper.lastDynamicValue != null && configRemoved) {
+                                configValueChanged(configKey, null);
+                            }
+                        });
+                        // Some configs have been changed.
                         if (!optMap.isPresent()) {
                             return;
                         }
                         Map<String, String> data = optMap.get();
                         data.forEach((configKey, value) -> {
-                            ConfigField configFieldWrapper = dynamicConfigurationMap.get(configKey);
-                            if (configFieldWrapper == null) {
-                                log.warn("{} does not exist in dynamicConfigurationMap, skip this config.", configKey);
-                                return;
-                            }
-                            Field configField = configFieldWrapper.field;
-                            Object newValue = FieldParser.value(data.get(configKey), configField);
-                            if (configField != null) {
-                                Consumer listener = configRegisteredListeners.get(configKey);
-                                try {
-                                    Object existingValue = configField.get(pulsar.getConfiguration());
-                                    configField.set(pulsar.getConfiguration(), newValue);
-                                    log.info("Successfully updated configuration {}/{}", configKey,
-                                            data.get(configKey));
-                                    if (listener != null && !existingValue.equals(newValue)) {
-                                        listener.accept(newValue);
-                                    }
-                                } catch (Exception e) {
-                                    log.error("Failed to update config {}/{}", configKey, newValue);
-                                }
-                            } else {
-                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
-                            }
+                            configValueChanged(configKey, value);
                         });
                     });
+        }
+    }
+
+    private void configValueChanged(String configKey, String newValueStr) {
+        ConfigField configFieldWrapper = dynamicConfigurationMap.get(configKey);
+        if (configFieldWrapper == null) {
+            log.warn("{} does not exist in dynamicConfigurationMap, skip this config.", configKey);
+            return;
+        }
+        Consumer listener = configRegisteredListeners.get(configKey);
+        try {
+            // Convert existingValue and newValue.
+            final Object existingValue;
+            final Object newValue;
+            if (configFieldWrapper.field != null) {
+                if (StringUtils.isBlank(newValueStr)) {
+                    newValue = configFieldWrapper.defaultValue;
+                } else {
+                    newValue = FieldParser.value(newValueStr, configFieldWrapper.field);
+                }
+                existingValue = configFieldWrapper.field.get(pulsar.getConfiguration());
+                configFieldWrapper.field.set(pulsar.getConfiguration(), newValue);
+            } else {
+                // This case only occurs when it is a customized item.
+                // Since https://github.com/apache/pulsar/blob/master/pip/pip-300.md has not been cherry-picked, this
+                // case should never occur.
+                log.error("Skip update customized dynamic configuration {}/{} in memory, only trigger an event"
+                                + " listeners. Since PIP-300 has net been cherry-picked, this case should never occur",
+                        configKey, newValueStr);
+                existingValue = configFieldWrapper.lastDynamicValue;
+                newValue = newValueStr == null ? configFieldWrapper.defaultValue : newValueStr;
+            }
+            // Record the latest dynamic config.
+            configFieldWrapper.lastDynamicValue = newValueStr;
+
+            if (newValueStr == null) {
+                log.info("Successfully remove the dynamic configuration {}, and revert to the default value",
+                        configKey);
+            } else {
+                log.info("Successfully updated configuration {}/{}", configKey, newValueStr);
+            }
+
+            if (listener != null && !Objects.equals(existingValue, newValue)) {
+                // So far, all config items that related to configuration listeners, their default value is not null.
+                // And the customized config can be null before.
+                // So call "listener.accept(null)" is okay.
+                listener.accept(newValue);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update config {}", configKey, e);
         }
     }
 
@@ -2748,6 +2784,9 @@ public class BrokerService implements Closeable {
      * On notification, listener should first check if config value has been changed and after taking appropriate
      * action, listener should update config value with new value if it has been changed (so, next time listener can
      * compare values on configMap change).
+     *
+     * Note: The new value that the {@param listener} may accept could be a null value.
+     *
      * @param <T>
      *
      * @param configKey
@@ -2838,7 +2877,7 @@ public class BrokerService implements Closeable {
         return delayedDeliveryTrackerFactory;
     }
 
-    public static List<String> getDynamicConfiguration() {
+    public List<String> getDynamicConfiguration() {
         return dynamicConfigurationMap.keys();
     }
 
@@ -2851,27 +2890,34 @@ public class BrokerService implements Closeable {
         return configMap;
     }
 
-    public static boolean isDynamicConfiguration(String key) {
+    public boolean isDynamicConfiguration(String key) {
         return dynamicConfigurationMap.containsKey(key);
     }
 
-    public static boolean validateDynamicConfiguration(String key, String value) {
+    public boolean validateDynamicConfiguration(String key, String value) {
         if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
             return dynamicConfigurationMap.get(key).validator.test(value);
         }
         return true;
     }
 
-    private static ConcurrentOpenHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
+    private ConcurrentOpenHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
         ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
                 ConcurrentOpenHashMap.<String, ConfigField>newBuilder().build();
-        for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
-            if (field != null && field.isAnnotationPresent(FieldContext.class)) {
-                field.setAccessible(true);
-                if (field.getAnnotation(FieldContext.class).dynamic()) {
-                    dynamicConfigurationMap.put(field.getName(), new ConfigField(field));
+        try {
+            for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
+                if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                    field.setAccessible(true);
+                    if (field.getAnnotation(FieldContext.class).dynamic()) {
+                        Object defaultValue = field.get(pulsar.getConfiguration());
+                        dynamicConfigurationMap.put(field.getName(), new ConfigField(field, defaultValue));
+                    }
                 }
             }
+        } catch (IllegalArgumentException | IllegalAccessException ex) {
+            // This error never occurs.
+            log.error("Failed to initialize dynamic configuration map", ex);
+            throw new RuntimeException(ex);
         }
         return dynamicConfigurationMap;
     }
@@ -3145,11 +3191,21 @@ public class BrokerService implements Closeable {
 
     private static class ConfigField {
         final Field field;
+
+        // It is the dynamic config value if set.
+        // It is null if has does not set a dynamic config, even if the value of "pulsar.config" is present.
+        volatile String lastDynamicValue;
+
+        // The default value of "pulsar.config", which is initialized when the broker is starting.
+        // After the dynamic config has been removed, revert the config to this default value.
+        final Object defaultValue;
+
         Predicate<String> validator;
 
-        public ConfigField(Field field) {
+        public ConfigField(Field field, Object defaultValue) {
             super();
             this.field = field;
+            this.defaultValue = defaultValue;
         }
     }
 
