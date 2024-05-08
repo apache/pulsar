@@ -20,12 +20,16 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 import java.util.Map;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -68,5 +72,41 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
                 fail("PulsarAdminException should be thrown");
             }
         }
+    }
+
+    @Test
+    public void testDeleteStringDynamicConfig() throws PulsarAdminException {
+        String syncEventTopic = BrokerTestUtil.newUniqueName(SYSTEM_NAMESPACE + "/tp");
+        // The default value is null;
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(pulsar.getConfig().getConfigurationMetadataSyncEventTopic());
+        });
+        // Set dynamic config.
+        admin.brokers().updateDynamicConfiguration("configurationMetadataSyncEventTopic", syncEventTopic);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getConfigurationMetadataSyncEventTopic(), syncEventTopic);
+        });
+        // Remove dynamic config.
+        admin.brokers().deleteDynamicConfiguration("configurationMetadataSyncEventTopic");
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(pulsar.getConfig().getConfigurationMetadataSyncEventTopic());
+        });
+    }
+
+    @Test
+    public void testDeleteIntDynamicConfig() throws PulsarAdminException {
+        // Record the default value;
+        int defaultValue = pulsar.getConfig().getMaxConcurrentTopicLoadRequest();
+        // Set dynamic config.
+        int newValue = defaultValue + 1000;
+        admin.brokers().updateDynamicConfiguration("maxConcurrentTopicLoadRequest", newValue + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), newValue);
+        });
+        // Verify: it has been reverted to the default value.
+        admin.brokers().deleteDynamicConfiguration("maxConcurrentTopicLoadRequest");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), defaultValue);
+        });
     }
 }
