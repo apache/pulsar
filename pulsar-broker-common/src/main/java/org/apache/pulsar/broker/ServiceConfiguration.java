@@ -654,7 +654,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Additional system subscriptions that will be ignored by ttl check. Default is empty."
+        doc = "Additional system subscriptions that will be ignored by ttl check. "
+                + "The cursor names are comma separated. Default is empty."
     )
     private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
