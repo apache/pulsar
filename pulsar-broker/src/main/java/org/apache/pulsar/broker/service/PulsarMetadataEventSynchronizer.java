@@ -295,7 +295,8 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         return closeFuture;
     }
 
-    private void closeResource(final Supplier<CompletableFuture<Void>> asyncCloseable, final CompletableFuture<Void> future) {
+    private void closeResource(final Supplier<CompletableFuture<Void>> asyncCloseable,
+                               final CompletableFuture<Void> future) {
         if (asyncCloseable == null) {
             future.complete(null);
             return;
