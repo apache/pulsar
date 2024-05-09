@@ -153,7 +153,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     protected abstract boolean isHandshakeCompleted();
 
     /**
-     * Demo: [id: 0x2561bcd1, L:/10.0.136.103:58038 ! R:/240.240.0.5:6650].
+     * Demo: [id: 0x2561bcd1, L:/10.0.136.103:6650 ! R:/240.240.0.5:58038].
      * L: local Address.
      * R: remote address.
      */
