@@ -252,6 +252,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     @Override
     public synchronized CompletableFuture<Void> closeAsync() {
+        int tryChangeStateCounter = 0;
         while (true) {
             if (isClosingOrClosed()) {
                 return closeFuture;
@@ -261,6 +262,12 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 || STATE_UPDATER.compareAndSet(this, State.Starting_Consumer, State.Closing)
                 || STATE_UPDATER.compareAndSet(this, State.Started, State.Closing)) {
                 break;
+            }
+            // Just for avoid spinning loop which would cause 100% CPU consumption here.
+            if (++tryChangeStateCounter > 100) {
+                log.error("Unexpected error: the state can not be changed to closing {}", topicName);
+                return CompletableFuture.failedFuture(new RuntimeException("Unexpected error,"
+                        + " the state can not be changed to closing"));
             }
         }
         CompletableFuture<Void> closeProducer = new CompletableFuture<>();
