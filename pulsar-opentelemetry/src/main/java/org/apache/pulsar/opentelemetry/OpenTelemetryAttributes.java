@@ -19,6 +19,7 @@
 package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
+import java.util.List;
 
 /**
  * Common OpenTelemetry attributes to be used by Pulsar components.
@@ -79,6 +80,11 @@ public interface OpenTelemetryAttributes {
      * Indicates whether the consumer is currently blocked on unacknowledged messages or not.
      */
     AttributeKey<Boolean> PULSAR_CONSUMER_BLOCKED = AttributeKey.booleanKey("pulsar.consumer.blocked");
+
+    /**
+     * Indicates whether the consumer is currently blocked on unacknowledged messages or not.
+     */
+    AttributeKey<List<String>> PULSAR_CONSUMER_METADATA = AttributeKey.stringArrayKey("pulsar.consumer.metadata");
 
     /**
      * The UTC timestamp of the Pulsar consumer creation.
