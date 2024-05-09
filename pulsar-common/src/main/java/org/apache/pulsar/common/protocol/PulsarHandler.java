@@ -159,6 +159,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
      */
     @Override
     public String toString() {
+        ChannelHandlerContext ctx = this.ctx;
         if (ctx == null) {
             return "[ctx: null]";
         } else {
