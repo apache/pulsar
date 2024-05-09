@@ -20,7 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import io.grpc.netty.shaded.io.netty.util.concurrent.DefaultThreadFactory;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +49,7 @@ public class OffsetsCache implements AutoCloseable {
                     .build();
             cacheEvictionExecutor =
                     Executors.newSingleThreadScheduledExecutor(
-                            new DefaultThreadFactory("jcloud-offsets-cache-eviction"));
+                            new ThreadFactoryBuilder().setNameFormat("jcloud-offsets-cache-eviction").build());
             int period = Math.max(CACHE_TTL_SECONDS / 2, 1);
             cacheEvictionExecutor.scheduleAtFixedRate(() -> {
                 entryOffsetsCache.cleanUp();
