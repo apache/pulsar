@@ -25,12 +25,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.client.api.AsyncCloseable;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -133,7 +133,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     private void startProducer() {
-        if (isClosed()) {
+        if (isClosingOrClosed()) {
             log.info("[{}] Skip to start new producer because the synchronizer is closed", topicName);
         }
         if (producer != null) {
@@ -156,7 +156,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                     log.info("[{}] Closing the new producer because the synchronizer state is {}", prod,
                             stateTransient);
                     CompletableFuture closeProducer = new CompletableFuture<>();
-                    closeResource(prod, closeProducer);
+                    closeResource(() -> prod.closeAsync(), closeProducer);
                     closeProducer.thenRun(() -> {
                         log.info("[{}] Closed the new producer because the synchronizer state is {}", prod,
                                 stateTransient);
@@ -173,7 +173,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     private void startConsumer() {
-        if (isClosed()) {
+        if (isClosingOrClosed()) {
             log.info("[{}] Skip to start new consumer because the synchronizer is closed", topicName);
         }
         if (consumer != null) {
@@ -222,7 +222,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 State stateTransient = state;
                 log.info("[{}] Closing the new consumer because the synchronizer state is {}", stateTransient);
                 CompletableFuture closeConsumer = new CompletableFuture<>();
-                closeResource(consumer, closeConsumer);
+                closeResource(() -> consumer.closeAsync(), closeConsumer);
                 closeConsumer.thenRun(() -> {
                     log.info("[{}] Closed the new consumer because the synchronizer state is {}", stateTransient);
                 });
@@ -238,7 +238,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     public boolean isStarted() {
-        return this.state != State.Started;
+        return this.state == State.Started;
     }
 
     public boolean isProducerStarted() {
@@ -246,14 +246,14 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 && this.state.ordinal() < State.Closing.ordinal();
     }
 
-    public boolean isClosed() {
+    public boolean isClosingOrClosed() {
         return this.state == State.Closing || this.state == State.Closed;
     }
 
     @Override
     public synchronized CompletableFuture<Void> closeAsync() {
         while (true) {
-            if (isClosed()) {
+            if (isClosingOrClosed()) {
                 return closeFuture;
             }
             if (STATE_UPDATER.compareAndSet(this, State.Init, State.Closing)
@@ -265,8 +265,17 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         }
         CompletableFuture<Void> closeProducer = new CompletableFuture<>();
         CompletableFuture<Void> closeConsumer = new CompletableFuture<>();
-        closeResource(producer, closeProducer);
-        closeResource(consumer, closeConsumer);
+        if (producer == null) {
+            closeProducer.complete(null);
+        } else {
+            closeResource(() -> producer.closeAsync(), closeProducer);
+        }
+        if (consumer == null) {
+            closeConsumer.complete(null);
+        } else {
+            closeResource(() -> consumer.closeAsync(), closeConsumer);
+        }
+
         // Add logs.
         closeProducer.thenRun(() -> log.info("Successfully close producer {}", topicName));
         closeConsumer.thenRun(() -> log.info("Successfully close consumer {}", topicName));
@@ -279,12 +288,12 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         return closeFuture;
     }
 
-    private void closeResource(final AsyncCloseable asyncCloseable, final CompletableFuture<Void> future) {
+    private void closeResource(final Supplier<CompletableFuture<Void>> asyncCloseable, final CompletableFuture<Void> future) {
         if (asyncCloseable == null) {
             future.complete(null);
             return;
         }
-        asyncCloseable.closeAsync().whenComplete((ignore, ex) -> {
+        asyncCloseable.get().whenComplete((ignore, ex) -> {
             if (ex == null) {
                 backOff.reset();
                 future.complete(null);
