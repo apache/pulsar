@@ -22,9 +22,8 @@ import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertM
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.MetricData;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -98,7 +97,7 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .receiverQueueSize(receiverQueueSize)
-                .subscriptionProperties(Map.of("prop1", "value1"))
+                .property("prop1", "value1")
                 .subscribe();
 
         var serverConsumer = consumerRef.get();
@@ -132,7 +131,7 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                         serverConsumer.getConnectedSince().getEpochSecond())
                 .put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, serverConsumer.getClientAddressAndPort())
                 .put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, serverConsumer.getClientVersion())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_METADATA, Collections.emptyList())
+                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_METADATA, List.of("prop1:value1"))
                 .build();
 
         Awaitility.await().untilAsserted(() -> {
