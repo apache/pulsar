@@ -20,9 +20,10 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.sdk.metrics.data.MetricData;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,7 +64,7 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
         super.customizeMainPulsarTestContextBuilder(builder);
         builder.enableOpenTelemetry(true);
-        Mockito.doCallRealMethod().when(brokerInterceptor).onFilter(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doCallRealMethod().when(brokerInterceptor).onFilter(any(), any(), any());
         builder.brokerInterceptor(brokerInterceptor);
     }
 
@@ -78,16 +79,13 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
         var subscriptionName = BrokerTestUtil.newUniqueName("test");
         var receiverQueueSize = 100;
 
-        var consumerRef = new AtomicReference<Consumer>();
         // Intercept calls to create consumer, in order to fetch client information.
-        Mockito.doAnswer(invocation -> {
-            consumerRef.set(invocation.getArgument(1));
+        var consumerRef = new AtomicReference<Consumer>();
+        doAnswer(invocation -> {
+            consumerRef.compareAndSet(null, invocation.getArgument(1));
             return null;
-        }).doNothing()
-                .when(brokerInterceptor)
-                .consumerCreated(Mockito.any(),
-                        Mockito.argThat(argument -> argument.getSubscription().getName().equals(subscriptionName)),
-                        Mockito.any());
+        }).when(brokerInterceptor)
+          .consumerCreated(any(), argThat(arg -> arg.getSubscription().getName().equals(subscriptionName)), any());
 
         @Cleanup
         var consumer = pulsarClient.newConsumer()
@@ -107,11 +105,8 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
         var producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .create();
-        for (int j = 0; j < messageCount; j++) {
-            producer.send(String.format("msg-%d", j).getBytes());
-        }
-
         for (int i = 0; i < messageCount; i++) {
+            producer.send(String.format("msg-%d", i).getBytes());
             var message = consumer.receive();
             if (i < ackCount) {
                 consumer.acknowledge(message);
@@ -135,26 +130,23 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                 .build();
 
         Awaitility.await().untilAsserted(() -> {
-            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics()
-                    .stream()
-                    .sorted(Comparator.comparing(MetricData::getName))
-                    .toList();
+            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_OUT_COUNTER, attributes,
                     actual -> assertThat(actual).isPositive());
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.BYTES_OUT_COUNTER, attributes,
                     actual -> assertThat(actual).isPositive());
 
-            var unackCount = messageCount - ackCount;
-
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_ACK_COUNTER, attributes, ackCount);
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_PERMITS_COUNTER, attributes,
-                    actual -> assertThat(actual).isGreaterThanOrEqualTo(receiverQueueSize - messageCount - unackCount));
+                    actual -> assertThat(actual).isGreaterThanOrEqualTo(receiverQueueSize - messageCount - ackCount));
+
+            var unAckCount = messageCount - ackCount;
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_UNACKNOWLEDGED_COUNTER,
                     attributes.toBuilder().put(OpenTelemetryAttributes.PULSAR_CONSUMER_BLOCKED, false).build(),
-                    unackCount);
+                    unAckCount);
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_REDELIVER_COUNTER, attributes,
-                    actual -> assertThat(actual).isGreaterThanOrEqualTo(unackCount));
+                    actual -> assertThat(actual).isGreaterThanOrEqualTo(unAckCount));
         });
     }
 }
