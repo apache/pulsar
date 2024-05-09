@@ -607,9 +607,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             }
 
-            closeLocalMetadataStore();
+            asyncCloseFutures.add(closeLocalMetadataStore());
             if (configMetadataSynchronizer != null) {
-                configMetadataSynchronizer.closeAsync();
+                asyncCloseFutures.add(configMetadataSynchronizer.closeAsync());
             }
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
@@ -1159,14 +1159,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .build());
     }
 
-    protected void closeLocalMetadataStore() throws Exception {
+    protected CompletableFuture<Void> closeLocalMetadataStore() throws Exception {
         if (localMetadataStore != null) {
             localMetadataStore.close();
         }
         if (localMetadataSynchronizer != null) {
-            localMetadataSynchronizer.closeAsync();
+            CompletableFuture<Void> closeSynchronizer = localMetadataSynchronizer.closeAsync();
             localMetadataSynchronizer = null;
+            return closeSynchronizer;
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     protected void startLeaderElectionService() {
