@@ -454,14 +454,13 @@ public class ResourceGroup {
 
             bytesUsed = monEntity.usedLocallySinceLastReport.bytes;
             messagesUsed = monEntity.usedLocallySinceLastReport.messages;
-
+            monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
             if (sendReport) {
                 p.setBytesPerPeriod(bytesUsed);
                 p.setMessagesPerPeriod(messagesUsed);
                 monEntity.lastReportedValues.bytes = bytesUsed;
                 monEntity.lastReportedValues.messages = messagesUsed;
                 monEntity.numSuppressedUsageReports = 0;
-                monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
                 monEntity.totalUsedLocally.bytes += bytesUsed;
                 monEntity.totalUsedLocally.messages += messagesUsed;
                 monEntity.lastResourceUsageFillTimeMSecsSinceEpoch = System.currentTimeMillis();
