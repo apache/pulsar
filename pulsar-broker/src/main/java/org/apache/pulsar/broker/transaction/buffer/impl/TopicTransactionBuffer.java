@@ -474,7 +474,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         PositionImpl preMaxReadPosition = this.maxReadPosition;
         this.maxReadPosition = newPosition;
         if (preMaxReadPosition.compareTo(this.maxReadPosition) < 0) {
-            this.changeMaxReadPositionCount.getAndIncrement();
+            if (!checkIfNoSnapshot()) {
+                this.changeMaxReadPositionCount.getAndIncrement();
+            }
             if (!disableCallback) {
                 maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
             }
