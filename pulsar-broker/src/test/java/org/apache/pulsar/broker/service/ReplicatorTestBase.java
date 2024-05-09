@@ -243,7 +243,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
         admin1.clusters().createCluster(cluster3, ClusterData.builder()
+                .serviceUrl(url3.toString())
                 .serviceUrlTls(urlTls3.toString())
+                .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
                 .brokerClientTlsEnabled(true)
                 .brokerClientCertificateFilePath(clientCertFilePath)
@@ -258,9 +260,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
         admin4.clusters().createCluster(cluster4, ClusterData.builder()
-                .serviceUrl(url4.toString())
                 .serviceUrlTls(urlTls4.toString())
-                .brokerServiceUrl(pulsar4.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls())
                 .brokerClientTlsEnabled(true)
                 .brokerClientCertificateFilePath(clientCertFilePath)
@@ -283,17 +283,21 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
         assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrl(), url2.toString());
-        assertNull(admin2.clusters().getCluster(cluster3).getServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrl(), url3.toString());
+        assertNull(admin2.clusters().getCluster(cluster4).getServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
-        assertNull(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+        assertNull(admin2.clusters().getCluster(cluster4).getBrokerServiceUrl());
 
         assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrlTls(), urlTls1.toString());
         assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrlTls(), urlTls2.toString());
         assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrlTls(), urlTls3.toString());
+        assertEquals(admin2.clusters().getCluster(cluster4).getServiceUrlTls(), urlTls4.toString());
         assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrlTls(), pulsar1.getBrokerServiceUrlTls());
         assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
