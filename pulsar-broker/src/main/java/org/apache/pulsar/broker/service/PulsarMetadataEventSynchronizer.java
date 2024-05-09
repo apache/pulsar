@@ -265,7 +265,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             }
             // Just for avoid spinning loop which would cause 100% CPU consumption here.
             if (++tryChangeStateCounter > 100) {
-                log.error("Unexpected error: the state can not be changed to closing {}", topicName);
+                log.error("Unexpected error: the state can not be changed to closing {}, state: {}", topicName, state);
                 return CompletableFuture.failedFuture(new RuntimeException("Unexpected error,"
                         + " the state can not be changed to closing"));
             }
