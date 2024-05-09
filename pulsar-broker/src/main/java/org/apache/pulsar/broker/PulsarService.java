@@ -635,9 +635,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             if (openTelemetryConsumerStats != null) {
                 openTelemetryConsumerStats.close();
+                openTelemetryConsumerStats = null;
             }
             if (openTelemetryTopicStats != null) {
                 openTelemetryTopicStats.close();
+                openTelemetryTopicStats = null;
             }
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
