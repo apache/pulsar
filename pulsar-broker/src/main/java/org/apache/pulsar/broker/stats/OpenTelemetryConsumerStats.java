@@ -129,6 +129,8 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         var builder = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.consumerName())
                 .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumer.consumerId())
+                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_CONNECTED_SINCE,
+                        consumer.getConnectedSince().getEpochSecond())
                 .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscription.getName())
                 .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, consumer.subType().toString())
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())

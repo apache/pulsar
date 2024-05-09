@@ -81,6 +81,11 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Boolean> PULSAR_CONSUMER_BLOCKED = AttributeKey.booleanKey("pulsar.consumer.blocked");
 
     /**
+     * The UTC timestamp of the Pulsar consumer creation.
+     */
+    AttributeKey<Long> PULSAR_CONSUMER_CONNECTED_SINCE = AttributeKey.longKey("pulsar.consumer.connected_since");
+
+    /**
      * The address of the Pulsar client.
      */
     AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");
