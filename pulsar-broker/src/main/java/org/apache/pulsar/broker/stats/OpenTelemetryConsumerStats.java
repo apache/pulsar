@@ -138,6 +138,10 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         if (topicName.isPartitioned()) {
             builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
         }
+        var clientAddress = consumer.getClientAddressAndPort();
+        if (clientAddress != null) {
+            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, clientAddress);
+        }
         var attributes = builder.build();
 
         messageOutCounter.record(consumer.getMsgOutCounter(), attributes);
