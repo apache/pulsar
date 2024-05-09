@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.SneakyThrows;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -45,11 +44,13 @@ import org.testng.annotations.Test;
 
 public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
 
-    private final BrokerInterceptor brokerInterceptor = Mockito.mock(BrokerInterceptor.class);
+    private BrokerInterceptor brokerInterceptor;
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        brokerInterceptor =
+                Mockito.mock(BrokerInterceptor.class, Mockito.withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
         super.baseSetup();
     }
 
@@ -59,12 +60,10 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @SneakyThrows
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
         super.customizeMainPulsarTestContextBuilder(builder);
         builder.enableOpenTelemetry(true);
-        Mockito.doCallRealMethod().when(brokerInterceptor).onFilter(any(), any(), any());
         builder.brokerInterceptor(brokerInterceptor);
     }
 
@@ -98,8 +97,8 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                 .property("prop1", "value1")
                 .subscribe();
 
+        Awaitility.await().until(() -> consumerRef.get() != null);
         var serverConsumer = consumerRef.get();
-        assertThat(serverConsumer).isNotNull();
 
         @Cleanup
         var producer = pulsarClient.newProducer()
