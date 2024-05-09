@@ -82,7 +82,7 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Boolean> PULSAR_CONSUMER_BLOCKED = AttributeKey.booleanKey("pulsar.consumer.blocked");
 
     /**
-     * Indicates whether the consumer is currently blocked on unacknowledged messages or not.
+     * The consumer metadata properties, as a list of "key:value" pairs.
      */
     AttributeKey<List<String>> PULSAR_CONSUMER_METADATA = AttributeKey.stringArrayKey("pulsar.consumer.metadata");
 
@@ -97,7 +97,7 @@ public interface OpenTelemetryAttributes {
     AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");
 
     /**
-     * The address of the Pulsar client.
+     * The version of the Pulsar client.
      */
     AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
