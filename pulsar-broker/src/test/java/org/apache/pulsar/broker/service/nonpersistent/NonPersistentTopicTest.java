@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import java.lang.reflect.Field;
+import java.util.UUID;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -118,5 +121,24 @@ public class NonPersistentTopicTest extends BrokerTestBase {
 
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+    @Test
+    public void testRemoveProducerOnNonPersistentTopic() throws Exception {
+        final String topicName = "non-persistent://prop/ns-abc/topic_" + UUID.randomUUID();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        Field field = AbstractTopic.class.getDeclaredField("userCreatedProducerCount");
+        field.setAccessible(true);
+        int userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 1);
+
+        producer.close();
+        userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 0);
     }
 }
