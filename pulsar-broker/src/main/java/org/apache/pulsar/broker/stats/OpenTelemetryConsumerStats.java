@@ -142,6 +142,10 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
         if (clientAddress != null) {
             builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, clientAddress);
         }
+        var clientVersion = consumer.getClientVersion();
+        if (clientVersion != null) {
+            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, clientVersion);
+        }
         var attributes = builder.build();
 
         messageOutCounter.record(consumer.getMsgOutCounter(), attributes);

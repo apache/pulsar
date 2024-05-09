@@ -1175,6 +1175,10 @@ public class Consumer {
         return cnx.clientSourceAddressAndPort();
     }
 
+    public String getClientVersion() {
+        return cnx.getClientVersion();
+    }
+
     public MessageId getStartMessageId() {
         return startMessageId;
     }
