@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import java.util.Optional;
+import java.lang.reflect.Field;
 import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -249,5 +251,24 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         keySharedConsumer2.close();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(keySharedSubName) == null);
+    }
+
+    @Test
+    public void testRemoveProducerOnNonPersistentTopic() throws Exception {
+        final String topicName = "non-persistent://prop/ns-abc/topic_" + UUID.randomUUID();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        Field field = AbstractTopic.class.getDeclaredField("userCreatedProducerCount");
+        field.setAccessible(true);
+        int userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 1);
+
+        producer.close();
+        userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 0);
     }
 }
