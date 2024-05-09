@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 public class OffsetsCache implements AutoCloseable {
     private static final int CACHE_TTL_SECONDS =
-            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
+            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 5 * 60);
     // limit the cache size to avoid OOM
     // 1 million entries consumes about 60MB of heap space
     private static final int CACHE_MAX_SIZE =
@@ -78,6 +78,8 @@ public class OffsetsCache implements AutoCloseable {
 
     @Override
     public void close() {
-        cacheEvictionExecutor.shutdownNow();
+        if (cacheEvictionExecutor != null) {
+            cacheEvictionExecutor.shutdownNow();
+        }
     }
 }
