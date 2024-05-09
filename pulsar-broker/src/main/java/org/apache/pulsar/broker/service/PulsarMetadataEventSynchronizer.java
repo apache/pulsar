@@ -60,6 +60,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     static final AtomicReferenceFieldUpdater<PulsarMetadataEventSynchronizer, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PulsarMetadataEventSynchronizer.class, State.class, "state");
+    @Getter
     private volatile State state;
     public static final String SUBSCRIPTION_NAME = "metadata-syncer";
     private static final int MAX_PRODUCER_PENDING_SIZE = 1000;
@@ -132,34 +133,43 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     }
 
     private void startProducer() {
+        if (isClosed()) {
+            log.info("[{}] Skip to start new producer because the synchronizer is closed", topicName);
+        }
+        if (producer != null) {
+            log.error("[{}] Failed to start the producer because the producer has been set, state: {}",
+                    topicName, state);
+            return;
+        }
         log.info("[{}] Starting producer", topicName);
         client.newProducer(Schema.AVRO(MetadataEvent.class)).topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition).enableBatching(false).enableBatching(false)
-                .sendTimeout(0, TimeUnit.SECONDS) //
-                .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE).createAsync().thenAccept(prod -> {
-                    if (STATE_UPDATER.compareAndSet(this, State.Starting_Producer, State.Starting_Consumer)) {
-                        producer = prod;
-                        log.info("producer is created successfully {}", topicName);
-                        PulsarMetadataEventSynchronizer.this.startConsumer();
-                    } else {
-                        State stateTransient = state;
-                        log.info("[{}] Closing the new producer because the synchronizer state is {}", prod,
+            .messageRoutingMode(MessageRoutingMode.SinglePartition).enableBatching(false).enableBatching(false)
+            .sendTimeout(0, TimeUnit.SECONDS) //
+            .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE).createAsync().thenAccept(prod -> {
+                backOff.reset();
+                if (STATE_UPDATER.compareAndSet(this, State.Starting_Producer, State.Starting_Consumer)) {
+                    producer = prod;
+                    log.info("producer is created successfully {}", topicName);
+                    PulsarMetadataEventSynchronizer.this.startConsumer();
+                } else {
+                    State stateTransient = state;
+                    log.info("[{}] Closing the new producer because the synchronizer state is {}", prod,
+                            stateTransient);
+                    CompletableFuture closeProducer = new CompletableFuture<>();
+                    closeResource(prod, closeProducer);
+                    closeProducer.thenRun(() -> {
+                        log.info("[{}] Closed the new producer because the synchronizer state is {}", prod,
                                 stateTransient);
-                        CompletableFuture closeProducer = new CompletableFuture<>();
-                        closeResource(prod, closeProducer);
-                        closeProducer.thenRun(() -> {
-                            log.info("[{}] Closed the new producer because the synchronizer state is {}", prod,
-                                    stateTransient);
-                        });
-                    }
-                }).exceptionally(ex -> {
-                    long waitTimeMs = backOff.next();
-                    log.warn("[{}] Failed to create producer ({}), retrying in {} s", topicName, ex.getMessage(),
-                            waitTimeMs / 1000.0);
-                    // BackOff before retrying
-                    brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-                    return null;
-                });
+                    });
+                }
+            }).exceptionally(ex -> {
+                long waitTimeMs = backOff.next();
+                log.warn("[{}] Failed to create producer ({}), retrying in {} s", topicName, ex.getMessage(),
+                        waitTimeMs / 1000.0);
+                // BackOff before retrying
+                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+                return null;
+            });
     }
 
     private void startConsumer() {
@@ -167,40 +177,44 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
             log.info("[{}] Skip to start new consumer because the synchronizer is closed", topicName);
         }
         if (consumer != null) {
+            log.error("[{}] Failed to start the consumer because the consumer has been set, state: {}",
+                    topicName, state);
             return;
         }
+        log.info("[{}] Starting consumer", topicName);
         ConsumerBuilder<MetadataEvent> consumerBuilder = client.newConsumer(Schema.AVRO(MetadataEvent.class))
-                .topic(topicName).subscriptionName(SUBSCRIPTION_NAME).ackTimeout(60, TimeUnit.SECONDS)
-                .subscriptionType(SubscriptionType.Failover).messageListener((c, msg) -> {
-                    log.info("Processing metadata event for {} with listeners {}", msg.getValue().getPath(),
-                            listeners.size());
-                    try {
-                        if (listeners.size() == 0) {
-                            c.acknowledgeAsync(msg);
-                            return;
+            .topic(topicName).subscriptionName(SUBSCRIPTION_NAME).ackTimeout(60, TimeUnit.SECONDS)
+            .subscriptionType(SubscriptionType.Failover).messageListener((c, msg) -> {
+                log.info("Processing metadata event for {} with listeners {}", msg.getValue().getPath(),
+                        listeners.size());
+                try {
+                    if (listeners.size() == 0) {
+                        c.acknowledgeAsync(msg);
+                        return;
 
-                        }
-                        if (listeners.size() == 1) {
-                            listeners.get(0).apply(msg.getValue()).thenApply(__ -> c.acknowledgeAsync(msg))
-                                    .exceptionally(ex -> {
-                                        log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName,
-                                                ex.getCause());
-                                        return null;
-                                    });
-                        } else {
-                            FutureUtil
-                                    .waitForAll(listeners.stream().map(listener -> listener.apply(msg.getValue()))
-                                            .collect(Collectors.toList()))
-                                    .thenApply(__ -> c.acknowledgeAsync(msg)).exceptionally(ex -> {
-                                        log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
-                                        return null;
-                                    });
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
                     }
-                });
+                    if (listeners.size() == 1) {
+                        listeners.get(0).apply(msg.getValue()).thenApply(__ -> c.acknowledgeAsync(msg))
+                                .exceptionally(ex -> {
+                                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName,
+                                            ex.getCause());
+                                    return null;
+                                });
+                    } else {
+                        FutureUtil
+                                .waitForAll(listeners.stream().map(listener -> listener.apply(msg.getValue()))
+                                        .collect(Collectors.toList()))
+                                .thenApply(__ -> c.acknowledgeAsync(msg)).exceptionally(ex -> {
+                                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
+                                    return null;
+                                });
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to synchronize {} for {}", msg.getMessageId(), topicName);
+                }
+            });
         consumerBuilder.subscribeAsync().thenAccept(consumer -> {
+            backOff.reset();
             if (STATE_UPDATER.compareAndSet(this, State.Starting_Consumer, State.Started)) {
                 this.consumer = consumer;
                 log.info("successfully created consumer {}", topicName);
@@ -272,6 +286,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         }
         asyncCloseable.closeAsync().whenComplete((ignore, ex) -> {
             if (ex == null) {
+                backOff.reset();
                 future.complete(null);
                 return;
             }

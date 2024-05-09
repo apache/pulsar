@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -27,9 +28,12 @@ import java.util.Arrays;
 import java.util.HashSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -38,11 +42,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/***
- * TODO
- *   1. Delay create SYNC_EVENT_TOPIC
- *   2. 注册多个 PulsarMetadataEventSynchronizer.registerSyncListener 并增加动态开关。
- */
 @Slf4j
 @Test(groups = "broker")
 public class SyncConfigStoreTest extends DifferentMetadataStoreTestBase {
@@ -74,13 +73,13 @@ public class SyncConfigStoreTest extends DifferentMetadataStoreTestBase {
 
     @Test
     public void testDynamicEnableConfigurationMetadataSyncEventTopic() throws Exception {
-        // Verify: the metadata store is a different one.
-        // TODO 为什么需要是不同的 metadata store？
+        // Verify the condition that supports synchronizer: the metadata store is a different one.
         Awaitility.await().untilAsserted(() -> {
             boolean shouldShutdownConfigurationMetadataStore =
                     WhiteboxImpl.getInternalState(pulsar1, "shouldShutdownConfigurationMetadataStore");
             assertTrue(shouldShutdownConfigurationMetadataStore);
         });
+
         // Verify the synchronizer will be created dynamically.
         admin1.brokers().updateDynamicConfiguration(CONF_NAME_SYNC_EVENT_TOPIC, SYNC_EVENT_TOPIC);
         Awaitility.await().untilAsserted(() -> {
@@ -88,11 +87,24 @@ public class SyncConfigStoreTest extends DifferentMetadataStoreTestBase {
             PulsarMetadataEventSynchronizer synchronizer =
                     WhiteboxImpl.getInternalState(pulsar1, "configMetadataSynchronizer");
             assertNotNull(synchronizer);
+            assertEquals(synchronizer.getState(), PulsarMetadataEventSynchronizer.State.Started);
         });
+
+        PulsarMetadataEventSynchronizer synchronizerStarted =
+                WhiteboxImpl.getInternalState(pulsar1, "configMetadataSynchronizer");
+        Producer<MetadataEvent> producerStarted =
+                WhiteboxImpl.getInternalState(synchronizerStarted, "producer");
+        Consumer<MetadataEvent> consumerStarted =
+                WhiteboxImpl.getInternalState(synchronizerStarted, "consumer");
+
         // Verify the synchronizer will be closed dynamically.
-        // todo: do not support yet.
         admin1.brokers().deleteDynamicConfiguration(CONF_NAME_SYNC_EVENT_TOPIC);
         Awaitility.await().untilAsserted(() -> {
+            // The synchronizer that was started will be closed.
+            assertEquals(synchronizerStarted.getState(), PulsarMetadataEventSynchronizer.State.Closed);
+            assertFalse(producerStarted.isConnected());
+            assertFalse(consumerStarted.isConnected());
+            // The synchronizer in memory will be null.
             assertNull(pulsar1.getConfig().getConfigurationMetadataSyncEventTopic());
             PulsarMetadataEventSynchronizer synchronizer =
                     WhiteboxImpl.getInternalState(pulsar1, "configMetadataSynchronizer");
