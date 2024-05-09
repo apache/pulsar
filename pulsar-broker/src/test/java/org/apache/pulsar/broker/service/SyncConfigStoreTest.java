@@ -88,6 +88,7 @@ public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTest
                     WhiteboxImpl.getInternalState(pulsar1, "configMetadataSynchronizer");
             assertNotNull(synchronizer);
             assertEquals(synchronizer.getState(), PulsarMetadataEventSynchronizer.State.Started);
+            assertTrue(synchronizer.isStarted());
         });
 
         PulsarMetadataEventSynchronizer synchronizerStarted =
@@ -102,6 +103,7 @@ public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTest
         Awaitility.await().untilAsserted(() -> {
             // The synchronizer that was started will be closed.
             assertEquals(synchronizerStarted.getState(), PulsarMetadataEventSynchronizer.State.Closed);
+            assertTrue(synchronizerStarted.isClosingOrClosed());
             assertFalse(producerStarted.isConnected());
             assertFalse(consumerStarted.isConnected());
             // The synchronizer in memory will be null.
