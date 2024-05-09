@@ -31,7 +31,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaStorage;
  */
 @LimitedPrivate
 @Evolving
-public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
+public interface LedgerOffloaderFactory<T extends LedgerOffloader> extends AutoCloseable {
 
     /**
      * Check whether the provided driver <tt>driverName</tt> is supported.
@@ -110,5 +110,10 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
                      LedgerOffloaderStats offloaderStats)
             throws IOException {
         return create(offloadPolicies, userMetadata, scheduler, offloaderStats);
+    }
+
+    @Override
+    default void close() throws Exception {
+        // no-op
     }
 }
