@@ -67,7 +67,7 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
         builder.brokerInterceptor(brokerInterceptor);
     }
 
-    @Test(timeOut = 30_000, invocationCount = 1)
+    @Test(timeOut = 30_000)
     public void testMessagingMetrics() throws Exception {
         var topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testConsumerMessagingMetrics");
         admin.topics().createNonPartitionedTopic(topicName);
