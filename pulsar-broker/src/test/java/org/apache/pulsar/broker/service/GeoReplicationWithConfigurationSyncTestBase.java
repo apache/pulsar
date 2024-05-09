@@ -35,7 +35,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 
 @Slf4j
-public abstract class DifferentMetadataStoreTestBase extends TestRetrySupport {
+public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";

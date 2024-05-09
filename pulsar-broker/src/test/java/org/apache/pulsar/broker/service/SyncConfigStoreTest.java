@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class SyncConfigStoreTest extends DifferentMetadataStoreTestBase {
+public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTestBase {
 
     private static final String CONF_NAME_SYNC_EVENT_TOPIC = "configurationMetadataSyncEventTopic";
     private static final String SYNC_EVENT_TOPIC = TopicDomain.persistent.value() + "://" + SYSTEM_NAMESPACE
