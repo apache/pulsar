@@ -59,7 +59,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     public String tlsTrustCertsFilePath = "";
 
     @Option(names = {"--use-keystore-tls" }, description = "Use KeyStore TLS", descriptionKey = "useKeyStoreTls")
-    public Boolean useKeyStoreTls = null;
+    public boolean useKeyStoreTls = false;
 
     @Option(names = {"--truststore-type"}, description = "Type of the truststore, PKCS12 or JKS. The default is JKS.",
             descriptionKey = "tlsTrustStoreType")
