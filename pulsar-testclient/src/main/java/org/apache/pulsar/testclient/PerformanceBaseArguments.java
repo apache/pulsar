@@ -141,7 +141,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     @Override
     public void validate() throws Exception {
         parseCLI();
-        if (Boolean.TRUE.equals(useKeyStoreTls) && isBlank(tlsTrustStorePath)) {
+        if (useKeyStoreTls && isBlank(tlsTrustStorePath)) {
             throw new ParameterException("tlsTrustStorePath is required if useKeystoreTls is used");
         }
     }
