@@ -118,8 +118,9 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     private void publishAsync(MetadataEvent event, CompletableFuture<Void> future) {
         if (!isProducerStarted()) {
-            log.info("Producer is not started on {}, failed to publish {}", topicName, event);
+            log.warn("Producer is not started on {}, failed to publish {}", topicName, event);
             future.completeExceptionally(new IllegalStateException("producer is not started yet"));
+            return;
         }
         producer.newMessage().value(event).sendAsync().thenAccept(__ -> {
             log.info("successfully published metadata change event {}", event);
