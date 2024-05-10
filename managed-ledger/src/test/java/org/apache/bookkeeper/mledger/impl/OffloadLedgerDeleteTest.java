@@ -383,6 +383,10 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertTrue(needsDelete);
 
+        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(-1L);
+        needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
+        Assert.assertFalse(needsDelete);
+
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000L * 2);
         needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertFalse(needsDelete);
