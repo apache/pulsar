@@ -78,7 +78,7 @@ public class PerfClientUtilsTest {
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertTrue(conf.isTlsHostnameVerificationEnable());
-        Assert.assertEquals(conf.getAuthentication().getClass(), MyAuth.class);
+        Assert.assertEquals(conf.getAuthPluginClassName(), MyAuth.class.getName());
         Assert.assertEquals(conf.getAuthParams(), "params");
         Assert.assertTrue(conf.isEnableBusyWait());
         Assert.assertEquals(conf.getConnectionsPerBroker(), 100);
@@ -104,7 +104,7 @@ public class PerfClientUtilsTest {
         args.authPluginClassName = MyAuth.class.getName();
         args.authParams = "params";
         args.serviceURL = "pulsar+ssl://my-pulsar:6651";
-        args.useKeyStoreTls = Boolean.TRUE;
+        args.useKeyStoreTls = true;
         args.tlsTrustStoreType = "PKCS12";
         args.tlsTrustStorePath = "./tlsTrustStorePath";
         args.tlsTrustStorePassword = "tlsTrustStorePassword";
@@ -135,7 +135,7 @@ public class PerfClientUtilsTest {
 
         args.authPluginClassName = MyAuth.class.getName();
         args.authParams = "params";
-        args.useKeyStoreTls = Boolean.TRUE;
+        args.useKeyStoreTls = true;
         args.tlsTrustStoreType = "PKCS12";
         args.tlsTrustStorePath = "./tlsTrustStorePath";
         args.tlsTrustStorePassword = "tlsTrustStorePassword";
