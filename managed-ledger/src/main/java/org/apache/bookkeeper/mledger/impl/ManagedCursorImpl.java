@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils.METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -32,6 +33,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -96,6 +105,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -122,6 +134,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+    private final String cursorInfoCompressionType;
 
     public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
@@ -329,6 +342,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             markDeleteLimiter = null;
         }
         this.mbean = new ManagedCursorMXBeanImpl(this);
+        this.cursorInfoCompressionType = ledger.getFactory().getConfig().getManagedCursorInfoCompressionType();
     }
 
     private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
@@ -582,11 +596,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.addReadCursorLedgerSize(entry.getLength());
                 PositionInfo positionInfo;
                 try {
-                    positionInfo = PositionInfo.parseFrom(entry.getEntry());
+                    byte[] data = entry.getEntry();
+                    data = decompressDataIfNeeded(data, lh);
+                    positionInfo = PositionInfo.parseFrom(data);
                 } catch (InvalidProtocolBufferException e) {
                     callback.operationFailed(new ManagedLedgerException(e));
                     return;
                 }
+                log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, positionInfo);
 
                 Map<String, Long> recoveredProperties = Collections.emptyMap();
                 if (positionInfo.getPropertiesCount() > 0) {
@@ -597,6 +614,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                         recoveredProperties.put(property.getName(), property.getValue());
                     }
                 }
+
+                log.info("[{}] Cursor {} recovered with recoveredProperties {}, individualDeletedMessagesCount {}",
+                        ledger.getName(), name, recoveredProperties, positionInfo.getIndividualDeletedMessagesCount());
 
                 PositionImpl position = new PositionImpl(positionInfo);
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
@@ -620,6 +640,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
+        log.info("[{}] [{}] Recovering individual deleted messages. Number of ranges: {}",
+                ledger.getName(), name, individualDeletedMessagesList.size());
         lock.writeLock().lock();
         try {
             individualDeletedMessages.clear();
@@ -2962,7 +2984,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 future.complete(lh);
             });
-        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name, cursorInfoCompressionType));
 
         return future;
     }
@@ -3013,6 +3035,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
         lock.readLock().lock();
         try {
+            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {}",
+                    ledger.getName(), name, individualDeletedMessages.size());
             if (individualDeletedMessages.isEmpty()) {
                 this.individualDeletedMessagesSerializedSize = 0;
                 return Collections.emptyList();
@@ -3051,6 +3075,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
+            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {} "
+                            + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
+                            + "maxUnackedRangesToPersist {}",
+                    ledger.getName(), name, individualDeletedMessages.size(),
+                    individualDeletedMessagesSerializedSize, rangeList.size(), config.getMaxUnackedRangesToPersist());
+
             return rangeList;
         } finally {
             lock.readLock().unlock();
@@ -3104,7 +3134,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         requireNonNull(lh);
-        byte[] data = pi.toByteArray();
+        byte[] rawData = pi.toByteArray();
+
+        byte[] data = compressDataIfNeeded(rawData, lh);
+
+        log.info("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes",
+                ledger.getName(), name, lh.getId(),
+                position, data.length);
+
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
                 if (log.isDebugEnabled()) {
@@ -3128,6 +3165,62 @@ public class ManagedCursorImpl implements ManagedCursor {
                 persistPositionToMetaStore(mdEntry, callback);
             }
         }, null);
+    }
+
+    private byte[] compressDataIfNeeded(byte[] data, LedgerHandle lh) {
+        byte[] pulsarCursorInfoCompression =
+                lh.getCustomMetadata().get(METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE);
+        if (pulsarCursorInfoCompression != null) {
+            String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
+            CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
+                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
+            ByteBuf encode = compressionCodec.encode(Unpooled.wrappedBuffer(data));
+            try {
+                int uncompressedSize = data.length;
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                DataOutputStream dataOutputStream = new DataOutputStream(out);
+                dataOutputStream.writeInt(uncompressedSize);
+                dataOutputStream.write(ByteBufUtil.getBytes(encode));
+                dataOutputStream.flush();
+                byte[] result =  out.toByteArray();
+                int ratio = (int) (result.length * 100.0 / uncompressedSize);
+                log.info("[{}] Cursor {} Compressed data size {} bytes (with {}, original size {} bytes, ratio {}%)",
+                        ledger.getName(), name, result.length, pulsarCursorInfoCompressionString, data.length, ratio);
+                return result;
+            } catch (IOException error) {
+                throw new RuntimeException(error);
+            } finally {
+                encode.release();
+            }
+        } else {
+            return data;
+        }
+    }
+
+    private static byte[] decompressDataIfNeeded(byte[] data, LedgerHandle lh) {
+        byte[] pulsarCursorInfoCompression =
+                lh.getCustomMetadata().get(METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE);
+        if (pulsarCursorInfoCompression != null) {
+            String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
+            CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
+                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
+            ByteArrayInputStream input = new ByteArrayInputStream(data);
+            DataInputStream dataInputStream = new DataInputStream(input);
+            try {
+                int uncompressedSize = dataInputStream.readInt();
+                byte[] compressedData = dataInputStream.readNBytes(uncompressedSize);
+                ByteBuf decode = compressionCodec.decode(Unpooled.wrappedBuffer(compressedData), uncompressedSize);
+                try {
+                    return ByteBufUtil.getBytes(decode);
+                } finally {
+                    decode.release();
+                }
+            } catch (IOException error) {
+                throw new RuntimeException(error);
+            }
+        } else {
+            return data;
+        }
     }
 
     public boolean periodicRollover() {

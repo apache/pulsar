@@ -827,8 +827,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-m",
         "--metadata" }, description = "Flag to include ledger metadata")
         private boolean metadata = false;
-        @Parameter(names = "--streaming", description = "Streaming the output directly to the standard output without " +
-                "parsing the response in memory.")
+        @Parameter(names = "--streaming", description = "Streaming the output directly to the standard output without "
+                + "parsing the response in memory.")
         private boolean streaming = false;
 
         @Override
@@ -838,7 +838,9 @@ public class CmdTopics extends CmdBase {
                 try (InputStream in = getTopics().streamInternalStats(persistentTopic, metadata);) {
                     int size;
                     byte[] buffer = new byte[2048];
-                    while ((size = in.read(buffer)) != -1) System.out.write(buffer, 0, size);
+                    while ((size = in.read(buffer)) != -1) {
+                        System.out.write(buffer, 0, size);
+                    }
                 }
             } else {
                 print(getTopics().getInternalStats(persistentTopic, metadata));
@@ -929,8 +931,8 @@ public class CmdTopics extends CmdBase {
     private class GetPartitionedStatsInternal extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--streaming", description = "Streaming the output directly to the standard output without " +
-                "parsing the response in memory.")
+        @Parameter(names = "--streaming", description = "Streaming the output directly to the standard output without "
+                + "parsing the response in memory.")
         private boolean streaming = false;
 
         @Override
@@ -940,7 +942,9 @@ public class CmdTopics extends CmdBase {
                 try (InputStream in = getTopics().streamPartitionedInternalStats(topic);) {
                     int size;
                     byte[] buffer = new byte[2048];
-                    while ((size = in.read(buffer)) != -1) System.out.write(buffer, 0, size);
+                    while ((size = in.read(buffer)) != -1) {
+                        System.out.write(buffer, 0, size);
+                    }
                 }
             } else {
                 print(getTopics().getPartitionedInternalStats(topic));

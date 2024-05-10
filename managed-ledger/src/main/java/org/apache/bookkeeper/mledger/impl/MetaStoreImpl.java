@@ -453,8 +453,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedLedgerInfoMetadata metadata =
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
-                return ManagedLedgerInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf decode = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedLedgerInfo.parseFrom(decode.nioBuffer());
+                } finally {
+                    decode.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
@@ -475,8 +480,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedCursorInfoMetadata metadata =
                         MLDataFormats.ManagedCursorInfoMetadata.parseFrom(metadataBytes);
-                return ManagedCursorInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf decode = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedCursorInfo.parseFrom(decode.nioBuffer());
+                } finally {
+                    decode.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse ManagedCursorInfo metadata, "
                         + "fall back to parse ManagedCursorInfo directly", e);

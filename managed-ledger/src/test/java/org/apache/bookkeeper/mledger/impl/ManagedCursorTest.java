@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -3423,6 +3424,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
         when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
         when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
+
+        ManagedLedgerFactoryImpl factory = mock(ManagedLedgerFactoryImpl.class);
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        doReturn(factoryConfig).when(factory).getConfig();
+        when(ml.getFactory()).thenReturn(factory);
 
         BookKeeper mockBookKeeper = mock(BookKeeper.class);
         final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ml,

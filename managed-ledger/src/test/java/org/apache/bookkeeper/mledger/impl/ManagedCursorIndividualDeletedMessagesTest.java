@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
@@ -40,8 +41,18 @@ import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.testng.annotations.Test;
 
 public class ManagedCursorIndividualDeletedMessagesTest {
+
     @Test(timeOut = 10000)
     void testRecoverIndividualDeletedMessages() throws Exception {
+        testRecoverIndividualDeletedMessages(null);
+    }
+
+    @Test(timeOut = 10000)
+    void testRecoverIndividualDeletedMessagesWithZSTDCompression() throws Exception {
+        testRecoverIndividualDeletedMessages("ZSTD");
+    }
+
+    void testRecoverIndividualDeletedMessages(String compression) throws Exception {
         BookKeeper bookkeeper = mock(BookKeeper.class);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -54,8 +65,13 @@ public class ManagedCursorIndividualDeletedMessagesTest {
         ledgersInfo.put(10L, createLedgerInfo(10, 2, 32));
         ledgersInfo.put(20L, createLedgerInfo(20, 10, 256));
 
+        ManagedLedgerFactoryImpl factory = mock(ManagedLedgerFactoryImpl.class);
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setManagedCursorInfoCompressionType(compression);
+        doReturn(factoryConfig).when(factory).getConfig();
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         doReturn(ledgersInfo).when(ledger).getLedgersInfo();
+        doReturn(factory).when(ledger).getFactory();
 
         ManagedCursorImpl cursor = spy(new ManagedCursorImpl(bookkeeper, config, ledger, "test-cursor"));
         LongPairRangeSet<PositionImpl> deletedMessages = cursor.getIndividuallyDeletedMessagesSet();
