@@ -64,6 +64,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
@@ -748,6 +749,30 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         assertTrue(persistentTopic.ledger.getConfig().isAutoSkipNonRecoverableData());
         assertTrue(subscription.getExpiryMonitor().isAutoSkipNonRecoverableData());
+
+        subscribe.close();
+        admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testCursorGetConfigAfterTopicPoliciesChanged() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        final String subName = "test_sub";
+
+        @Cleanup
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(subName);
+
+        int maxConsumers = 100;
+        admin.topicPolicies().setMaxConsumers(topicName, 100);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topicPolicies().getMaxConsumers(topicName, false), maxConsumers);
+        });
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+        assertEquals(cursor.getConfig(), persistentTopic.getManagedLedger().getConfig());
 
         subscribe.close();
         admin.topics().delete(topicName);
