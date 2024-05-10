@@ -583,6 +583,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String configurationMetadataSyncEventTopic = null;
 
     @FieldContext(
+            dynamic = false,
+            category = CATEGORY_SERVER,
+            doc = "If you want to enable or disable the metadata synchronizer dynamically, this value should be true."
+                + "Enabled: Pulsar will initialize itself to update the metadata synchronizer dynamically."
+    )
+    private boolean mayEnableMetadataSynchronizer = false;
+
+    @FieldContext(
             dynamic = true,
             doc = "Factory class-name to create topic with custom workflow"
         )
