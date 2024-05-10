@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -279,6 +280,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -414,6 +416,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             shadowSourceTopic = null;
         }
+        additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
     }
 
     @Override
@@ -1934,7 +1937,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())) {
+                if (!isCompactionSubscription(sub.getName())
+                        && (additionalSystemCursorNames.isEmpty()
+                            || !additionalSystemCursorNames.contains(sub.getName()))) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
@@ -2189,10 +2194,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return future;
-    }
-
-    public boolean isDeduplicationEnabled() {
-        return messageDeduplication.isEnabled();
     }
 
     @Override
@@ -4298,6 +4299,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return ledger.isMigrated();
     }
 
+    public boolean isDeduplicationEnabled() {
+        return getHierarchyTopicPolicies().getDeduplicationEnabled().get();
+    }
+
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
         return this.subscriptions.get(subName).getTransactionInPendingAckStats(txnID);
     }
@@ -4332,4 +4337,5 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         return false;
     }
+
 }

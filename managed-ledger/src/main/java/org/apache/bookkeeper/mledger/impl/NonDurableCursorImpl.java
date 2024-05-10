@@ -25,7 +25,6 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.slf4j.Logger;
@@ -35,10 +34,10 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     private final boolean readCompacted;
 
-    NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
+    NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerImpl ledger, String cursorName,
                          PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
                          boolean isReadCompacted) {
-        super(bookkeeper, config, ledger, cursorName);
+        super(bookkeeper, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 
         // Compare with "latest" position marker by using only the ledger id. Since the C++ client is using 48bits to
