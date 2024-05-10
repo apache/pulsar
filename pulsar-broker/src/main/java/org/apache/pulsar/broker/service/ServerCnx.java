@@ -42,6 +42,8 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.ScheduledFuture;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -287,6 +289,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return Collections.newSetFromMap(new IdentityHashMap<>());
         }
     };
+
+    private static final Histogram CMD_LATENCY = Histogram
+            .build("pulsar_broker_command_execution_latency", "-")
+            .unit("ms")
+            .labelNames("command")
+            .buckets(1, 10, 50, 100, 200, 500, 1000, 2000)
+            .register();
+    private static final Counter CMD_FAILED = Counter
+            .build("pulsar_broker_command_execution_failed", "-")
+            .labelNames("command", "code")
+            .register();
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -585,8 +598,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     remoteAddress, requestId);
         }
 
+        long start = System.currentTimeMillis();
+        String cmd = BaseCommand.Type.PARTITIONED_METADATA.name();
         TopicName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
         if (topicName == null) {
+            CMD_FAILED.labels(cmd, ServerError.InvalidTopicName.name()).inc();
             return;
         }
 
@@ -597,6 +613,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         partitionMetadata.getTopic(), remoteAddress, requestId,
                         this.service.getPulsar().getState().toString());
             }
+            CMD_FAILED.labels(cmd, ServerError.ServiceNotReady.name()).inc();
             writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
                     "Failed due to pulsar service is not ready", requestId));
             return;
@@ -611,11 +628,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .handle((metadata, ex) -> {
                                 if (ex == null) {
                                     int partitions = metadata.partitions;
+                                    CMD_LATENCY.labels(cmd).observe(System.currentTimeMillis() - start);
                                     commandSender.sendPartitionMetadataResponse(partitions, requestId);
                                 } else {
                                     if (ex instanceof PulsarClientException) {
                                         log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
                                                 remoteAddress, topicName, ex.getMessage());
+                                        CMD_FAILED.labels(cmd, ServerError.AuthorizationError.name()).inc();
                                         commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
                                                 ex.getMessage(), requestId);
                                     } else {
@@ -630,6 +649,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 error = ServerError.MetadataError;
                                             }
                                         }
+                                        CMD_FAILED.labels(cmd, error.name()).inc();
                                         commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
                                     }
                                 }
@@ -638,6 +658,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             });
                 } else {
                     final String msg = "Client is not authorized to Get Partition Metadata";
+                    CMD_FAILED.labels(cmd, ServerError.AuthorizationError.name()).inc();
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                     writeAndFlush(
                             Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
@@ -657,6 +678,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}", remoteAddress,
                         topicName);
             }
+            CMD_FAILED.labels(cmd, ServerError.TooManyRequests.name()).inc();
             commandSender.sendPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId);
         }
