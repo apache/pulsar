@@ -59,7 +59,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     public String tlsTrustCertsFilePath = "";
 
     @Option(names = {"--use-keystore-tls" }, description = "Use KeyStore TLS", descriptionKey = "useKeyStoreTls")
-    public Boolean useKeystoreTls = null;
+    public Boolean useKeyStoreTls = null;
 
     @Option(names = {"--truststore-type"}, description = "Type of the truststore, PKCS12 or JKS. The default is JKS.",
             descriptionKey = "tlsTrustStoreType")
@@ -141,7 +141,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     @Override
     public void validate() throws Exception {
         parseCLI();
-        if (Boolean.TRUE.equals(useKeystoreTls) && isBlank(tlsTrustStorePath)) {
+        if (Boolean.TRUE.equals(useKeyStoreTls) && isBlank(tlsTrustStorePath)) {
             throw new ParameterException("tlsTrustStorePath is required if useKeystoreTls is used");
         }
     }
