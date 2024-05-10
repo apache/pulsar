@@ -114,7 +114,7 @@ public class PerfClientUtils {
                         ))
                         .build().getOpenTelemetrySdk());
 
-        if (arguments.useKeyStoreTls != null) {
+        if (arguments.useKeyStoreTls) {
             clientBuilder.useKeyStoreTls(arguments.useKeyStoreTls);
             clientBuilder.tlsTrustStoreType(arguments.tlsTrustStoreType);
             clientBuilder.tlsTrustStorePath(arguments.tlsTrustStorePath);
@@ -264,7 +264,7 @@ public class PerfClientUtils {
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
                 .serviceHttpUrl(adminUrl);
 
-        if (arguments.useKeyStoreTls != null) {
+        if (arguments.useKeyStoreTls) {
             pulsarAdminBuilder.useKeyStoreTls(arguments.useKeyStoreTls);
             pulsarAdminBuilder.tlsTrustStoreType(arguments.tlsTrustStoreType);
             pulsarAdminBuilder.tlsTrustStorePath(arguments.tlsTrustStorePath);
