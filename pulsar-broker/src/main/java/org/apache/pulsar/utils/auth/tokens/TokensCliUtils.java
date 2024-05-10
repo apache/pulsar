@@ -34,6 +34,7 @@ import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyPair;
 import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import javax.crypto.SecretKey;
@@ -140,6 +141,11 @@ public class TokensCliUtils {
                 description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
 
+        @Option(names = {"-h",
+                "--headers"},
+                description = "Additional headers to token. Format: --headers key1=value1")
+        private Map<String, Object> headers;
+
         @Override
         public Integer call() throws Exception {
             if (secretKey == null && privateKey == null) {
@@ -166,7 +172,7 @@ public class TokensCliUtils {
                     ? Optional.empty()
                     : Optional.of(new Date(System.currentTimeMillis() + expiryTime));
 
-            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime);
+            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime, Optional.ofNullable(headers));
             System.out.println(token);
 
             return 0;
