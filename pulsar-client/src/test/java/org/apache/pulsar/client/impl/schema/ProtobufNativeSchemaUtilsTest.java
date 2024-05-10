@@ -18,10 +18,16 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import lombok.extern.slf4j.Slf4j;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+@Slf4j
 public class ProtobufNativeSchemaUtilsTest {
 
     @Test
@@ -35,7 +41,32 @@ public class ProtobufNativeSchemaUtilsTest {
 
     @Test
     public static void testNestedMessage() {
+        byte[] data =
+                ProtobufNativeSchemaUtils.serialize(org.apache.pulsar.client.schema.proto.Test.SubMessage.NestedMessage.getDescriptor());
+        Descriptors.Descriptor descriptor =  ProtobufNativeSchemaUtils.deserialize(data);
+        Assert.assertNotNull(descriptor);
+    }
 
+    @Test
+    public void testGetSchemaDependenciesFileDescriptorCache() {
+        byte[] data =  ProtobufNativeSchemaUtils.serialize(org.apache.pulsar.client.schema.proto.Test.TestMessage.getDescriptor());
+        Descriptors.Descriptor descriptor = ProtobufNativeSchemaUtils.deserialize(data);
+        Map<String, DescriptorProtos.FileDescriptorProto> schemaDependenciesFileDescriptorCache =
+                ProtobufNativeSchemaUtils.getSchemaDependenciesFileDescriptorCache(descriptor);
+        Assert.assertNotNull(schemaDependenciesFileDescriptorCache);
+    }
+
+    @Test
+    public void testCoverAllNestedAndEnumFileDescriptor() {
+        byte[] data =  ProtobufNativeSchemaUtils.serialize(org.apache.pulsar.client.schema.proto.Test.TestMessage.getDescriptor());
+        Descriptors.Descriptor descriptor =  ProtobufNativeSchemaUtils.deserialize(data);
+
+        Map<String, List<ProtobufNativeSchema.ProtoBufParsingInfo>> schemaAllProto = new HashMap<>();
+        ProtobufNativeSchemaUtils.getSchemaDependenciesFileDescriptorCache(descriptor)
+                .forEach((s, fileDescriptorProto) ->
+                        ProtobufNativeSchemaUtils.coverAllNestedAndEnumFileDescriptor(fileDescriptorProto,
+                                schemaAllProto));
+        Assert.assertNotNull(schemaAllProto);
     }
 
 }

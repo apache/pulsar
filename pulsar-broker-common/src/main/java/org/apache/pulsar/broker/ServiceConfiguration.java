@@ -2903,6 +2903,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.FULL;
 
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "Class name of the SchemaValidator implementation used to check whether a protobufNative schema "
+                    + "is compatible with another protobufNative schema."
+    )
+    private String protoBufNativeSchemaValidatorClassName = "";
+
     /**** --- WebSocket. --- ****/
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
