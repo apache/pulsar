@@ -2812,6 +2812,11 @@ public class BrokerService implements Closeable {
             pulsar.getWebService().updateHttpRequestsFailOnUnknownPropertiesEnabled((boolean) enabled);
         });
 
+        // add listener to notify web service httpRequestsFailOnUnknownPropertiesEnabled changed.
+        registerConfigurationListener("configurationMetadataSyncEventTopic", enabled -> {
+            pulsar.initConfigMetadataSynchronizerIfNeeded();
+        });
+
         // add more listeners here
 
         // (3) create dynamic-config if not exist.
