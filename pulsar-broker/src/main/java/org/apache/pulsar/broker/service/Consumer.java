@@ -25,6 +25,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -90,7 +91,9 @@ public class Consumer {
     private final Rate msgOut;
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
+    private final LongAdder msgRedeliverCounter;
     private final LongAdder bytesOutCounter;
+    private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
 
     private volatile long lastConsumedTimestamp;
@@ -152,6 +155,9 @@ public class Consumer {
     @Getter
     private final SchemaType schemaType;
 
+    @Getter
+    private final Instant connectedSince = Instant.now();
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
@@ -182,8 +188,10 @@ public class Consumer {
         this.msgOut = new Rate();
         this.chunkedMessageRate = new Rate();
         this.msgRedeliver = new Rate();
+        this.msgRedeliverCounter = new LongAdder();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
+        this.messageAckCounter = new LongAdder();
         this.messageAckRate = new Rate();
         this.appId = appId;
 
@@ -200,7 +208,7 @@ public class Consumer {
         stats = new ConsumerStatsImpl();
         stats.setAddress(cnx.clientSourceAddressAndPort());
         stats.consumerName = consumerName;
-        stats.setConnectedSince(DateFormatter.now());
+        stats.setConnectedSince(DateFormatter.format(connectedSince));
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
@@ -238,8 +246,10 @@ public class Consumer {
         this.consumerName = consumerName;
         this.msgOut = null;
         this.msgRedeliver = null;
+        this.msgRedeliverCounter = null;
         this.msgOutCounter = null;
         this.bytesOutCounter = null;
+        this.messageAckCounter = null;
         this.messageAckRate = null;
         this.pendingAcks = null;
         this.stats = null;
@@ -502,6 +512,7 @@ public class Consumer {
         return future
                 .thenApply(v -> {
                     this.messageAckRate.recordEvent(v);
+                    this.messageAckCounter.add(v);
                     return null;
                 });
     }
@@ -922,6 +933,14 @@ public class Consumer {
         return bytesOutCounter.longValue();
     }
 
+    public long getMessageAckCounter() {
+        return messageAckCounter.sum();
+    }
+
+    public long getMessageRedeliverCounter() {
+        return msgRedeliverCounter.sum();
+    }
+
     public int getUnackedMessages() {
         return unackedMessages;
     }
@@ -1059,6 +1078,8 @@ public class Consumer {
             }
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
+            msgRedeliverCounter.add(totalRedeliveryMessages.intValue());
+
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
@@ -1091,6 +1112,7 @@ public class Consumer {
 
         subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
+        msgRedeliverCounter.add(totalRedeliveryMessages);
 
         int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
 
@@ -1151,6 +1173,14 @@ public class Consumer {
 
     public String getClientAddress() {
         return clientAddress;
+    }
+
+    public String getClientAddressAndPort() {
+        return cnx.clientSourceAddressAndPort();
+    }
+
+    public String getClientVersion() {
+        return cnx.getClientVersion();
     }
 
     public MessageId getStartMessageId() {
