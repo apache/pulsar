@@ -333,6 +333,8 @@ public class PerformanceBaseArgumentsTest {
             }
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             args.parse(new String[]{});
+            args.validate();
+            assertTrue(args.useKeyStoreTls);
             assertEquals("PKCS12", args.tlsTrustStoreType);
             assertEquals("./path", args.tlsTrustStorePath);
             assertEquals("changeme", args.tlsTrustStorePassword);
