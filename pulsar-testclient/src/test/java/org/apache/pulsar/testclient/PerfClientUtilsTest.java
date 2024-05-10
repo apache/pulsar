@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -77,7 +78,7 @@ public class PerfClientUtilsTest {
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertTrue(conf.isTlsHostnameVerificationEnable());
-        Assert.assertEquals(conf.getAuthPluginClassName(), MyAuth.class.getName());
+        Assert.assertEquals(conf.getAuthentication().getClass(), MyAuth.class);
         Assert.assertEquals(conf.getAuthParams(), "params");
         Assert.assertTrue(conf.isEnableBusyWait());
         Assert.assertEquals(conf.getConnectionsPerBroker(), 100);
@@ -92,6 +93,69 @@ public class PerfClientUtilsTest {
         Assert.assertNull(conf.getProxyServiceUrl());
         Assert.assertNull(conf.getProxyProtocol());
         Assert.assertEquals(conf.getMemoryLimitBytes(), 10240L);
+
+    }
+
+    @Test
+    public void testClientCreationWithKeyStoreEnabled() throws Exception {
+
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+
+        args.authPluginClassName = MyAuth.class.getName();
+        args.authParams = "params";
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        args.useKeyStoreTls = Boolean.TRUE;
+        args.tlsTrustStoreType = "PKCS12";
+        args.tlsTrustStorePath = "./tlsTrustStorePath";
+        args.tlsTrustStorePassword = "tlsTrustStorePassword";
+        args.tlsKeyStoreType = "JKS";
+        args.tlsKeyStorePath = "./tlsKeyStorePath";
+        args.tlsKeyStorePassword = "tlsKeyStorePassword";
+
+        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientConfigurationData conf = builder.getClientConfigurationData();
+
+        Assert.assertEquals(conf.getAuthPluginClassName(), MyAuth.class.getName());
+        Assert.assertEquals(conf.getAuthParams(), "params");
+        Assert.assertEquals(conf.getServiceUrl(), "pulsar+ssl://my-pulsar:6651");
+        Assert.assertTrue(conf.isUseKeyStoreTls());
+        Assert.assertEquals(conf.getTlsTrustStoreType(), "PKCS12");
+        Assert.assertEquals(conf.getTlsTrustStorePath(), "./tlsTrustStorePath");
+        Assert.assertEquals(conf.getTlsTrustStorePassword(), "tlsTrustStorePassword");
+        Assert.assertEquals(conf.getTlsKeyStoreType(), "JKS");
+        Assert.assertEquals(conf.getTlsKeyStorePath(), "./tlsKeyStorePath");
+        Assert.assertEquals(conf.getTlsKeyStorePassword(), "tlsKeyStorePassword");
+
+    }
+
+    @Test
+    public void testAdminCreationWithKeyStoreEnabled() throws Exception {
+
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+
+        args.authPluginClassName = MyAuth.class.getName();
+        args.authParams = "params";
+        args.useKeyStoreTls = Boolean.TRUE;
+        args.tlsTrustStoreType = "PKCS12";
+        args.tlsTrustStorePath = "./tlsTrustStorePath";
+        args.tlsTrustStorePassword = "tlsTrustStorePassword";
+        args.tlsKeyStoreType = "JKS";
+        args.tlsKeyStorePath = "./tlsKeyStorePath";
+        args.tlsKeyStorePassword = "tlsKeyStorePassword";
+
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl)PerfClientUtils.createAdminBuilderFromArguments(args,
+                "https://localhost:8081");
+        final ClientConfigurationData conf = builder.getConf();
+
+        Assert.assertEquals(conf.getServiceUrl(), "https://localhost:8081");
+        Assert.assertEquals(conf.getAuthentication().getClass().getName(), MyAuth.class.getName());
+        Assert.assertTrue(conf.isUseKeyStoreTls());
+        Assert.assertEquals(conf.getTlsTrustStoreType(), "PKCS12");
+        Assert.assertEquals(conf.getTlsTrustStorePath(), "./tlsTrustStorePath");
+        Assert.assertEquals(conf.getTlsTrustStorePassword(), "tlsTrustStorePassword");
+        Assert.assertEquals(conf.getTlsKeyStoreType(), "JKS");
+        Assert.assertEquals(conf.getTlsKeyStorePath(), "./tlsKeyStorePath");
+        Assert.assertEquals(conf.getTlsKeyStorePassword(), "tlsKeyStorePassword");
 
     }
 
