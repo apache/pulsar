@@ -917,7 +917,7 @@ public class Consumer {
     public String toString() {
         if (subscription != null && cnx != null) {
             return MoreObjects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
-                    .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
+                    .add("consumerName", consumerName).add("address", this.cnx.toString()).toString();
         } else {
             return MoreObjects.toStringHelper(this).add("consumerId", consumerId)
                     .add("consumerName", consumerName).toString();
