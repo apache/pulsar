@@ -141,7 +141,7 @@ public class TokensCliUtils {
                 description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
 
-        @Option(names = {"-h",
+        @Option(names = {"-hs",
                 "--headers"},
                 description = "Additional headers to token. Format: --headers key1=value1")
         private Map<String, Object> headers;
