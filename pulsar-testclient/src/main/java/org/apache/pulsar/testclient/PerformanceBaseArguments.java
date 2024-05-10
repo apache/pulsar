@@ -27,7 +27,7 @@ import picocli.CommandLine.Option;
  * PerformanceBaseArguments contains common CLI arguments and parsing logic available to all sub-commands.
  * Sub-commands should create Argument subclasses and override the `validate` method as necessary.
  */
-public abstract class PerformanceBaseArguments extends CmdBase{
+public abstract class PerformanceBaseArguments extends CmdBase {
 
 
     @Option(names = { "-u", "--service-url" }, description = "Pulsar Service URL", descriptionKey = "brokerServiceUrl")
@@ -62,26 +62,26 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     public Boolean useKeystoreTls = null;
 
     @Option(names = {"--truststore-type"}, description = "Type of the truststore, PKCS12 or JKS. The default is JKS.",
-            descriptionKey = "trustStoreType")
-    public String trustStoreType = "JKS";
+            descriptionKey = "tlsTrustStoreType")
+    public String tlsTrustStoreType = "JKS";
 
     @Option(names = {"--truststore-path"}, description = "Path to the truststore.",
-            descriptionKey = "trustStorePath")
-    public String trustStorePath = "";
+            descriptionKey = "tlsTrustStorePath")
+    public String tlsTrustStorePath = "";
 
     @Option(names = {"--truststore-pass"}, description = "Password to the truststore.",
-            descriptionKey = "trustStorePass")
-    public String trustStorePass = "";
+            descriptionKey = "tlsTrustStorePassword")
+    public String tlsTrustStorePassword = "";
 
     @Option(names = {"--keystore-type"}, description = "Type of the keystore, PKCS12 or JKS. The default is JKS.",
-            descriptionKey = "keyStoreType")
-    public String keyStoreType = "JKS";
+            descriptionKey = "tlsKeyStoreType")
+    public String tlsKeyStoreType = "JKS";
 
-    @Option(names = {"--keystore-path"}, description = "Path to the keystore.", descriptionKey = "keyStorePath")
-    public String keyStorePath = "";
+    @Option(names = {"--keystore-path"}, description = "Path to the keystore.", descriptionKey = "tlsKeyStorePath")
+    public String tlsKeyStorePath = "";
 
-    @Option(names = {"--keystore-pass"}, description = "Password to the keystore.", descriptionKey = "keyStorePass")
-    public String keyStorePass = "";
+    @Option(names = {"--keystore-pass"}, description = "Password to the keystore.", descriptionKey = "keyStorePassword")
+    public String tlsKeyStorePassword = "";
 
     @Option(names = {
             "--tls-allow-insecure" }, description = "Allow insecure TLS connection",

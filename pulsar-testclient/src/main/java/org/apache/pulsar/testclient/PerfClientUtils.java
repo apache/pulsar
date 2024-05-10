@@ -86,12 +86,12 @@ public class PerfClientUtils {
 
         if (arguments.useKeystoreTls != null) {
             clientBuilder.useKeyStoreTls(arguments.useKeystoreTls);
-            clientBuilder.tlsTrustStoreType(arguments.trustStoreType);
-            clientBuilder.tlsTrustStorePath(arguments.trustStorePath);
-            clientBuilder.tlsTrustStorePassword(arguments.trustStorePath);
-            clientBuilder.tlsKeyStoreType(arguments.keyStoreType);
-            clientBuilder.tlsKeyStorePath(arguments.keyStorePath);
-            clientBuilder.tlsKeyStorePassword(arguments.keyStorePass);
+            clientBuilder.tlsTrustStoreType(arguments.tlsTrustStoreType);
+            clientBuilder.tlsTrustStorePath(arguments.tlsTrustStorePath);
+            clientBuilder.tlsTrustStorePassword(arguments.tlsTrustStorePassword);
+            clientBuilder.tlsKeyStoreType(arguments.tlsKeyStoreType);
+            clientBuilder.tlsKeyStorePath(arguments.tlsKeyStorePath);
+            clientBuilder.tlsKeyStorePassword(arguments.tlsKeyStorePassword);
         } else {
             clientBuilder.tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         }
@@ -128,12 +128,12 @@ public class PerfClientUtils {
 
         if (arguments.useKeystoreTls != null) {
             pulsarAdminBuilder.useKeyStoreTls(arguments.useKeystoreTls);
-            pulsarAdminBuilder.tlsTrustStoreType(arguments.trustStoreType);
-            pulsarAdminBuilder.tlsTrustStorePath(arguments.trustStorePath);
-            pulsarAdminBuilder.tlsTrustStorePassword(arguments.trustStorePath);
-            pulsarAdminBuilder.tlsKeyStoreType(arguments.keyStoreType);
-            pulsarAdminBuilder.tlsKeyStorePath(arguments.keyStorePath);
-            pulsarAdminBuilder.tlsKeyStorePassword(arguments.keyStorePass);
+            pulsarAdminBuilder.tlsTrustStoreType(arguments.tlsTrustStoreType);
+            pulsarAdminBuilder.tlsTrustStorePath(arguments.tlsTrustStorePath);
+            pulsarAdminBuilder.tlsTrustStorePassword(arguments.tlsTrustStorePassword);
+            pulsarAdminBuilder.tlsKeyStoreType(arguments.tlsKeyStoreType);
+            pulsarAdminBuilder.tlsKeyStorePath(arguments.tlsKeyStorePath);
+            pulsarAdminBuilder.tlsKeyStorePassword(arguments.tlsKeyStorePassword);
         } else {
             pulsarAdminBuilder.tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         }
