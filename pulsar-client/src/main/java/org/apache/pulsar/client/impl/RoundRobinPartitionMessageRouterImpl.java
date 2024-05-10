@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
@@ -50,24 +51,29 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
 
+    private Supplier<Boolean> batchingCallback;
+
     public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
                                                 int startPtnIdx,
                                                 boolean isBatchingEnabled,
-                                                long partitionSwitchMs) {
-        this(hashingScheme, startPtnIdx, isBatchingEnabled, partitionSwitchMs, SYSTEM_CLOCK);
+                                                long partitionSwitchMs,
+                                                Supplier batchingCallback) {
+        this(hashingScheme, startPtnIdx, isBatchingEnabled, partitionSwitchMs, SYSTEM_CLOCK, batchingCallback);
     }
 
     public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
                                                 int startPtnIdx,
                                                 boolean isBatchingEnabled,
                                                 long partitionSwitchMs,
-                                                Clock clock) {
+                                                Clock clock,
+                                                Supplier batchingCallback) {
         super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
         this.startPtnIdx = startPtnIdx;
         this.isBatchingEnabled = isBatchingEnabled;
         this.partitionSwitchMs = Math.max(1, partitionSwitchMs);
         this.clock = clock;
+        this.batchingCallback = batchingCallback;
     }
 
     @Override
@@ -77,7 +83,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
         }
 
-        if (isBatchingEnabled) { // if batching is enabled, choose partition on `partitionSwitchMs` boundary.
+        if (batchingCallback.get()) { // if batching is enabled, choose partition on `partitionSwitchMs` boundary.
             long currentMs = clock.millis();
             return signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartitions());
         } else {

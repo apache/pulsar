@@ -338,6 +338,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> maxRetryOtherPartitions(int mayRetryOtherPartitions) {
+        conf.setMayRetryOtherPartitions(mayRetryOtherPartitions);
+        return this;
+    }
+
     /**
      * Use this config to automatically create an initial subscription when creating the topic.
      * If this field is not set, the initial subscription will not be created.

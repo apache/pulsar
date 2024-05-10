@@ -131,7 +131,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                         conf.getHashingScheme(),
                         ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
                         conf.isBatchingEnabled(),
-                        TimeUnit.MICROSECONDS.toMillis(conf.batchingPartitionSwitchFrequencyIntervalMicros()));
+                        TimeUnit.MICROSECONDS.toMillis(conf.batchingPartitionSwitchFrequencyIntervalMicros()),
+                        ()-> conf.isBatchingEnabled()  && conf.getMayRetryOtherPartitions() > 0 && this.isConnected());
         }
 
         return messageRouter;
@@ -222,16 +223,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return internalSendWithTxnAsync(message, null);
     }
 
-    @Override
-    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
-        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
-        if (txn != null && !((TransactionImpl) txn).checkIfOpen(completableFuture)) {
-            return completableFuture;
-        }
-        int partition = routerPolicy.choosePartition(message, topicMetadata);
-        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
-                "Illegal partition index chosen by the message routing policy: " + partition);
-
+    private CompletableFuture<MessageId> internalSendWithTxnAsyncToPartition(Message<?> message,
+                                                                             Transaction txn, int partition) {
         if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
             final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));
             final State createState = newProducer.producerCreatedFuture().handle((prod, createException) -> {
@@ -276,6 +269,47 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
 
         return producers.get(partition).internalSendWithTxnAsync(message, txn);
+    }
+
+    private int choosePartition(Message<?> message, int startPartition, int maxRetry) {
+        if (maxRetry == 0) {
+            return startPartition;
+        }
+
+        if (producers.containsKey(startPartition)) {
+            ProducerImpl<T> p = producers.get(startPartition);
+            if (p != null) {
+                if (p.isConnected()) {
+                    return startPartition;
+                } else {
+                    int newPartition = routerPolicy.choosePartition(message, topicMetadata);
+                    if (newPartition == startPartition) {
+                        return startPartition;
+                    } else {
+                        return choosePartition(message, newPartition, --maxRetry);
+                    }
+                }
+            }
+        }
+        return startPartition;
+    }
+
+    @Override
+    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        if (txn != null && !((TransactionImpl) txn).checkIfOpen(completableFuture)) {
+            return completableFuture;
+        }
+        int partition = routerPolicy.choosePartition(message, topicMetadata);
+        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
+                "Illegal partition index chosen by the message routing policy: " + partition);
+
+        if (conf.getMayRetryOtherPartitions() > 0) {
+            checkArgument(conf.getMayRetryOtherPartitions() < topicMetadata.numPartitions(),
+                    "Can not try more partitions than total number of partitions");
+            partition = choosePartition(message, partition, conf.getMayRetryOtherPartitions());
+        }
+        return internalSendWithTxnAsyncToPartition(message, txn, partition);
     }
 
     @Override
