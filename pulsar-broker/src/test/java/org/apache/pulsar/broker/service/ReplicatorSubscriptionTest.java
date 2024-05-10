@@ -25,6 +25,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -96,11 +99,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/mytopic";
         String subscriptionName = "cluster-subscription";
-        // Subscription replication produces duplicates, https://github.com/apache/pulsar/issues/10054
-        // TODO: duplications shouldn't be allowed, change to "false" when fixing the issue
-        boolean allowDuplicates = true;
-        // this setting can be used to manually run the test with subscription replication disabled
-        // it shows that subscription replication has no impact in behavior for this test case
+        boolean allowDuplicates = false;
         boolean replicateSubscriptionState = true;
 
         admin1.namespaces().createNamespace(namespace);
@@ -123,36 +122,32 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         createReplicatedSubscription(client2, topicName, subscriptionName, replicateSubscriptionState);
 
         Set<String> sentMessages = new LinkedHashSet<>();
-
-        // send messages in r1
-        {
-            @Cleanup
-            Producer<byte[]> producer = client1.newProducer().topic(topicName)
-                    .enableBatching(false)
-                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                    .create();
-            int numMessages = 6;
-            for (int i = 0; i < numMessages; i++) {
-                String body = "message" + i;
-                producer.send(body.getBytes(StandardCharsets.UTF_8));
-                sentMessages.add(body);
-            }
-            producer.close();
-        }
-
         Set<String> receivedMessages = new LinkedHashSet<>();
 
-        // consume 3 messages in r1
-        try (Consumer<byte[]> consumer1 = client1.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .replicateSubscriptionState(replicateSubscriptionState)
-                .subscribe()) {
-            readMessages(consumer1, receivedMessages, 3, allowDuplicates);
-        }
+        // send messages in r1
+        try (Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create()) {
 
-        // wait for subscription to be replicated
-        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+            // publish 3 messages
+            publishMessages(producer, 0, 3, sentMessages);
+
+            // consume 3 messages in r1
+            try (Consumer<byte[]> consumer1 = client1.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .replicateSubscriptionState(replicateSubscriptionState)
+                    .subscribe()) {
+                readMessages(consumer1, receivedMessages, 3, allowDuplicates);
+
+                // wait for subscription to be replicated
+                Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+            }
+
+            // publish 3 more messages
+            publishMessages(producer, 3, 3, sentMessages);
+        }
 
         // consume remaining messages in r2
         try (Consumer<byte[]> consumer2 = client2.newConsumer()
@@ -161,11 +156,25 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .replicateSubscriptionState(replicateSubscriptionState)
                 .subscribe()) {
             readMessages(consumer2, receivedMessages, -1, allowDuplicates);
+        } finally {
+            printStats(topicName);
         }
 
         // assert that all messages have been received
         assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received " +
                 "messages don't match.");
+    }
+
+    private void printStats(String topicName) throws JsonProcessingException, PulsarAdminException {
+        ObjectWriter objectWriter = ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter();
+        System.out.println("admin1 internal stats:");
+        System.out.println(objectWriter.writeValueAsString(admin1.topics().getInternalStats(topicName)));
+        System.out.println("admin1 stats:");
+        System.out.println(objectWriter.writeValueAsString(admin1.topics().getStats(topicName)));
+        System.out.println("admin2 internal stats:");
+        System.out.println(objectWriter.writeValueAsString(admin2.topics().getInternalStats(topicName)));
+        System.out.println("admin2 stats:");
+        System.out.println(objectWriter.writeValueAsString(admin2.topics().getStats(topicName)));
     }
 
     /**
@@ -365,8 +374,6 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .serviceUrl(url2.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
-
-        Set<String> sentMessages = new LinkedHashSet<>();
 
         // send messages in r1
         {

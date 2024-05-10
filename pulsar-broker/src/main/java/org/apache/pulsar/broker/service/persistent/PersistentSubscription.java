@@ -404,21 +404,6 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
-            this.updateLastMarkDeleteAdvancedTimestamp();
-
-            // Mark delete position advance
-            ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
-            if (snapshotCache != null) {
-                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
-                        .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
-                if (snapshot != null) {
-                    topic.getReplicatedSubscriptionController()
-                            .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
-                }
-            }
-        }
-
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
@@ -494,8 +479,26 @@ public class PersistentSubscription extends AbstractSubscription {
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
         PositionImpl oldMD = (PositionImpl) oldPosition;
         PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+
+        if (!newMD.equals(oldMD)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
+            handlePossibleReplicatedSubscriptionsUpdate(newMD);
+        }
+
         if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
             dispatcher.markDeletePositionMoveForward();
+        }
+    }
+
+    private void handlePossibleReplicatedSubscriptionsUpdate(PositionImpl markDeletePosition) {
+        ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
+        if (snapshotCache != null) {
+            ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(markDeletePosition);
+            if (snapshot != null) {
+                topic.getReplicatedSubscriptionController()
+                        .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
+            }
         }
     }
 
@@ -1415,6 +1418,7 @@ public class PersistentSubscription extends AbstractSubscription {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
+            handlePossibleReplicatedSubscriptionsUpdate((PositionImpl) cursor.getMarkDeletedPosition());
         }
     }
 
