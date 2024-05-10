@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Random;
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -89,8 +90,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
             return String.valueOf(r.nextFloat());
         }
         String format = "%" + size + "f";
-
-        return String.format(format, get_FloatValue(size));
+        return String.format(Locale.US, format, get_FloatValue(size));
     }
 
     private String getIntValue(float size) {
