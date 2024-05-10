@@ -76,7 +76,6 @@ public class PerfClientUtils {
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS)
                 .enableBusyWait(arguments.enableBusyWait)
                 .listenerThreads(arguments.listenerThreads)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
                 .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
                 .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
@@ -84,6 +83,18 @@ public class PerfClientUtils {
                                 "otel.sdk.disabled", "true"
                         ))
                         .build().getOpenTelemetrySdk());
+
+        if (arguments.useKeystoreTls != null) {
+            clientBuilder.useKeyStoreTls(arguments.useKeystoreTls);
+            clientBuilder.tlsTrustStoreType(arguments.trustStoreType);
+            clientBuilder.tlsTrustStorePath(arguments.trustStorePath);
+            clientBuilder.tlsTrustStorePassword(arguments.trustStorePath);
+            clientBuilder.tlsKeyStoreType(arguments.keyStoreType);
+            clientBuilder.tlsKeyStorePath(arguments.keyStorePath);
+            clientBuilder.tlsKeyStorePassword(arguments.keyStorePass);
+        } else {
+            clientBuilder.tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+        }
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -113,8 +124,19 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .serviceHttpUrl(adminUrl);
+
+        if (arguments.useKeystoreTls != null) {
+            pulsarAdminBuilder.useKeyStoreTls(arguments.useKeystoreTls);
+            pulsarAdminBuilder.tlsTrustStoreType(arguments.trustStoreType);
+            pulsarAdminBuilder.tlsTrustStorePath(arguments.trustStorePath);
+            pulsarAdminBuilder.tlsTrustStorePassword(arguments.trustStorePath);
+            pulsarAdminBuilder.tlsKeyStoreType(arguments.keyStoreType);
+            pulsarAdminBuilder.tlsKeyStorePath(arguments.keyStorePath);
+            pulsarAdminBuilder.tlsKeyStorePassword(arguments.keyStorePass);
+        } else {
+            pulsarAdminBuilder.tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+        }
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
