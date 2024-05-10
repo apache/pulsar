@@ -165,6 +165,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class CursorRecoveryInProgressException extends ManagedLedgerException {
+        public CursorRecoveryInProgressException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class CursorNotFoundException extends ManagedLedgerException {
         public CursorNotFoundException(String msg) {
             super(msg);

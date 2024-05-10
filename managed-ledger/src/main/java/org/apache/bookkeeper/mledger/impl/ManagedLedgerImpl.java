@@ -189,6 +189,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @SuppressWarnings("unused")
     private volatile long totalSize = 0;
 
+    static final AtomicLongFieldUpdater<ManagedLedgerImpl> LAZY_RECOVERY_IN_PROCESS = AtomicLongFieldUpdater
+            .newUpdater(ManagedLedgerImpl.class, "lazyRecoveryInProcess");
+    @SuppressWarnings("unused")
+    private volatile long lazyRecoveryInProcess = 0;
+
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
 
@@ -600,6 +605,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         });
                     }
                 } else {
+                    LAZY_RECOVERY_IN_PROCESS.addAndGet(ManagedLedgerImpl.this, consumers.size());
+
                     // Lazily recover cursors by put them to uninitializedCursors map.
                     for (final String cursorName : consumers) {
                         if (log.isDebugEnabled()) {
@@ -620,6 +627,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     addCursor(cursor);
                                     uninitializedCursors.remove(cursor.getName()).complete(cursor);
                                 }
+                                LAZY_RECOVERY_IN_PROCESS.decrementAndGet(ManagedLedgerImpl.this);
                             }
 
                             @Override
@@ -628,6 +636,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 synchronized (ManagedLedgerImpl.this) {
                                     uninitializedCursors.remove(cursor.getName()).completeExceptionally(exception);
                                 }
+                                LAZY_RECOVERY_IN_PROCESS.decrementAndGet(ManagedLedgerImpl.this);
                             }
                         });
                     }
@@ -2594,6 +2603,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
             promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
+            return;
+        }
+
+        long lazyRecoveryNumber = LAZY_RECOVERY_IN_PROCESS.get(this);
+        if (lazyRecoveryNumber > 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skip trim ledgers because has lazy recovery in process, current={}",
+                        name, lazyRecoveryNumber);
+            }
+            promise.completeExceptionally(
+                    new ManagedLedgerException.
+                            CursorRecoveryInProgressException("Current ledger has lazy cursor recovery in process"));
+
             return;
         }
 

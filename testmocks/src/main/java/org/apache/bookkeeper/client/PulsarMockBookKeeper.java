@@ -34,6 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,6 +71,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
+    // use for delay async operation
+    final ScheduledExecutorService scheduledExecutorService;
 
     @Override
     public ClientConfiguration getConf() {
@@ -89,12 +93,15 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
+    final Map<Long, Queue<Long>> readEntryDelayMillis = new ConcurrentHashMap<>();
+
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
     final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
 
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
+        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     }
 
     @Override
@@ -285,6 +292,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         synchronized (this) {
             defaultResponse = FutureUtils.exception(new BKException.BKClientClosedException());
         }
+
+        scheduledExecutorService.shutdown();
+
         for (PulsarMockLedgerHandle ledger : ledgers.values()) {
             ledger.entries.clear();
         }
@@ -365,6 +375,11 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     public synchronized void addEntryDelay(long delay, TimeUnit unit) {
         addEntryDelaysMillis.add(unit.toMillis(delay));
+    }
+
+    public synchronized void readEntryDelay(long entryId, long delayTime, TimeUnit unit) {
+        Queue<Long> delay = readEntryDelayMillis.computeIfAbsent(entryId, (__) -> new LinkedBlockingQueue<>());
+        delay.add(unit.toMillis(delayTime));
     }
 
     static int getExceptionCode(Throwable t) {

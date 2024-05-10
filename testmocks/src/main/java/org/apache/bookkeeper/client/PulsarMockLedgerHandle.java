@@ -30,6 +30,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -101,40 +102,62 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncReadEntries(final long firstEntry, final long lastEntry, final ReadCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
-                final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
-                long entryId = firstEntry;
-                while (entryId <= lastEntry && entryId < entries.size()) {
-                    seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
+            long delay = 0;
+            Queue<Long> delays = bk.readEntryDelayMillis.get(ledgerId);
+            if (delays != null) {
+                Long tmpDelay = delays.poll();
+                // null check to avoid NPE
+                if (tmpDelay != null) {
+                    delay = tmpDelay;
+                }
+            }
+
+            log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+
+            final Queue<LedgerEntry> seq = new ArrayDeque<LedgerEntry>();
+            long entryId = firstEntry;
+            while (entryId <= lastEntry && entryId < entries.size()) {
+                seq.add(new LedgerEntry(entries.get((int) entryId++).duplicate()));
+            }
+
+            log.debug("Entries read: {}", seq);
+
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+            }
+
+            Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
+                @Override
+                public boolean hasMoreElements() {
+                    return !seq.isEmpty();
                 }
 
-                log.debug("Entries read: {}", seq);
-
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
+                @Override
+                public LedgerEntry nextElement() {
+                    return seq.remove();
                 }
+            };
 
-                Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
-                        @Override
-                        public boolean hasMoreElements() {
-                            return !seq.isEmpty();
-                        }
+            if (delay != 0) {
+                CompletableFuture<Enumeration<LedgerEntry>> ledgers = new CompletableFuture<>();
 
-                        @Override
-                        public LedgerEntry nextElement() {
-                            return seq.remove();
-                        }
-                    };
+                bk.scheduledExecutorService.schedule(() -> {
+                    ledgers.complete(entries);
+                }, delay, TimeUnit.MILLISECONDS);
+
+                return ledgers;
+            } else {
                 return FutureUtils.value(entries);
-            }).whenCompleteAsync((res, exception) -> {
-                    if (exception != null) {
-                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
-                                PulsarMockLedgerHandle.this, null, ctx);
-                    } else {
-                        cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
-                    }
-                }, bk.executor);
+            }
+        }).whenCompleteAsync((res, exception) -> {
+            if (exception != null) {
+                cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
+                        PulsarMockLedgerHandle.this, null, ctx);
+            } else {
+                cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
+            }
+        }, bk.executor);
     }
 
     @Override
