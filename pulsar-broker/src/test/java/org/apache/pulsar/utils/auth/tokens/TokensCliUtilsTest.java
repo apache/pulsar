@@ -54,7 +54,7 @@ public class TokensCliUtilsTest {
             Jwt<?, ?> jwt = Jwts.parserBuilder()
                     .setSigningKey(Decoders.BASE64.decode(secretKey))
                     .build()
-                    .parse(token);
+                    .parseClaimsJws(token);
 
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
