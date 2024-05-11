@@ -19,6 +19,7 @@
 package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
+import java.util.List;
 
 /**
  * Common OpenTelemetry attributes to be used by Pulsar components.
@@ -55,6 +56,51 @@ public interface OpenTelemetryAttributes {
      * The partition index of a Pulsar topic.
      */
     AttributeKey<Long> PULSAR_PARTITION_INDEX = AttributeKey.longKey("pulsar.partition.index");
+
+    /**
+     * The name of the Pulsar subscription.
+     */
+    AttributeKey<String> PULSAR_SUBSCRIPTION_NAME = AttributeKey.stringKey("pulsar.subscription.name");
+
+    /**
+     * The type of the Pulsar subscription.
+     */
+    AttributeKey<String> PULSAR_SUBSCRIPTION_TYPE = AttributeKey.stringKey("pulsar.subscription.type");
+
+    /**
+     * The name of the Pulsar consumer.
+     */
+    AttributeKey<String> PULSAR_CONSUMER_NAME = AttributeKey.stringKey("pulsar.consumer.name");
+
+    /**
+     * The ID of the Pulsar consumer.
+     */
+    AttributeKey<Long> PULSAR_CONSUMER_ID = AttributeKey.longKey("pulsar.consumer.id");
+
+    /**
+     * Indicates whether the consumer is currently blocked on unacknowledged messages or not.
+     */
+    AttributeKey<Boolean> PULSAR_CONSUMER_BLOCKED = AttributeKey.booleanKey("pulsar.consumer.blocked");
+
+    /**
+     * The consumer metadata properties, as a list of "key:value" pairs.
+     */
+    AttributeKey<List<String>> PULSAR_CONSUMER_METADATA = AttributeKey.stringArrayKey("pulsar.consumer.metadata");
+
+    /**
+     * The UTC timestamp of the Pulsar consumer creation.
+     */
+    AttributeKey<Long> PULSAR_CONSUMER_CONNECTED_SINCE = AttributeKey.longKey("pulsar.consumer.connected_since");
+
+    /**
+     * The address of the Pulsar client.
+     */
+    AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");
+
+    /**
+     * The version of the Pulsar client.
+     */
+    AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
     /**
      * The status of the Pulsar transaction.
