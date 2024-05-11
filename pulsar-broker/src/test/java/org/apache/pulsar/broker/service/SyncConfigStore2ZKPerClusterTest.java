@@ -72,7 +72,7 @@ public class SyncConfigStore2ZKPerClusterTest extends GeoReplicationWithConfigur
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
-        config.setMayEnableMetadataSynchronizer(true);
+        config.setForceUseSeparatedConfigurationStoreInMemory(true);
     }
 
     protected void verifyMetadataStores() {

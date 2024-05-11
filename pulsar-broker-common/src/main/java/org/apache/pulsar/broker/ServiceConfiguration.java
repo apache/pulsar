@@ -585,10 +585,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_SERVER,
-            doc = "If you want to enable or disable the metadata synchronizer dynamically, this value should be true."
-                + "Enabled: Pulsar will initialize itself to update the metadata synchronizer dynamically."
+            doc = "Create a separate configuration metadata store object in memory even if the URL of the configuration"
+                    + " metadata store is the same as the local metadata store. It is useful for some case, for"
+                    + " example: to enable Metadata Synchronizer dynamically."
     )
-    private boolean mayEnableMetadataSynchronizer = false;
+    private boolean forceUseSeparatedConfigurationStoreInMemory = false;
 
     @FieldContext(
             dynamic = true,

@@ -54,7 +54,7 @@ public class SyncConfigStoreWrongConfigTest extends SyncConfigStore1ZKPerCluster
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
-        config.setMayEnableMetadataSynchronizer(false);
+        config.setForceUseSeparatedConfigurationStoreInMemory(false);
     }
 
     @Override
