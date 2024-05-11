@@ -877,7 +877,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // In order to ensure that the two synchronizer receive events of interest to each other (in other words,
             // ensure that different types of events are sent to different topics), create the single configuration
             // metadata store.
-            if (config.isConfigurationStoreSeparated() || config.isMayEnableMetadataSynchronizer()
+            if (config.isConfigurationStoreSeparated() || config.isForceUseSeparatedConfigurationStoreInMemory()
                     || localMetadataSynchronizer != null || configMetadataSynchronizer != null) {
                 configurationMetadataStore = createConfigurationMetadataStore(configMetadataSynchronizer,
                         openTelemetry.getOpenTelemetryService().getOpenTelemetry());
@@ -1094,8 +1094,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if ("configurationMetadataSyncEventTopic".equals(confName) || "metadataSyncEventTopic".equals(confName)) {
             if (localMetadataStore == configurationMetadataStore) {
                 return Pair.of(false, String.format("Can not update conf %s dynamically, please enable"
-                        + " mayEnableMetadataSynchronizer if you want to enable or disable the metadata synchronizer"
-                        + " dynamically.", confName));
+                        + " forceUseSeparatedConfigurationStoreInMemory if you want to enable or disable the metadata"
+                        + " synchronizer dynamically.", confName));
             }
         }
         return Pair.of(true, "");
