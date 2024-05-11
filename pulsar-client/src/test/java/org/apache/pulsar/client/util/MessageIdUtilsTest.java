@@ -18,28 +18,17 @@
  */
 package org.apache.pulsar.client.util;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.testng.annotations.Test;
 
-public class MessageIdUtils {
-    public static final long getOffset(MessageId messageId) {
-        MessageIdAdv msgId = (MessageIdAdv) messageId;
-        long ledgerId = msgId.getLedgerId();
-        long entryId = msgId.getEntryId();
-
-        // Combine ledger id and entry id to form offset
-        // Use less than 32 bits to represent entry id since it will get
-        // rolled over way before overflowing the max int range
-        long offset = (ledgerId << 28) | entryId;
-        return offset;
-    }
-
-    public static final MessageId getMessageId(long offset) {
-        // Demultiplex ledgerId and entryId from offset
-        long ledgerId = offset >>> 28;
-        long entryId = offset & 0x0F_FF_FF_FFL;
-
-        return new MessageIdImpl(ledgerId, entryId, -1);
+public class MessageIdUtilsTest {
+    @Test
+    public void testTopicMessageIdGetOffset() {
+        MessageIdImpl msgId = new MessageIdImpl(1, 2, 3);
+        TopicMessageIdImpl topicMsgId = new TopicMessageIdImpl("topic", msgId);
+        long offset = MessageIdUtils.getOffset(topicMsgId);
+        assertEquals(offset, 268435458L);
     }
 }
