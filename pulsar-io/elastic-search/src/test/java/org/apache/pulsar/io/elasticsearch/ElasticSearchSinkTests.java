@@ -18,8 +18,29 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import com.fasterxml.jackson.core.JsonParseException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -32,25 +53,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Locale;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
@@ -71,10 +73,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.fail;
 
 public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
@@ -149,6 +147,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         });
 
         when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, UserProfile>>>) invocation -> kvSchema);
+        when(mockRecord.getEventTime()).thenAnswer(invocation -> Optional.of(System.currentTimeMillis()));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -204,6 +203,16 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(100);
         verify(mockRecord, times(100)).ack();
+    }
+
+    @Test
+    public final void send1WithFormattedIndexTest() throws Exception {
+        map.put("indexName", "test-formatted-index-%{+yyyy-MM-dd}");
+        sink.open(map, mockSinkContext);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+        String value = getHitIdAtIndex("test-formatted-index-*", 0);
+        assertTrue(StringUtils.isNotBlank(value));
     }
 
     @Test
