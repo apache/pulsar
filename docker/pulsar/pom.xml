@@ -73,6 +73,7 @@
                 <goals>
                   <goal>build</goal>
                   <goal>tag</goal>
+                  <goal>push</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -124,25 +125,9 @@
 
     <profile>
       <id>docker-push</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>default</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
+      <properties>
+        <docker.skip.push>false</docker.skip.push>
+      </properties>
     </profile>
 
   </profiles>
