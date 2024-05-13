@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -40,8 +41,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class TransactionBufferDisable implements TransactionBuffer {
     private final Topic topic;
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack;
     public TransactionBufferDisable(Topic topic) {
         this.topic = topic;
+        if (topic instanceof PersistentTopic) {
+            this.maxReadPositionCallBack = ((PersistentTopic) topic).getMaxReadPositionCallBack();
+        } else {
+            this.maxReadPositionCallBack = null;
+        }
     }
 
     @Override
@@ -89,8 +96,10 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
-        //no-op
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
+        if (!isMarkerMessage && maxReadPositionCallBack != null) {
+            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+        }
     }
 
     @Override
