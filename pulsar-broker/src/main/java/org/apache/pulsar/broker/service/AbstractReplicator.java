@@ -36,10 +36,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
 import org.slf4j.Logger;
@@ -248,7 +248,7 @@ public abstract class AbstractReplicator implements Replicator {
                 }
                 startProducer();
             }).exceptionally(ex -> {
-                log.warn("[{}] [{}] Stop retry to create producer due to unknown error(topic create failed), and"
+                log.error("[{}] [{}] Stop retry to create producer due to unknown error(topic create failed), and"
                                 + " trigger a terminate. Replicator state: {}",
                         localTopicName, replicatorId, STATE_UPDATER.get(this), ex);
                 terminate();
@@ -377,8 +377,12 @@ public abstract class AbstractReplicator implements Replicator {
             this.producer = null;
             // set the cursor as inactive.
             disableReplicatorRead();
+            // release resources.
+            doReleaseResources();
         });
     }
+
+    protected void doReleaseResources() {}
 
     protected boolean tryChangeStatusToTerminating() {
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Terminating)){
@@ -467,5 +471,9 @@ public abstract class AbstractReplicator implements Replicator {
             return ImmutablePair.of(false, original1);
         }
         return compareSetAndGetState(expect, update);
+    }
+
+    public boolean isTerminated() {
+        return state == State.Terminating || state == State.Terminated;
     }
 }

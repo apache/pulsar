@@ -228,19 +228,36 @@ public class ModularLoadManagerImplTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
-
-        admin1.close();
-        admin2.close();
-
-        pulsar2.close();
-        pulsar1.close();
-
-        if (pulsar3.isRunning()) {
-            pulsar3.close();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
         }
 
-        bkEnsemble.stop();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
+
+        if (pulsar2 != null) {
+            pulsar2.close();
+            pulsar2 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
+        if (pulsar3 != null && pulsar3.isRunning()) {
+            pulsar3.close();
+        }
+        pulsar3 = null;
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {

@@ -654,6 +654,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "Additional system subscriptions that will be ignored by ttl check. "
+                + "The cursor names are comma separated. Default is empty."
+    )
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable the deletion of inactive topics.\n"
         + "If only enable this option, will not clean the metadata of partitioned topic."
@@ -2912,6 +2919,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy"
+    )
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Time in milliseconds that idle WebSocket session times out"

@@ -192,8 +192,14 @@ public class BrokerRegistryTest {
 
     @AfterClass(alwaysRun = true)
     void shutdown() throws Exception {
-        executor.shutdownNow();
-        bkEnsemble.stop();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @AfterMethod(alwaysRun = true)

@@ -338,19 +338,19 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_tracer_otel-0.16.0.jar
     - io.prometheus-simpleclient_tracer_otel_agent-0.16.0.jar
  * Prometheus exporter
-    - io.prometheus-prometheus-metrics-config-1.1.0.jar
-    - io.prometheus-prometheus-metrics-exporter-common-1.1.0.jar
-    - io.prometheus-prometheus-metrics-exporter-httpserver-1.1.0.jar
-    - io.prometheus-prometheus-metrics-exposition-formats-1.1.0.jar
-    - io.prometheus-prometheus-metrics-model-1.1.0.jar
-    - io.prometheus-prometheus-metrics-shaded-protobuf-1.1.0.jar
+    - io.prometheus-prometheus-metrics-config-1.2.1.jar
+    - io.prometheus-prometheus-metrics-exporter-common-1.2.1.jar
+    - io.prometheus-prometheus-metrics-exporter-httpserver-1.2.1.jar
+    - io.prometheus-prometheus-metrics-exposition-formats-1.2.1.jar
+    - io.prometheus-prometheus-metrics-model-1.2.1.jar
+    - io.prometheus-prometheus-metrics-shaded-protobuf-1.2.1.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
     - org.apache.logging.log4j-log4j-api-2.23.1.jar
     - org.apache.logging.log4j-log4j-core-2.23.1.jar
-    - org.apache.logging.log4j-log4j-slf4j-impl-2.23.1.jar
+    - org.apache.logging.log4j-log4j-slf4j2-impl-2.23.1.jar
     - org.apache.logging.log4j-log4j-web-2.23.1.jar
  * Java Native Access JNA
     - net.java.dev.jna-jna-jpms-5.12.1.jar
@@ -481,12 +481,10 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.streamnative.oxia-oxia-client-0.1.6.jar
-    - io.streamnative.oxia-oxia-client-metrics-api-0.1.6.jar
+    - io.streamnative.oxia-oxia-client-api-0.2.0.jar
+    - io.streamnative.oxia-oxia-client-0.2.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
-  * Project reactor
-    - io.projectreactor-reactor-core-3.5.2.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar
@@ -524,26 +522,27 @@ The Apache Software License, Version 2.0
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
     - org.roaringbitmap-shims-0.9.44.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.34.1.jar
-    - io.opentelemetry-opentelemetry-api-events-1.34.1-alpha.jar
-    - io.opentelemetry-opentelemetry-context-1.34.1.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.34.1.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.34.1.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.34.1.jar
-    - io.opentelemetry-opentelemetry-exporter-prometheus-1.34.1-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.34.1.jar
-    - io.opentelemetry-opentelemetry-extension-incubator-1.34.1-alpha.jar
-    - io.opentelemetry-opentelemetry-sdk-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.34.1.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.34.1.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.32.1.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.32.1-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-resources-1.32.1-alpha.jar
-    - io.opentelemetry.semconv-opentelemetry-semconv-1.23.1-alpha.jar
+    - io.opentelemetry-opentelemetry-api-1.37.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.37.0-alpha.jar
+    - io.opentelemetry-opentelemetry-context-1.37.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.37.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.37.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.37.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.37.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.37.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.37.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.2.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.2-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.2-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.2-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.2-alpha.jar
+    - io.opentelemetry.semconv-opentelemetry-semconv-1.25.0-alpha.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
@@ -553,9 +552,6 @@ BSD 3-clause "New" or "Revised" License
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
  * JLine3 -- org.jline-jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
- * Reactive gRPC
-    - com.salesforce.servicelibs-reactive-grpc-common-1.2.4.jar -- ../licenses/LICENSE-Reactive-gRPC.txt
-    - com.salesforce.servicelibs-reactor-grpc-stub-1.2.4.jar -- ../licenses/LICENSE-Reactive-gRPC.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- ../licenses/LICENSE-HdrHistogram.txt
@@ -563,8 +559,8 @@ BSD 2-Clause License
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-0.9.0.jar -- ../licenses/LICENSE-SemVer.txt
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
-    - org.slf4j-slf4j-api-1.7.32.jar
-    - org.slf4j-jcl-over-slf4j-1.7.32.jar
+    - org.slf4j-slf4j-api-2.0.13.jar
+    - org.slf4j-jcl-over-slf4j-2.0.13.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.33.0.jar
  * oshi

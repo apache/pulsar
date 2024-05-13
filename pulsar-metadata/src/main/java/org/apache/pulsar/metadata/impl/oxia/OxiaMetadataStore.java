@@ -18,20 +18,23 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
-import io.streamnative.oxia.client.OxiaClientBuilder;
 import io.streamnative.oxia.client.api.AsyncOxiaClient;
 import io.streamnative.oxia.client.api.DeleteOption;
-import io.streamnative.oxia.client.api.KeyAlreadyExistsException;
 import io.streamnative.oxia.client.api.Notification;
+import io.streamnative.oxia.client.api.OxiaClientBuilder;
 import io.streamnative.oxia.client.api.PutOption;
 import io.streamnative.oxia.client.api.PutResult;
-import io.streamnative.oxia.client.api.UnexpectedVersionIdException;
 import io.streamnative.oxia.client.api.Version;
+import io.streamnative.oxia.client.api.exceptions.KeyAlreadyExistsException;
+import io.streamnative.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -52,7 +55,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private final AsyncOxiaClient client;
 
     private final String identity;
-    private final Optional<MetadataEventSynchronizer> synchronizer;
+    private Optional<MetadataEventSynchronizer> synchronizer;
 
     OxiaMetadataStore(
             @NonNull String serviceAddress,
@@ -66,10 +69,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         if (!metadataStoreConfig.isBatchingEnabled()) {
             linger = 0;
         }
-        this.synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
+        updateMetadataEventSynchronizer(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
         client =
-                new OxiaClientBuilder(serviceAddress)
+                OxiaClientBuilder.create(serviceAddress)
                         .clientIdentifier(identity)
                         .namespace(namespace)
                         .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
@@ -153,14 +156,14 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         return getChildrenFromStore(path)
                 .thenCompose(
                         children -> {
-                            if (children.size() > 0) {
+                            if (!children.isEmpty()) {
                                 return CompletableFuture.failedFuture(
                                         new MetadataStoreException("Key '" + path + "' has children"));
                             } else {
-                                var delOption =
+                                Set<DeleteOption> delOption =
                                         expectedVersion
-                                                .map(DeleteOption::ifVersionIdEquals)
-                                                .orElse(DeleteOption.Unconditionally);
+                                                .map(v -> Collections.singleton(DeleteOption.IfVersionIdEquals(v)))
+                                                .orElse(Collections.emptySet());
                                 CompletableFuture<Boolean> result = client.delete(path, delOption);
                                 return result
                                         .thenCompose(
@@ -205,20 +208,20 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     } else {
                         actualPath = CompletableFuture.completedFuture(path);
                     }
-                    var versionCondition =
-                            expectedVersion
-                                    .map(
-                                            ver -> {
-                                                if (ver == -1) {
-                                                    return PutOption.IfRecordDoesNotExist;
-                                                }
-                                                return PutOption.ifVersionIdEquals(ver);
-                                            })
-                                    .orElse(PutOption.Unconditionally);
-                    var putOptions =
-                            options.contains(CreateOption.Ephemeral)
-                                    ? new PutOption[] {PutOption.AsEphemeralRecord, versionCondition}
-                                    : new PutOption[] {versionCondition};
+                    Set<PutOption> putOptions = new HashSet<>();
+                    expectedVersion
+                            .map(
+                                    ver -> {
+                                        if (ver == -1) {
+                                            return PutOption.IfRecordDoesNotExist;
+                                        }
+                                        return PutOption.IfVersionIdEquals(ver);
+                                    })
+                            .ifPresent(putOptions::add);
+
+                    if (options.contains(CreateOption.Ephemeral)) {
+                        putOptions.add(PutOption.AsEphemeralRecord);
+                    }
                     return actualPath
                             .thenCompose(
                                     aPath ->
@@ -242,6 +245,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         }
     }
 
+    private static final byte[] EMPTY_VALUE = new byte[0];
+    private static final Set<PutOption> IF_RECORD_DOES_NOT_EXIST =
+            Collections.singleton(PutOption.IfRecordDoesNotExist);
+
     private CompletableFuture<Void> createParents(String path) {
         var parent = parent(path);
         if (parent == null || parent.isEmpty()) {
@@ -254,7 +261,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 return client
-                                        .put(parent, new byte[] {}, PutOption.IfRecordDoesNotExist)
+                                        .put(parent, EMPTY_VALUE, IF_RECORD_DOES_NOT_EXIST)
                                         .thenCompose(__ -> createParents(parent));
                             }
                         })
@@ -277,6 +284,12 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return synchronizer;
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = Optional.ofNullable(synchronizer);
+        registerSyncListener(this.synchronizer);
     }
 
     private record PathWithPutResult(String path, PutResult result) {}

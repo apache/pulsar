@@ -56,7 +56,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -65,6 +64,7 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -450,7 +450,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         long waitTimeMillis = readFailureBackoff.next();
 
         if (exception instanceof CursorAlreadyClosedException) {
-            log.error("[{}] Error reading entries because replicator is"
+            log.warn("[{}] Error reading entries because replicator is"
                             + " already deleted and cursor is already closed {}, ({})",
                     replicatorId, ctx, exception.getMessage(), exception);
             // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
@@ -570,7 +570,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         log.error("[{}] Failed to delete message at {}: {}", replicatorId, ctx,
                 exception.getMessage(), exception);
         if (exception instanceof CursorAlreadyClosedException) {
-            log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
+            log.warn("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
                             + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
             // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
             terminate();
@@ -696,6 +696,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public boolean isConnected() {
         ProducerImpl<?> producer = this.producer;
         return producer != null && producer.isConnected();
+    }
+
+    @Override
+    protected void doReleaseResources() {
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);

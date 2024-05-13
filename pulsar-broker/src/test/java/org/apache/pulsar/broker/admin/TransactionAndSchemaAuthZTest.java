@@ -19,6 +19,10 @@
 package org.apache.pulsar.broker.admin;
 
 import io.jsonwebtoken.Jwts;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -47,10 +51,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Test(groups = "broker-admin")
 public class TransactionAndSchemaAuthZTest extends AuthZTest {
@@ -82,12 +82,6 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
     @SneakyThrows
     @AfterClass(alwaysRun = true)
     public void cleanup() {
-        if (superUserAdmin != null) {
-            superUserAdmin.close();
-        }
-        if (tenantManagerAdmin != null) {
-            tenantManagerAdmin.close();
-        }
         close();
     }
 

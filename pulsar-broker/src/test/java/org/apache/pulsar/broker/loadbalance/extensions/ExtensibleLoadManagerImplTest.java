@@ -156,10 +156,12 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     public void testAssignInternalTopic() throws Exception {
         Optional<BrokerLookupData> brokerLookupData1 = primaryLoadManager.assign(
                 Optional.of(TopicName.get(ServiceUnitStateChannelImpl.TOPIC)),
-                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get()).get();
+                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get(),
+                LookupOptions.builder().build()).get();
         Optional<BrokerLookupData> brokerLookupData2 = secondaryLoadManager.assign(
                 Optional.of(TopicName.get(ServiceUnitStateChannelImpl.TOPIC)),
-                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get()).get();
+                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get(),
+                LookupOptions.builder().build()).get();
         assertEquals(brokerLookupData1, brokerLookupData2);
         assertTrue(brokerLookupData1.isPresent());
 
@@ -167,7 +169,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 FieldUtils.readField(channel1, "leaderElectionService", true);
         Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
         assertTrue(currentLeader.isPresent());
-        assertEquals(brokerLookupData1.get().getWebServiceUrl(), currentLeader.get().getServiceUrl());
+        assertEquals(brokerLookupData1.get().getWebServiceUrlTls(), currentLeader.get().getServiceUrl());
     }
 
     @Test
@@ -175,15 +177,17 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-assign");
         TopicName topicName = topicAndBundle.getLeft();
         NamespaceBundle bundle = topicAndBundle.getRight();
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle,
+                LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
         log.info("Assign the bundle {} to {}", bundle, brokerLookupData);
         // Should get owner info from channel.
-        Optional<BrokerLookupData> brokerLookupData1 = secondaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> brokerLookupData1 = secondaryLoadManager.assign(Optional.empty(), bundle,
+                LookupOptions.builder().build()).get();
         assertEquals(brokerLookupData, brokerLookupData1);
 
         Optional<LookupResult> lookupResult = pulsar2.getNamespaceService()
-                .getBrokerServiceUrlAsync(topicName, null).get();
+                .getBrokerServiceUrlAsync(topicName, LookupOptions.builder().build()).get();
         assertTrue(lookupResult.isPresent());
         assertEquals(lookupResult.get().getLookupData().getHttpUrl(), brokerLookupData.get().getWebServiceUrl());
 
@@ -191,6 +195,43 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(false).build());
         assertTrue(webServiceUrl.isPresent());
         assertEquals(webServiceUrl.get().toString(), brokerLookupData.get().getWebServiceUrl());
+    }
+
+    @Test
+    public void testLookupOptions() throws Exception {
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic("test-lookup-options");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
+
+        admin.topics().createPartitionedTopic(topicName.toString(), 1);
+
+        // Test LookupOptions.readOnly = true when the bundle is not owned by any broker.
+        Optional<URL> webServiceUrlReadOnlyTrue = pulsar1.getNamespaceService()
+                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(true).requestHttps(false).build());
+        assertTrue(webServiceUrlReadOnlyTrue.isEmpty());
+
+        // Test LookupOptions.readOnly = false and the bundle assign to some broker.
+        Optional<URL> webServiceUrlReadOnlyFalse = pulsar1.getNamespaceService()
+                .getWebServiceUrl(bundle, LookupOptions.builder().readOnly(false).requestHttps(false).build());
+        assertTrue(webServiceUrlReadOnlyFalse.isPresent());
+
+        // Test LookupOptions.requestHttps = true
+        Optional<URL> webServiceUrlHttps = pulsar2.getNamespaceService()
+                .getWebServiceUrl(bundle, LookupOptions.builder().requestHttps(true).build());
+        assertTrue(webServiceUrlHttps.isPresent());
+        assertTrue(webServiceUrlHttps.get().toString().startsWith("https"));
+
+        // TODO: Support LookupOptions.loadTopicsInBundle = true
+
+        // Test LookupOptions.advertisedListenerName = internal but the broker do not have internal listener.
+        try {
+            pulsar2.getNamespaceService()
+                    .getWebServiceUrl(bundle, LookupOptions.builder().advertisedListenerName("internal").build());
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("the broker do not have internal listener"));
+        }
     }
 
     @Test
@@ -210,7 +251,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
 
         // 2. Assign the bundle to a broker.
-        Optional<BrokerLookupData> lookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> lookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(lookupData.isPresent());
         if (lookupData.get().getPulsarServiceUrl().equals(pulsar1.getBrokerServiceUrl())) {
             assertTrue(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
@@ -243,7 +284,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
         assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
     }
@@ -263,7 +304,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
     }
 
@@ -272,7 +313,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         TopicName topicName =
                 TopicName.get("public/test/testUnloadUponTopicLookupFailure");
         NamespaceBundle bundle = pulsar1.getNamespaceService().getBundle(topicName);
-        primaryLoadManager.assign(Optional.empty(), bundle).get();
+        primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
 
         CompletableFuture future1 = new CompletableFuture();
         CompletableFuture future2 = new CompletableFuture();
@@ -869,7 +910,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertTrue(brokerLookupData.isPresent());
             assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
@@ -1564,7 +1605,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
         admin.topics().createPartitionedTopic(topic, 1);
         NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).join();
-        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle);
+        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build());
         assertFalse(owner.join().isEmpty());
 
         BrokerLookupData brokerLookupData = owner.join().get();

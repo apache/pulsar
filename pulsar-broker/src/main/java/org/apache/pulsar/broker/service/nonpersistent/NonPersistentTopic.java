@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
@@ -39,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -57,7 +57,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersio
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
-import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
@@ -246,14 +245,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public boolean isReplicationBacklogExist() {
         return false;
-    }
-
-    @Override
-    public void removeProducer(Producer producer) {
-        checkArgument(producer.getTopic() == this);
-        if (producers.remove(producer.getProducerName(), producer)) {
-            handleProducerRemoved(producer);
-        }
     }
 
     @Override
@@ -477,7 +468,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 }
             }).exceptionally(ex -> {
                 deleteFuture.completeExceptionally(
-                        new TopicBusyException("Failed to close clients before deleting topic."));
+                        new TopicBusyException("Failed to close clients before deleting topic.",
+                                FutureUtil.unwrapCompletionException(ex)));
                 return null;
             });
         } finally {
@@ -745,8 +737,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         replicators.forEach((region, replicator) -> replicator.updateRates());
 
-        nsStats.producerCount += producers.size();
-        bundleStats.producerCount += producers.size();
+        final MutableInt producerCount = new MutableInt();
         topicStatsStream.startObject(topic);
 
         topicStatsStream.startList("publishers");
@@ -759,13 +750,18 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             if (producer.isRemote()) {
                 topicStats.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
-            }
-
-            if (hydratePublishers) {
-                StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
+            } else {
+                // Exclude producers for replication from "publishers" and "producerCount"
+                producerCount.increment();
+                if (hydratePublishers) {
+                    StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
+                }
             }
         });
         topicStatsStream.endList();
+
+        nsStats.producerCount += producerCount.intValue();
+        bundleStats.producerCount += producerCount.intValue();
 
         // Start replicator stats
         topicStatsStream.startObject("replication");
@@ -855,7 +851,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         // Remaining dest stats.
         topicStats.averageMsgSize = topicStats.aggMsgRateIn == 0.0 ? 0.0
                 : (topicStats.aggMsgThroughputIn / topicStats.aggMsgRateIn);
-        topicStatsStream.writePair("producerCount", producers.size());
+        topicStatsStream.writePair("producerCount", producerCount.intValue());
         topicStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
         topicStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
         topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
@@ -929,6 +925,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else if (!getStatsOptions.isExcludePublishers()) {
+                // Exclude producers for replication from "publishers"
                 stats.addPublisher(publisherStats);
             }
         });

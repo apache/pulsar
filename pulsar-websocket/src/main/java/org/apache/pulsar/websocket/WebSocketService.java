@@ -195,7 +195,8 @@ public class WebSocketService implements Closeable {
 
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
-                .memoryLimit(0, SizeUnit.BYTES)
+                .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),
+                        SizeUnit.BYTES)
                 .statsInterval(0, TimeUnit.SECONDS) //
                 .enableTls(config.isTlsEnabled()) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //

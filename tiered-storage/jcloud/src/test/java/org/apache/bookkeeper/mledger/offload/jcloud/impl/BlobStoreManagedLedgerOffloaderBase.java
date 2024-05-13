@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 
 public abstract class BlobStoreManagedLedgerOffloaderBase {
@@ -46,6 +47,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected final JCloudBlobStoreProvider provider;
     protected TieredStorageConfiguration config;
     protected BlobStore blobStore = null;
+    protected final OffsetsCache entryOffsetsCache = new OffsetsCache();
 
     protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
@@ -56,6 +58,13 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     @AfterMethod(alwaysRun = true)
     public void cleanupMockBookKeeper() {
         bk.getLedgerMap().clear();
+        entryOffsetsCache.clear();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanup() throws Exception {
+        entryOffsetsCache.close();
+        scheduler.shutdownNow();
     }
 
     protected static MockManagedLedger createMockManagedLedger() {
