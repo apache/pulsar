@@ -206,8 +206,8 @@ public class LocalMemoryMetadataStoreTest {
         }
 
         @Override
-        public void close() {
-            // No-op
+        public CompletableFuture<Void> closeAsync() {
+            return CompletableFuture.completedFuture(null);
         }
 
     }

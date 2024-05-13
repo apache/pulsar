@@ -210,10 +210,8 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
-        Field configField = ManagedCursorImpl.class.getDeclaredField("config");
-        configField.setAccessible(true);
         // Create multiple data-ledger
-        ManagedLedgerConfig config = (ManagedLedgerConfig) configField.get(cursor);
+        ManagedLedgerConfig config = ml.getConfig();
         config.setMaxEntriesPerLedger(entriesPerLedger);
         config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         // bookkeeper client
@@ -323,10 +321,8 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
-        Field configField = ManagedCursorImpl.class.getDeclaredField("config");
-        configField.setAccessible(true);
         // Create multiple data-ledger
-        ManagedLedgerConfig config = (ManagedLedgerConfig) configField.get(cursor);
+        ManagedLedgerConfig config = ml.getConfig();
         config.setMaxEntriesPerLedger(entriesPerLedger);
         config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         // bookkeeper client

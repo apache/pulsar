@@ -117,7 +117,8 @@ class OpReadEntry implements ReadEntriesCallback {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             });
-        } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
+        } else if (cursor.getConfig().isAutoSkipNonRecoverableData()
+                && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
