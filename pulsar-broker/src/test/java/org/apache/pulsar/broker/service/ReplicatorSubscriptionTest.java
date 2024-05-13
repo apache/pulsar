@@ -26,6 +26,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -40,8 +42,10 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -729,6 +733,21 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
+     * before sending message, we should wait for transaction buffer recover complete,
+     * or the MaxReadPosition will not move forward when the message is sent, and the
+     * MaxReadPositionMovedForwardTimestamp will not be updated, then the replication will not be triggered.
+     * @param topicName
+     * @throws Exception
+     */
+    private void waitTBRecoverComplete(PulsarService pulsarService, String topicName) throws Exception {
+        TopicTransactionBufferState buffer = (TopicTransactionBufferState) ((PersistentTopic) pulsarService.getBrokerService()
+                .getTopic(topicName, false).get().get()).getTransactionBuffer();
+        Field stateField = TopicTransactionBufferState.class.getDeclaredField("state");
+        stateField.setAccessible(true);
+        Awaitility.await().until(() -> !stateField.get(buffer).toString().equals("Initializing"));
+    }
+
+    /**
      * Tests replicated subscriptions when replicator producer is closed
      */
     @Test
@@ -755,6 +774,9 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                     .subscribe();
 
             // send one message to trigger replication
+            if (config1.isTransactionCoordinatorEnabled()) {
+                waitTBRecoverComplete(pulsar1, topicName);
+            }
             @Cleanup
             Producer<byte[]> producer = client1.newProducer().topic(topicName)
                     .enableBatching(false)
@@ -917,6 +939,9 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
         Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName).create();
+        if (config1.isTransactionCoordinatorEnabled()) {
+            waitTBRecoverComplete(pulsar1, topicName);
+        }
         producer.newMessage().key("K1").value("V1").send();
         producer.newMessage().key("K1").value("V2").send();
         producer.close();
