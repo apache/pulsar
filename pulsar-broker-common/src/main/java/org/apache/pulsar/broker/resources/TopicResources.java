@@ -101,7 +101,7 @@ public class TopicResources {
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
         log.info("Clearing tenant persistence for tenant: {}, path {}", tenant, path);
-        return store.deleteIfExists(path, Optional.empty());
+        return store.deleteRecursive(path);
     }
 
     void handleNotification(Notification notification) {
