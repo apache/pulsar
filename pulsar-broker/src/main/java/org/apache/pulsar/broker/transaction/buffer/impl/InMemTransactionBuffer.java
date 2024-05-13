@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -213,11 +214,17 @@ class InMemTransactionBuffer implements TransactionBuffer {
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
     private final Topic topic;
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack;
 
     public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
         this.topic = topic;
+        if (topic instanceof PersistentTopic) {
+            this.maxReadPositionCallBack = ((PersistentTopic) topic).getMaxReadPositionCallBack();
+        } else {
+            this.maxReadPositionCallBack = null;
+        }
     }
 
     @Override
@@ -369,8 +376,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
-        //no-op
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
+        if (!isMarkerMessage && maxReadPositionCallBack != null) {
+            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+        }
     }
 
     @Override
