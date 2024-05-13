@@ -197,22 +197,21 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        return cache.exists(path).thenCompose(exists -> {
-            if (!exists) {
-                return CompletableFuture.completedFuture(null);
+        log.info("Deleting path: {}", path);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cache.delete(path).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                log.info("Path {} did not exist in metadata store", path);
+                future.complete(null);
+            } else if (ex != null) {
+                log.info("Failed to delete path from metadata store: {}", path, ex);
+                future.completeExceptionally(ex);
+            } else {
+                log.info("Deleted path from metadata store: {}", path);
+                future.complete(null);
             }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            cache.delete(path).whenComplete((ignore, ex) -> {
-                if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                    future.complete(null);
-                } else if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(null);
-                }
-            });
-            return future;
         });
+        return future;
     }
 
     protected boolean exists(String path) throws MetadataStoreException {
