@@ -139,7 +139,7 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
                 "address",
                 "connectedSince",
                 "clientVersion",
-                "role");
+                "appId");
 
         final String topicName = "persistent://public/default/testConsumerStatsOutput";
         final String subName = "my-subscription";
@@ -162,7 +162,7 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
             Assert.assertTrue(allowedFields.contains(field), field + " should not be exposed");
         }
         // assert that role is exposed
-        Assert.assertEquals(consumerStats.getRole(), "admin");
+        Assert.assertEquals(consumerStats.getAppId(), "admin");
         consumer.close();
     }
 
