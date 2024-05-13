@@ -603,7 +603,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationFailed(new ManagedLedgerException(e));
                     return;
                 }
-                log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, positionInfo);
 
                 Map<String, Long> recoveredProperties = Collections.emptyMap();
                 if (positionInfo.getPropertiesCount() > 0) {
@@ -614,9 +613,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         recoveredProperties.put(property.getName(), property.getValue());
                     }
                 }
-
-                log.info("[{}] Cursor {} recovered with recoveredProperties {}, individualDeletedMessagesCount {}",
-                        ledger.getName(), name, recoveredProperties, positionInfo.getIndividualDeletedMessagesCount());
 
                 PositionImpl position = new PositionImpl(positionInfo);
                 if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
@@ -3035,8 +3031,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
         lock.readLock().lock();
         try {
-            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {}",
-                    ledger.getName(), name, individualDeletedMessages.size());
             if (individualDeletedMessages.isEmpty()) {
                 this.individualDeletedMessagesSerializedSize = 0;
                 return Collections.emptyList();
