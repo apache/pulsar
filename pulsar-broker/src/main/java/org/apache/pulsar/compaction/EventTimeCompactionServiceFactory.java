@@ -26,7 +26,7 @@ public class EventTimeCompactionServiceFactory extends PulsarCompactionServiceFa
   @Override
   protected Compactor newCompactor() throws PulsarServerException {
     PulsarService pulsarService = getPulsarService();
-    return new EventTimeCompactor(pulsarService.getConfiguration(),
+    return new EventTimeOrderCompactor(pulsarService.getConfiguration(),
         pulsarService.getClient(), pulsarService.getBookKeeperClient(),
         pulsarService.getCompactorExecutor());
   }

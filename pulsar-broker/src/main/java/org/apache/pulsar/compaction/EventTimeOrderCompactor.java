@@ -38,11 +38,11 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EventTimeCompactor extends AbstractTwoPhaseCompactor<Pair<MessageId, Long>> {
+public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<MessageId, Long>> {
 
-  private static final Logger log = LoggerFactory.getLogger(EventTimeCompactor.class);
+  private static final Logger log = LoggerFactory.getLogger(EventTimeOrderCompactor.class);
 
-  public EventTimeCompactor(ServiceConfiguration conf,
+  public EventTimeOrderCompactor(ServiceConfiguration conf,
       PulsarClient pulsar,
       BookKeeper bk,
       ScheduledExecutorService scheduler) {

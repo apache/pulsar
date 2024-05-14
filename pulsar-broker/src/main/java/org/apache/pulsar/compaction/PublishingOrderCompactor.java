@@ -35,11 +35,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class NaturalOrderTwoPhaseCompactor extends AbstractTwoPhaseCompactor<MessageId> {
+public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageId> {
 
-    private static final Logger log = LoggerFactory.getLogger(NaturalOrderTwoPhaseCompactor.class);
+    private static final Logger log = LoggerFactory.getLogger(PublishingOrderCompactor.class);
 
-    public NaturalOrderTwoPhaseCompactor(ServiceConfiguration conf,
+    public PublishingOrderCompactor(ServiceConfiguration conf,
         PulsarClient pulsar,
         BookKeeper bk,
         ScheduledExecutorService scheduler) {

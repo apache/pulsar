@@ -109,7 +109,7 @@ import org.testng.annotations.Test;
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private NaturalOrderTwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -124,7 +124,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
-        compactor = new NaturalOrderTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -147,7 +147,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         return compactor.compact(topic).get();
     }
 
-    protected NaturalOrderTwoPhaseCompactor getCompactor() {
+    protected PublishingOrderCompactor getCompactor() {
         return compactor;
     }
 

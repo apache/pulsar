@@ -74,7 +74,7 @@ public class StrategicCompactionTest extends CompactionTest {
     }
 
     @Override
-    protected NaturalOrderTwoPhaseCompactor getCompactor() {
+    protected PublishingOrderCompactor getCompactor() {
         return compactor;
     }
 

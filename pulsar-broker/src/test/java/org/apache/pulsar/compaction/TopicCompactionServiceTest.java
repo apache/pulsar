@@ -53,7 +53,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private NaturalOrderTwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -73,7 +73,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
-        compactor = new NaturalOrderTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)

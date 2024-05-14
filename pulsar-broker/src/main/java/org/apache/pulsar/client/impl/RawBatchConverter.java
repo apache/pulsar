@@ -91,9 +91,11 @@ public class RawBatchConverter {
     public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(
         RawMessage msg)
         throws IOException {
-        return extractMessageCompactionData(msg).stream()
-            .map(mcd -> ImmutableTriple.of(mcd.messageId(), mcd.key(), mcd.payloadSize()))
-            .collect(Collectors.toList());
+        List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
+        for (MessageCompactionData mcd : extractMessageCompactionData(msg)) {
+            idsAndKeysAndSize.add(ImmutableTriple.of(mcd.messageId(), mcd.key(), mcd.payloadSize()));
+        }
+        return idsAndKeysAndSize;
     }
 
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,

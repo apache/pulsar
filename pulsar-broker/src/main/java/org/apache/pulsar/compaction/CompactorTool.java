@@ -170,7 +170,7 @@ public class CompactorTool {
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);
 
-        Compactor compactor = new NaturalOrderTwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        Compactor compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
         long ledgerId = compactor.compact(arguments.topic).get();
         log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }
