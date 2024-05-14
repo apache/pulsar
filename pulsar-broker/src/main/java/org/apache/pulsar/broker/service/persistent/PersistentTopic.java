@@ -3780,7 +3780,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (lastDispatchablePosition != null) {
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
-        return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
+        return ManagedLedgerImplUtils
+                .asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
                     MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
                     // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
                     if (Markers.isServerOnlyMarker(md)) {
