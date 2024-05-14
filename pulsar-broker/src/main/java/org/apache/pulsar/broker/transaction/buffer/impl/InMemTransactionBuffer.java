@@ -307,6 +307,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
                 txnBuffer.commitAt(committedAtLedgerId, committedAtEntryId);
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }
+            updateLastDispatchablePosition(null);
             commitFuture.complete(null);
         } catch (TransactionBufferException.TransactionNotFoundException
                 | TransactionBufferException.TransactionStatusException e) {
@@ -331,6 +332,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             txnBuffer.abort();
             buffers.remove(txnID, txnBuffer);
+            updateLastDispatchablePosition(null);
             abortFuture.complete(null);
         } catch (TransactionBufferException.TransactionNotFoundException
                 | TransactionBufferException.TransactionStatusException e) {
@@ -377,8 +379,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
-        if (!isMarkerMessage && maxReadPositionCallBack != null) {
-            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+        if (!isMarkerMessage) {
+            updateLastDispatchablePosition(position);
+            if (maxReadPositionCallBack != null) {
+                maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+            }
         }
     }
 
@@ -435,5 +440,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return this.buffers.values().stream()
                 .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.COMMITTED))
                 .count();
+    }
+
+    // ThreadSafe
+    private void updateLastDispatchablePosition(Position position) {
+        if (topic instanceof PersistentTopic t) {
+            t.updateLastDispatchablePosition(position);
+        }
     }
 }
