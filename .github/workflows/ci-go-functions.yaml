@@ -43,7 +43,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Detect changed files
         id: changes
@@ -80,13 +80,13 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
         id: go
