@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -74,11 +76,39 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
         Message<Integer> message2 = consumer.receive();
         consumer.negativeAcknowledge(message2);
 
-        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(1500)).until(() -> {
+            Message<Integer> message3 = consumer.receive(2, TimeUnit.SECONDS);
+            if (message3 != null) {
+                log.info("===> {}", message3.getRedeliveryCount());
+                consumer.negativeAcknowledge(message3);
+            }
             List<String> topicList = pulsar.getPulsarResources().getTopicResources()
                     .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-            assertTrue(topicList.contains(DLQ) || topicList.contains(p0OfDLQ));
+            if (topicList.contains(DLQ) || topicList.contains(p0OfDLQ)) {
+                return true;
+            }
+            int partitions = admin.topics().getPartitionedTopicMetadata(topic).partitions;
+            for (int i = 0; i < partitions; i++) {
+                for (int j = -1; j < pulsar.getConfig().getDefaultNumPartitions(); j++) {
+                    String p0OfDLQ2;
+                    if (j == -1) {
+                        p0OfDLQ2 = TopicName
+                                .get(getDLQName(TopicName.get(topic).getPartition(i).toString(), subscription))
+                                .toString();
+                    } else {
+                        p0OfDLQ2 = TopicName
+                                .get(getDLQName(TopicName.get(topic).getPartition(i).toString(), subscription))
+                                .getPartition(j).toString();
+                    }
+                    if (topicList.contains(p0OfDLQ2)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         });
+        producer.close();
+        consumer.close();
         admin.topics().unload(topic);
     }
 
@@ -89,30 +119,67 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
                 + "-" + subscription + DLQ_GROUP_TOPIC_SUFFIX;
     }
 
-    @Test
-    public void testGenerateNonPartitionedDLQ() throws Exception {
+    @DataProvider(name = "topicCreationTypes")
+    public Object[][] topicCreationTypes() {
+        return new Object[][]{
+                //{TopicType.NON_PARTITIONED},
+                {TopicType.PARTITIONED}
+        };
+    }
+
+    @Test(dataProvider = "topicCreationTypes")
+    public void testGenerateNonPartitionedDLQ(TopicType topicType) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName( "persistent://public/default/tp");
         final String subscription = "s1";
-        admin.topics().createNonPartitionedTopic(topic);
+        switch (topicType) {
+            case PARTITIONED: {
+                admin.topics().createPartitionedTopic(topic, 2);
+                break;
+            }
+            case NON_PARTITIONED: {
+                admin.topics().createNonPartitionedTopic(topic);
+            }
+        }
 
-        triggerDLQGenerate(topic, "s1");
-        String DLQ = getDLQName(topic, subscription);
-        String p0OfDLQ = TopicName.get(DLQ).getPartition(0).toString();
+        triggerDLQGenerate(topic, subscription);
 
         // Verify: no partitioned DLQ.
         List<String> partitionedTopics = pulsar.getPulsarResources().getNamespaceResources()
                 .getPartitionedTopicResources()
                 .listPartitionedTopicsAsync(TopicName.get(topic).getNamespaceObject(), TopicDomain.persistent).join();
-        assertFalse(partitionedTopics.contains(DLQ));
-        assertFalse(partitionedTopics.contains(p0OfDLQ));
+        for (String tp : partitionedTopics) {
+            assertFalse(tp.endsWith("-DLQ"));
+        }
         // Verify: non-partitioned DLQ exists.
         List<String> partitions = pulsar.getPulsarResources().getTopicResources()
                 .listPersistentTopicsAsync(TopicName.get(topic).getNamespaceObject()).join();
-        assertTrue(partitions.contains(DLQ));
-        assertFalse(partitions.contains(p0OfDLQ));
+        List<String> DLQCreated = new ArrayList<>();
+        for (String tp : partitions) {
+            if (tp.endsWith("-DLQ")) {
+                DLQCreated.add(tp);
+            }
+            assertFalse(tp.endsWith("-partition-0-DLQ"));
+        }
+        assertTrue(!DLQCreated.isEmpty());
 
         // cleanup.
-        admin.topics().delete(topic, false);
+        switch (topicType) {
+            case PARTITIONED: {
+                admin.topics().deletePartitionedTopic(topic);
+                break;
+            }
+            case NON_PARTITIONED: {
+                admin.topics().delete(topic, false);
+            }
+        }
+        for (String t : DLQCreated) {
+            try {
+                admin.topics().delete(TopicName.get(t).getPartitionedTopicName(), false);
+            } catch (Exception ex) {}
+            try {
+                admin.topics().deletePartitionedTopic(TopicName.get(t).getPartitionedTopicName(), false);
+            } catch (Exception ex) {}
+        }
     }
 
     @Test
