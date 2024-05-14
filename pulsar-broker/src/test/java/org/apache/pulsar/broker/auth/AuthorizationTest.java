@@ -322,7 +322,6 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                         : brokerUrlTls.toString())
                 .authentication(new MockAuthentication("pass.pass2"))
                 .build();
-        when(pulsar.getAdminClient()).thenReturn(admin2);
         Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
         Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }
