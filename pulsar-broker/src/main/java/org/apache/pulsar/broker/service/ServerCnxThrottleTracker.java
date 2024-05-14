@@ -87,7 +87,7 @@ final class ServerCnxThrottleTracker {
     private void changeAutoRead(boolean autoRead) {
         if (isChannelActive()) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Setting auto read to {}", serverCnx.ctx().channel(), autoRead);
+                log.debug("[{}] Setting auto read to {}", serverCnx.toString(), autoRead);
             }
             // change the auto read flag on the channel
             serverCnx.ctx().channel().config().setAutoRead(autoRead);

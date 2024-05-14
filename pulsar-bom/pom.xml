@@ -33,7 +33,7 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-bom</artifactId>
-  <version>3.3.0-SNAPSHOT</version>
+  <version>3.4.0-SNAPSHOT</version>
   <name>Pulsar BOM</name>
   <description>Pulsar (Bill of Materials)</description>
 
@@ -81,7 +81,7 @@
     <maven.compiler.target>17</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-05-13T09:56:11Z</project.build.outputTimestamp>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>

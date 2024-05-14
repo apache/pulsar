@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  * Tests replicated subscriptions with transaction (PIP-33)
  */
 @Test(groups = "broker")
-public class ReplicatorSubscriptionWithTransactionTest extends ReplicatorSubscriptionTest {
+public class ReplicatedSubscriptionWithTransactionTest extends ReplicatedSubscriptionTest {
 
     @Override
     @BeforeClass(timeOut = 300000)
