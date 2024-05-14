@@ -147,10 +147,8 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");
             assertTrue(snapshotCounter3 < brokerDeduplicationEntriesInterval);
-            // Since https://github.com/apache/pulsar/pull/22034 has not been cherry-pick into branch-3.0, there
-            // should be 2 ledgers.
             // Verify: the previous ledger will be removed because all messages have been acked.
-            assertEquals(ml2.getLedgersInfo().size(), 2);
+            assertEquals(ml2.getLedgersInfo().size(), 1);
         });
 
         // cleanup.
