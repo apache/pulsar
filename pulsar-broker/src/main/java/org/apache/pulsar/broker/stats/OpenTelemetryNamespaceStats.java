@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
-import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryNamespaceStats implements AutoCloseable {
 
@@ -91,7 +87,8 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
     private final ObservableLongMeasurement backlogQuotaLimitTime;
 
     // Replaces pulsar_storage_backlog_quota_exceeded_evictions_total
-    public static final String BACKLOG_EVICTION_COUNTER = "pulsar.broker.namespace.storage.backlog.quota.eviction.count";
+    public static final String BACKLOG_EVICTION_COUNTER =
+            "pulsar.broker.namespace.storage.backlog.quota.eviction.count";
     private final ObservableLongMeasurement backlogEvictionCounter;
 
     // Replaces pulsar_storage_backlog_age_seconds
@@ -131,10 +128,8 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
 
 
     private final BatchCallback batchCallback;
-    private final PulsarService pulsar;
 
     public OpenTelemetryNamespaceStats(PulsarService pulsar) {
-        this.pulsar = pulsar;
         var meter = pulsar.getOpenTelemetry().getMeter();
 
         topicCounter = meter
@@ -194,13 +189,15 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
         storageCounter = meter
                 .upDownCounterBuilder(STORAGE_COUNTER)
                 .setUnit("By")
-                .setDescription("The total storage size of the messages in this namespace, including storage used by replicas.")
+                .setDescription(
+                        "The total storage size of the messages in this namespace, including storage used by replicas.")
                 .buildObserver();
 
         storageLogicalCounter = meter
                 .upDownCounterBuilder(STORAGE_LOGICAL_COUNTER)
                 .setUnit("By")
-                .setDescription("The storage size of the messages in this namespace, excluding storage used by replicas.")
+                .setDescription(
+                        "The storage size of the messages in this namespace, excluding storage used by replicas.")
                 .buildObserver();
 
         storageBacklogCounter = meter
@@ -244,13 +241,15 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
         storageOutCounter = meter
                 .counterBuilder(STORAGE_OUT_COUNTER)
                 .setUnit("{entry}")
-                .setDescription("The total message batches (entries) written to the storage for topics in this namespace.")
+                .setDescription(
+                        "The total message batches (entries) written to the storage for topics in this namespace.")
                 .buildObserver();
 
         storageInCounter = meter
                 .counterBuilder(STORAGE_IN_COUNTER)
                 .setUnit("{entry}")
-                .setDescription("The total message batches (entries) read from the storage for topics in this namespace.")
+                .setDescription(
+                        "The total message batches (entries) read from the storage for topics in this namespace.")
                 .buildObserver();
 
         delayedSubscriptionCounter = meter
@@ -259,12 +258,8 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
                 .setDescription("The total number of message batches (entries) delayed for dispatching.")
                 .buildObserver();
 
-        batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
-                        .getTopics()
-                        .values()
-                        .stream()
-                        .map(topicFuture -> topicFuture.getNow(Optional.empty()))
-                        .forEach(topic -> topic.ifPresent(this::recordMetricsForTopic)),
+        var namespaceMetricsMap = pulsar.getNamespaceMetrics();
+        batchCallback = meter.batchCallback(() -> namespaceMetricsMap.values().forEach(this::recordMetricsForNamespace),
                 topicCounter,
                 subscriptionCounter,
                 producerCounter,
@@ -292,32 +287,29 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    private void recordMetricsForTopic(Topic topic) {
-        var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
-                .build();
-
+    private void recordMetricsForNamespace(NamespaceMetrics metrics) {
+        var attributes = metrics.getAttributes();
         var dummyValue = 1;
 
-        topicCounter.record(dummyValue, attributes);
-        subscriptionCounter.record(dummyValue, attributes);
-        producerCounter.record(dummyValue, attributes);
-        consumerCounter.record(dummyValue, attributes);
-        messageInCounter.record(dummyValue, attributes);
-        messageOutCounter.record(dummyValue, attributes);
-        bytesInCounter.record(dummyValue, attributes);
-        bytesOutCounter.record(dummyValue, attributes);
+        topicCounter.record(metrics.getTopicCount(), attributes);
+        subscriptionCounter.record(metrics.getSuscriptionCount(), attributes);
+        producerCounter.record(metrics.getProducerCount(), attributes);
+        consumerCounter.record(metrics.getConsumerCount(), attributes);
+        messageInCounter.record(metrics.getMessageInCount(), attributes);
+        messageOutCounter.record(metrics.getMessageOutCount(), attributes);
+        bytesInCounter.record(metrics.getByteInCount(), attributes);
+        bytesOutCounter.record(metrics.getByteOutCount(), attributes);
         publishRateLimitHitCounter.record(dummyValue, attributes);
-        storageCounter.record(dummyValue, attributes);
-        storageLogicalCounter.record(dummyValue, attributes);
-        storageBacklogCounter.record(dummyValue, attributes);
-        storageOffloadedCounter.record(dummyValue, attributes);
+        storageCounter.record(metrics.getStorageCount(), attributes);
+        storageLogicalCounter.record(metrics.getStorageLogicalCount(), attributes);
+        storageBacklogCounter.record(metrics.getStorageBacklogCount(), attributes);
+        storageOffloadedCounter.record(metrics.getStorageOffloadCount(), attributes);
         backlogQuotaLimitSize.record(dummyValue, attributes);
         backlogQuotaLimitTime.record(dummyValue, attributes);
         backlogEvictionCounter.record(dummyValue, attributes);
         backlogQuotaAge.record(dummyValue, attributes);
-        storageOutCounter.record(dummyValue, attributes);
-        storageInCounter.record(dummyValue, attributes);
+        storageOutCounter.record(metrics.getStorageOutCount(), attributes);
+        storageInCounter.record(metrics.getStorageInCount(), attributes);
         delayedSubscriptionCounter.record(dummyValue, attributes);
     }
 }

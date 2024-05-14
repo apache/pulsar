@@ -109,6 +109,7 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.NamespaceMetrics;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryNamespaceStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
@@ -256,6 +257,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
     private OpenTelemetryNamespaceStats openTelemetryNamespaceStats;
+    @Getter
+    private final Map<NamespaceName, NamespaceMetrics> namespaceMetrics = new ConcurrentHashMap<>();
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
 
