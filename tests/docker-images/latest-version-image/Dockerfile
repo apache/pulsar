@@ -19,6 +19,7 @@
 
 # build go lang examples first in a separate layer
 ARG PULSAR_ALL_IMAGE
+ARG PULSAR_IMAGE
 
 FROM golang:1.21-alpine as pulsar-function-go
 
@@ -33,7 +34,6 @@ FROM $PULSAR_ALL_IMAGE as pulsar-all
 ########################################
 ###### Main image build
 ########################################
-ARG PULSAR_IMAGE
 FROM $PULSAR_IMAGE
 
 # Switch to run as the root user to simplify building container and then running
