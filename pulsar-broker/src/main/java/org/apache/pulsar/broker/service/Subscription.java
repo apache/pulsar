@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.stats.SubscriptionMetrics;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -126,6 +127,8 @@ public interface Subscription extends MessageExpirer {
         }
         return count;
     }
+
+    SubscriptionMetrics getMetrics();
 
     // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {

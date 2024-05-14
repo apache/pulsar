@@ -21,9 +21,13 @@ package org.apache.pulsar.broker.stats;
 import io.opentelemetry.api.common.Attributes;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.Getter;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
-public class NamespaceMetrics {
+public class NamespaceMetrics implements OutputMetrics {
+
+    private final BrokerMetrics brokerMetrics;
 
     @Getter
     private final Attributes attributes;
@@ -38,6 +42,7 @@ public class NamespaceMetrics {
 
     private final LongAdder messageOutCount = new LongAdder();
     private final LongAdder byteOutCount = new LongAdder();
+    private final LongAdder messageAckCount = new LongAdder();
 
     private final LongAdder storageCount = new LongAdder();
     private final LongAdder storageLogicalCount = new LongAdder();
@@ -47,15 +52,16 @@ public class NamespaceMetrics {
     private final LongAdder storageInCount = new LongAdder();
     private final LongAdder storageOutCount = new LongAdder();
 
-    public NamespaceMetrics(String namespace) {
-        attributes = Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, namespace);
+    public NamespaceMetrics(NamespaceName namespace, BrokerService brokerService) {
+        attributes = Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, namespace.toString());
+        brokerMetrics = brokerService.getBrokerMetrics();
     }
 
     public long getTopicCount() {
         return topicCount.sum();
     }
 
-    public long getSuscriptionCount() {
+    public long getSubscriptionCount() {
         return subscriptionCount.sum();
     }
 
@@ -73,14 +79,6 @@ public class NamespaceMetrics {
 
     public long getByteInCount() {
         return byteInCount.sum();
-    }
-
-    public long getMessageOutCount() {
-        return messageOutCount.sum();
-    }
-
-    public long getByteOutCount() {
-        return byteOutCount.sum();
     }
 
     public long getStorageCount() {
@@ -105,5 +103,33 @@ public class NamespaceMetrics {
 
     public long getStorageOutCount() {
         return storageOutCount.sum();
+    }
+
+    @Override
+    public void recordMessageOut(long messageCount, long byteCount) {
+        brokerMetrics.recordMessageOut(messageCount, byteCount);
+        messageOutCount.add(messageCount);
+        byteOutCount.add(byteCount);
+    }
+
+    @Override
+    public long getMessageOutCount() {
+        return messageOutCount.sum();
+    }
+
+    @Override
+    public long getByteOutCount() {
+        return byteOutCount.sum();
+    }
+
+    @Override
+    public void recordMessageAck(long ackCount) {
+        brokerMetrics.recordMessageAck(ackCount);
+        messageAckCount.add(ackCount);
+    }
+
+    @Override
+    public long getMessageAckCount() {
+        return messageAckCount.sum();
     }
 }

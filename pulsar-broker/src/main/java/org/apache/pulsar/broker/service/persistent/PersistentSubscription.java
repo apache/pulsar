@@ -148,6 +148,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
                                   boolean replicated, Map<String, String> subscriptionProperties) {
+        super(topic);
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();

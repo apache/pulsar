@@ -292,7 +292,7 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
         var dummyValue = 1;
 
         topicCounter.record(metrics.getTopicCount(), attributes);
-        subscriptionCounter.record(metrics.getSuscriptionCount(), attributes);
+        subscriptionCounter.record(metrics.getSubscriptionCount(), attributes);
         producerCounter.record(metrics.getProducerCount(), attributes);
         consumerCounter.record(metrics.getConsumerCount(), attributes);
         messageInCounter.record(metrics.getMessageInCount(), attributes);

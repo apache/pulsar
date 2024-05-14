@@ -126,6 +126,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.stats.BrokerMetrics;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -272,6 +273,8 @@ public class BrokerService implements Closeable {
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
+    @Getter
+    private final BrokerMetrics brokerMetrics = new BrokerMetrics();
     private final AuthenticationService authenticationService;
 
     public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";

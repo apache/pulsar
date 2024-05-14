@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.stats.TopicMetrics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -282,6 +283,10 @@ public interface Topic {
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
+
+    default TopicMetrics getMetrics() {
+        throw new UnsupportedOperationException();
+    }
 
     Position getLastPosition();
 

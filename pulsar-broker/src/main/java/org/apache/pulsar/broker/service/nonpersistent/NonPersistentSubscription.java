@@ -73,6 +73,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
 
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName,
                                      Map<String, String> properties) {
+        super(topic);
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;

@@ -21,10 +21,20 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.ToLongFunction;
+import lombok.Getter;
+import org.apache.pulsar.broker.stats.SubscriptionMetrics;
 
 public abstract class AbstractSubscription implements Subscription {
+
+    @Getter
+    private final SubscriptionMetrics metrics;
+
     protected final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     protected final LongAdder msgOutFromRemovedConsumer = new LongAdder();
+
+    public AbstractSubscription(Topic topic) {
+        this.metrics = new SubscriptionMetrics(topic);
+    }
 
     public long getMsgOutCounter() {
         return msgOutFromRemovedConsumer.longValue() + sumConsumers(Consumer::getMsgOutCounter);

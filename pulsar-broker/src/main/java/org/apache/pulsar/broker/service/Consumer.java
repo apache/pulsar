@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.ConsumerMetrics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -95,6 +96,7 @@ public class Consumer {
     private final LongAdder bytesOutCounter;
     private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
+    private final ConsumerMetrics consumerMetrics;
 
     private volatile long lastConsumedTimestamp;
     private volatile long lastAckedTimestamp;
@@ -211,6 +213,7 @@ public class Consumer {
         stats.setConnectedSince(DateFormatter.format(connectedSince));
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
+        this.consumerMetrics = new ConsumerMetrics(subscription);
 
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
@@ -253,6 +256,7 @@ public class Consumer {
         this.messageAckRate = null;
         this.pendingAcks = null;
         this.stats = null;
+        this.consumerMetrics = null;
         this.isDurable = false;
         this.isPersistentTopic = false;
         this.metadata = null;
@@ -387,6 +391,7 @@ public class Consumer {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {
                 msgOut.recordMultipleEvents(totalMessages, totalBytes);
+                consumerMetrics.recordMessageOut(totalMessages, totalBytes);
                 msgOutCounter.add(totalMessages);
                 bytesOutCounter.add(totalBytes);
                 chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
@@ -512,6 +517,7 @@ public class Consumer {
         return future
                 .thenApply(v -> {
                     this.messageAckRate.recordEvent(v);
+                    this.consumerMetrics.recordMessageAck(v);
                     this.messageAckCounter.add(v);
                     return null;
                 });
