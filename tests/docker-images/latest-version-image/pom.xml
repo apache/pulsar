@@ -152,7 +152,7 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/${docker.tag}-test-latest-version</name>
+                      <name>${docker.organization}/${docker.image}-test-latest-version</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <args>
