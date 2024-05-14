@@ -244,13 +244,13 @@ public class OpenTelemetryNamespaceStats implements AutoCloseable {
         storageOutCounter = meter
                 .counterBuilder(STORAGE_OUT_COUNTER)
                 .setUnit("{entry}")
-                .setDescription("The total message batches (entries) written to the storage for this topic.")
+                .setDescription("The total message batches (entries) written to the storage for topics in this namespace.")
                 .buildObserver();
 
         storageInCounter = meter
                 .counterBuilder(STORAGE_IN_COUNTER)
                 .setUnit("{entry}")
-                .setDescription("The total message batches (entries) read from the storage for this topic.")
+                .setDescription("The total message batches (entries) read from the storage for topics in this namespace.")
                 .buildObserver();
 
         delayedSubscriptionCounter = meter
