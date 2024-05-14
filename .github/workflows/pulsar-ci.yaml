@@ -103,7 +103,7 @@ jobs:
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -152,7 +152,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -166,7 +166,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -177,7 +177,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -267,7 +267,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -285,7 +285,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -296,7 +296,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
@@ -346,7 +346,7 @@ jobs:
           fi
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
@@ -354,7 +354,7 @@ jobs:
           retention-days: 7
 
       - name: Upload possible heap dump, core dump or crash files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: Unit-${{ matrix.group }}-dumps
@@ -387,7 +387,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -401,7 +401,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -412,7 +412,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
@@ -434,7 +434,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-unittests
           path: target/jacoco_test_coverage_report_unittests.zip
@@ -469,7 +469,7 @@ jobs:
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -483,7 +483,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -494,7 +494,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -592,7 +592,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -606,7 +606,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -617,7 +617,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -641,7 +641,7 @@ jobs:
           ${{ matrix.setup }}
 
       - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         if: ${{ matrix.runtime_jdk }}
         with:
           distribution: 'temurin'
@@ -674,7 +674,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
@@ -682,7 +682,7 @@ jobs:
           retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -709,7 +709,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -723,7 +723,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -734,7 +734,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -761,7 +761,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-inttests
           path: target/jacoco_test_coverage_report_inttests.zip
@@ -796,7 +796,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -820,7 +820,7 @@ jobs:
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -839,7 +839,7 @@ jobs:
           mode: full
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -851,7 +851,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -957,7 +957,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -975,7 +975,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -987,7 +987,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -1037,7 +1037,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -1046,7 +1046,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
@@ -1073,7 +1073,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1087,7 +1087,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1099,7 +1099,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -1125,7 +1125,7 @@ jobs:
           zip -qr jacoco_test_coverage_report_systests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-systests
           path: target/jacoco_test_coverage_report_systests.zip
@@ -1172,7 +1172,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1190,7 +1190,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1202,7 +1202,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -1244,7 +1244,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
@@ -1253,7 +1253,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
@@ -1281,7 +1281,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1304,13 +1304,13 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -1321,7 +1321,7 @@ jobs:
             ${{ runner.os }}-m2-dependencies-all-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -1340,7 +1340,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1354,17 +1354,19 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
+            !~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          lookup-only: true
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
@@ -1379,6 +1381,24 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: OWASP cache key weeknum
+        id: get-weeknum
+        run: |
+          echo "weeknum=$(date -u +"%Y-%U")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Restore OWASP Dependency Check data
+        id: restore-owasp-dependency-check-data
+        uses: actions/cache/restore@v4
+        timeout-minutes: 5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
+          enableCrossOsArchive: true
+          restore-keys: |
+            owasp-dependency-check-data-
+
       # Projects dependent on flume, hdfs, and hbase currently excluded from the scan.
       - name: trigger dependency check
         run: |
@@ -1386,7 +1406,7 @@ jobs:
             -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ cancelled() || failure() }}
         continue-on-error: true
         with:
@@ -1437,7 +1457,7 @@ jobs:
 
       - name: checkout
         if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
