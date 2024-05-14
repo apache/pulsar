@@ -110,6 +110,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryNamespaceStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -254,6 +255,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
+    private OpenTelemetryNamespaceStats openTelemetryNamespaceStats;
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
 
@@ -640,6 +642,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTopicStats.close();
                 openTelemetryTopicStats = null;
             }
+            if (openTelemetryNamespaceStats != null) {
+                openTelemetryNamespaceStats.close();
+                openTelemetryNamespaceStats = null;
+            }
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
@@ -781,6 +787,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
+            openTelemetryNamespaceStats = new OpenTelemetryNamespaceStats(this);
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
             openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
 
