@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 
 /**
@@ -74,7 +75,9 @@ public final class LedgerMetadataUtils {
      * @see #buildBaseManagedLedgerMetadata(java.lang.String)
      */
     static Map<String, byte[]> buildAdditionalMetadataForCursor(String name, String compressionType) {
-        if (compressionType != null) {
+        if (compressionType != null
+                && !compressionType.isEmpty()
+                && !MLDataFormats.CompressionType.NONE.name().equals(compressionType)) {
             return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8),
                     METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE, compressionType.getBytes(StandardCharsets.UTF_8));
         } else {
