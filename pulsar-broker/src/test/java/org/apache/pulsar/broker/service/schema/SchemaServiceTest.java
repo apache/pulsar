@@ -407,7 +407,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                         .build(),
                 SchemaInfo.builder().type(SchemaType.BOOLEAN).schema(new byte[0])
                         .build(), KeyValueEncodingType.SEPARATED);
-        assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.schemas().testCompatibility(topicName, schemaInfo));
+        Assert.assertTrue(admin.schemas().testCompatibility(topicName, schemaInfo).isCompatibility());
         admin.schemas().createSchema(topicName, schemaInfo);
 
         final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);
