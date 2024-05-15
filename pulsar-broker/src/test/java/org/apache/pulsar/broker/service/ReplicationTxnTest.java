@@ -173,6 +173,7 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
         final String subscription = "s1";
         admin1.topics().createNonPartitionedTopic(topic);
         waitReplicatorStarted(topic);
+        admin1.topics().createSubscription(topic, subscription, MessageId.earliest);
         admin2.topics().createSubscription(topic, subscription, MessageId.earliest);
         // Pub & Sub.
         pubAndSubOneMsg(topic, subscription);
