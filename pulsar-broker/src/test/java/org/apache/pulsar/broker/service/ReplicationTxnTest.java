@@ -23,6 +23,7 @@ import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImp
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Collections;
@@ -30,8 +31,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -210,6 +213,45 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
         cleanupTopics(() -> {
             admin1.topics().delete(topic);
             admin2.topics().delete(topic);
+            try {
+                admin1.topics().delete(pendingAck.toString());
+            } catch (Exception ex) {}
+            try {
+                admin2.topics().delete(pendingAck.toString());
+            } catch (Exception ex) {}
+        });
+    }
+
+    @Test
+    public void testOngoingMessagesWillNotBeReplicated() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
+        final String subscription = "s1";
+        admin1.topics().createNonPartitionedTopic(topic);
+        waitReplicatorStarted(topic);
+        admin1.topics().createSubscription(topic, subscription, MessageId.earliest);
+        admin2.topics().createSubscription(topic, subscription, MessageId.earliest);
+        // Pub without commit.
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();
+        Transaction txn = client1.newTransaction().withTransactionTimeout(1, TimeUnit.HOURS).build().get();
+        producer1.newMessage(txn).value("msg1").send();
+        // Verify: receive nothing on the remote cluster.
+        Consumer consumer2 = client2.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription).subscribe();
+        Message<String> msg = consumer2.receive(15, TimeUnit.SECONDS);
+        assertNull(msg);
+        // Verify: the repl cursor is not end of the topic.
+        PersistentTopic persistentTopic = (PersistentTopic) broker1.getTopic(topic, false).join().get();
+        GeoPersistentReplicator replicator =
+                (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+        assertTrue(replicator.getCursor().hasMoreEntries());
+
+        // cleanup.
+        producer1.close();
+        consumer2.close();
+        cleanupTopics(() -> {
+            admin1.topics().delete(topic);
+            admin2.topics().delete(topic);
+            TopicName pendingAck = TopicName.get(
+                    MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subscription));
             try {
                 admin1.topics().delete(pendingAck.toString());
             } catch (Exception ex) {}
