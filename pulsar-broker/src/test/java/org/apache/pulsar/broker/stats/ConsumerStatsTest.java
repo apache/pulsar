@@ -195,7 +195,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @Test
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForActiveConsumerAndSubscription";
+        final String topicName = "persistent://public/default/testUpdateStatsForActiveConsumerAndSubscription";
         pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
