@@ -1284,34 +1284,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
 
-    private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
-                                                                    Optional<String> selectedBroker,
-                                                                    String inactiveBroker) {
-
-
-        if (selectedBroker.isEmpty()) {
-            return new ServiceUnitStateData(Free, null, inactiveBroker,
-                    true, getNextVersionId(orphanData));
-        }
-
-        if (orphanData.state() == Splitting) {
-            return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker.get(),
-                    Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
-                    true, getNextVersionId(orphanData));
-        } else {
-            return new ServiceUnitStateData(Owned, selectedBroker.get(), inactiveBroker,
-                    true, getNextVersionId(orphanData));
-        }
-    }
-
     private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, String inactiveBroker) {
-        Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
-        if (selectedBroker.isEmpty()) {
-            log.warn("Empty selected broker for ownership serviceUnit:{} orphanData:{}."
-                            + "totalCleanupErrorCnt:{}",
-                    serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
-        }
-        var override = getOverrideInactiveBrokerStateData(orphanData, selectedBroker, inactiveBroker);
+        final var version = getNextVersionId(orphanData);
+        final var override = selectBroker(serviceUnit, inactiveBroker).map(selectedBroker -> {
+            if (orphanData.state() == Splitting) {
+                return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
+                        Map.copyOf(orphanData.splitServiceUnitToDestBroker()), true, version);
+            } else {
+                return new ServiceUnitStateData(Owned, selectedBroker, inactiveBroker, true, version);
+            }
+        }).orElseGet(() -> new ServiceUnitStateData(Free, null, inactiveBroker, true, version));
         log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                 serviceUnit, orphanData, override);
         publishOverrideEventAsync(serviceUnit, orphanData, override)
