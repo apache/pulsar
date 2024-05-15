@@ -98,6 +98,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                         msg.recycle();
                         continue;
                     }
+                    msg.getMessageBuilder().clearTxnidLeastBits();
+                    msg.getMessageBuilder().clearTxnidMostBits();
                 }
 
                 if (isEnableReplicatedSubscriptions) {
