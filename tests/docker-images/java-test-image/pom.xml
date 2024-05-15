@@ -154,9 +154,12 @@
                     <image>
                       <name>${docker.organization}/java-test-image</name>
                       <build>
+                        <args>
+                          <PULSAR_IMAGE>${docker.organization}/${docker.image}:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                        </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
+                          <tag>${docker.tag}</tag>
                           <tag>${project.version}</tag>
                         </tags>
                         <noCache>true</noCache>
