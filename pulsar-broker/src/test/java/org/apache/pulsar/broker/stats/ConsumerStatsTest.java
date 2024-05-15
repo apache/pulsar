@@ -74,6 +74,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -267,6 +268,29 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
 
         consumer.close();
+    }
+
+    @DataProvider(name = "topicName")
+    public static Object[][] topicName() {
+        return new Object[][]{
+                {"persistent://prop/use/ns-abc/testNonExistNamespace"},
+                {"persistent://prop/ns-abc/testNonExistNamespace"}
+        };
+    }
+
+    @Test(dataProvider = "topicName")
+    public void testNonExistNamespace(String topicName) throws Exception {
+        final String subName = "my-subscription";
+        try {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName)
+                    .subscribe();
+            Assert.fail("should have failed");
+        } catch (Exception e) {
+            // ok
+        }
     }
 
 
