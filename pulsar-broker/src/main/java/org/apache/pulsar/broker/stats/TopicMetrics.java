@@ -22,9 +22,12 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.TopicName;
 
-public class TopicMetrics implements OutputMetrics {
+public class TopicMetrics implements InputMetrics, OutputMetrics {
 
     private final NamespaceMetrics namespaceMetrics;
+
+    private final LongAdder messageInCount = new LongAdder();
+    private final LongAdder byteInCount = new LongAdder();
 
     private final LongAdder messageOutCount = new LongAdder();
     private final LongAdder byteOutCount = new LongAdder();
@@ -36,6 +39,23 @@ public class TopicMetrics implements OutputMetrics {
         var brokerService = topic.getBrokerService();
         namespaceMetrics = brokerService.getPulsar().getNamespaceMetrics()
                 .putIfAbsent(namespaceName, new NamespaceMetrics(namespaceName, brokerService));
+    }
+
+    @Override
+    public void recordMessageIn(long messageCount, long byteCount) {
+        namespaceMetrics.recordMessageIn(messageCount, byteCount);
+        messageInCount.add(messageCount);
+        byteInCount.add(byteCount);
+    }
+
+    @Override
+    public long getMessageInCount() {
+        return messageInCount.sum();
+    }
+
+    @Override
+    public long getByteInCount() {
+        return byteInCount.sum();
     }
 
     @Override

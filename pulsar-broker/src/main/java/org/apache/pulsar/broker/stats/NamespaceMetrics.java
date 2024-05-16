@@ -25,7 +25,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
-public class NamespaceMetrics implements OutputMetrics {
+public class NamespaceMetrics implements InputMetrics, OutputMetrics {
 
     private final BrokerMetrics brokerMetrics;
 
@@ -71,6 +71,13 @@ public class NamespaceMetrics implements OutputMetrics {
 
     public long getConsumerCount() {
         return consumerCount.sum();
+    }
+
+    @Override
+    public void recordMessageIn(long messageCount, long byteCount) {
+        brokerMetrics.recordMessageIn(messageCount, byteCount);
+        messageInCount.add(messageCount);
+        byteInCount.add(byteCount);
     }
 
     public long getMessageInCount() {

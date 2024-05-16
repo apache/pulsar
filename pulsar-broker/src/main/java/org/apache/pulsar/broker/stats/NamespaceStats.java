@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.stats.Metrics;
 
+@Deprecated
 public class NamespaceStats {
 
     public double msgRateIn;

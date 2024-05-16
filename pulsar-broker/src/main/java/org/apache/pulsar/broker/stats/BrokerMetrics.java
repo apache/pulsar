@@ -20,10 +20,30 @@ package org.apache.pulsar.broker.stats;
 
 import java.util.concurrent.atomic.LongAdder;
 
-public class BrokerMetrics implements OutputMetrics {
+public class BrokerMetrics implements InputMetrics, OutputMetrics {
+
+    private final LongAdder messageInCount = new LongAdder();
+    private final LongAdder byteInCount = new LongAdder();
+
     private final LongAdder messageOutCount = new LongAdder();
     private final LongAdder byteOutCount = new LongAdder();
     private final LongAdder messageAckCount = new LongAdder();
+
+    @Override
+    public void recordMessageIn(long messageCount, long byteCount) {
+        messageInCount.add(messageCount);
+        byteInCount.add(byteCount);
+    }
+
+    @Override
+    public long getMessageInCount() {
+        return messageInCount.sum();
+    }
+
+    @Override
+    public long getByteInCount() {
+        return byteInCount.sum();
+    }
 
     @Override
     public void recordMessageOut(long messageCount, long byteCount) {
