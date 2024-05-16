@@ -37,11 +37,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.airlift.compress.MalformedInputException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayDeque;
@@ -106,6 +107,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.LightMLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -114,6 +116,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
@@ -129,6 +132,14 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
+
+    private static final FastThreadLocal<LightMLDataFormats.PositionInfo> piThreadLocal = new FastThreadLocal<>() {
+        @Override
+        protected LightMLDataFormats.PositionInfo initialValue() {
+            return new LightMLDataFormats.PositionInfo();
+        }
+    };
+
     private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
         if (e1.getLedgerId() != e2.getLedgerId()) {
             return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
@@ -3080,6 +3091,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
 
+    private static void addAllProperties(LightMLDataFormats.PositionInfo lpi, Map<String, Long> properties) {
+        if (properties.isEmpty()) {
+            return;
+        }
+
+        properties.forEach((name, value) -> {
+            lpi.addProperty()
+                    .setName(name)
+                    .setValue(value);
+        });
+    }
+
     private static List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {
         if (properties.isEmpty()) {
             return Collections.emptyList();
@@ -3161,6 +3184,43 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void addIndividualDeletedMessageRanges(LightMLDataFormats.PositionInfo lpi) {
+        lock.readLock().lock();
+        try {
+            if (individualDeletedMessages.isEmpty()) {
+                this.individualDeletedMessagesSerializedSize = 0;
+                return;
+            }
+
+            AtomicInteger acksSerializedSize = new AtomicInteger(0);
+            AtomicInteger rangeCount = new AtomicInteger(0);
+
+            individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+                LightMLDataFormats.MessageRange messageRange = lpi.addIndividualDeletedMessage();
+                messageRange.setLowerEndpoint()
+                        .setLedgerId(lowerKey)
+                        .setEntryId(lowerValue);
+                messageRange.setUpperEndpoint()
+                        .setLedgerId(upperKey)
+                        .setEntryId(upperValue);
+
+                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
+
+                return rangeCount.incrementAndGet() <= config.getMaxUnackedRangesToPersist();
+            });
+
+            this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
+            individualDeletedMessages.resetDirtyKeys();
+            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {} "
+                            + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
+                            + "maxUnackedRangesToPersist {}",
+                    ledger.getName(), name, individualDeletedMessages.size(),
+                    individualDeletedMessagesSerializedSize, rangeCount.get(), config.getMaxUnackedRangesToPersist());
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     private List<MLDataFormats.BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoList() {
         lock.readLock().lock();
         try {
@@ -3193,14 +3253,52 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void addAllBatchedEntryDeletionIndexInfo(LightMLDataFormats.PositionInfo lpi) {
+        lock.readLock().lock();
+        try {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
+                return;
+            }
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            int count = 0;
+            while (iterator.hasNext() && count < config.getMaxBatchDeletedIndexToPersist()) {
+                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+
+                LightMLDataFormats.BatchedEntryDeletionIndexInfo batchInfo = lpi.addBatchedEntryDeletionIndexInfo();
+                batchInfo.setPosition()
+                        .setLedgerId(entry.getKey().getLedgerId())
+                        .setEntryId(entry.getKey().getEntryId());
+
+                long[] array = entry.getValue().toLongArray();
+                List<Long> deleteSet = new ArrayList<>(array.length);
+                for (long l : array) {
+                    batchInfo.addDeleteSet(l);
+                }
+                count++;
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    private static ByteBuf toByteBuf(LightMLDataFormats.PositionInfo pi) {
+        int size = pi.getSerializedSize();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(size, size);
+        pi.writeTo(buf);
+        return buf;
+    }
+
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         PositionImpl position = mdEntry.newPosition;
-        PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
-                .setEntryId(position.getEntryId())
-                .addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges())
-                .addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList())
-                .addAllProperties(buildPropertiesMap(mdEntry.properties)).build();
 
+        LightMLDataFormats.PositionInfo pi = piThreadLocal.get();
+        pi.clear();
+
+        pi.setLedgerId(position.getLedgerId())
+                .setEntryId(position.getEntryId());
+        addIndividualDeletedMessageRanges(pi);
+        addAllBatchedEntryDeletionIndexInfo(pi);
+        addAllProperties(pi, mdEntry.properties);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={}", ledger.getName(), name, lh.getId(),
@@ -3208,24 +3306,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         requireNonNull(lh);
-        byte[] data = pi.toByteArray();
+        ByteBuf rawData = toByteBuf(pi);
 
-        data = compressDataIfNeeded(data, lh);
+        // rawData is released by compressDataIfNeeded if needed
+        ByteBuf data = compressDataIfNeeded(rawData, lh);
 
         int maxSize = 1024 * 1024;
         int offset = 0;
-        int len = data.length;
+        final int len = data.readableBytes();
         int numParts = 1 + (len / maxSize);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, numParts {}",
                     ledger.getName(), name, lh.getId(),
-                    position, data.length, numParts);
+                    position, len, numParts);
         }
 
         if (numParts == 1) {
             // no need for chunking
-            writeToBookKeeperLastChunk(lh, mdEntry, callback, data, data.length, position);
+            // asyncAddEntry will release data ByteBuf
+            writeToBookKeeperLastChunk(lh, mdEntry, callback, data, position, () -> {});
         } else {
             // chunking
             int part = 0;
@@ -3238,17 +3338,18 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.info("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, numParts {} "
                                     + "part {} offset {} len {}",
                             ledger.getName(), name, lh.getId(),
-                            position, data.length, numParts, part, offset, currentLen);
+                            position, len, numParts, part, offset, currentLen);
                 }
 
                 // just send the addEntry, BK client guarantees that each entry succeeds only if all
                 // the previous entries succeeded
-                lh.asyncAddEntry(data, offset, currentLen, (rc, lh1, entryId, ctx) -> {
+                // asyncAddEntry takes ownership of the buffer
+                lh.asyncAddEntry(data.retainedSlice(offset, currentLen), (rc, lh1, entryId, ctx) -> {
                 }, null);
 
                 if (isLast) {
                     // last, send a footer with the number of parts
-                    ChunkSequenceFooter footer = new ChunkSequenceFooter(numParts, data.length);
+                    ChunkSequenceFooter footer = new ChunkSequenceFooter(numParts, len);
                     byte[] footerData;
                     try {
                         footerData = ObjectMapperFactory.getMapper()
@@ -3258,20 +3359,23 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.error("Cannot serialize footer {}", footer);
                         return;
                     }
-                    writeToBookKeeperLastChunk(lh, mdEntry, callback, footerData, footerData.length, position);
+                    // need to explicitly release data ByteBuf
+                    writeToBookKeeperLastChunk(lh, mdEntry, callback,
+                            Unpooled.wrappedBuffer(footerData), position, data::release);
                 }
                 offset += currentLen;
                 part++;
             }
         }
-
-
     }
 
-    private void writeToBookKeeperLastChunk(LedgerHandle lh, MarkDeleteEntry mdEntry,
-                                            VoidCallback callback, byte[] data,
-                                            int currentLen, PositionImpl position) {
-        lh.asyncAddEntry(data, 0, currentLen, (rc, lh1, entryId, ctx) -> {
+    private void writeToBookKeeperLastChunk(LedgerHandle lh,
+                                            MarkDeleteEntry mdEntry,
+                                            VoidCallback callback,
+                                            ByteBuf data,
+                                            PositionImpl position,
+                                            Runnable onFinished) {
+        lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Updated cursor {} position {} in meta-ledger {}", ledger.getName(), name, position,
@@ -3281,8 +3385,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 rolloverLedgerIfNeeded(lh1);
 
                 mbean.persistToLedger(true);
-                mbean.addWriteCursorLedgerSize(data.length);
+                mbean.addWriteCursorLedgerSize(data.readableBytes());
                 callback.operationComplete();
+                onFinished.run();
             } else {
                 log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,
                         position, lh1.getId(), BKException.getMessage(rc));
@@ -3292,37 +3397,41 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 // Before giving up, try to persist the position in the metadata store.
                 persistPositionToMetaStore(mdEntry, callback);
+                onFinished.run();
             }
         }, null);
     }
 
-    private byte[] compressDataIfNeeded(byte[] data, LedgerHandle lh) {
+    private ByteBuf compressDataIfNeeded(ByteBuf data, LedgerHandle lh) {
         byte[] pulsarCursorInfoCompression =
                 lh.getCustomMetadata().get(METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE);
-        if (pulsarCursorInfoCompression != null) {
+        if (pulsarCursorInfoCompression == null) {
+            return data;
+        }
+
+        try {
+            int uncompressedSize = data.readableBytes();
             String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
             CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
-                    CompressionType.valueOf(pulsarCursorInfoCompressionString), data.length);
-            ByteBuf encode = compressionCodec.encode(Unpooled.wrappedBuffer(data));
-            try {
-                int uncompressedSize = data.length;
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                DataOutputStream dataOutputStream = new DataOutputStream(out);
-                dataOutputStream.writeInt(uncompressedSize);
-                dataOutputStream.write(ByteBufUtil.getBytes(encode));
-                dataOutputStream.flush();
-                byte[] result =  out.toByteArray();
-                int ratio = (int) (result.length * 100.0 / uncompressedSize);
-                log.info("[{}] Cursor {} Compressed data size {} bytes (with {}, original size {} bytes, ratio {}%)",
-                        ledger.getName(), name, result.length, pulsarCursorInfoCompressionString, data.length, ratio);
-                return result;
-            } catch (IOException error) {
-                throw new RuntimeException(error);
-            } finally {
-                encode.release();
-            }
-        } else {
-            return data;
+                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
+            ByteBuf encode = compressionCodec.encode(data);
+
+            int compressedSize = encode.readableBytes();
+
+            ByteBuf szBuf = PulsarByteBufAllocator.DEFAULT.buffer(4).writeInt(uncompressedSize);
+
+            CompositeByteBuf result = PulsarByteBufAllocator.DEFAULT.compositeBuffer(2);
+            result.addComponent(szBuf)
+                    .addComponent(encode);
+            result.readerIndex(0)
+                    .writerIndex(4 + compressedSize);
+
+            int ratio = (int) (compressedSize * 100.0 / uncompressedSize);
+            log.info("[{}] Cursor {} Compressed data size {} bytes (with {}, original size {} bytes, ratio {}%)",
+                    ledger.getName(), name, compressedSize, pulsarCursorInfoCompressionString, uncompressedSize, ratio);
+            return result;
+        } finally {
+            data.release();
         }
     }
 
