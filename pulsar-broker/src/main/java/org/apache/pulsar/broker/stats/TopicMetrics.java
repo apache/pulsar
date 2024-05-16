@@ -38,7 +38,7 @@ public class TopicMetrics implements InputMetrics, OutputMetrics {
         var namespaceName = topicName.getNamespaceObject();
         var brokerService = topic.getBrokerService();
         namespaceMetrics = brokerService.getPulsar().getNamespaceMetrics()
-                .putIfAbsent(namespaceName, new NamespaceMetrics(namespaceName, brokerService));
+                .computeIfAbsent(namespaceName, ns -> new NamespaceMetrics(namespaceName, brokerService));
     }
 
     @Override
