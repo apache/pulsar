@@ -163,6 +163,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final BookKeeper.DigestType digestType;
 
     protected volatile PositionImpl markDeletePosition;
+    private int lastSerializedSize;
 
     // this position is have persistent mark delete position
     protected volatile PositionImpl persistentMarkDeletePosition;
@@ -255,7 +256,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
 
-    class MarkDeleteEntry {
+    static class MarkDeleteEntry {
         final PositionImpl newPosition;
         final MarkDeleteCallback callback;
         final Object ctx;
@@ -700,8 +701,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         try {
             positionInfo = PositionInfo.parseFrom(data);
         } catch (InvalidProtocolBufferException e) {
-            callback.operationFailed(new ManagedLedgerException(e));
-            return;
+            log.error("[{}] Failed to parse position info from ledger {} for cursor {}: {}", ledger.getName(),
+                    lh.getId(), name, e);
+            // Rewind to oldest entry available
+            positionInfo = PositionInfo
+                    .newBuilder()
+                    .setLedgerId(-1)
+                    .setEntryId(-1)
+                    .build();
         }
 
         Map<String, Long> recoveredProperties = Collections.emptyMap();
@@ -3176,7 +3183,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                             + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
                             + "maxUnackedRangesToPersist {}",
                     ledger.getName(), name, individualDeletedMessages.size(),
-                    individualDeletedMessagesSerializedSize, rangeList.size(), config.getMaxUnackedRangesToPersist());
+                    individualDeletedMessagesSerializedSize, rangeList.size(),
+                    config.getMaxUnackedRangesToPersist());
 
             return rangeList;
         } finally {
@@ -3184,7 +3192,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void addIndividualDeletedMessageRanges(LightMLDataFormats.PositionInfo lpi) {
+    private void scanIndividualDeletedMessageRanges(
+            PositionInfoUtils.IndividuallyDeletedMessagesRangeConsumer consumer) {
+        final int maxUnackedRangesToPersist = config.getMaxUnackedRangesToPersist();
+        AtomicInteger acksSerializedSize = new AtomicInteger(0);
+        AtomicInteger rangeCount = new AtomicInteger(0);
+
         lock.readLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
@@ -3192,30 +3205,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
 
-            AtomicInteger acksSerializedSize = new AtomicInteger(0);
-            AtomicInteger rangeCount = new AtomicInteger(0);
-
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
-                LightMLDataFormats.MessageRange messageRange = lpi.addIndividualDeletedMessage();
-                messageRange.setLowerEndpoint()
-                        .setLedgerId(lowerKey)
-                        .setEntryId(lowerValue);
-                messageRange.setUpperEndpoint()
-                        .setLedgerId(upperKey)
-                        .setEntryId(upperValue);
-
-                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
-
-                return rangeCount.incrementAndGet() <= config.getMaxUnackedRangesToPersist();
+                acksSerializedSize.addAndGet(16 * 4);
+                consumer.acceptRange(lowerKey, lowerValue, upperKey, upperValue);
+                return rangeCount.incrementAndGet() <= maxUnackedRangesToPersist;
             });
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
-            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {} "
+            log.info("[{}] [{}] scanIndividualDeletedMessageRanges, numRanges {} "
                             + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
                             + "maxUnackedRangesToPersist {}",
                     ledger.getName(), name, individualDeletedMessages.size(),
-                    individualDeletedMessagesSerializedSize, rangeCount.get(), config.getMaxUnackedRangesToPersist());
+                    individualDeletedMessagesSerializedSize, rangeCount.get(),
+                    config.getMaxUnackedRangesToPersist());
         } finally {
             lock.readLock().unlock();
         }
@@ -3235,9 +3238,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
             while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
                 Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
-                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
-                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
-                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
                 long[] array = entry.getValue().toLongArray();
                 List<Long> deleteSet = new ArrayList<>(array.length);
                 for (long l : array) {
@@ -3253,27 +3253,23 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void addAllBatchedEntryDeletionIndexInfo(LightMLDataFormats.PositionInfo lpi) {
+    private void buildBatchEntryDeletionIndexInfoList(
+            PositionInfoUtils.BatchedEntryDeletionIndexInfoConsumer consumer) {
+        if (!config.isDeletionAtBatchIndexLevelEnabled()) {
+            return;
+        }
+        int maxBatchDeletedIndexToPersist = config.getMaxBatchDeletedIndexToPersist();
         lock.readLock().lock();
         try {
-            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes.isEmpty()) {
+            if (batchDeletedIndexes.isEmpty()) {
                 return;
             }
-            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
             int count = 0;
-            while (iterator.hasNext() && count < config.getMaxBatchDeletedIndexToPersist()) {
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            while (iterator.hasNext() && count < maxBatchDeletedIndexToPersist) {
                 Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
-
-                LightMLDataFormats.BatchedEntryDeletionIndexInfo batchInfo = lpi.addBatchedEntryDeletionIndexInfo();
-                batchInfo.setPosition()
-                        .setLedgerId(entry.getKey().getLedgerId())
-                        .setEntryId(entry.getKey().getEntryId());
-
                 long[] array = entry.getValue().toLongArray();
-                List<Long> deleteSet = new ArrayList<>(array.length);
-                for (long l : array) {
-                    batchInfo.addDeleteSet(l);
-                }
+                consumer.acceptRange(entry.getKey().getLedgerId(), entry.getKey().getEntryId(), array);
                 count++;
             }
         } finally {
@@ -3292,23 +3288,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         long now = System.nanoTime();
         PositionImpl position = mdEntry.newPosition;
 
-        LightMLDataFormats.PositionInfo pi = piThreadLocal.get();
-        pi.clear();
-
-        pi.setLedgerId(position.getLedgerId())
-                .setEntryId(position.getEntryId());
-        addIndividualDeletedMessageRanges(pi);
-        addAllBatchedEntryDeletionIndexInfo(pi);
-        addAllProperties(pi, mdEntry.properties);
-
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={}", ledger.getName(), name, lh.getId(),
                     position);
         }
 
         requireNonNull(lh);
-        ByteBuf rawData = toByteBuf(pi);
+        ByteBuf rawData = PositionInfoUtils.serializePositionInfo(mdEntry, position,
+                this::scanIndividualDeletedMessageRanges, this::buildBatchEntryDeletionIndexInfoList,
+                lastSerializedSize);
         long endSer = System.nanoTime();
+        this.lastSerializedSize = rawData.readableBytes();
 
         // rawData is released by compressDataIfNeeded if needed
         ByteBuf data = compressDataIfNeeded(rawData, lh);
@@ -3378,6 +3368,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
     }
+
 
     private void writeToBookKeeperLastChunk(LedgerHandle lh,
                                             MarkDeleteEntry mdEntry,
@@ -4019,4 +4010,5 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         return newNonDurableCursor;
     }
+
 }
