@@ -556,22 +556,29 @@ public class Consumer {
 
             totalAckCount += ackedCount;
         }
-        subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(totalAckCount);
-        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
-            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
-                //check if the position can remove from the consumer pending acks.
-                // the bit set is empty in pending ack handle.
-                if (((PositionImpl) position).getAckSet() != null) {
-                    if (((PersistentSubscription) subscription)
-                            .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
-                        removePendingAcks((PositionImpl) position);
+
+        // we use acknowledgeMessageAsync because we don't want to perform the
+        // flush of the cursor (that may take much time in case of a long list of individuallyDeletedMessages)
+        // in the Netty eventloop thread
+        long _totalAckCount = totalAckCount;
+        subscription.acknowledgeMessageAsync(positionsAcked, AckType.Individual, properties)
+                .thenCompose( ___ -> {
+            CompletableFuture<Long> completableFuture = new CompletableFuture<>();
+            completableFuture.complete(_totalAckCount);
+            if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+                completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
+                    //check if the position can remove from the consumer pending acks.
+                    // the bit set is empty in pending ack handle.
+                    if (((PositionImpl) position).getAckSet() != null) {
+                        if (((PersistentSubscription) subscription)
+                                .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
+                            removePendingAcks((PositionImpl) position);
+                        }
                     }
-                }
-            }));
+                }));
+            }
+            return completableFuture;
         }
-        return completableFuture;
     }
 
 
