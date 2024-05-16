@@ -93,15 +93,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         super.cleanup();
     }
 
-    private void waitReplicatorStarted(String topicName) {
-        Awaitility.await().untilAsserted(() -> {
-            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
-            assertTrue(topicOptional2.isPresent());
-            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
-            assertFalse(persistentTopic2.getProducers().isEmpty());
-        });
-    }
-
     private void waitReplicatorStopped(String topicName) {
         Awaitility.await().untilAsserted(() -> {
             Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
