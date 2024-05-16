@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
@@ -29,6 +31,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -55,7 +58,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected ZookeeperServerTest brokerConfigZk1;
     protected LocalBookkeeperEnsemble bkEnsemble1;
     protected PulsarService pulsar1;
-    protected BrokerService ns1;
+    protected BrokerService broker1;
     protected PulsarAdmin admin1;
     protected PulsarClient client1;
 
@@ -66,7 +69,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected ZookeeperServerTest brokerConfigZk2;
     protected LocalBookkeeperEnsemble bkEnsemble2;
     protected PulsarService pulsar2;
-    protected BrokerService ns2;
+    protected BrokerService broker2;
     protected PulsarAdmin admin2;
     protected PulsarClient client2;
 
@@ -89,23 +92,29 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         setConfigDefaults(config1, cluster1, bkEnsemble1, brokerConfigZk1);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
-        ns1 = pulsar1.getBrokerService();
-
+        broker1 = pulsar1.getBrokerService();
         url1 = new URL(pulsar1.getWebServiceAddress());
         urlTls1 = new URL(pulsar1.getWebServiceAddressTls());
-        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
-        client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
 
         // Start region 2
         setConfigDefaults(config2, cluster2, bkEnsemble2, brokerConfigZk2);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
-        ns2 = pulsar2.getBrokerService();
-
+        broker2 = pulsar2.getBrokerService();
         url2 = new URL(pulsar2.getWebServiceAddress());
         urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+    }
+
+    protected void startAdminClient() throws Exception {
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
-        client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
+    }
+
+    protected void startPulsarClient() throws Exception{
+        ClientBuilder clientBuilder1 = PulsarClient.builder().serviceUrl(url1.toString());
+        client1 = initClient(clientBuilder1);
+        ClientBuilder clientBuilder2 = PulsarClient.builder().serviceUrl(url2.toString());
+        client2 = initClient(clientBuilder2);
     }
 
     protected void createDefaultTenantsAndClustersAndNamespace() throws Exception {
@@ -196,7 +205,11 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
         startBrokers();
 
+        startAdminClient();
+
         createDefaultTenantsAndClustersAndNamespace();
+
+        startPulsarClient();
 
         Thread.sleep(100);
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
@@ -286,5 +299,18 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         // Reset configs.
         config1 = new ServiceConfiguration();
         config2 = new ServiceConfiguration();
+    }
+
+    protected void waitReplicatorStarted(String topicName) {
+        Awaitility.await().untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+            assertFalse(persistentTopic2.getProducers().isEmpty());
+        });
+    }
+
+    protected PulsarClient initClient(ClientBuilder clientBuilder) throws Exception {
+        return clientBuilder.build();
     }
 }
