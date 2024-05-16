@@ -19,6 +19,8 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
@@ -29,7 +31,7 @@ public interface TransactionMetadataPreserver {
     /**
      * Replay transaction metadata to initialize the terminatedTxnMetaMap.
      */
-    void replay();
+    void replay() throws PulsarClientException;
 
     /**
      * Close the transaction metadata preserver.

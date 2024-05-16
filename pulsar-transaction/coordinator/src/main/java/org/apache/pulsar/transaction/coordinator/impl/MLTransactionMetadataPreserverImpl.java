@@ -135,7 +135,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
      * Replay transaction metadata to initialize the terminatedTxnMetaMap.
      */
     @Override
-    public void replay() {
+    public void replay() throws PulsarClientException {
         if (!enabled()) {
             log.info("Transaction metadata preserver is not enabled, do not replay transaction metadata.");
             return;
@@ -159,6 +159,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         } catch (Exception e) {
             // Though replay transaction metadata failed, the transaction coordinator can still work.
             log.error("Replay transaction metadata failed, tcID:{}, reason:{}.", tcID, e);
+            throw e;
         } finally {
             reader.closeAsync();
         }

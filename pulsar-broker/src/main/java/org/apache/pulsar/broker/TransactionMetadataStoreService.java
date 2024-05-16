@@ -152,7 +152,10 @@ public class TransactionMetadataStoreService {
                         } catch (Throwable e) {
                             LOG.error("Failed to create transaction metadata preserver for tcId {}, reason:{}",
                                     tcId, e);
-                            preserver = new MLTransactionMetadataPreserverImpl();
+                            completableFuture.completeExceptionally(e);
+                            tcLoadSemaphore.release();
+                            failPendingConnectRequests(e, deque);
+                            return;
                         }
                         openTransactionMetadataStore(tcId, preserver, timeoutTracker, recoverTracker).thenAccept(
                                 store -> internalPinnedExecutor.execute(() -> {
@@ -191,22 +194,7 @@ public class TransactionMetadataStoreService {
                                 // release before handle request queue,
                                 //in order to client reconnect infinite loop
                                 tcLoadSemaphore.release();
-                                long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                                while (true) {
-                                    // prevent thread in a busy loop.
-                                    if (System.currentTimeMillis() < endTime) {
-                                        CompletableFuture<Void> future = deque.poll();
-                                        if (future != null) {
-                                            // this means that this tc client connection connect fail
-                                            future.completeExceptionally(realCause);
-                                        } else {
-                                            break;
-                                        }
-                                    } else {
-                                        deque.clear();
-                                        break;
-                                    }
-                                }
+                                failPendingConnectRequests(e, deque);
                                 LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
                             });
                             return null;
@@ -228,6 +216,26 @@ public class TransactionMetadataStoreService {
             }
         });
         return completableFuture;
+    }
+
+    private void failPendingConnectRequests(Throwable e, Deque<CompletableFuture<Void>> deque) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(e);
+        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+        while (true) {
+            // prevent thread in a busy loop.
+            if (System.currentTimeMillis() < endTime) {
+                CompletableFuture<Void> future = deque.poll();
+                if (future != null) {
+                    // this means that this tc client connection connect fail
+                    future.completeExceptionally(realCause);
+                } else {
+                    break;
+                }
+            } else {
+                deque.clear();
+                break;
+            }
+        }
     }
 
     public CompletableFuture<TransactionMetadataStore>
