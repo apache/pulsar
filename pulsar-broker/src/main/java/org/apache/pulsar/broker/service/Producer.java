@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.ProducerMetrics;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -74,6 +75,7 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
+    private final ProducerMetrics producerMetrics;
     private Rate msgIn;
     private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
@@ -157,6 +159,8 @@ public class Producer {
 
         this.clientAddress = cnx.clientSourceAddress();
         this.brokerInterceptor = cnx.getBrokerService().getInterceptor();
+
+        this.producerMetrics = new ProducerMetrics(this);
     }
 
     /**
@@ -341,6 +345,7 @@ public class Producer {
     public void recordMessageDrop(int batchSize) {
         if (this.isNonPersistentTopic) {
             msgDrop.recordEvent(batchSize);
+            producerMetrics.recordMessageDrop(batchSize);
         }
     }
 
@@ -755,6 +760,7 @@ public class Producer {
 
     public void updateRates(int numOfMessages, long msgSizeInBytes) {
         msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
+        producerMetrics.recordMessageIn(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {
