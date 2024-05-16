@@ -39,7 +39,7 @@ public class PositionInfoUtilsTest {
         }, (scanner) -> {
             long[] array = {7L, 8L};
             scanner.acceptRange(1, 2, array);
-        });
+        }, 1024);
 
         byte[] data = ByteBufUtil.getBytes(result);
         MLDataFormats.PositionInfo positionInfoParsed = MLDataFormats.PositionInfo.parseFrom(data);
@@ -76,7 +76,7 @@ public class PositionInfoUtilsTest {
 
         ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position, (scanner) -> {
         }, (scanner) -> {
-        });
+        }, 1024);
 
         byte[] data = ByteBufUtil.getBytes(result);
         MLDataFormats.PositionInfo positionInfoParsed = MLDataFormats.PositionInfo.parseFrom(data);
