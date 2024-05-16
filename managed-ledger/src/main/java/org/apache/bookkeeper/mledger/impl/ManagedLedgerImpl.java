@@ -2578,7 +2578,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long elapsedMs = clock.millis() - offload.getTimestamp();
         return offloadPolicies.filter(policies -> offload.getComplete() && !offload.getBookkeeperDeleted()
                 && policies.getManagedLedgerOffloadDeletionLagInMillis() != null
-                && policies.getManagedLedgerOffloadDeletionLagInMillis() != -1
+                && policies.getManagedLedgerOffloadDeletionLagInMillis() >= 0
                 && elapsedMs > policies.getManagedLedgerOffloadDeletionLagInMillis()).isPresent();
     }
 
