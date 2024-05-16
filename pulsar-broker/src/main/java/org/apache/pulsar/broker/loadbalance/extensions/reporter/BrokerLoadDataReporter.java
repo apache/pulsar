@@ -55,7 +55,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
 
     private final BrokerHostUsage brokerHostUsage;
 
-    private final String lookupServiceAddress;
+    private final String brokerId;
 
     @Getter
     private final BrokerLoadData localData;
@@ -67,10 +67,10 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
     private long tombstoneDelayInMillis;
 
     public BrokerLoadDataReporter(PulsarService pulsar,
-                                  String lookupServiceAddress,
+                                  String brokerId,
                                   LoadDataStore<BrokerLoadData> brokerLoadDataStore) {
         this.brokerLoadDataStore = brokerLoadDataStore;
-        this.lookupServiceAddress = lookupServiceAddress;
+        this.brokerId = brokerId;
         this.pulsar = pulsar;
         this.conf = this.pulsar.getConfiguration();
         if (SystemUtils.IS_OS_LINUX) {
@@ -111,7 +111,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
                 log.info("publishing load report:{}", localData.toString(conf));
             }
             CompletableFuture<Void> future =
-                    this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
+                    this.brokerLoadDataStore.pushAsync(this.brokerId, newLoadData);
             future.whenComplete((__, ex) -> {
                 if (ex == null) {
                     localData.setReportedAt(System.currentTimeMillis());
@@ -185,7 +185,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         }
         var lastSuccessfulTombstonedAt = lastTombstonedAt;
         lastTombstonedAt = now; // dedup first
-        brokerLoadDataStore.removeAsync(lookupServiceAddress)
+        brokerLoadDataStore.removeAsync(brokerId)
                 .whenComplete((__, e) -> {
                             if (e != null) {
                                 log.error("Failed to clean broker load data.", e);
@@ -209,13 +209,13 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Releasing, Splitting -> {
-                if (StringUtils.equals(data.sourceBroker(), lookupServiceAddress)) {
+                if (StringUtils.equals(data.sourceBroker(), brokerId)) {
                     localData.clear();
                     tombstone();
                 }
             }
             case Owned -> {
-                if (StringUtils.equals(data.dstBroker(), lookupServiceAddress)) {
+                if (StringUtils.equals(data.dstBroker(), brokerId)) {
                     localData.clear();
                     tombstone();
                 }

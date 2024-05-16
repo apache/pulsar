@@ -68,7 +68,7 @@ public interface Topic {
 
         /**
          * Return the producer name for the original producer.
-         *
+         * <p>
          * For messages published locally, this will return the same local producer name, though in case of replicated
          * messages, the original producer name will differ
          */
@@ -136,7 +136,7 @@ public interface Topic {
     /**
      * Tries to add a producer to the topic. Several validations will be performed.
      *
-     * @param producer
+     * @param producer Producer to add
      * @param producerQueuedFuture
      *            a future that will be triggered if the producer is being queued up prior of getting established
      * @return the "topic epoch" if there is one or empty
@@ -148,7 +148,7 @@ public interface Topic {
     /**
      * Wait TransactionBuffer Recovers completely.
      * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled
+     * @param isTxnEnabled isTxnEnabled
      * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
      */
     CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
@@ -196,6 +196,9 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
 
     CompletableFuture<Void> checkClusterMigration();
@@ -210,35 +213,27 @@ public interface Topic {
 
     void checkCursorsToCacheEntries();
 
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
+
     void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
 
-    void checkTopicPublishThrottlingRate();
+    void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes);
 
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
-
-    void resetTopicPublishCountAndEnableReadIfRequired();
-
-    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
-
-    boolean isPublishRateExceeded();
-
-    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isResourceGroupRateLimitingEnabled();
-
-    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isBrokerPublishRateExceeded();
+    boolean shouldProducerMigrate();
 
     boolean isReplicationBacklogExist();
-
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -258,6 +253,13 @@ public interface Topic {
 
     BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
+    /**
+     * Uses the best-effort (not necessarily up-to-date) information available to return the age.
+     * @return The oldest unacknowledged message age in seconds, or -1 if not available
+     */
+    long getBestEffortOldestUnacknowledgedMessageAgeSeconds();
+
+
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
             String namespaceName, boolean hydratePublishers);
@@ -271,13 +273,24 @@ public interface Topic {
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
 
+    TopicStatsImpl getStats(GetStatsOptions getStatsOptions);
+
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                               boolean subscriptionBacklogSize,
                                                               boolean getEarliestTimeInBacklog);
 
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
+
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
+
+    /**
+     * Get the last message position that can be dispatch.
+     */
+    default CompletableFuture<Position> getLastDispatchablePosition() {
+        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+    }
 
     CompletableFuture<MessageId> getLastMessageId();
 
@@ -328,6 +341,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isTransferring();
 
     /* ------ Transaction related ------ */
 

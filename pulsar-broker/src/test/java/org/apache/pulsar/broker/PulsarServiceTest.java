@@ -54,6 +54,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
@@ -186,7 +188,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testBacklogAndRetentionCheck() {
+    public void testBacklogAndRetentionCheck() throws PulsarServerException {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("test");
         config.setMetadataStoreUrl("memory:local");
@@ -198,6 +200,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Only set retention
@@ -210,6 +214,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Set both retention and backlog quota
@@ -222,6 +228,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Set invalidated retention and backlog quota
@@ -233,6 +241,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         config.setBacklogQuotaDefaultLimitBytes(4 * 1024 * 1024);
@@ -244,6 +254,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Only set backlog quota
@@ -256,6 +268,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
     }
 }

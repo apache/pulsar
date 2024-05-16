@@ -20,11 +20,16 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +81,37 @@ public class BaseResources<T> {
 
     protected CompletableFuture<List<String>> getChildrenAsync(String path) {
         return cache.getChildren(path);
+    }
+
+    protected CompletableFuture<List<String>> getChildrenRecursiveAsync(String path) {
+        Set<String> children = ConcurrentHashMap.newKeySet();
+        CompletableFuture<List<String>> result = new CompletableFuture<>();
+        getChildrenRecursiveAsync(path, children, result, new AtomicInteger(1), path);
+        return result;
+    }
+
+    private void getChildrenRecursiveAsync(String path, Set<String> children, CompletableFuture<List<String>> result,
+            AtomicInteger totalResults, String parent) {
+        cache.getChildren(path).thenAccept(childList -> {
+            childList = childList != null ? childList : Collections.emptyList();
+            if (totalResults.decrementAndGet() == 0 && childList.isEmpty()) {
+                result.complete(new ArrayList<>(children));
+                return;
+            }
+            if (childList.isEmpty()) {
+                return;
+            }
+            // remove current node from children if current node is not leaf
+            children.remove(parent);
+            // childPrefix creates a path hierarchy if children has multi level path
+            String childPrefix = path.equals(parent) ? "" : parent + "/";
+            totalResults.addAndGet(childList.size());
+            for (String child : childList) {
+                children.add(childPrefix + child);
+                String childPath = path + "/" + child;
+                getChildrenRecursiveAsync(childPath, children, result, totalResults, child);
+            }
+        });
     }
 
     protected Optional<T> get(String path) throws MetadataStoreException {
@@ -161,22 +197,21 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        return cache.exists(path).thenCompose(exists -> {
-            if (!exists) {
-                return CompletableFuture.completedFuture(null);
+        log.info("Deleting path: {}", path);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cache.delete(path).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                log.info("Path {} did not exist in metadata store", path);
+                future.complete(null);
+            } else if (ex != null) {
+                log.info("Failed to delete path from metadata store: {}", path, ex);
+                future.completeExceptionally(ex);
+            } else {
+                log.info("Deleted path from metadata store: {}", path);
+                future.complete(null);
             }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            cache.delete(path).whenComplete((ignore, ex) -> {
-                if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                    future.complete(null);
-                } else if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(null);
-                }
-            });
-            return future;
         });
+        return future;
     }
 
     protected boolean exists(String path) throws MetadataStoreException {

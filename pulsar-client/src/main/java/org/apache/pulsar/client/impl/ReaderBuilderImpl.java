@@ -32,6 +32,7 @@ import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
@@ -85,8 +86,9 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0
-                || conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
+        boolean isStartMsgIdExist = conf.getStartMessageId() != null && conf.getStartMessageId() != MessageId.earliest;
+        if ((isStartMsgIdExist && conf.getStartMessageFromRollbackDurationInSec() > 0)
+                || (conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0)) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
                             "Start message id or start message from roll back must be specified but they cannot be"
@@ -170,6 +172,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+        conf.setMessageCrypto(messageCrypto);
         return this;
     }
 

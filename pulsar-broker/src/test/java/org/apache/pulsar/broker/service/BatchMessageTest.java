@@ -768,6 +768,7 @@ public class BatchMessageTest extends BrokerTestBase {
         final Consumer<byte[]> myConsumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).subscriptionType(SubscriptionType.Shared).subscribe();
         // assertEquals(dispatcher.getTotalUnackedMessages(), 1);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
 
         final CountDownLatch latch = new CountDownLatch(numMsgs);

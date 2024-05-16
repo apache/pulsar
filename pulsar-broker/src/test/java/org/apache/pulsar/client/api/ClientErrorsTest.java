@@ -270,7 +270,7 @@ public class ClientErrorsTest {
             if (subscribeCount == 1) {
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
                 // Trigger reconnect
-                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1));
+                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1, null, null));
             } else if (subscribeCount != 2) {
                 // Respond to subsequent requests to prevent timeouts
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));

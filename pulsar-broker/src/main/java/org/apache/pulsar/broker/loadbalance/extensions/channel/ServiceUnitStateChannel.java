@@ -132,6 +132,16 @@ public interface ServiceUnitStateChannel extends Closeable {
     CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
+     *  Gets the assigned broker of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle))
+     * @return the future object of the assigned broker
+     */
+    Optional<String> getAssigned(String serviceUnit);
+
+
+    /**
      * Checks if the target broker is the owner of the service unit.
      *
      *
@@ -206,4 +216,9 @@ public interface ServiceUnitStateChannel extends Closeable {
      * Cancels the ownership monitor.
      */
     void cancelOwnershipMonitor();
+
+    /**
+     * Cleans the service unit ownerships from the current broker's channel.
+     */
+    void cleanOwnerships();
 }

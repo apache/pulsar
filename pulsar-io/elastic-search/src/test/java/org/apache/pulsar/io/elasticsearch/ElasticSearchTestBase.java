@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Optional;
-
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.security.CreateApiKeyRequest;
 import co.elastic.clients.elasticsearch.security.CreateApiKeyResponse;
@@ -29,6 +25,10 @@ import co.elastic.clients.elasticsearch.security.GetTokenRequest;
 import co.elastic.clients.elasticsearch.security.GetTokenResponse;
 import co.elastic.clients.elasticsearch.security.get_token.AccessTokenGrantType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.opensearch.client.Request;
@@ -36,10 +36,11 @@ import org.opensearch.client.Response;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
 
+@Slf4j
 public abstract class ElasticSearchTestBase {
 
     public static final String ELASTICSEARCH_8 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V8"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.5.1");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.5.3");
 
     public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
@@ -54,17 +55,28 @@ public abstract class ElasticSearchTestBase {
     }
 
     protected ElasticsearchContainer createElasticsearchContainer() {
+        ElasticsearchContainer elasticsearchContainer;
         if (elasticImageName.equals(OPENSEARCH)) {
             DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH).asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
-            return new ElasticsearchContainer(dockerImageName)
+            elasticsearchContainer = new ElasticsearchContainer(dockerImageName)
                     .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
                     .withEnv("bootstrap.memory_lock", "true")
                     .withEnv("plugins.security.disabled", "true");
+        } else {
+            elasticsearchContainer = new ElasticsearchContainer(elasticImageName)
+                    .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m")
+                    .withEnv("xpack.security.enabled", "false")
+                    .withEnv("xpack.security.http.ssl.enabled", "false");
         }
-        return new ElasticsearchContainer(elasticImageName)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m")
-                .withEnv("xpack.security.enabled", "false")
-                .withEnv("xpack.security.http.ssl.enabled", "false");
+        configureElasticContainer(elasticsearchContainer);
+        return elasticsearchContainer;
+    }
+
+    protected void configureElasticContainer(ElasticsearchContainer elasticContainer) {
+        if (getCompatibilityMode() != ElasticSearchConfig.CompatibilityMode.OPENSEARCH) {
+            elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
+        }
+        elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
     }
 
     protected ElasticSearchConfig.CompatibilityMode getCompatibilityMode() {

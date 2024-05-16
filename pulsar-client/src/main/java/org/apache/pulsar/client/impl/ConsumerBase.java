@@ -64,6 +64,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -88,6 +89,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected final int maxReceiverQueueSize;
     private volatile int currentReceiverQueueSize;
+
+    protected static final AtomicIntegerFieldUpdater<ConsumerBase> MESSAGE_LISTENER_QUEUE_SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "messageListenerQueueSize");
+    protected volatile int messageListenerQueueSize = 0;
+
     protected static final AtomicIntegerFieldUpdater<ConsumerBase> CURRENT_RECEIVER_QUEUE_SIZE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
@@ -188,6 +194,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         initReceiverQueueSize();
     }
 
+    protected UnAckedMessageTracker getUnAckedMessageTracker() {
+        return unAckedMessageTracker;
+    }
+
     protected void triggerBatchReceiveTimeoutTask() {
         if (!hasBatchReceiveTimeout() && batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
@@ -218,7 +228,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    // if lister is not null, we will track unAcked msg in callMessageListener
+    // if listener is not null, we will track unAcked msg in callMessageListener
     protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
         if (listener == null) {
             unAckedMessageTracker.add(messageId, redeliveryCount);
@@ -702,8 +712,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void unsubscribe() throws PulsarClientException {
+        unsubscribe(false);
+    }
+
+    @Override
+    public void unsubscribe(boolean force) throws PulsarClientException {
         try {
-            unsubscribeAsync().get();
+            unsubscribeAsync(force).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -713,7 +728,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public abstract CompletableFuture<Void> unsubscribeAsync();
+    public CompletableFuture<Void> unsubscribeAsync() {
+        return unsubscribeAsync(false);
+    }
+
+    @Override
+    public abstract CompletableFuture<Void> unsubscribeAsync(boolean force);
 
     @Override
     public void close() throws PulsarClientException {
@@ -1105,6 +1125,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         // Trigger the notification on the message listener in a separate thread to avoid blocking the
                         // internal pinned executor thread while the message processing happens
                         final Message<T> finalMsg = msg;
+                        MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
                             executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
                                     callMessageListener(finalMsg));
@@ -1148,6 +1169,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
+        } finally {
+            MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.decrementAndGet(this);
         }
     }
 
@@ -1252,6 +1275,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return true;
+    }
+
+    protected boolean isSingleMessageAcked(BitSetRecyclable ackBitSet, int batchIndex) {
+        return ackBitSet != null && !ackBitSet.get(batchIndex);
     }
 
     public boolean hasBatchReceiveTimeout() {

@@ -25,7 +25,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -54,7 +53,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -76,7 +75,7 @@ public class BrokerRegistryTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 
 
-    // Make sure the load manager don't register itself to `/loadbalance/brokers/{lookupServiceAddress}`
+    // Make sure the load manager don't register itself to `/loadbalance/brokers/{brokerId}`.
     public static class MockLoadManager implements LoadManager {
 
         @Override
@@ -193,8 +192,14 @@ public class BrokerRegistryTest {
 
     @AfterClass(alwaysRun = true)
     void shutdown() throws Exception {
-        executor.shutdownNow();
-        bkEnsemble.stop();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @AfterMethod(alwaysRun = true)
@@ -292,7 +297,7 @@ public class BrokerRegistryTest {
         pulsar1.start();
         pulsar2.start();
 
-        doReturn(pulsar1.getLookupServiceAddress()).when(pulsar2).getLookupServiceAddress();
+        doReturn(pulsar1.getBrokerId()).when(pulsar2).getBrokerId();
         BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
         BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
         brokerRegistry1.start();

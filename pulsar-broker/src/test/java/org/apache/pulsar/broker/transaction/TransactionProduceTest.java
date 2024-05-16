@@ -19,11 +19,14 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertTrue;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -38,7 +41,9 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -180,6 +185,37 @@ public class TransactionProduceTest extends TransactionTestBase {
         log.info("produce and {} test finished.", endAction ? "commit" : "abort");
     }
 
+    @Test
+    public void testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish() throws Exception {
+        final String topic = NAMESPACE1 + "/testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish";
+        PulsarClient pulsarClient = this.pulsarClient;
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        PersistentTopic persistentTopic = getTopic(topic);
+        long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
+
+        // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
+        producer.newMessage(txn).value("hello world".getBytes()).send();
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() == lastMaxReadPositionMovedForwardTimestamp);
+
+        // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
+        txn.commit().get();
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+    }
+
+    private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {
+        Optional<Topic> optionalTopic = getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(topic, true).get();
+        return (PersistentTopic) optionalTopic.get();
+    }
+
     private void checkMessageId(List<CompletableFuture<MessageId>> futureList, boolean isFinished) {
         futureList.forEach(messageIdFuture -> {
             try {
@@ -230,6 +266,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .build().get();
         log.info("init transaction {}.", txn);
 
+        @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
                 .topic(ACK_COMMIT_TOPIC)
                 .batchingMaxMessages(1)
@@ -241,6 +278,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
         log.info("prepare incoming messages finished.");
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
@@ -292,6 +330,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .build().get();
         log.info("init transaction {}.", txn);
 
+        @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
                 .topic(ACK_ABORT_TOPIC)
                 .batchingMaxMessages(1)
@@ -303,6 +342,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
         log.info("prepare incoming messages finished.");
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)

@@ -41,6 +41,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final Rate readEntriesOpsFailed = new Rate();
     private final Rate readEntriesOpsCacheMisses = new Rate();
     private final Rate markDeleteOps = new Rate();
+    private final Rate entriesRead = new Rate();
 
     private final LongAdder dataLedgerOpenOp = new LongAdder();
     private final LongAdder dataLedgerCloseOp = new LongAdder();
@@ -80,6 +81,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         ledgerAddEntryLatencyStatsUsec.refresh();
         ledgerSwitchLatencyStatsUsec.refresh();
         entryStats.refresh();
+        entriesRead.calculateRate(seconds);
     }
 
     public void addAddEntrySample(long size) {
@@ -100,8 +102,8 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         readEntriesOpsFailed.recordEvent();
     }
 
-    public void recordReadEntriesOpsCacheMisses() {
-        readEntriesOpsCacheMisses.recordEvent();
+    public void recordReadEntriesOpsCacheMisses(int count, long totalSize) {
+        readEntriesOpsCacheMisses.recordMultipleEvents(count, totalSize);
     }
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {
@@ -118,6 +120,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addReadEntriesSample(int count, long totalSize) {
         readEntriesOps.recordMultipleEvents(count, totalSize);
+    }
+
+    public void addEntriesRead(int count) {
+        entriesRead.recordEvent(count);
     }
 
     public void startDataLedgerOpenOp() {
@@ -190,6 +196,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getEntriesReadTotalCount() {
+        return entriesRead.getTotalCount();
+    }
+
+    @Override
     public double getAddEntryMessagesRate() {
         return addEntryOps.getRate();
     }
@@ -220,6 +231,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getAddEntrySucceedTotal() {
+        return addEntryOps.getTotalCount();
+    }
+
+    @Override
     public long getAddEntryErrors() {
         return addEntryOpsFailed.getCount();
     }
@@ -227,6 +243,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public long getReadEntriesSucceeded() {
         return readEntriesOps.getCount();
+    }
+
+    @Override
+    public long getReadEntriesSucceededTotal() {
+        return readEntriesOps.getTotalCount();
     }
 
     @Override
@@ -333,5 +354,4 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         result.cursorLedgerDeleteOp = cursorLedgerDeleteOp.longValue();
         return result;
     }
-
 }

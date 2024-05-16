@@ -76,7 +76,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         int verifiedBrokerNum = 0;
         for (PulsarService pulsarService : this.getPulsarServiceList()) {
             BrokerService bs = pulsarService.getBrokerService();
-            if (bs.isTopicNsOwnedByBroker(TopicName.get(topicName))) {
+            if (bs.isTopicNsOwnedByBrokerAsync(TopicName.get(topicName)).join()) {
                 continue;
             }
             verifiedBrokerNum ++;

@@ -97,7 +97,7 @@ public class TGTRefreshThread extends Thread {
     @Override
     public void run() {
         log.info("TGT refresh thread started.");
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             // renewal thread's main loop. if it exits from here, thread will exit.
             KerberosTicket tgt = getTGT();
             long now = System.currentTimeMillis();

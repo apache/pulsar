@@ -26,6 +26,7 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -70,7 +71,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final boolean PULSAR_CONTAINERS_LEAVE_RUNNING =
             Boolean.parseBoolean(System.getenv("PULSAR_CONTAINERS_LEAVE_RUNNING"));
 
-    private final String hostname;
+    @Getter
+    protected final String hostname;
     private final String serviceName;
     private final String serviceEntryPoint;
     private final int servicePort;

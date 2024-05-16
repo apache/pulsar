@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -34,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
@@ -46,6 +48,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -263,15 +267,24 @@ public class ConsumerImplTest {
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
     }
 
-    @Test(invocationTimeOut = 1000)
+    @Test
     public void testSeekAsyncInternal() {
         // given
         ClientCnx cnx = mock(ClientCnx.class);
         CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
         when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenReturn(clientReq);
 
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        CompletableFuture<Void> result = consumer.seekAsync(1L);
+        verify(scheduledExecutorService, atLeast(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
+        consumer.seekStatus.set(ConsumerImpl.SeekStatus.NOT_STARTED);
 
         // when
         CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
@@ -279,7 +292,6 @@ public class ConsumerImplTest {
 
         clientReq.complete(null);
 
-        // then
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());

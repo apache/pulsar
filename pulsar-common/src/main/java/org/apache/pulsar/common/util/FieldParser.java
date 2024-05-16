@@ -314,6 +314,9 @@ public final class FieldParser {
      * @return The converted list with type {@code <T>}.
      */
     public static <T> List<T> stringToList(String val, Class<T> type) {
+        if (val == null) {
+            return null;
+        }
         String[] tokens = trim(val).split(",");
         return Arrays.stream(tokens).map(t -> {
             return convert(trim(t), type);
@@ -330,6 +333,9 @@ public final class FieldParser {
      * @return The converted set with type {@code <T>}.
      */
     public static <T> Set<T> stringToSet(String val, Class<T> type) {
+        if (val == null) {
+            return null;
+        }
         String[] tokens = trim(val).split(",");
         return Arrays.stream(tokens).map(t -> {
             return convert(trim(t), type);
@@ -337,6 +343,9 @@ public final class FieldParser {
     }
 
     private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
+        if (strValue == null) {
+            return null;
+        }
         String[] tokens = trim(strValue).split(",");
         Map<K, V> map = new HashMap<>();
         for (String token : tokens) {

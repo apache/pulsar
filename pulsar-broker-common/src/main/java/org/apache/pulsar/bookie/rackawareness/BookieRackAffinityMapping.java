@@ -121,8 +121,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store.registerListener(this::handleUpdates);
             racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
                     .orElseGet(BookiesRackConfiguration::new);
-            updateRacksWithHost(racksWithHost);
-            watchAvailableBookies();
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
@@ -132,6 +130,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             bookieAddressListLastTime);
                 }
             }
+            updateRacksWithHost(racksWithHost);
+            watchAvailableBookies();
         } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
@@ -245,6 +245,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
                 .thenAccept(optVal -> {
+                    Set<BookieId> bookieIdSet = new HashSet<>();
                     synchronized (this) {
                         LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
                         this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
@@ -259,12 +260,12 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
                                     bookieAddressList);
                         }
-                        Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
+                        bookieIdSet.addAll(bookieAddressList);
                         bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;
-                        if (rackawarePolicy != null) {
-                            rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
-                        }
+                    }
+                    if (rackawarePolicy != null) {
+                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
                     }
                 });
     }

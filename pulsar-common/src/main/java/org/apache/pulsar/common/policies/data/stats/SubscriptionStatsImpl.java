@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -53,7 +54,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public double messageAckRate;
 
     /** Chunked message dispatch rate. */
-    public int chunkedMessageRate;
+    public double chunkedMessageRate;
 
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
@@ -131,9 +132,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
-    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    /** The size of DelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
@@ -175,6 +177,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        earliestMsgPublishTimeInBacklog = 0L;
         delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
@@ -219,6 +222,17 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {
+            this.earliestMsgPublishTimeInBacklog = Math.min(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
+        } else {
+            this.earliestMsgPublishTimeInBacklog = Math.max(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
+        }
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;

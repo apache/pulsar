@@ -54,7 +54,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 
-    public static final String SERDE_OUTPUT_CLASS =
+    public static final String SERDE_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
     public static final String EXCLAMATION_PYTHON_CLASS =

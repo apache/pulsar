@@ -51,7 +51,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -133,7 +132,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -215,9 +214,17 @@ public class NonPersistentTopics extends PersistentTopics {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
             @ApiParam(value = "If return the earliest time in backlog")
-            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog,
+            @ApiParam(value = "If exclude the publishers")
+            @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+            @ApiParam(value = "If exclude the consumers")
+            @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             if (topicName.isGlobal()) {
                 try {
                     validateGlobalNamespaceOwnership(namespaceName);
@@ -230,18 +237,26 @@ public class NonPersistentTopics extends PersistentTopics {
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                            String.format("Partitioned topic not found %s", topicName.toString())));
                     return;
                 }
                 NonPersistentPartitionedTopicStatsImpl stats =
                         new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
                 List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>();
+                org.apache.pulsar.client.admin.GetStatsOptions statsOptions =
+                        new org.apache.pulsar.client.admin.GetStatsOptions(
+                                getPreciseBacklog,
+                                subscriptionBacklogSize,
+                                getEarliestTimeInBacklog,
+                                excludePublishers,
+                                excludeConsumers
+                        );
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                     try {
                         topicStatsFutureList
                                 .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                        (topicName.getPartition(i).toString()), getPreciseBacklog,
-                                        subscriptionBacklogSize, getEarliestTimeInBacklog));
+                                        (topicName.getPartition(i).toString()), statsOptions));
                     } catch (PulsarServerException e) {
                         asyncResponse.resume(new RestException(e));
                         return;
@@ -445,44 +460,39 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle;
-                try {
-                    nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
-                        bundleRange, true, true);
-                } catch (WebApplicationException wae) {
-                    asyncResponse.resume(wae);
-                    return;
-                }
-                try {
-                    ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                            pulsar().getBrokerService().getMultiLayerTopicsMap().get(namespaceName.toString());
-                    if (bundleTopics == null || bundleTopics.isEmpty()) {
-                        asyncResponse.resume(Collections.emptyList());
-                        return;
-                    }
-                    final List<String> topicList = new ArrayList<>();
-                    String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                    ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
-                    if (topicMap != null) {
-                        topicList.addAll(topicMap.keys().stream()
-                                .filter(name -> !TopicName.get(name).isPersistent())
-                                .collect(Collectors.toList()));
-                    }
-                    asyncResponse.resume(topicList);
-                } catch (Exception e) {
-                    log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                            namespaceName, bundleRange, e);
-                    asyncResponse.resume(new RestException(e));
-                }
+                validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
+                        .thenAccept(nsBundle -> {
+                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
+                                    pulsar().getBrokerService()
+                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            if (bundleTopics == null || bundleTopics.isEmpty()) {
+                                asyncResponse.resume(Collections.emptyList());
+                                return;
+                            }
+                            final List<String> topicList = new ArrayList<>();
+                            String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
+                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            if (topicMap != null) {
+                                topicList.addAll(topicMap.keys().stream()
+                                        .filter(name -> !TopicName.get(name).isPersistent())
+                                        .collect(Collectors.toList()));
+                            }
+                            asyncResponse.resume(topicList);
+                        }).exceptionally(ex -> {
+                            if (isNot307And404Exception(ex)) {
+                                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                                        namespaceName, bundleRange, ex);
+                            }
+                            resumeAsyncResponseExceptionally(asyncResponse, ex);
+                            return null;
+                        });
             }
         }).exceptionally(ex -> {
-            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                namespaceName, bundleRange, ex);
-            if (ex.getCause() instanceof WebApplicationException) {
-                asyncResponse.resume(ex.getCause());
-            } else {
-                asyncResponse.resume(new RestException(ex.getCause()));
+            if (isNot307And404Exception(ex)) {
+                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                        namespaceName, bundleRange, ex);
             }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }

@@ -37,13 +37,18 @@ import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -93,12 +98,21 @@ public class WebServer {
         List<ServerConnector> connectors = new ArrayList<>();
 
         HttpConfiguration httpConfig = new HttpConfiguration();
+        if (config.isWebServiceTrustXForwardedFor()) {
+            httpConfig.addCustomizer(new ForwardedRequestCustomizer());
+        }
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
         httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
 
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
+            List<ConnectionFactory> connectionFactories = new ArrayList<>();
+            if (config.isWebServiceHaProxyProtocolEnabled()) {
+                connectionFactories.add(new ProxyConnectionFactory());
+            }
+            connectionFactories.add(httpConnectionFactory);
+            connector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
             connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
@@ -133,7 +147,18 @@ public class WebServer {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, sslCtxFactory, new HttpConnectionFactory(httpConfig));
+                List<ConnectionFactory> connectionFactories = new ArrayList<>();
+                if (config.isWebServiceHaProxyProtocolEnabled()) {
+                    connectionFactories.add(new ProxyConnectionFactory());
+                }
+                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(httpConnectionFactory);
+                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+                // this is needed for TLS authentication
+                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
+                    httpConfig.addCustomizer(new SecureRequestCustomizer());
+                }
+                connectorTls = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
@@ -197,12 +222,20 @@ public class WebServer {
 
     public void addServlet(String basePath, ServletHolder servletHolder,
                            List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+        addServlet(basePath, servletHolder, attributes, requireAuthentication, true);
+    }
+
+    private void addServlet(String basePath, ServletHolder servletHolder,
+            List<Pair<String, Object>> attributes, boolean requireAuthentication, boolean checkForExistingPaths) {
         popularServletParams(servletHolder, config);
 
-        Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
-        if (existingPath.isPresent()) {
-            throw new IllegalArgumentException(
-                    String.format("Cannot add servlet at %s, path %s already exists", basePath, existingPath.get()));
+        if (checkForExistingPaths) {
+            Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
+            if (existingPath.isPresent()) {
+                throw new IllegalArgumentException(
+                        String.format("Cannot add servlet at %s, path %s already exists", basePath,
+                                existingPath.get()));
+            }
         }
         servletPaths.add(basePath);
 
@@ -231,17 +264,40 @@ public class WebServer {
         }
     }
 
+    /**
+     * Add a REST resource to the servlet context with authentication coverage.
+     *
+     * @see WebServer#addRestResource(String, String, Object, Class, boolean)
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     */
     public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
+        addRestResource(basePath, attribute, attributeValue, resourceClass, true);
+    }
+
+    /**
+     * Add a REST resource to the servlet context.
+     *
+     * @param basePath             The base path for the resource.
+     * @param attribute            An attribute associated with the resource.
+     * @param attributeValue       The value of the attribute.
+     * @param resourceClass        The class representing the resource.
+     * @param requireAuthentication A boolean indicating whether authentication is required for this resource.
+     */
+    public void addRestResource(String basePath, String attribute, Object attributeValue,
+                                Class<?> resourceClass, boolean requireAuthentication) {
         ResourceConfig config = new ResourceConfig();
         config.register(resourceClass);
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath(basePath);
-        context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(attribute, attributeValue);
-        handlers.add(context);
+        // This method has not historically checked for existing paths, so we don't check here either. The
+        // method call is added to reduce code duplication.
+        addServlet(basePath, servletHolder, Collections.singletonList(Pair.of(attribute, attributeValue)),
+                requireAuthentication, false);
     }
 
     public int getExternalServicePort() {
@@ -250,7 +306,10 @@ public class WebServer {
 
     public void start() throws Exception {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
+        boolean showDetailedAddresses = config.getWebServiceLogDetailedAddresses() != null
+                ? config.getWebServiceLogDetailedAddresses() :
+                (config.isWebServiceHaProxyProtocolEnabled() || config.isWebServiceTrustXForwardedFor());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server));
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

@@ -92,63 +92,18 @@ public class PersistentSubscriptionTest {
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .spyByDefault()
-                .configCustomizer(config -> config.setTransactionCoordinatorEnabled(true))
+                .configCustomizer(config -> {
+                    config.setTransactionCoordinatorEnabled(true);
+                    config.setTransactionPendingAckStoreProviderClassName(
+                            CustomTransactionPendingAckStoreProvider.class.getName());
+                    config.setTransactionBufferProviderClassName(InMemTransactionBufferProvider.class.getName());
+                })
                 .useTestPulsarResources()
                 .build();
 
         NamespaceResources namespaceResources = pulsarTestContext.getPulsarResources().getNamespaceResources();
         doReturn(Optional.of(new Policies())).when(namespaceResources)
                 .getPoliciesIfCached(any());
-
-        doReturn(new InMemTransactionBufferProvider()).when(pulsarTestContext.getPulsarService())
-                .getTransactionBufferProvider();
-        doReturn(new TransactionPendingAckStoreProvider() {
-            @Override
-            public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
-                return CompletableFuture.completedFuture(new PendingAckStore() {
-                    @Override
-                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
-                        try {
-                            Field field = PendingAckHandleState.class.getDeclaredField("state");
-                            field.setAccessible(true);
-                            field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
-                        } catch (NoSuchFieldException | IllegalAccessException e) {
-                            fail();
-                        }
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> closeAsync() {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    @Override
-                    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
-            }
-
-            @Override
-            public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
-                return CompletableFuture.completedFuture(true);
-            }
-        }).when(pulsarTestContext.getPulsarService()).getTransactionPendingAckStoreProvider();
 
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -278,5 +233,54 @@ public class PersistentSubscriptionTest {
 
         // `acknowledgeMessage` should update cursor last active
         assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+    }
+
+    public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
+        @Override
+        public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
+            return CompletableFuture.completedFuture(new PendingAckStore() {
+                @Override
+                public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
+                    try {
+                        Field field = PendingAckHandleState.class.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
+                    } catch (NoSuchFieldException | IllegalAccessException e) {
+                        fail();
+                    }
+                }
+
+                @Override
+                public CompletableFuture<Void> closeAsync() {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
+                                                                   List<MutablePair<PositionImpl, Integer>> positions) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
+        }
+
+        @Override
+        public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+            return CompletableFuture.completedFuture(true);
+        }
     }
 }

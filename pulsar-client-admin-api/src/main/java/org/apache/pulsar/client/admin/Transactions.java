@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -139,10 +140,24 @@ public interface Transactions {
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
-     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @param segmentStats Whether to get segment statistics.
      * @return the future stats of transaction buffer in topic.
      */
-    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks);
+    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks,
+                                                                             boolean segmentStats);
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @return the future stats of transaction buffer in topic.
+     */
+    default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
+                                                                                     boolean lowWaterMarks) {
+        return getTransactionBufferStatsAsync(topic, lowWaterMarks, false);
+    }
 
     /**
      * Get transaction buffer stats.
@@ -151,17 +166,31 @@ public interface Transactions {
      * @return the future stats of transaction buffer in topic.
      */
     default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
-        return getTransactionBufferStatsAsync(topic, false);
+        return getTransactionBufferStatsAsync(topic, false, false);
     }
 
     /**
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
-     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @param segmentStats Whether to get segment statistics.
      * @return the stats of transaction buffer in topic.
      */
-    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks) throws PulsarAdminException;
+    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks,
+                                                     boolean segmentStats) throws PulsarAdminException;
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @return the stats of transaction buffer in topic.
+     */
+    default TransactionBufferStats getTransactionBufferStats(String topic,
+                                                             boolean lowWaterMarks) throws PulsarAdminException {
+        return getTransactionBufferStats(topic, lowWaterMarks, false);
+    }
 
     /**
      * Get transaction buffer stats.
@@ -170,7 +199,7 @@ public interface Transactions {
      * @return the stats of transaction buffer in topic.
      */
     default TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        return getTransactionBufferStats(topic, false);
+        return getTransactionBufferStats(topic, false, false);
     }
 
     /**
@@ -310,6 +339,28 @@ public interface Transactions {
                                                                   boolean metadata) throws PulsarAdminException;
 
     /**
+     * Get transaction buffer internal stats asynchronously.
+     *
+     * @param topic the topic to get transaction buffer internal stats from
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the future internal stats of transaction buffer
+     */
+    CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
+                                                                                             boolean metadata);
+
+    /**
+     * Get transaction buffer internal stats.
+     *
+     * @param topic the topic to get transaction buffer internal stats from
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the internal stats of transaction buffer
+     */
+    TransactionBufferInternalStats getTransactionBufferInternalStats(String topic,
+                                                                     boolean metadata) throws PulsarAdminException;
+
+    /**
      * Sets the scale of the transaction coordinators.
      * And currently, we can only support scale-up.
      * @param replicas the new transaction coordinators size.
@@ -349,4 +400,18 @@ public interface Transactions {
     CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic, String subName,
                                                                                    Long ledgerId, Long entryId,
                                                                                    Integer batchIndex);
+
+    /**
+     * Abort a transaction.
+     *
+     * @param txnID the txnId
+     */
+    void abortTransaction(TxnID txnID) throws PulsarAdminException;
+
+    /**
+     * Asynchronously abort a transaction.
+     *
+     * @param txnID the txnId
+     */
+    CompletableFuture<Void> abortTransactionAsync(TxnID txnID);
 }

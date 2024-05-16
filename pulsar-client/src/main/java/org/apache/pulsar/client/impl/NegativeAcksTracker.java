@@ -32,8 +32,11 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class NegativeAcksTracker implements Closeable {
+    private static final Logger log = LoggerFactory.getLogger(NegativeAcksTracker.class);
 
     private HashMap<MessageId, Long> nackedMessages = null;
 
@@ -79,9 +82,12 @@ class NegativeAcksTracker implements Closeable {
             }
         });
 
-        messagesToRedeliver.forEach(nackedMessages::remove);
-        consumer.onNegativeAcksSend(messagesToRedeliver);
-        consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
+        if (!messagesToRedeliver.isEmpty()) {
+            messagesToRedeliver.forEach(nackedMessages::remove);
+            consumer.onNegativeAcksSend(messagesToRedeliver);
+            log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
+            consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
+        }
 
         this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
     }

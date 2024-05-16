@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -36,6 +37,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -48,10 +50,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -108,8 +110,8 @@ public class PulsarClientImplTest {
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))
-                .thenReturn(CompletableFuture.completedFuture(
-                        Pair.of(mock(InetSocketAddress.class), mock(InetSocketAddress.class))));
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
         ConnectionPool pool = mock(ConnectionPool.class);
         ClientCnx cnx = mock(ClientCnx.class);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
@@ -122,7 +124,7 @@ public class PulsarClientImplTest {
         when(cnx.ctx()).thenReturn(ctx);
         when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
-        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
+        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
 
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -177,8 +179,9 @@ public class PulsarClientImplTest {
     @Test
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = Mockito.spy(new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");
 
         HashedWheelTimer timer = new HashedWheelTimer();
@@ -189,11 +192,21 @@ public class PulsarClientImplTest {
     }
 
     @Test
+    public void testInitializeWithDNSServerAddresses() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setDnsServerAddresses(DefaultDnsServerAddressStreamProvider.defaultAddressList());
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+        client.shutdown();
+    }
+
+    @Test
     public void testResourceCleanup() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("");
         initializeEventLoopGroup(conf);
-        try (ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup)) {
+        try (ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup)) {
             assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
         } finally {
             // Externally passed eventLoopGroup should not be shutdown.

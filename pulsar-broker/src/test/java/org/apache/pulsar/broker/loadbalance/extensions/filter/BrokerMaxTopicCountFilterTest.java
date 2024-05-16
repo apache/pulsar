@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import static org.testng.Assert.assertEquals;
 
@@ -38,7 +39,7 @@ import static org.testng.Assert.assertEquals;
 public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
 
     @Test
-    public void test() throws IllegalAccessException, BrokerFilterException {
+    public void test() throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
         LoadManagerContext context = getContext();
         LoadDataStore<BrokerLoadData> store = context.brokerLoadDataStore();
         BrokerLoadData maxTopicLoadData = new BrokerLoadData();
@@ -58,7 +59,8 @@ public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
                 "broker3", getLookupData(),
                 "broker4", getLookupData()
         );
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context);
+        Map<String, BrokerLookupData> result =
+                filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
         assertEquals(result, Map.of(
                 "broker2", getLookupData(),
                 "broker4", getLookupData()

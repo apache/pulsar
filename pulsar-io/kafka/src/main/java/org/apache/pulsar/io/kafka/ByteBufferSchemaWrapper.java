@@ -29,7 +29,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
     private final Supplier<SchemaInfo> original;
 
-    public ByteBufferSchemaWrapper(Schema original) {
+    public ByteBufferSchemaWrapper(Schema<?> original) {
         this(original::getSchemaInfo);
     }
 

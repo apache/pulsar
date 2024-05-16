@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -274,6 +275,11 @@ public class MockManagedCursor implements ManagedCursor {
                                         java.util.function.Predicate<Entry> condition,
                                         AsyncCallbacks.FindEntryCallback callback, Object ctx) {
 
+    }
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+            AsyncCallbacks.FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
     }
 
     @Override

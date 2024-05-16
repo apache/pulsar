@@ -46,7 +46,7 @@ public class CommandGenerator {
     private String functionClassName;
     private String sourceTopic;
     private String sourceTopicPattern;
-    private Map<String, String> customSereSourceTopics;
+    private Map<String, String> customSerDeSourceTopics;
     private String sinkTopic;
     private String logTopic;
     private String outputSerDe;
@@ -64,6 +64,8 @@ public class CommandGenerator {
     private String outputTypeClassName;
     private String schemaType;
     private SubscriptionInitialPosition subscriptionInitialPosition;
+    private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -182,8 +184,8 @@ public class CommandGenerator {
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
@@ -226,6 +228,12 @@ public class CommandGenerator {
         }
         if (subscriptionInitialPosition != null) {
             commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
+        }
+        if (retainOrdering != null) {
+            commandBuilder.append(" --retain-ordering ");
+        }
+        if (retainKeyOrdering != null) {
+            commandBuilder.append(" --retain-key-ordering ");
         }
 
         switch (runtime){
@@ -280,8 +288,8 @@ public class CommandGenerator {
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
-        if (customSereSourceTopics != null && !customSereSourceTopics.isEmpty()) {
-            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSereSourceTopics) + "\'");
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");
         }
         if (batchBuilder != null) {
             commandBuilder.append("--batch-builder" + batchBuilder);

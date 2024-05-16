@@ -86,8 +86,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
-        MarkerType m = null;
-
         try {
             switch (markerType) {
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
@@ -105,7 +103,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             default:
                 // Ignore
             }
-
         } catch (IOException e) {
             log.warn("[{}] Failed to parse marker: {}", topic.getName(), e);
         }
@@ -191,19 +188,23 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (sub != null) {
             sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
         } else {
-            // Subscription doesn't exist. We need to force the creation of the subscription in this cluster, because
-            log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subcription",
+            // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
+            log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subscription",
                     topic, update.getSubscriptionName(), updatedMessageId.getLedgerId(), pos);
-            topic.createSubscription(update.getSubscriptionName(),
-                    InitialPosition.Latest, true /* replicateSubscriptionState */, null);
+            topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
+                            true /* replicateSubscriptionState */, Collections.emptyMap())
+                    .thenAccept(subscriptionCreated -> {
+                        subscriptionCreated.acknowledgeMessage(Collections.singletonList(pos),
+                                AckType.Cumulative, Collections.emptyMap());
+                    });
         }
     }
 
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
-        if (topic.getLastDataMessagePublishedTimestamp() < lastCompletedSnapshotStartTime
-                || topic.getLastDataMessagePublishedTimestamp() == 0) {
+        if (topic.getLastMaxReadPositionMovedForwardTimestamp() < lastCompletedSnapshotStartTime
+                || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
             if (log.isDebugEnabled()) {
                 log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());

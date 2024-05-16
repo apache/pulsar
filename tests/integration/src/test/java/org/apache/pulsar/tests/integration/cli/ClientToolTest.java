@@ -59,7 +59,7 @@ public class ClientToolTest extends TopicMessagingBase {
     private void testProduceConsume(String serviceUrl, String topicName) throws Exception {
         List<String> data = randomStrings();
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
-        ZKContainer<?> clientToolContainer = pulsarCluster.getZooKeeper();
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         produce(clientToolContainer, serviceUrl, topicName, data);
         List<String> consumed = consume(clientToolContainer, serviceUrl, topicName);
         assertEquals(consumed, data);
@@ -86,13 +86,14 @@ public class ClientToolTest extends TopicMessagingBase {
                     + "\nError output:\n" + result.getStderr());
         }
         String output = result.getStdout();
-        Pattern message = Pattern.compile("----- got message -----\nkey:\\[null\\], properties:\\[\\], content:(.*)");
+        Pattern message = Pattern.compile(
+                "----- got message -----\npublishTime:\\[(.*)\\], eventTime:\\[(.*)\\], key:\\[null\\], "
+                        + "properties:\\[\\], content:(.*)");
         Matcher matcher = message.matcher(output);
         List<String> received = new ArrayList<>(MESSAGE_COUNT);
         while (matcher.find()) {
-            received.add(matcher.group(1));
+            received.add(matcher.group(3));
         }
         return received;
     }
-
 }

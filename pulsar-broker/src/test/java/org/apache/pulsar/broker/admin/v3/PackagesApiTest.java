@@ -56,6 +56,23 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @Test
+    public void testRepeatUploadThrowConflictException() throws Exception {
+        // create a temp file for testing
+        File file = File.createTempFile("package-api-test", ".package");
+
+        // testing upload api
+        String packageName = "function://public/default/test@v1";
+        PackageMetadata originalMetadata = PackageMetadata.builder().description("test").build();
+        admin.packages().upload(originalMetadata, packageName, file.getPath());
+        try {
+            admin.packages().upload(originalMetadata, packageName, file.getPath());
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 409);
+        }
+    }
+
     @Test(timeOut = 60000)
     public void testPackagesOperations() throws Exception {
         // create a temp file for testing

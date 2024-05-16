@@ -173,7 +173,6 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException(errMesg);
         }
 
-        rg.resourceGroupPublishLimiter.close();
         rg.resourceGroupPublishLimiter = null;
         resourceGroupsMap.remove(name);
     }
@@ -484,48 +483,48 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaByteCount (String rgName, String monClassName) {
-        return rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
+    protected static long getRgQuotaByteCount (String rgName, String monClassName) {
+        return (long) rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaMessageCount (String rgName, String monClassName) {
-        return rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
+    protected static long getRgQuotaMessageCount (String rgName, String monClassName) {
+        return (long) rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageByteCount (String rgName, String monClassName) {
-        return rgLocalUsageBytes.labels(rgName, monClassName).get();
+    protected static long getRgLocalUsageByteCount (String rgName, String monClassName) {
+        return (long) rgLocalUsageBytes.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageMessageCount (String rgName, String monClassName) {
-        return rgLocalUsageMessages.labels(rgName, monClassName).get();
+    protected static long getRgLocalUsageMessageCount (String rgName, String monClassName) {
+        return (long) rgLocalUsageMessages.labels(rgName, monClassName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgUpdatesCount (String rgName) {
-        return rgUpdates.labels(rgName).get();
+    protected static long getRgUpdatesCount (String rgName) {
+        return (long) rgUpdates.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgTenantRegistersCount (String rgName) {
-        return rgTenantRegisters.labels(rgName).get();
+    protected static long getRgTenantRegistersCount (String rgName) {
+        return (long) rgTenantRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgTenantUnRegistersCount (String rgName) {
-        return rgTenantUnRegisters.labels(rgName).get();
+    protected static long getRgTenantUnRegistersCount (String rgName) {
+        return (long) rgTenantUnRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgNamespaceRegistersCount (String rgName) {
-        return rgNamespaceRegisters.labels(rgName).get();
+    protected static long getRgNamespaceRegistersCount (String rgName) {
+        return (long) rgNamespaceRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
-    protected static double getRgNamespaceUnRegistersCount (String rgName) {
-        return rgNamespaceUnRegisters.labels(rgName).get();
+    protected static long getRgNamespaceUnRegistersCount (String rgName) {
+        return (long) rgNamespaceUnRegisters.labels(rgName).get();
     }
 
     // Visibility for testing.
@@ -687,7 +686,7 @@ public class ResourceGroupService implements AutoCloseable{
                         timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
             maxIntervalForSuppressingReportsMSecs =
-                    this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
+                    TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
         }
     }
 
@@ -706,7 +705,7 @@ public class ResourceGroupService implements AutoCloseable{
                     periodInSecs,
                     this.timeUnitScale);
         maxIntervalForSuppressingReportsMSecs =
-                this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
+                TimeUnit.SECONDS.toMillis(this.resourceUsagePublishPeriodInSeconds) * MaxUsageReportSuppressRounds;
 
     }
 

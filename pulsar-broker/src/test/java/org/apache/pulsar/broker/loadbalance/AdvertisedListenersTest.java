@@ -78,7 +78,6 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
                         ",public_https:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
-        conf.setWebServicePortTls(Optional.of(httpsPort));
     }
 
     @Test
@@ -101,7 +100,6 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
         assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
-        assertEquals(new URI(ld.getHttpUrlTls()).getHost(), "localhost");
 
 
         // Produce data

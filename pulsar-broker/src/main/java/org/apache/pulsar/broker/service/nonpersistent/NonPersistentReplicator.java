@@ -50,7 +50,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
-        super(localCluster, topic.getName(), remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
+        super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient);
 
         producerBuilder.blockIfQueueFull(false);
@@ -67,7 +67,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    protected void readEntries(Producer<byte[]> producer) {
+    protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
         this.producer = (ProducerImpl) producer;
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
@@ -78,8 +78,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                     "[{}] Replicator was stopped while creating the producer."
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
-            STATE_UPDATER.set(this, State.Stopping);
-            closeProducerAsync();
+            doCloseProducerAsync(producer, () -> {});
             return;
         }
     }

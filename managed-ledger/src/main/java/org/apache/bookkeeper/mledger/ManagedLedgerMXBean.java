@@ -86,14 +86,29 @@ public interface ManagedLedgerMXBean {
     long getAddEntrySucceed();
 
     /**
+     * @return the total number of addEntry requests that succeeded
+     */
+    long getAddEntrySucceedTotal();
+
+    /**
      * @return the number of addEntry requests that failed
      */
     long getAddEntryErrors();
 
     /**
+     * @return the number of entries read from the managed ledger (from cache or BK)
+     */
+    long getEntriesReadTotalCount();
+
+    /**
      * @return the number of readEntries requests that succeeded
      */
     long getReadEntriesSucceeded();
+
+    /**
+     * @return the total number of readEntries requests that succeeded
+     */
+    long getReadEntriesSucceededTotal();
 
     /**
      * @return the number of readEntries requests that failed

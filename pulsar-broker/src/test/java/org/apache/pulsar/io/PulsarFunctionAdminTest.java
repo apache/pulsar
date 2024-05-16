@@ -172,11 +172,26 @@ public class PulsarFunctionAdminTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        if (functionsWorkerService != null) {
+            functionsWorkerService.stop();
+            functionsWorkerService = null;
+        }
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
@@ -211,7 +226,6 @@ public class PulsarFunctionAdminTest {
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 }

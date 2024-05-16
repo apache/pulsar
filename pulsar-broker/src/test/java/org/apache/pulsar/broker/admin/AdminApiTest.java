@@ -55,11 +55,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
 import lombok.Builder;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -75,6 +77,7 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -90,6 +93,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -137,6 +141,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,9 +158,6 @@ import org.testng.annotations.Test;
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
-
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
     private MockedPulsarService mockPulsarSetup;
 
@@ -185,8 +187,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setMessageExpiryCheckIntervalInMinutes(1);
         conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
@@ -203,7 +205,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
-        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         // create otherbroker to test redirect on calls that need
@@ -249,7 +251,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         adminTls.close();
+        otheradmin.close();
         super.internalCleanup();
         mockPulsarSetup.cleanup();
     }
@@ -329,10 +333,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
+
+        restartBroker();
     }
 
     @Test
-    public void clusterNamespaceIsolationPolicies() throws PulsarAdminException {
+    public void clusterNamespaceIsolationPolicies() throws Exception {
         try {
             // create
             String policyName1 = "policy-1";
@@ -479,7 +485,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             throw e;
         }
 
-        // validate regex: invlid regex for primary and seconday
+        // validate regex: invalid regex for primary and secondary
         Map<String, String> parameters = new HashMap<>();
         parameters.put("min_limit", "1");
         parameters.put("usage_threshold", "100");
@@ -508,6 +514,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
+        restartBroker();
     }
 
     @Test
@@ -525,7 +532,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(list2.size(), 1);
 
         BrokerInfo leaderBroker = admin.brokers().getLeaderBroker();
-        Assert.assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
+        Assert.assertEquals(leaderBroker.getBrokerId(),
+                pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
@@ -533,7 +541,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
-                    NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
+                    NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration())
                             + "/0x00000000_0xffffffff")) {
                 assertEquals(nsStatus.broker_assignment, BrokerAssignment.shared);
                 assertFalse(nsStatus.is_controlled);
@@ -541,10 +549,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             }
         }
 
-        String[] parts = list.get(0).split(":");
-        Assert.assertEquals(parts.length, 2);
-        Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test",
-                String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
+        Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test", list.get(0));
         Assert.assertEquals(nsMap2.size(), 2);
 
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
@@ -699,6 +704,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+        // reset config
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
+        // restart broker
+        restartBroker();
     }
 
     /**
@@ -797,6 +806,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test", "usw")));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
 
@@ -929,8 +940,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
         assertEquals(topicStats.getPublishers().size(), 0);
-        assertEquals(topicStats.getOwnerBroker(),
-                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
+        assertEquals(topicStats.getOwnerBroker(), pulsar.getBrokerId());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Set.of(Codec.encode(subName)));
@@ -994,6 +1004,135 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
+    }
+
+    @Test(dataProvider = "topicName")
+    public void testSkipHoleMessages(String topicName) throws Exception {
+        final String subName = topicName;
+        assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
+
+        final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
+        // Force to create a topic
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 0);
+        assertEquals(admin.topics().getList("prop-xyz/ns1"),
+                List.of("persistent://prop-xyz/ns1/" + topicName));
+
+        // create consumer and subscription
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        AtomicInteger total = new AtomicInteger();
+        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName)
+                .messageListener(new MessageListener<byte[]>() {
+                    @SneakyThrows
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        if (total.get() %2 !=0){
+                            // artificially created 50 hollow messages
+                            consumer.acknowledge(msg);
+                        }
+                        total.incrementAndGet();
+                    }
+                })
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive).subscribe();
+
+        assertEquals(admin.topics().getSubscriptions(persistentTopicName), List.of(subName));
+
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 100);
+        TimeUnit.SECONDS.sleep(2);
+        TopicStats topicStats = admin.topics().getStats(persistentTopicName);
+        long msgBacklog = topicStats.getSubscriptions().get(subName).getMsgBacklog();
+        log.info("back={}",msgBacklog);
+        int skipNumber = 20;
+        admin.topics().skipMessages(persistentTopicName, subName, skipNumber);
+        topicStats = admin.topics().getStats(persistentTopicName);
+        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), msgBacklog - skipNumber);
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testPartitionState(String topicType) throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        final String partitionedTopicName = topicType + "://" + namespace + "/ds1";
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, 4);
+
+        // create consumer and subscription
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(partitionedTopicName)
+                .subscriptionName("my-sub").subscribe();
+
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(partitionedTopicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            String message = "message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, true, true);
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName,
+                true, getStatsOptions);
+        assertEquals(topicStats.getPublishers().size(), 0);
+        topicStats.getPartitions().forEach((k, v)-> {
+            assertEquals(v.getPublishers().size(), 0);
+            v.getSubscriptions().forEach((k1, v1)-> {
+                assertEquals(v1.getConsumers().size(), 0);
+            });
+        });
+
+        topicStats.getSubscriptions().forEach((k, v)-> {
+            assertEquals(v.getConsumers().size(), 0);
+        });
+
+        producer.close();
+        consumer.close();
+        client.close();
+    }
+
+
+    @Test(dataProvider = "topicType")
+    public void testNonPartitionState(String topicType) throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        final String topicName = topicType + "://" + namespace + "/ds1";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // create consumer and subscription
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").subscribe();
+
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            String message = "message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, true, true);
+        TopicStats topicStats = admin.topics().getStats(topicName, getStatsOptions);
+
+        assertEquals(topicStats.getPublishers().size(), 0);
+
+        topicStats.getSubscriptions().forEach((k, v)-> {
+            assertEquals(v.getConsumers().size(), 0);
+        });
+
+        producer.close();
+        consumer.close();
+        client.close();
     }
 
     @Test(dataProvider = "topicNamesForAllTypes")
@@ -1242,7 +1381,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
 
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
-        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), -1);
         assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), -1);
 
         // publish several messages
@@ -1262,7 +1401,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         topicStats = admin.topics().getStats(topic, false, true, true);
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
-        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), -1);
         assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 0);
     }
 
@@ -3058,6 +3197,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
         admin.namespaces().createNamespace("prop-xyz/getBundleNs", 100);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/getBundleNs").bundles.getNumBundles(), 100);
 
@@ -3077,7 +3219,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName);
         admin.topics().triggerCompaction(topicName);
 
@@ -3113,7 +3255,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName + "-partition-0");
 
         CompletableFuture<Long> promise1 = new CompletableFuture<>();
@@ -3157,7 +3299,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
-        Compactor compactor = pulsar.getCompactor();
+        Compactor compactor = ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor();
         doReturn(promise).when(compactor).compact(topicName);
         admin.topics().triggerCompaction(topicName);
 
@@ -3251,6 +3393,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
 
         String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
@@ -3552,5 +3697,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60).build());
         });
 
+    }
+
+    @Test
+    @SneakyThrows
+    public void testPermissions() {
+        String namespace = "prop-xyz/ns1/";
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://" + namespace + random;
+        final String subject =  UUID.randomUUID().toString();
+        assertThrows(NotFoundException.class, () -> admin.topics().getPermissions(topic));
+        assertThrows(NotFoundException.class, () -> admin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce)));
+        assertThrows(NotFoundException.class, () -> admin.topics().revokePermissions(topic, subject));
     }
 }

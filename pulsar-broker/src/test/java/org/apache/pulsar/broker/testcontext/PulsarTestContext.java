@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -52,9 +54,13 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.PortManager;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -83,7 +89,7 @@ import org.mockito.internal.util.MockUtil;
  * There are few motivations for PulsarTestContext:
  * <ul>
  * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
- * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issuess: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
  * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
@@ -135,6 +141,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final Compactor compactor;
 
+    private final CompactionServiceFactory compactionServiceFactory;
+
     private final BrokerService brokerService;
 
     @Getter(AccessLevel.NONE)
@@ -153,6 +161,10 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean startable;
 
+    private final boolean preallocatePorts;
+
+    private final boolean enableOpenTelemetry;
+    private final InMemoryMetricReader openTelemetryMetricReader;
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -189,6 +201,10 @@ public class PulsarTestContext implements AutoCloseable {
      * @throws Exception if there is an error closing the resources
      */
     public void close() throws Exception {
+        callCloseables(closeables);
+    }
+
+    private static void callCloseables(List<AutoCloseable> closeables) {
         for (int i = closeables.size() - 1; i >= 0; i--) {
             try {
                 closeables.get(i).close();
@@ -220,8 +236,11 @@ public class PulsarTestContext implements AutoCloseable {
         protected SpyConfig.Builder spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.NONE);
         protected Consumer<PulsarService> pulsarServiceCustomizer;
         protected ServiceConfiguration svcConfig = initializeConfig();
-        protected Consumer<ServiceConfiguration> configOverrideCustomizer = this::defaultOverrideServiceConfiguration;
+        protected Consumer<ServiceConfiguration> configOverrideCustomizer;
+
+        protected boolean configOverrideCalled = false;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
+        protected PulsarTestContext otherContextToClose;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -290,6 +309,10 @@ public class PulsarTestContext implements AutoCloseable {
             if (svcConfig.getManagedLedgerCacheSizeMB() == unconfiguredDefaults.getManagedLedgerCacheSizeMB()) {
                 svcConfig.setManagedLedgerCacheSizeMB(8);
             }
+
+            if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
+                svcConfig.setTopicLoadTimeoutSeconds(10);
+            }
         }
 
         /**
@@ -307,7 +330,17 @@ public class PulsarTestContext implements AutoCloseable {
          * @return the builder
          */
         public Builder spyByDefault() {
-            spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.SPY);
+            spyConfigDefault(SpyConfig.SpyType.SPY);
+            return this;
+        }
+
+        public Builder spyNoneByDefault() {
+            spyConfigDefault(SpyConfig.SpyType.NONE);
+            return this;
+        }
+
+        public Builder spyConfigDefault(SpyConfig.SpyType spyType) {
+            spyConfigBuilder = SpyConfig.builder(spyType);
             return this;
         }
 
@@ -341,6 +374,7 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder configOverride(Consumer<ServiceConfiguration> configOverrideCustomizer) {
             this.configOverrideCustomizer = configOverrideCustomizer;
+            this.configOverrideCalled = true;
             return this;
         }
 
@@ -393,7 +427,15 @@ public class PulsarTestContext implements AutoCloseable {
          * The other PulsarTestContext will be closed when this one is closed.
          */
         public Builder chainClosing(PulsarTestContext otherContext) {
-            registerCloseable(otherContext);
+            otherContextToClose = otherContext;
+            return this;
+        }
+
+        /**
+         * Registers a closeable to close as the last one by prepending it to the closeables list.
+         */
+        public Builder prependCloseable(AutoCloseable closeable) {
+            closeables.add(0, closeable);
             return this;
         }
 
@@ -517,11 +559,14 @@ public class PulsarTestContext implements AutoCloseable {
             if (super.config == null) {
                 config(svcConfig);
             }
+            handlePreallocatePorts(super.config);
+            if (configOverrideCustomizer != null || !configOverrideCalled) {
+                // call defaultOverrideServiceConfiguration if configOverrideCustomizer
+                // isn't explicitly set to null with `.configOverride(null)` call
+                defaultOverrideServiceConfiguration(super.config);
+            }
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
-            }
-            if (super.brokerInterceptor != null) {
-                super.config.setDisableBrokerInterceptors(false);
             }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
@@ -532,11 +577,47 @@ public class PulsarTestContext implements AutoCloseable {
                 try {
                     super.pulsarService.start();
                 } catch (Exception e) {
+                    callCloseables(super.closeables);
+                    super.closeables.clear();
                     throw new RuntimeException(e);
                 }
             }
+            if (otherContextToClose != null) {
+                prependCloseable(otherContextToClose);
+            }
             brokerService(super.pulsarService.getBrokerService());
             return super.build();
+        }
+
+        protected void handlePreallocatePorts(ServiceConfiguration config) {
+            if (super.preallocatePorts) {
+                config.getBrokerServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getBrokerServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setBrokerServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePort().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                config.getWebServicePortTls().ifPresent(portNumber -> {
+                    if (portNumber == 0) {
+                        config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+                    }
+                });
+                registerCloseable(() -> {
+                    config.getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getBrokerServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                });
+            }
         }
 
         private void initializeCommonPulsarServices(SpyConfig spyConfig) {
@@ -584,7 +665,8 @@ public class PulsarTestContext implements AutoCloseable {
                 } else {
                     try {
                         MetadataStoreExtended store = MetadataStoreFactoryImpl.createExtended("memory:local",
-                                MetadataStoreConfig.builder().build());
+                                MetadataStoreConfig.builder()
+                                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
                             resetSpyOrMock(store);
@@ -655,10 +737,29 @@ public class PulsarTestContext implements AutoCloseable {
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
+            }
+            Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer;
+            if (builder.enableOpenTelemetry) {
+                var reader = InMemoryMetricReader.create();
+                openTelemetryMetricReader(reader);
+                registerCloseable(reader);
+                openTelemetrySdkBuilderCustomizer = BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
+            } else {
+                openTelemetrySdkBuilderCustomizer = null;
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
+                            builder.configurationMetadataStore, compactionServiceFactory,
+                            builder.brokerInterceptor,
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer,
+                            openTelemetrySdkBuilderCustomizer);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
+            }
             registerCloseable(() -> {
                 pulsarService.close();
                 resetSpyOrMock(pulsarService);
@@ -698,7 +799,7 @@ public class PulsarTestContext implements AutoCloseable {
                     if (metadataStore == null) {
                         metadataStore = builder.configurationMetadataStore;
                     }
-                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class, metadataStore, 30);
+                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
                     pulsarResources(
                             spyConfigPulsarResources.spy(
@@ -713,11 +814,20 @@ public class PulsarTestContext implements AutoCloseable {
             }
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
+            CompactionServiceFactory compactionServiceFactory = builder.compactionServiceFactory;
+            if (builder.compactionServiceFactory == null && builder.config.getCompactionServiceFactoryClassName()
+                    .equals(PulsarCompactionServiceFactory.class.getName())) {
+                compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
-                            builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
+                            builder.configurationMetadataStore, compactionServiceFactory,
+                            builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.pulsarResources,
                             builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
+            if (compactionServiceFactory != null) {
+                compactionServiceFactory.initialize(pulsarService);
+            }
             registerCloseable(() -> {
                 pulsarService.close();
                 resetSpyOrMock(pulsarService);

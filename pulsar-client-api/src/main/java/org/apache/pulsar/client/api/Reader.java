@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -217,4 +218,19 @@ public interface Reader<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);
+
+    /**
+     * Get all the last message id of the topics the reader subscribed.
+     *
+     * @return the list of TopicMessageId instances of all the topics that the reader subscribed
+     * @throws PulsarClientException if failed to get last message id.
+     * @apiNote It's guaranteed that the owner topic of each TopicMessageId in the returned list is different from owner
+     *   topics of other TopicMessageId instances
+     */
+    List<TopicMessageId> getLastMessageIds() throws PulsarClientException;
+
+    /**
+     * The asynchronous version of {@link Reader#getLastMessageIds()}.
+     */
+    CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync();
 }

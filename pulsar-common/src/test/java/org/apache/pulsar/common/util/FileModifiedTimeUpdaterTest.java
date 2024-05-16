@@ -60,7 +60,7 @@ public class FileModifiedTimeUpdaterTest {
             return true;
         }
 
-        public String getTlsCerificateFilePath() {
+        public String getTlsCertificateFilePath() {
             return certFilePath;
         }
 

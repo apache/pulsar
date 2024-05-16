@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -319,7 +320,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             return service.getAuthorizationService()
                     .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException e) {
+        } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
                     service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
             throw e;

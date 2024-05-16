@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -173,8 +174,11 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public long getLastSnapshotTimestamps() {
-        return this.lastSnapshotTimestamps;
+    public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        transactionBufferStats.totalAbortedTransactions = aborts.size();
+        return transactionBufferStats;
     }
 
     @Override

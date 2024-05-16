@@ -29,7 +29,10 @@ import org.slf4j.LoggerFactory;
 
 public class MockAuthentication implements Authentication {
     private static final Logger log = LoggerFactory.getLogger(MockAuthentication.class);
-    private final String user;
+    private String user;
+
+    public MockAuthentication() {
+    }
 
     public MockAuthentication(String user) {
         this.user = user;
@@ -67,6 +70,7 @@ public class MockAuthentication implements Authentication {
 
     @Override
     public void configure(Map<String, String> authParams) {
+        this.user = authParams.get("user");
     }
 
     @Override

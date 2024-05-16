@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.Set;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -44,17 +45,17 @@ import org.apache.pulsar.common.protocol.Commands;
  * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
  */
 public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
-    MessageCrypto msgCrypto;
-    Set<String> encryptionKeys;
-    CryptoKeyReader cryptoKeyReader;
+    private MessageCrypto<MessageMetadata, MessageMetadata> msgCrypto;
+    private Set<String> encryptionKeys;
+    private CryptoKeyReader cryptoKeyReader;
+    private MessageIdAdv lastAddedMessageId;
 
-    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch, int maxBytesInBatch) {
+    public RawBatchMessageContainerImpl() {
         super();
         this.compressionType = CompressionType.NONE;
         this.compressor = new CompressionCodecNone();
-        this.maxNumMessagesInBatch = maxNumMessagesInBatch;
-        this.maxBytesInBatch = maxBytesInBatch;
     }
+
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {
             return compressedPayload;
@@ -88,6 +89,28 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
      */
     public void setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         this.cryptoKeyReader = cryptoKeyReader;
+    }
+
+    @Override
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
+        this.lastAddedMessageId = (MessageIdAdv) msg.getMessageId();
+        return super.add(msg, callback);
+    }
+
+    @Override
+    protected boolean isBatchFull() {
+        return false;
+    }
+
+    @Override
+    public boolean haveEnoughSpace(MessageImpl<?> msg) {
+        if (lastAddedMessageId == null) {
+            return true;
+        }
+        // Keep same batch compact to same batch.
+        MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
+        return msgId.getLedgerId() == lastAddedMessageId.getLedgerId()
+                && msgId.getEntryId() == lastAddedMessageId.getEntryId();
     }
 
     /**
@@ -164,8 +187,15 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
         idData.writeTo(buf);
         buf.writeInt(metadataAndPayload.readableBytes());
         buf.writeBytes(metadataAndPayload);
+        metadataAndPayload.release();
         encryptedPayload.release();
         clear();
         return buf;
+    }
+
+    @Override
+    public void clear() {
+        this.lastAddedMessageId = null;
+        super.clear();
     }
 }

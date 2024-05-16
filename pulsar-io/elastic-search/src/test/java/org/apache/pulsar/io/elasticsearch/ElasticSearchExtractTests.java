@@ -101,6 +101,7 @@ public class ElasticSearchExtractTests {
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "1");
         assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink.close();
 
         // two fields PK
         ElasticSearchSink elasticSearchSink2 = new ElasticSearchSink();
@@ -113,6 +114,7 @@ public class ElasticSearchExtractTests {
         Pair<String, String> pair2 = elasticSearchSink2.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair2.getLeft(), "[\"1\",1]");
         assertEquals(pair2.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink2.close();
 
         // default config with null PK => indexed with auto generated _id
         ElasticSearchSink elasticSearchSink3 = new ElasticSearchSink();
@@ -122,6 +124,7 @@ public class ElasticSearchExtractTests {
         Pair<String, String> pair3 = elasticSearchSink3.extractIdAndDocument(genericObjectRecord);
         assertNull(pair3.getLeft());
         assertEquals(pair3.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink3.close();
 
         // default config with null PK + null value
         ElasticSearchSink elasticSearchSink4 = new ElasticSearchSink();
@@ -146,6 +149,7 @@ public class ElasticSearchExtractTests {
         });
         assertNull(pair4.getLeft());
         assertNull(pair4.getRight());
+        elasticSearchSink4.close();
     }
 
     @Test(dataProvider = "schemaType")
@@ -225,6 +229,7 @@ public class ElasticSearchExtractTests {
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "[\"1\",1]");
         assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink.close();
 
         elasticSearchSink = new ElasticSearchSink();
         elasticSearchSink.open(ImmutableMap.of(
@@ -236,6 +241,7 @@ public class ElasticSearchExtractTests {
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getLeft(), "[\"1\",1]");
         assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink.close();
 
         elasticSearchSink = new ElasticSearchSink();
         elasticSearchSink.open(ImmutableMap.of(
@@ -246,6 +252,7 @@ public class ElasticSearchExtractTests {
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertNull(pair.getLeft());
         assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink.close();
 
         elasticSearchSink = new ElasticSearchSink();
         elasticSearchSink.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200",
@@ -255,6 +262,7 @@ public class ElasticSearchExtractTests {
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertNull(pair.getLeft());
         assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+        elasticSearchSink.close();
 
         // test null value
         elasticSearchSink = new ElasticSearchSink();
@@ -291,6 +299,7 @@ public class ElasticSearchExtractTests {
         });
         assertEquals(pair.getLeft(), "[\"1\",1]");
         assertNull(pair.getRight());
+        elasticSearchSink.close();
     }
 
     @Test(dataProvider = "schemaType")
@@ -326,6 +335,7 @@ public class ElasticSearchExtractTests {
                 "keyIgnore", "false"), null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getKey(), "{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}");
+        elasticSearchSink.close();
 
         elasticSearchSink = new ElasticSearchSink();
         elasticSearchSink.open(ImmutableMap.of(
@@ -336,6 +346,7 @@ public class ElasticSearchExtractTests {
                 "keyIgnore", "false"), null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getKey(), "{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}");
+        elasticSearchSink.close();
 
     }
 
@@ -378,6 +389,7 @@ public class ElasticSearchExtractTests {
                 "keyIgnore", "false"), null);
         Pair<String, String> pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getKey(), "[\"a_key\",\"0b_key\",\"c_key\",{\"b_inside_inner\":\"0b_value_from_inner\",\"a_inside_inner\":\"a_value_from_inner\"}]");
+        elasticSearchSink.close();
 
         elasticSearchSink = new ElasticSearchSink();
         elasticSearchSink.open(ImmutableMap.of(
@@ -388,6 +400,7 @@ public class ElasticSearchExtractTests {
                 "keyIgnore", "false"), null);
         pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
         assertEquals(pair.getKey(), "[\"a_key\",\"0b_key\",\"c_key\",{\"a_inside_inner\":\"a_value_from_inner\",\"b_inside_inner\":\"0b_value_from_inner\"}]");
+        elasticSearchSink.close();
     }
 
     private Record<GenericObject> getKeyValueGenericObject(SchemaType schemaType, GenericSchema<GenericRecord> keySchema, GenericRecord keyGenericRecord) {

@@ -1,0 +1,33 @@
+# CA Private Key
+openssl ecparam -name secp256r1 -genkey -out ca.key.pem
+# Request certificate
+openssl req -x509 -new -nodes -key ca.key.pem -subj "/CN=CARoot" -days 3650 -out ca.cert.pem
+# Build Trust Cert
+keytool -keystore ca.truststore.jks -alias ca -importcert -file ca.cert.pem -storepass rootpw -keypass rootpw -noprompt
+
+
+# Create server keystore
+keytool -keystore server.keystore.jks -alias server -keyalg EC -validity 3600 -genkey -storepass serverpw -keypass serverpw -dname 'CN=server,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' -noprompt
+# Export the certificate from the keystore:
+keytool -keystore server.keystore.jks -alias server -certreq -file server.cert.pem -storepass serverpw -keypass serverpw -noprompt
+# Sign it with the CA:
+openssl x509 -req -in server.cert.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out server.signed.cert.pem -days 3650 -sha256
+# Import signed cert into key store
+keytool -keystore server.keystore.jks -alias ca -importcert -file ca.cert.pem -storepass serverpw -keypass serverpw -noprompt
+keytool -keystore server.keystore.jks -alias server -importcert -file server.signed.cert.pem -storepass serverpw -keypass serverpw -noprompt
+
+
+# Create broker client keystore
+keytool -keystore broker_client.keystore.jks -alias broker_client -keyalg EC -validity 3600 -genkey -storepass brokerclientpw -keypass brokerclientpw -dname 'CN=broker_client,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' -noprompt
+keytool -keystore broker_client.keystore.jks -alias broker_client -certreq -file broker_client.cert.pem -storepass brokerclientpw -keypass brokerclientpw -noprompt
+openssl x509 -req -in broker_client.cert.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out broker_client.signed.cert.pem -days 3650 -sha256
+keytool -keystore broker_client.keystore.jks -alias ca -importcert -file ca.cert.pem -storepass brokerclientpw -keypass brokerclientpw -noprompt
+keytool -keystore broker_client.keystore.jks -alias broker_client -importcert -file broker_client.signed.cert.pem -storepass brokerclientpw -keypass brokerclientpw -noprompt
+
+
+# Create client keystore
+keytool -keystore client.keystore.jks -alias client -keyalg EC -validity 3600 -genkey -storepass clientpw -keypass clientpw -dname 'CN=client,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' -noprompt
+keytool -keystore client.keystore.jks -alias client -certreq -file client.cert.pem -storepass clientpw -keypass clientpw -noprompt
+openssl x509 -req -in client.cert.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out client.signed.cert.pem -days 3650 -sha256
+keytool -keystore client.keystore.jks -alias ca -importcert -file ca.cert.pem -storepass clientpw -keypass clientpw -noprompt
+keytool -keystore client.keystore.jks -alias client -importcert -file client.signed.cert.pem -storepass clientpw -keypass clientpw -noprompt

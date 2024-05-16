@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -34,13 +42,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 @Slf4j
 public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
@@ -84,7 +85,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -130,7 +132,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
         Thread thread2 = new Thread(() -> {
             try {
-                PerformanceProducer.main(newArgs.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(newArgs.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -168,22 +171,23 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000)
     public void testBatchingDisabled() throws Exception {
-        PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
-        
-        int producerId = 0;
-        
-        String topic = testTopic + UUID.randomUUID();
-        arguments.topics = List.of(topic);
-        arguments.msgRate = 10;
-        arguments.serviceURL = pulsar.getBrokerServiceUrl();
-        arguments.numMessages = 500;
-        arguments.disableBatching = true;
+        PerformanceProducer producer = new PerformanceProducer();
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .enableTransaction(arguments.isEnableTransaction);
+        int producerId = 0;
+
+        String topic = testTopic + UUID.randomUUID();
+        producer.topics = List.of(topic);
+        producer.msgRate = 10;
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+        producer.numMessages = 500;
+        producer.disableBatching = true;
+
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(producer)
+                .enableTransaction(producer.isEnableTransaction);
+        @Cleanup
         PulsarClient client = clientBuilder.build();
-        
-        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client,
+                producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
@@ -194,7 +198,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -225,7 +230,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
         new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 log.error("Failed to start perf producer");
             }
@@ -236,5 +242,13 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                     assertNotNull(message);
                 });
         consumer.close();
+    }
+
+    @Test
+    public void testRangeConvert() {
+        PerformanceProducer.RangeConvert rangeConvert = new PerformanceProducer.RangeConvert();
+        Range<Long> range = rangeConvert.convert("100,200");
+        Assert.assertEquals(range.lowerEndpoint(), 100);
+        Assert.assertEquals(range.upperEndpoint(), 200);
     }
 }

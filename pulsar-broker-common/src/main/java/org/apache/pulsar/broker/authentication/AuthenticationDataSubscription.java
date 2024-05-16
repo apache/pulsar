@@ -71,4 +71,8 @@ public class AuthenticationDataSubscription implements AuthenticationDataSource 
     public String getSubscription() {
         return subscription;
     }
+
+    public AuthenticationDataSource getAuthData() {
+        return authData;
+    }
 }

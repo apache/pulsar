@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -30,9 +32,11 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -41,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -50,6 +55,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -62,11 +68,16 @@ public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
 
-    private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private static final String CA_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -143,6 +154,12 @@ public class PulsarFunctionTlsTest {
             workerConfig.setUseTls(true);
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    List.of(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
@@ -185,11 +202,13 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                    pulsarAdmins[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (fnWorkerServices[i] != null) {
                     fnWorkerServices[i].stop();
+                    fnWorkerServices[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
@@ -204,9 +223,13 @@ public class PulsarFunctionTlsTest {
                             getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].getConfiguration()
                             .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i] = null;
                 }
             }
-            bkEnsemble.stop();
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (tempDirectories[i] != null) {
@@ -236,6 +259,18 @@ public class PulsarFunctionTlsTest {
 
             log.info(" -------- Start test function : {}", functionName);
 
+            int finalI = i;
+            Awaitility.await().atMost(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                final PulsarWorkerService workerService = ((PulsarWorkerService) fnWorkerServices[finalI]);
+                final LeaderService leaderService = workerService.getLeaderService();
+                assertNotNull(leaderService);
+                if (leaderService.isLeader()) {
+                    assertTrue(true);
+                } else {
+                    final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
+                    assertTrue(workerInfo != null && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
+                }
+            });
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );

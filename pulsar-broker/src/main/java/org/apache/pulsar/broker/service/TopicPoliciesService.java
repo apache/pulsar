@@ -22,21 +22,23 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
-import org.apache.pulsar.client.impl.Backoff;
-import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Topic policies service.
  */
 @InterfaceStability.Evolving
-public interface TopicPoliciesService {
+public interface TopicPoliciesService extends AutoCloseable {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
     long DEFAULT_GET_TOPIC_POLICY_TIMEOUT = 30_000;
@@ -110,6 +112,32 @@ public interface TopicPoliciesService {
     }
 
     /**
+     * Asynchronously retrieves topic policies.
+     * This triggers the Pulsar broker's internal client to load policies from the
+     * system topic `persistent://tenant/namespace/__change_event`.
+     *
+     * @param topicName The name of the topic.
+     * @param isGlobal Indicates if the policies are global.
+     * @return A CompletableFuture containing an Optional of TopicPolicies.
+     * @throws NullPointerException If the topicName is null.
+     */
+    @Nonnull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName, boolean isGlobal);
+
+    /**
+     * Asynchronously retrieves topic policies.
+     * This triggers the Pulsar broker's internal client to load policies from the
+     * system topic `persistent://tenant/namespace/__change_event`.
+     *
+     * NOTE: If local policies are not available, it will fallback to using topic global policies.
+     * @param topicName The name of the topic.
+     * @return A CompletableFuture containing an Optional of TopicPolicies.
+     * @throws NullPointerException If the topicName is null.
+     */
+    @Nonnull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName);
+
+    /**
      * Get policies for a topic without cache async.
      * @param topicName topic name
      * @return future of the topic policies
@@ -162,6 +190,19 @@ public interface TopicPoliciesService {
             return null;
         }
 
+        @NotNull
+        @Override
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+                                                                                boolean isGlobal) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
+        @NotNull
+        @Override
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
         @Override
         public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
             return null;
@@ -196,6 +237,11 @@ public interface TopicPoliciesService {
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void close() {
             //No-op
         }
     }

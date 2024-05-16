@@ -43,7 +43,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     public static final String TENANT = "tnx";
     public static final String NAMESPACE = TENANT + "/ns1";
     public static String persistentTopic = "persistent://" + NAMESPACE + "/test";
-    ExecutorService executorService = Executors.newFixedThreadPool(20);
+    ExecutorService executorService;
 
     @BeforeClass
     @Override
@@ -54,13 +54,14 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
+        executorService = Executors.newFixedThreadPool(20);
     }
 
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        this.executorService.shutdown();
+        this.executorService.shutdownNow();
     }
 
     @Test

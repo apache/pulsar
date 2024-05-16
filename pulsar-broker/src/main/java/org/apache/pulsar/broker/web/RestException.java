@@ -30,7 +30,6 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 /**
  * Exception used to provide better error messages to clients of the REST API.
  */
-@SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
     private Throwable cause = null;
     static String getExceptionData(Throwable t) {
@@ -75,8 +74,7 @@ public class RestException extends WebApplicationException {
     }
 
     private static Response getResponse(Throwable t) {
-        if (t instanceof WebApplicationException) {
-            WebApplicationException e = (WebApplicationException) t;
+        if (t instanceof WebApplicationException e) {
             return e.getResponse();
         } else {
             return Response

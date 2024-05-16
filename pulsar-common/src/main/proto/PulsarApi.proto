@@ -609,6 +609,7 @@ message CommandFlow {
 message CommandUnsubscribe {
     required uint64 consumer_id = 1;
     required uint64 request_id  = 2;
+    optional bool force         = 3 [default = false];
 }
 
 // Reset an existing consumer to a particular message id
@@ -643,11 +644,15 @@ message CommandTopicMigrated {
 message CommandCloseProducer {
     required uint64 producer_id = 1;
     required uint64 request_id = 2;
+    optional string assignedBrokerServiceUrl = 3;
+    optional string assignedBrokerServiceUrlTls = 4;
 }
 
 message CommandCloseConsumer {
     required uint64 consumer_id = 1;
     required uint64 request_id = 2;
+    optional string assignedBrokerServiceUrl = 3;
+    optional string assignedBrokerServiceUrlTls = 4;
 }
 
 message CommandRedeliverUnacknowledgedMessages {
