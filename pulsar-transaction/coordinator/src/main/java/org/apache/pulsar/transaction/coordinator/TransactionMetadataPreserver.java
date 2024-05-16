@@ -78,4 +78,10 @@ public interface TransactionMetadataPreserver {
      * @return the interval of expiring the transaction metadata in MS.
      */
     long getExpireOldTransactionMetadataIntervalMS();
+
+    /**
+     * Get the time used for recovery in MS.
+     * @return
+     */
+    long getRecoveryTime();
 }

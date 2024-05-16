@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+
+import io.prometheus.client.Summary;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -38,6 +40,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.transaction.coordinator.TerminatedTransactionMetadataEntry;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataPreserver;
@@ -69,6 +72,14 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
     public final Map<String, Map<TxnID, TxnMeta>> terminatedTxnMetaMap = new HashMap<>();
 
     public final Set<String> needToFlush = new HashSet<>();
+
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
+
+    private static final double[] QUANTILES = {0.50, 0.95, 0.99, 1};
+
+    private static final Summary produceLatency = buildSummary("pulsar_txn_preserver_produce_latency", "-",
+            new String[]{"coordinator_id"});
+
 
     /**
      * do not enable terminated transaction metadata persist.
@@ -108,6 +119,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         this.transactionMetaExpireCheckIntervalInMS = transactionMetadataExpireIntervalInSecond * 1000;
         this.transactionMetaPersistTimeInMS = transactionMetaPersistTimeInHour * 60 * 60 * 1000;
         String topicName = getTransactionMetadataPersistTopicName(tcID);
+        recoverTime.setRecoverStartTime(System.currentTimeMillis());
         this.producer = pulsarClient.newProducer(Schema.JSON(TerminatedTransactionMetadataEntry.class))
                 .topic(topicName)
                 .createAsync().thenCompose(producer -> {
@@ -155,6 +167,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
                     log.debug("Replay transaction metadata, tcID:{}, client name:{}.", tcID, clientName);
                 }
             }
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
             log.info("Replay transaction metadata successfully, tcID:{}.", tcID);
         } catch (Exception e) {
             // Though replay transaction metadata failed, the transaction coordinator can still work.
@@ -185,7 +198,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
      * can improve the produce efficiency with deduplication of those messages with
      * same clientName.
      *
-     * @param txnMeta
+     * @param txnMeta   the transaction metadata
      * @return
      */
     @Override
@@ -240,7 +253,9 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         TerminatedTransactionMetadataEntry entry = new TerminatedTransactionMetadataEntry();
         entry.setTxnMetas(terminatedTxnMetaList.get(clientName));
         try {
+            long start = System.currentTimeMillis();
             producer.newMessage().key(clientName).value(entry).send();
+            produceLatency.labels(String.valueOf(tcID)).observe(System.currentTimeMillis() - start);
         } catch (PulsarClientException e) {
             log.error("Flush transaction metadata failed, client name:{}, tcID:{}, reason:{}.",
                     clientName, tcID, e);
@@ -308,5 +323,20 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
     @Override
     public long getExpireOldTransactionMetadataIntervalMS() {
         return transactionMetaExpireCheckIntervalInMS;
+    }
+
+
+    @Override
+    public long getRecoveryTime() {
+        return recoverTime.getRecoverEndTime() - recoverTime.getRecoverStartTime();
+    }
+
+    private static Summary buildSummary(String name, String help, String[] labelNames) {
+        Summary.Builder builder = Summary.build(name, help)
+                .labelNames(labelNames);
+        for (double quantile : QUANTILES) {
+            builder.quantile(quantile, 0.01D);
+        }
+        return builder.register();
     }
 }

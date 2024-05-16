@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 public class AggregatedTransactionCoordinatorStats {
+    public long tcRecoveryTime;
+
+    public long preserverRecoveryTime;
 
     public int actives;
 
@@ -35,6 +38,8 @@ public class AggregatedTransactionCoordinatorStats {
     public long[] executionLatency;
 
     public void reset() {
+        tcRecoveryTime = 0;
+        preserverRecoveryTime = 0;
         actives = 0;
         committedCount = 0;
         abortedCount = 0;

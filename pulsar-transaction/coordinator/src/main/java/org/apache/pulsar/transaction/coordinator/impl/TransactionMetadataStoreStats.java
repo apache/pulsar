@@ -33,6 +33,12 @@ public class TransactionMetadataStoreStats {
     /** The transaction coordinatorId. */
     private long coordinatorId;
 
+    /** The time used for TC recovery. */
+    public long tcRecoverTime;
+
+    /** The time used for preserver recovery. */
+    public long preserverRecoverTime;
+
     /** The active transactions. */
     private int actives;
 

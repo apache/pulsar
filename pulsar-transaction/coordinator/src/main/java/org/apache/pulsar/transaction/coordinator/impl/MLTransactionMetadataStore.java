@@ -638,6 +638,14 @@ public class MLTransactionMetadataStore
     @Override
     public TransactionMetadataStoreStats getMetadataStoreStats() {
         this.transactionMetadataStoreStats.setCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.tcRecoverTime = recoverTime.getRecoverEndTime()
+                - recoverTime.getRecoverStartTime();
+        if (transactionMetadataPreserverEnabled()) {
+            this.transactionMetadataStoreStats.preserverRecoverTime =
+                    transactionMetadataPreserver.getRecoveryTime();
+        } else {
+            this.transactionMetadataStoreStats.preserverRecoverTime = 0L;
+        }
         this.transactionMetadataStoreStats.setActives(txnMetaMap.size());
         this.transactionMetadataStoreStats.setCreatedCount(this.createdTransactionCount.longValue());
         this.transactionMetadataStoreStats.setCommittedCount(this.committedTransactionCount.longValue());
