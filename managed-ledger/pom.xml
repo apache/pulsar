@@ -192,6 +192,22 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>com.github.splunk.lightproto</groupId>
+        <artifactId>lightproto-maven-plugin</artifactId>
+        <version>${lightproto-maven-plugin.version}</version>
+        <configuration>
+          <singleOuterClass>true</singleOuterClass>
+          <classPrefix>Light</classPrefix>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <executions>
