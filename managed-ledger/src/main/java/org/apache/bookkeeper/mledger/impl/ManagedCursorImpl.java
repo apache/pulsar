@@ -3289,6 +3289,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
+        long now = System.nanoTime();
         PositionImpl position = mdEntry.newPosition;
 
         LightMLDataFormats.PositionInfo pi = piThreadLocal.get();
@@ -3307,9 +3308,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         requireNonNull(lh);
         ByteBuf rawData = toByteBuf(pi);
+        long endSer = System.nanoTime();
 
         // rawData is released by compressDataIfNeeded if needed
         ByteBuf data = compressDataIfNeeded(rawData, lh);
+
+        long endCompress = System.nanoTime();
 
         int maxSize = 1024 * 1024;
         int offset = 0;
@@ -3321,6 +3325,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                     ledger.getName(), name, lh.getId(),
                     position, len, numParts);
         }
+        log.info("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, "
+                        + "numParts {}, serializeTime {} ms"
+                        + " compressTime {} ms, total {} ms", ledger.getName(), name, lh.getId(),
+                position, len, numParts,
+                (endSer - now) / 1000000,
+                (endCompress - endSer)  / 1000000, (endCompress - now) / 1000000);
 
         if (numParts == 1) {
             // no need for chunking
@@ -3335,7 +3345,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 boolean isLast = part == numParts - 1;
 
                 if (log.isDebugEnabled()) {
-                    log.info("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, numParts {} "
+                    log.debug("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, numParts {} "
                                     + "part {} offset {} len {}",
                             ledger.getName(), name, lh.getId(),
                             position, len, numParts, part, offset, currentLen);
