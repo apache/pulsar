@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Map;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -33,6 +34,10 @@ public class PublisherStatsImpl implements PublisherStats {
     private int count;
 
     public ProducerAccessMode accessMode;
+
+    private final LongAdder msgInCounter = new LongAdder();
+    private final LongAdder bytesInCounter = new LongAdder();
+    private final LongAdder chunkedMessageCounter = new LongAdder();
 
     /** Total rate of messages published by this publisher (msg/s). */
     public double msgRateIn;
@@ -106,5 +111,31 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public void setClientVersion(String clientVersion) {
         this.clientVersion = clientVersion;
+    }
+
+    @Override
+    public void recordMsgIn(long messageCount, long byteCount) {
+        msgInCounter.add(messageCount);
+        bytesInCounter.add(byteCount);
+    }
+
+    @Override
+    public long getMsgInCounter() {
+        return msgInCounter.sum();
+    }
+
+    @Override
+    public long getBytesInCounter() {
+        return bytesInCounter.sum();
+    }
+
+    @Override
+    public void recordChunkedMsgIn(long messageCount) {
+        chunkedMessageCounter.add(messageCount);
+    }
+
+    @Override
+    public long getChunkedMsgIn() {
+        return chunkedMessageCounter.sum();
     }
 }

@@ -74,9 +74,12 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
+    @Deprecated
     private Rate msgIn;
+    @Deprecated
     private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
+    @Deprecated
     private final Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;
@@ -374,6 +377,7 @@ public class Producer {
         private long sequenceId;
         private long ledgerId;
         private long entryId;
+        @Deprecated
         private Rate rateIn;
         private int msgSize;
         private long batchSize;
@@ -542,12 +546,14 @@ public class Producer {
 
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
+            producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
                     ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
                 producer.chunkedMessageRate.recordEvent();
+                producer.stats.recordChunkedMsgIn(1);
             }
             producer.publishOperationCompleted();
             if (producer.brokerInterceptor != null) {

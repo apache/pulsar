@@ -60,4 +60,11 @@ public interface PublisherStats {
 
     /** Metadata (key/value strings) associated with this publisher. */
     Map<String, String> getMetadata();
+
+    void recordMsgIn(long messageCount, long byteCount);
+    long getMsgInCounter();
+    long getBytesInCounter();
+
+    void recordChunkedMsgIn(long messageCount);
+    long getChunkedMsgIn();
 }

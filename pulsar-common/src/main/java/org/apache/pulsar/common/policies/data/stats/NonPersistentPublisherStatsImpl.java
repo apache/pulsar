@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 
@@ -35,10 +36,22 @@ public class NonPersistentPublisherStatsImpl extends PublisherStatsImpl implemen
     @Getter
     public double msgDropRate;
 
+    private final LongAdder msgDropCount = new LongAdder();
+
     public NonPersistentPublisherStatsImpl add(NonPersistentPublisherStatsImpl stats) {
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;
+    }
+
+    @Override
+    public void recordMsgDrop(long numMessages) {
+        msgDropCount.add(numMessages);
+    }
+
+    @Override
+    public long getMsgDropCount() {
+        return msgDropCount.sum();
     }
 }
