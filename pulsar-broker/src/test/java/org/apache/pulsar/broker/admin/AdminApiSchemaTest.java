@@ -49,6 +49,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.awaitility.Awaitility;
@@ -414,5 +416,35 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
                 SchemaCompatibilityStrategy.UNDEFINED));
+    }
+
+    @Test
+    public void testCompatibilityWithEmpty() throws Exception {
+        List<Schema<?>> checkSchemas = List.of(
+                Schema.STRING,
+                Schema.JSON(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
+                Schema.AVRO(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
+                Schema.KeyValue(Schema.STRING, Schema.STRING)
+        );
+        for (Schema<?> schema : checkSchemas) {
+            SchemaInfo schemaInfo = schema.getSchemaInfo();
+            String topicName = schemaCompatibilityNamespace + "/testCompatibilityWithEmpty";
+            PostSchemaPayload postSchemaPayload = new PostSchemaPayload(schemaInfo.getType().toString(),
+                    schemaInfo.getSchemaDefinition(), new HashMap<>());
+
+            // check compatibility with empty schema
+            IsCompatibilityResponse isCompatibilityResponse =
+                    admin.schemas().testCompatibility(topicName, postSchemaPayload);
+            assertTrue(isCompatibilityResponse.isCompatibility());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL.name());
+
+            // set schema compatibility strategy is FULL_TRANSITIVE to cover checkCompatibilityWithAll
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL_TRANSITIVE);
+            isCompatibilityResponse = admin.schemas().testCompatibility(topicName, postSchemaPayload);
+            assertTrue(isCompatibilityResponse.isCompatibility());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL_TRANSITIVE.name());
+            // set back to FULL
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL);
+        }
     }
 }

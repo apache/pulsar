@@ -394,7 +394,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }
                 return result;
             } else {
-                return FutureUtils.exception(new IncompatibleSchemaException("Do not have existing schema."));
+                return CompletableFuture.completedFuture(null);
             }
         });
     }
