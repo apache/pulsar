@@ -153,6 +153,14 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         // abort again.
         transactionMetadataStoreService.endTransaction(txnID1, TxnAction.ABORT_VALUE, false, "txnClient").get();
 
+        // commit the aborted transaction will throw InvalidTxnStatusException.
+        transactionMetadataStoreService.endTransaction(txnID1, TxnAction.COMMIT_VALUE, false, "txnClient")
+                .handle((txnMeta, throwable) -> {
+                    Assert.assertNotNull(throwable);
+                    Assert.assertTrue(FutureUtil.unwrapCompletionException(throwable)
+                            instanceof CoordinatorException.InvalidTxnStatusException);
+                    return null;
+                }).get();
 
         // create and commit third transaction, which will trigger the first transaction to be removed.
         TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null, "txnClient").get();

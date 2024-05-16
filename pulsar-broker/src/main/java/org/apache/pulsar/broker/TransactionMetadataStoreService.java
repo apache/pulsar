@@ -30,6 +30,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -436,6 +437,16 @@ public class TransactionMetadataStoreService {
                                             + "TxnId : {}, clientName:{}.", txnID, clientName);
                                 }
                                 future.complete(null);
+                                return;
+                            } else if (txnMeta != null) {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("try to commit a aborted txn or abort a committed txn. " +
+                                            "TxnId : {}, clientName:{}.", txnID, clientName);
+                                }
+                                TxnStatus expectStatus = txnAction == TxnAction.COMMIT_VALUE
+                                        ? TxnStatus.COMMITTED : TxnStatus.ABORTED;
+                                future.completeExceptionally(new CompletionException(
+                                        new InvalidTxnStatusException(txnID, expectStatus, txnMeta.status())));
                                 return;
                             }
                         }
