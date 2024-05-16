@@ -42,8 +42,16 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
         }
     }
 
+    private static final boolean useLz4HighCompression = Boolean.parseBoolean(System.
+            getProperty("pulsar.compression.lz4JniUseHighCompression", "false"));
+    // should be in the range of [1, 17]
+    private static final int lz4CompressionLevel = Integer.parseInt(System.
+            getProperty("pulsar.compression.lz4JniHighCompressionLevel", "9"));
+
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
-    private static final LZ4Compressor compressor = lz4Factory.fastCompressor();
+    private static final LZ4Compressor compressor = useLz4HighCompression
+            ? lz4Factory.highCompressor(lz4CompressionLevel)
+            : lz4Factory.fastCompressor();
     private static final LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
 
     @Override

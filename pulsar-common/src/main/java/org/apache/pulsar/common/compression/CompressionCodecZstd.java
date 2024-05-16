@@ -33,7 +33,8 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  */
 public class CompressionCodecZstd implements CompressionCodec {
 
-    private static final int ZSTD_COMPRESSION_LEVEL = 3;
+    private static final int ZSTD_COMPRESSION_LEVEL = Integer.parseInt(System.
+            getProperty("pulsar.compression.zstdCompressionLevel", "3"));
 
     private static final ZstdCompressor ZSTD_COMPRESSOR = new ZstdCompressor();
 

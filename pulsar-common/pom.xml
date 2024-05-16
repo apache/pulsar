@@ -201,30 +201,31 @@
 	  <artifactId>protobuf-java</artifactId>
     </dependency>
 
-    <!-- test -->
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bc-fips</artifactId>
-      <version>${bouncycastle.bc-fips.version}</version>
-      <scope>test</scope>
-    </dependency>
-
     <dependency>
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>
       <version>1.5.0</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.github.luben</groupId>
       <artifactId>zstd-jni</artifactId>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- test -->
+
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bc-fips</artifactId>
+      <version>${bouncycastle.bc-fips.version}</version>
       <scope>test</scope>
     </dependency>
 

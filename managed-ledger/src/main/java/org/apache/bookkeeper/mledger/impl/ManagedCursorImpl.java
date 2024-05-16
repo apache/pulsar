@@ -3302,7 +3302,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (pulsarCursorInfoCompression != null) {
             String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
             CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
-                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
+                    CompressionType.valueOf(pulsarCursorInfoCompressionString), data.length);
             ByteBuf encode = compressionCodec.encode(Unpooled.wrappedBuffer(data));
             try {
                 int uncompressedSize = data.length;
@@ -3331,13 +3331,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                 lh.getCustomMetadata().get(METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE);
         if (pulsarCursorInfoCompression != null) {
             String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
-            CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
-                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
             ByteArrayInputStream input = new ByteArrayInputStream(data);
             DataInputStream dataInputStream = new DataInputStream(input);
             try {
                 int uncompressedSize = dataInputStream.readInt();
                 byte[] compressedData = dataInputStream.readNBytes(uncompressedSize);
+                CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
+                        CompressionType.valueOf(pulsarCursorInfoCompressionString), uncompressedSize);
                 ByteBuf decode = compressionCodec.decode(Unpooled.wrappedBuffer(compressedData), uncompressedSize);
                 try {
                     return ByteBufUtil.getBytes(decode);

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.compression;
 
 import java.util.EnumMap;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CompressionType;
 
 /**
@@ -32,8 +33,12 @@ import org.apache.pulsar.client.api.CompressionType;
  * @see CompressionCodecSnappy
  */
 @UtilityClass
+@Slf4j
 public class CompressionCodecProvider {
     private static final EnumMap<org.apache.pulsar.common.api.proto.CompressionType, CompressionCodec> codecs;
+    private static final EnumMap<org.apache.pulsar.common.api.proto.CompressionType, CompressionCodec> jniCodecs;
+
+    private static final int jniRecommendedSize = jniRecommendedMinSize();
 
     static {
         codecs = new EnumMap<>(org.apache.pulsar.common.api.proto.CompressionType.class);
@@ -42,15 +47,51 @@ public class CompressionCodecProvider {
         codecs.put(org.apache.pulsar.common.api.proto.CompressionType.ZLIB, new CompressionCodecZLib());
         codecs.put(org.apache.pulsar.common.api.proto.CompressionType.ZSTD, new CompressionCodecZstd());
         codecs.put(org.apache.pulsar.common.api.proto.CompressionType.SNAPPY, new CompressionCodecSnappy());
+
+        jniCodecs = new EnumMap<>(org.apache.pulsar.common.api.proto.CompressionType.class);
+        if (allowJni()) {
+            try {
+                // avoid exceptions from lz4 being swallowed until its use
+                net.jpountz.util.Native.load();
+
+                jniCodecs.put(org.apache.pulsar.common.api.proto.CompressionType.LZ4, new CompressionCodecLZ4JNI());
+                jniCodecs.put(org.apache.pulsar.common.api.proto.CompressionType.ZSTD, new CompressionCodecZstdJNI());
+                jniCodecs.put(org.apache.pulsar.common.api.proto.CompressionType.SNAPPY,
+                        new CompressionCodecSnappyJNI());
+            } catch (Throwable t) {
+                log.error("Failed to load JNI compression codecs", t);
+            }
+        }
+    }
+
+    public static boolean allowJni() {
+        return System.getProperty("pulsar.compression.allowJni", "false").equals("true");
+    }
+
+    public static int jniRecommendedMinSize() {
+        return Integer.parseInt(System.getProperty("pulsar.compression.jniMinSize", "10240"));
     }
 
     public static CompressionCodec getCompressionCodec(org.apache.pulsar.common.api.proto.CompressionType type) {
         return codecs.get(type);
     }
 
-    public static CompressionCodec getCompressionCodec(CompressionType type) {
-        return codecs.get(convertToWireProtocol(type));
+    public static CompressionCodec getCompressionCodec(CompressionType type, int size) {
+        return getCompressionCodec(convertToWireProtocol(type), size);
     }
+
+    public static CompressionCodec getCompressionCodec(org.apache.pulsar.common.api.proto.CompressionType type,
+                                                       int size) {
+        if (size > jniRecommendedSize && jniCodecs.containsKey(type)) {
+            return jniCodecs.get(type);
+        }
+        return codecs.get(type);
+    }
+
+    public static CompressionCodec getCompressionCodec(CompressionType type) {
+        return getCompressionCodec(convertToWireProtocol(type));
+    }
+
 
     public static org.apache.pulsar.common.api.proto.CompressionType convertToWireProtocol(
             CompressionType compressionType) {
