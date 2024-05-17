@@ -678,6 +678,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         try {
             data = decompressDataIfNeeded(data, lh);
         } catch (Throwable e) {
+            log.error("[{}] Failed to decompress position info from ledger {} for cursor {}: {}", ledger.getName(),
+                    lh.getId(), name, e);
             callback.operationFailed(new ManagedLedgerException(e));
             return;
         }
@@ -688,12 +690,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         } catch (InvalidProtocolBufferException e) {
             log.error("[{}] Failed to parse position info from ledger {} for cursor {}: {}", ledger.getName(),
                     lh.getId(), name, e);
-            // Rewind to oldest entry available
-            positionInfo = PositionInfo
-                    .newBuilder()
-                    .setLedgerId(-1)
-                    .setEntryId(-1)
-                    .build();
+            callback.operationFailed(new ManagedLedgerException(e));
+            return;
         }
 
         Map<String, Long> recoveredProperties = Collections.emptyMap();
