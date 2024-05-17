@@ -486,6 +486,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return validateTopicOperationAsync(topicName, TopicOperation.LOOKUP)
                 .thenCompose(__ -> validateClusterOwnershipAsync(topicName.getCluster()))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
+                .thenCompose(__ -> validateNamespaceExists(topicName.getNamespaceObject()))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
@@ -503,6 +504,18 @@ public abstract class AdminResource extends PulsarWebResource {
             }
         } catch (Exception e) {
             throw new RestException(e);
+        }
+    }
+
+    protected CompletableFuture<Void> validateNamespaceExists(NamespaceName namespace) {
+        try {
+            if (namespaceResources().namespaceExists(namespace)) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            }
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
         }
     }
 

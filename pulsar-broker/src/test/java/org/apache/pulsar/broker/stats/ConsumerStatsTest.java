@@ -270,20 +270,21 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @DataProvider(name = "topicName")
-    public static Object[][] topicName() {
+    @DataProvider(name = "invalidTopicName")
+    public static Object[][] invalidTopicName() {
+        // some topic names in non-exist namespace
         return new Object[][]{
                 {"persistent://prop/use/ns-abc/testNonExistNamespace"},
                 {"persistent://prop/ns-abc/testNonExistNamespace"}
         };
     }
 
-    @Test(dataProvider = "topicName")
-    public void testNonExistNamespace(String topicName) throws Exception {
+    @Test(dataProvider = "invalidTopicName")
+    public void testNonExistNamespace(String invalidTopicName) throws Exception {
         final String subName = "my-subscription";
         try {
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                    .topic(topicName)
+                    .topic(invalidTopicName)
                     .subscriptionType(SubscriptionType.Shared)
                     .subscriptionName(subName)
                     .subscribe();
