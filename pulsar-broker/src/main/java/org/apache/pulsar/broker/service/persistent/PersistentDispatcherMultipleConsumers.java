@@ -50,9 +50,11 @@ import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.RecoverDelayedDeliveryTrackerException;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -1156,15 +1158,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         synchronized (this) {
-            if (!delayedDeliveryTracker.isPresent()) {
+            if (delayedDeliveryTracker.isEmpty()) {
                 if (!msgMetadata.hasDeliverAtTime()) {
                     // No need to initialize the tracker here
                     return false;
                 }
 
                 // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional
-                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                delayedDeliveryTracker = Optional.of(initializeDelayedDeliveryTracer());
             }
 
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
@@ -1172,6 +1173,47 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
             return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
         }
+    }
+
+    /**
+     * Initialize the delayed delivery tracker.
+     *
+     * @return
+     */
+    private DelayedDeliveryTracker initializeDelayedDeliveryTracer() {
+        DelayedDeliveryTracker tracker = DelayedDeliveryTracker.DISABLE;
+
+        BrokerService brokerService = topic.getBrokerService();
+        DelayedDeliveryTrackerFactory factory = brokerService.getDelayedDeliveryTrackerFactory();
+
+        if (factory instanceof BucketDelayedDeliveryTrackerFactory) {
+            try {
+                tracker = factory.newTracker(this);
+            } catch (Exception e) {
+                // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
+                log.warn("Failed to create BucketDelayedDeliveryTracker", e);
+                try {
+                    brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
+                    tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(this);
+                } catch (RecoverDelayedDeliveryTrackerException ex) {
+                    // it should never goes here
+                    log.warn("Failed to fallback to InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
+                            topic.getName(), subscription.getName(), ex);
+                }
+            }
+
+            return tracker;
+        }
+
+        try {
+            tracker = factory.newTracker(this);
+        } catch (RecoverDelayedDeliveryTrackerException ex) {
+            // it should never goes here
+            log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
+                    topic.getName(), subscription.getName(), ex);
+        }
+
+        return tracker;
     }
 
     protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {

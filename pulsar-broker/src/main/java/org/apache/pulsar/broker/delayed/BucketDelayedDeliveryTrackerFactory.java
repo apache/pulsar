@@ -72,7 +72,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
+    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher)
+            throws RecoverDelayedDeliveryTrackerException {
         return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
                 bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),

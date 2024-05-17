@@ -106,6 +106,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
+import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -288,6 +289,8 @@ public class BrokerService implements Closeable {
     @Getter
     @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
+    // inMemoryRedeliveryTrackerFactory is for the purpose of fallback if recover BucketDelayedDeliveryTracker failed.
+    private volatile DelayedDeliveryTrackerFactory fallbackRedeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
 
@@ -838,6 +841,9 @@ public class BrokerService implements Closeable {
                                 pendingLookupOperationsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
+                                    if (fallbackRedeliveryTrackerFactory != null) {
+                                        fallbackRedeliveryTrackerFactory.close();
+                                    }
                                 } catch (Exception e) {
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
                                 }
@@ -3387,6 +3393,25 @@ public class BrokerService implements Closeable {
             });
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Initializes the in-memory delayed delivery tracker factory when
+     * BucketDelayedDeliveryTrackerFactory.newTracker failed.
+     */
+    public synchronized void initializeFallbackDelayedDeliveryTrackerFactory() {
+        if (fallbackRedeliveryTrackerFactory != null) {
+            return;
+        }
+
+        DelayedDeliveryTrackerFactory factory = new InMemoryDelayedDeliveryTrackerFactory();
+        try {
+            factory.initialize(pulsar);
+            this.fallbackRedeliveryTrackerFactory = factory;
+        } catch (Exception e) {
+            // it should never go here
+            log.error("Failed to initialize InMemoryDelayedDeliveryTrackerFactory", e);
         }
     }
 

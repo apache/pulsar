@@ -31,6 +31,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 @Beta
 public interface DelayedDeliveryTracker extends AutoCloseable {
 
+    DelayedDeliveryTracker DISABLE = new DelayedDeliveryTrackerDisable();
+
     /**
      * Add a message to the tracker.
      *
