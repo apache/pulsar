@@ -41,10 +41,8 @@ public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
      *
      * @param dispatcher
      *            a multi-consumer dispatcher instance
-     * @throws RecoverDelayedDeliveryTrackerException if the tracker cannot be recovered
      */
-    DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher)
-            throws RecoverDelayedDeliveryTrackerException;
+    DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher);
 
     /**
      * Close the factory and release all the resources.

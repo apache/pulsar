@@ -50,11 +50,9 @@ import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.RecoverDelayedDeliveryTrackerException;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -1165,7 +1163,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional.of(initializeDelayedDeliveryTracer());
+                delayedDeliveryTracker = Optional.of(
+                        topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
 
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
@@ -1173,50 +1172,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
             return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
         }
-    }
-
-    /**
-     * Initialize the delayed delivery tracker.
-     *
-     * @return
-     */
-    private DelayedDeliveryTracker initializeDelayedDeliveryTracer() {
-        String topicName = topic.getName();
-        String subscriptionName = subscription.getName();
-        DelayedDeliveryTracker tracker = DelayedDeliveryTracker.DISABLE;
-
-        BrokerService brokerService = topic.getBrokerService();
-        DelayedDeliveryTrackerFactory factory = brokerService.getDelayedDeliveryTrackerFactory();
-
-        if (factory instanceof BucketDelayedDeliveryTrackerFactory) {
-            try {
-                tracker = factory.newTracker(this);
-            } catch (RecoverDelayedDeliveryTrackerException e) {
-                // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
-                log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker." +
-                        " topic {}, subscription {}", topicName, subscriptionName, e);
-                try {
-                    brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
-                    tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(this);
-                } catch (Exception ex) {
-                    // it should never goes here
-                    log.warn("Failed to fallback to InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
-                            topicName, subscriptionName, ex);
-                }
-            }
-
-            return tracker;
-        }
-
-        try {
-            tracker = factory.newTracker(this);
-        } catch (Exception ex) {
-            // it should never goes here
-            log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
-                    topicName, subscriptionName, ex);
-        }
-
-        return tracker;
     }
 
     protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
@@ -1361,6 +1316,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected int getStickyKeyHash(Entry entry) {
         return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+    }
+
+
+    public Subscription getSubscription() {
+        return subscription;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);

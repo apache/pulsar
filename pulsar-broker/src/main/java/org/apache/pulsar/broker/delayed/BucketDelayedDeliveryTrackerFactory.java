@@ -33,10 +33,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerException;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+    private static final Logger log = LoggerFactory.getLogger(BucketDelayedDeliveryTrackerFactory.class);
 
     BucketSnapshotStorage bucketSnapshotStorage;
 
@@ -72,12 +77,25 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher)
-            throws RecoverDelayedDeliveryTrackerException {
-        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
-                bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
-                TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
-                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
+        String topicName = dispatcher.getTopic().getName();
+        String subscriptionName = dispatcher.getSubscription().getName();
+        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
+        DelayedDeliveryTracker tracker;
+
+        try {
+           tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                   isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+                    TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
+                    delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+        } catch (RecoverDelayedDeliveryTrackerException ex) {
+            log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker." +
+                    " topic {}, subscription {}", topicName, subscriptionName, ex);
+            // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
+            brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
+            tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(dispatcher);
+        }
+        return tracker;
     }
 
     /**

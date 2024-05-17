@@ -25,8 +25,11 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+    private static final Logger log = LoggerFactory.getLogger(InMemoryDelayedDeliveryTrackerFactory.class);
 
     private Timer timer;
 
@@ -48,8 +51,18 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+        String topicName = dispatcher.getTopic().getName();
+        String subscriptionName = dispatcher.getSubscription().getName();
+        DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
+        try {
+            tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                    isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+        } catch (Exception e) {
+            // it should never go here
+            log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic {}, subscription {}",
+                    topicName, subscriptionName, e);
+        }
+        return tracker;
     }
 
     @Override

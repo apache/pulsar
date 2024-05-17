@@ -54,7 +54,6 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.RecoverDelayedDeliveryTrackerException;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -136,7 +135,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), FutureUtil.Sequencer.create(),
                         bucketSnapshotStorage);
         this.stats = new BucketDelayedMessageIndexStats();
-        this.numberDelayedMessages = recoverBucketSnapshot();
+
+        // Close the tracker if failed to recover.
+        try {
+            this.numberDelayedMessages = recoverBucketSnapshot();
+        } catch (RecoverDelayedDeliveryTrackerException e) {
+            close();
+            throw e;
+        }
     }
 
     private synchronized long recoverBucketSnapshot() throws RecoverDelayedDeliveryTrackerException {
