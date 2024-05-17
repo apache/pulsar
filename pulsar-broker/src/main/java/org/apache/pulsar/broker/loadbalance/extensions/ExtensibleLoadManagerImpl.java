@@ -200,13 +200,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     /**
      * Get all the bundles that are owned by this broker.
      */
-    public Set<NamespaceBundle> getOwnedServiceUnits() {
+    public CompletableFuture<Set<NamespaceBundle>> getOwnedServiceUnitsAsync() {
         if (!started) {
             log.warn("Failed to get owned service units, load manager is not started.");
-            return Collections.emptySet();
+            return CompletableFuture.completedFuture(Collections.emptySet());
         }
-        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+
         String brokerId = brokerRegistry.getBrokerId();
+        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
         Set<NamespaceBundle> ownedServiceUnits = entrySet.stream()
                 .filter(entry -> {
                     var stateData = entry.getValue();
@@ -219,34 +220,26 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 }).collect(Collectors.toSet());
         // Add heartbeat and SLA monitor namespace bundle.
         NamespaceName heartbeatNamespace = NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(heartbeatNamespace);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get heartbeat namespace bundle.", e);
-        }
         NamespaceName heartbeatNamespaceV2 = NamespaceService
                 .getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(heartbeatNamespaceV2);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get heartbeat namespace V2 bundle.", e);
-        }
-
         NamespaceName slaMonitorNamespace = NamespaceService
                 .getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(slaMonitorNamespace);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get SLA Monitor namespace bundle.", e);
-        }
-
-        return ownedServiceUnits;
+        return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundleAsync(heartbeatNamespace)
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get heartbeat namespace bundle.", e);
+                    return null;
+                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
+                        .getFullBundleAsync(heartbeatNamespaceV2))
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get heartbeat namespace V2 bundle.", e);
+                    return null;
+                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
+                        .getFullBundleAsync(slaMonitorNamespace))
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get SLA Monitor namespace bundle.", e);
+                    return null;
+                }).thenApply(__ -> ownedServiceUnits);
     }
 
     public enum Role {
