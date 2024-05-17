@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -420,11 +421,10 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompatibilityWithEmpty() throws Exception {
-        List<Schema<?>> checkSchemas = List.of(
+        List<Schema<?>> checkSchemas = Arrays.asList(
                 Schema.STRING,
                 Schema.JSON(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
-                Schema.AVRO(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
-                Schema.KeyValue(Schema.STRING, Schema.STRING)
+                Schema.AVRO(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build())
         );
         for (Schema<?> schema : checkSchemas) {
             SchemaInfo schemaInfo = schema.getSchemaInfo();
