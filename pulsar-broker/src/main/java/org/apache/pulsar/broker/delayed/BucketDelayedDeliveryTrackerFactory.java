@@ -89,8 +89,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
                     TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
                     delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
         } catch (RecoverDelayedDeliveryTrackerException ex) {
-            log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker." +
-                    " topic {}, subscription {}", topicName, subscriptionName, ex);
+            log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker."
+                    + " topic {}, subscription {}", topicName, subscriptionName, ex);
             // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
             brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
             tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(dispatcher);
