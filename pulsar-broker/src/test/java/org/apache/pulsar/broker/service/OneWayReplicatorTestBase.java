@@ -26,6 +26,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -172,9 +173,19 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void waitChangeEventsInit(String namespace) {
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false)
-                .join().get();
+        if (!pulsar1.getConfig().isSystemTopicAndTopicLevelPoliciesEnabled() || pulsar1.getConfig().isSystemTopicEnabled()) {
+            return;
+        }
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService()
+                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false);
+        if (future == null) {
+            return;
+        }
+        Optional<Topic> optional = future.join();
+        if (optional.isEmpty()) {
+            return;
+        }
+        PersistentTopic topic = (PersistentTopic) optional.get();
         Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
             TopicStatsImpl topicStats = topic.getStats(true, false, false);
             topicStats.getSubscriptions().entrySet().forEach(entry -> {
