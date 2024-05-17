@@ -107,9 +107,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                     bufferOffsetEnd = endRange;
                     long bytesRead = endRange - startRange + 1;
                     int bytesToCopy = (int) bytesRead;
-                    while (bytesToCopy > 0) {
-                        bytesToCopy -= buffer.writeBytes(stream, bytesToCopy);
-                    }
+                    fillBuffer(stream, bytesToCopy);
                     cursor += buffer.readableBytes();
                 }
 
@@ -133,6 +131,20 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             }
         }
         return true;
+    }
+
+    void fillBuffer(InputStream is, int bytesToCopy) throws IOException {
+        while (bytesToCopy > 0) {
+            int writeBytes = buffer.writeBytes(is, bytesToCopy);
+            if (writeBytes < 0) {
+                break;
+            }
+            bytesToCopy -= writeBytes;
+        }
+    }
+
+    ByteBuf getBuffer() {
+        return buffer;
     }
 
     @Override
