@@ -48,7 +48,14 @@ public class TokensCliUtilsTest {
 
             baoStream.reset();
 
-            new TokensCliUtils().execute(new String[]{"create", "--secret-key", "data:;base64," + secretKey, "--subject", "test", "--headers", "kid=test"});
+            String[] command = {"create", "--secret-key",
+                    "data:;base64," + secretKey,
+                    "--subject", "test",
+                    "--headers", "kid=test",
+                    "--headers", "my-k=my-v"
+            };
+
+            new TokensCliUtils().execute(command);
             String token = baoStream.toString();
 
             Jwt<?, ?> jwt = Jwts.parserBuilder()
@@ -59,6 +66,7 @@ public class TokensCliUtilsTest {
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
             assertEquals(keyId, "test");
+            assertEquals(header.get("my-k"), "my-v");
 
         } catch (Exception e) {
             throw new RuntimeException(e);
