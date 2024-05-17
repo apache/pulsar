@@ -485,7 +485,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (lastMarkDeleteEntry != null) {
             LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
                 Map<String, Long> properties = last.properties;
-                if (properties != null) {
+                // we can call remove only if the property is present
+                // some implementation of the map can throw exceptions
+                if (properties != null && properties.containsKey(key)) {
                     properties.remove(key);
                 }
                 return last;
