@@ -1181,6 +1181,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * @return
      */
     private DelayedDeliveryTracker initializeDelayedDeliveryTracer() {
+        String topicName = topic.getName();
+        String subscriptionName = subscription.getName();
         DelayedDeliveryTracker tracker = DelayedDeliveryTracker.DISABLE;
 
         BrokerService brokerService = topic.getBrokerService();
@@ -1189,16 +1191,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (factory instanceof BucketDelayedDeliveryTrackerFactory) {
             try {
                 tracker = factory.newTracker(this);
-            } catch (Exception e) {
+            } catch (RecoverDelayedDeliveryTrackerException e) {
                 // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
-                log.warn("Failed to create BucketDelayedDeliveryTracker", e);
+                log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker." +
+                        " topic {}, subscription {}", topicName, subscriptionName, e);
                 try {
                     brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
                     tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(this);
-                } catch (RecoverDelayedDeliveryTrackerException ex) {
+                } catch (Exception ex) {
                     // it should never goes here
                     log.warn("Failed to fallback to InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
-                            topic.getName(), subscription.getName(), ex);
+                            topicName, subscriptionName, ex);
                 }
             }
 
@@ -1207,10 +1210,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         try {
             tracker = factory.newTracker(this);
-        } catch (RecoverDelayedDeliveryTrackerException ex) {
+        } catch (Exception ex) {
             // it should never goes here
             log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic: {}, subscription: {}",
-                    topic.getName(), subscription.getName(), ex);
+                    topicName, subscriptionName, ex);
         }
 
         return tracker;
