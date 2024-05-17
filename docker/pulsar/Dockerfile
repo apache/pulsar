@@ -98,7 +98,8 @@ RUN apk add --no-cache \
             py3-pip \
             gcompat \
             ca-certificates \
-            procps
+            procps \
+            curl
 
 # Fix CVE-2024-2511 by upgrading to OpenSSL 3.1.4-r6
 # We can remove once new Alpine image is released
