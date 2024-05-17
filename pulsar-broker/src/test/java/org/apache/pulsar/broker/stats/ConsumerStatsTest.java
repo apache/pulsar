@@ -246,7 +246,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "connectedSince",
                 "clientVersion");
 
-        final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
+        final String topicName = "persistent://my-property/my-ns/testConsumerStatsOutput";
         final String subName = "my-subscription";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
