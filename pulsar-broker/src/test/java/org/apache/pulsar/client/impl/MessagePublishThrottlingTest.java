@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;

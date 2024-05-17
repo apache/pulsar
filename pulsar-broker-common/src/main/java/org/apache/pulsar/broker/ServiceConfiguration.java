@@ -2095,6 +2095,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The number of bytes permitted per second to offload on this broker"
+    )
+    private long managedLedgerOffloadFlowPermitsPerSecond = -1;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
     )

@@ -24,11 +24,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

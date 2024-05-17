@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
@@ -51,7 +51,6 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         thread.start();
     }
 
-    /** {@inheritDoc} */
     @Override
     public long getTickNanos(boolean requestSnapshot) {
         if (requestSnapshot) {

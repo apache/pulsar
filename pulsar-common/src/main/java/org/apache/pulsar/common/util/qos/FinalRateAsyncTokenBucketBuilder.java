@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 /**
  * A builder class for creating instances of {@link FinalRateAsyncTokenBucket}.

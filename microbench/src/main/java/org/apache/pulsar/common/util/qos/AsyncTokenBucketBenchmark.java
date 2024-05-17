@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.qos;
+package org.apache.pulsar.common.util.qos;
 
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
