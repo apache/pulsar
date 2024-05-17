@@ -21,14 +21,9 @@ package org.apache.bookkeeper.mledger.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 final class PositionInfoUtils {
 
@@ -47,18 +42,18 @@ final class PositionInfoUtils {
         int size = Math.max(lastSerializedSize, 64 * 1024);
         ByteBuf _b = PulsarByteBufAllocator.DEFAULT.buffer(size);
 
-        int _writeIdx = _b.writerIndex();
         LightProtoCodec.writeVarInt(_b, PositionInfo._LEDGER_ID_TAG);
         LightProtoCodec.writeVarInt64(_b, position.getLedgerId());
         LightProtoCodec.writeVarInt(_b, PositionInfo._ENTRY_ID_TAG);
         LightProtoCodec.writeVarInt64(_b, position.getEntryId());
 
         MessageRange _item = new MessageRange();
-        NestedPositionInfo lower = _item.setLowerEndpoint();
-        NestedPositionInfo upper = _item.setUpperEndpoint();
         rangeScanner.accept(new IndividuallyDeletedMessagesRangeConsumer() {
             @Override
             public void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
+                _item.clear();
+                NestedPositionInfo lower = _item.setLowerEndpoint();
+                NestedPositionInfo upper = _item.setUpperEndpoint();
                 lower.setLedgerId(lowerLegerId);
                 lower.setEntryId(lowerEntryId);
                 upper.setLedgerId(upperLedgerId);
@@ -82,15 +77,14 @@ final class PositionInfoUtils {
         }
 
         final BatchedEntryDeletionIndexInfo batchDeletedIndexInfo = new BatchedEntryDeletionIndexInfo();
-        final NestedPositionInfo nestedPositionInfo = batchDeletedIndexInfo.setPosition();
 
         batchDeletedIndexesScanner.accept(new BatchedEntryDeletionIndexInfoConsumer() {
             @Override
             public void acceptRange(long ledgerId, long entryId, long[] array) {
+                batchDeletedIndexInfo.clear();
+                final NestedPositionInfo nestedPositionInfo = batchDeletedIndexInfo.setPosition();
                 nestedPositionInfo.setLedgerId(ledgerId);
                 nestedPositionInfo.setEntryId(entryId);
-                List<Long> deleteSet = new ArrayList<>(array.length);
-                batchDeletedIndexInfo.clearDeleteSet();
                 for (long l : array) {
                     batchDeletedIndexInfo.addDeleteSet(l);
                 }
