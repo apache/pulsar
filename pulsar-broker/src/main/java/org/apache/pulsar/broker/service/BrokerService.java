@@ -1007,6 +1007,9 @@ public class BrokerService implements Closeable {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
             if (topicFuture != null) {
                 if (topicFuture.isCompletedExceptionally()
+                        && FutureUtil.getException(topicFuture).get().equals(FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION)) {
+                    return FutureUtil.failedFuture(FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
+                } else if (topicFuture.isCompletedExceptionally()
                         || (topicFuture.isDone() && !topicFuture.getNow(Optional.empty()).isPresent())) {
                     // Exceptional topics should be recreated.
                     topics.remove(topicName.toString(), topicFuture);
@@ -1744,6 +1747,7 @@ public class BrokerService implements Closeable {
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
+                                                        topics.remove(topic, topicFuture);
                                                         if (ex != null) {
                                                             log.warn("[{}] Get an error when closing topic.",
                                                                     topic, ex);
@@ -1760,6 +1764,7 @@ public class BrokerService implements Closeable {
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
+                                                    topics.remove(topic, topicFuture);
                                                     if (closeEx != null) {
                                                         log.warn("[{}] Get an error when closing topic.",
                                                                 topic, closeEx);
