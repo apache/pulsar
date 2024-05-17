@@ -98,7 +98,8 @@ RUN apk add --no-cache \
             py3-pip \
             gcompat \
             ca-certificates \
-            procps
+            procps \
+            curl
 
 # Install GLibc compatibility library
 COPY --from=glibc /root/packages /root/packages
