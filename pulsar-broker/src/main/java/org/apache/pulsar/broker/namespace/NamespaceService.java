@@ -801,12 +801,12 @@ public class NamespaceService implements AutoCloseable {
                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
                        ExtensibleLoadManagerImpl extensibleLoadManager =
                                ExtensibleLoadManagerImpl.get(loadManager.get());
-                       var statusMap = extensibleLoadManager.getOwnedServiceUnits().stream()
-                               .collect(Collectors.toMap(NamespaceBundle::toString,
-                                       bundle -> getNamespaceOwnershipStatus(true,
-                                               namespaceIsolationPolicies.getPolicyByNamespace(
-                                                       bundle.getNamespaceObject()))));
-                       return CompletableFuture.completedFuture(statusMap);
+                       return extensibleLoadManager.getOwnedServiceUnitsAsync()
+                               .thenApply(OwnedServiceUnits -> OwnedServiceUnits.stream()
+                                       .collect(Collectors.toMap(NamespaceBundle::toString,
+                                               bundle -> getNamespaceOwnershipStatus(true,
+                                                       namespaceIsolationPolicies.getPolicyByNamespace(
+                                                               bundle.getNamespaceObject())))));
                    }
                     Collection<CompletableFuture<OwnedBundle>> futures =
                             ownershipCache.getOwnedBundlesAsync().values();
@@ -1122,7 +1122,12 @@ public class NamespaceService implements AutoCloseable {
     public Set<NamespaceBundle> getOwnedServiceUnits() {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
-            return extensibleLoadManager.getOwnedServiceUnits();
+            try {
+                return extensibleLoadManager.getOwnedServiceUnitsAsync()
+                        .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
         return ownershipCache.getOwnedBundles().values().stream().map(OwnedBundle::getNamespaceBundle)
                 .collect(Collectors.toSet());
