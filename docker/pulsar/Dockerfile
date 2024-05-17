@@ -101,6 +101,10 @@ RUN apk add --no-cache \
             procps \
             curl
 
+# Fix CVE-2024-2511 by upgrading to OpenSSL 3.1.4-r6
+# We can remove once new Alpine image is released
+RUN apk upgrade --no-cache libssl3 libcrypto3
+
 # Install GLibc compatibility library
 COPY --from=glibc /root/packages /root/packages
 RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
