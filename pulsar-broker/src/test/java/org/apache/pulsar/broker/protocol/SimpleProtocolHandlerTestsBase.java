@@ -169,7 +169,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
         }
     }
 
-    static void buildMockNarFile(File tempDirectory, String className) throws Exception {
+    private static void buildMockNarFile(File tempDirectory, String className) throws Exception {
         File file = new File(tempDirectory, "temp.nar");
         try (ZipOutputStream zipfile = new ZipOutputStream(new FileOutputStream(file))) {
 

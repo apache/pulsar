@@ -40,7 +40,7 @@ public class PulsarClientBasedHandlerTest {
     private final static String clusterName = "cluster";
     private final static int shutdownTimeoutMs = 100;
     private final int zkPort = PortManager.nextFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(1, zkPort, PortManager::nextFreePort);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
     private File tempDirectory;
     private PulsarService pulsar;
 
@@ -53,11 +53,6 @@ public class PulsarClientBasedHandlerTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
-        config.setBrokerDeleteInactiveTopicsEnabled(false);
-        config.setManagedLedgerDefaultWriteQuorum(1);
-        config.setManagedLedgerDefaultAckQuorum(1);
-        config.setManagedLedgerDefaultEnsembleSize(1);
-        config.setDefaultNumberOfNamespaceBundles(2);
 
         tempDirectory = SimpleProtocolHandlerTestsBase.configureProtocolHandler(config,
                 PulsarClientBasedHandler.class.getName(), true);
@@ -70,7 +65,7 @@ public class PulsarClientBasedHandlerTest {
         pulsar.start();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testStopBroker() throws PulsarServerException {
         final var beforeStop = System.currentTimeMillis();
         final var handler = (PulsarClientBasedHandler) pulsar.getProtocolHandlers()
