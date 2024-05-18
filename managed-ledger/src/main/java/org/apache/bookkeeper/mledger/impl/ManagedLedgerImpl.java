@@ -325,7 +325,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * This variable is used for testing the tests.
-     * {@link ManagedLedgerTest#testManagedLedgerWithPlacementPolicyInCustomMetadata()}
+     * ManagedLedgerTest#testManagedLedgerWithPlacementPolicyInCustomMetadata()
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
@@ -2135,6 +2135,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {
+        mbean.addEntriesRead(1);
         if (config.getReadEntryTimeoutSeconds() > 0) {
             // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
             long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
