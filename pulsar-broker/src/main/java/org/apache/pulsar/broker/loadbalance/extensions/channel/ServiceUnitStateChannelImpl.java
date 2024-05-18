@@ -834,19 +834,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next;
-            CompletableFuture<Integer> unloadFuture;
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-                // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
-                var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
-                unloadFuture = closeServiceUnit(serviceUnit, disconnectClients);
+
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
-                unloadFuture = closeServiceUnit(serviceUnit, true);
             }
-            stateChangeListeners.notifyOnCompletion(unloadFuture
+            var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
+            // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
+            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit, disconnectClients)
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -866,9 +864,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         if (isTargetBroker(data.sourceBroker())) {
-            stateChangeListeners.notifyOnCompletion(
-                            data.force() ? closeServiceUnit(serviceUnit, true)
-                                    : CompletableFuture.completedFuture(0), serviceUnit, data)
+            CompletableFuture<Integer> unloadFuture = closeServiceUnit(serviceUnit, true);
+            // If data.force() is true, it means that this Free state is from the orphan cleanup job, where
+            // the source broker is likely unavailable. In this case, we don't tombstone it immediately.
+            CompletableFuture<Void> future =
+                    (data.force() ? unloadFuture
+                            : unloadFuture.thenCompose(__ -> tombstoneAsync(serviceUnit))).thenApply(__ -> null);
+            stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         } else {
             stateChangeListeners.notify(serviceUnit, data, null);
@@ -880,9 +882,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.completeExceptionally(new IllegalStateException(serviceUnit + "has been deleted."));
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+
         if (isTargetBroker(data.sourceBroker())) {
-            log(null, serviceUnit, data, null);
+            stateChangeListeners.notifyOnCompletion(
+                            tombstoneAsync(serviceUnit), serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+        } else {
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
