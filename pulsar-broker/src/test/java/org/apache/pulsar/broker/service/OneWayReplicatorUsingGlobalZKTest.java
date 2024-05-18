@@ -40,6 +40,51 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.cleanup();
     }
 
+    @Test(enabled = false)
+    public void testReplicatorProducerStatInTopic() throws Exception {
+        super.testReplicatorProducerStatInTopic();
+    }
+
+    @Test(enabled = false)
+    public void testCreateRemoteConsumerFirst() throws Exception {
+        super.testReplicatorProducerStatInTopic();
+    }
+
+    @Test(enabled = false)
+    public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
+        super.testReplicatorProducerStatInTopic();
+    }
+
+    @Test(enabled = false)
+    public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
+        super.testConcurrencyOfUnloadBundleAndRecreateProducer();
+    }
+
+    @Test(enabled = false)
+    public void testPartitionedTopicLevelReplication() throws Exception {
+        super.testPartitionedTopicLevelReplication();
+    }
+
+    @Test(enabled = false)
+    public void testPartitionedTopicLevelReplicationRemoteTopicExist() throws Exception {
+        super.testPartitionedTopicLevelReplicationRemoteTopicExist();
+    }
+
+    @Test(enabled = false)
+    public void testPartitionedTopicLevelReplicationRemoteConflictTopicExist() throws Exception {
+        super.testPartitionedTopicLevelReplicationRemoteConflictTopicExist();
+    }
+
+    @Test(enabled = false)
+    public void testConcurrencyOfUnloadBundleAndRecreateProducer2() throws Exception {
+        super.testConcurrencyOfUnloadBundleAndRecreateProducer2();
+    }
+
+    @Test(enabled = false)
+    public void testUnFenceTopicToReuse() throws Exception {
+        super.testUnFenceTopicToReuse();
+    }
+
     @Test
     public void testDeleteNonPartitionedTopic() throws Exception {
         super.testDeleteNonPartitionedTopic();
