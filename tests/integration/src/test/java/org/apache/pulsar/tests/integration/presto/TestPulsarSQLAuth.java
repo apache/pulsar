@@ -106,10 +106,8 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         String passToken = AuthTokenUtils.createToken(secretKey, passRole, Optional.empty());
         String deniedToken = AuthTokenUtils.createToken(secretKey, deniedRole, Optional.empty());
         String topic = "testPulsarSQLAuthCheck";
-
-        admin.topics().grantPermission(topic, passRole, EnumSet.of(AuthAction.consume));
-
         admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, passRole, EnumSet.of(AuthAction.consume));
 
         String queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", "public/default", topic);
 
