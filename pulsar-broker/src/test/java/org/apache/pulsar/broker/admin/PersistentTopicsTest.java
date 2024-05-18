@@ -888,12 +888,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testGrantNonPartitionedTopic() {
         final String topicName = "non-partitioned-topic";
         AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);
         response = mock(AsyncResponse.class);
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -951,12 +954,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testRevokeNonPartitionedTopic() {
         final String topicName = "non-partitioned-topic";
         AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);
         response = mock(AsyncResponse.class);
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());

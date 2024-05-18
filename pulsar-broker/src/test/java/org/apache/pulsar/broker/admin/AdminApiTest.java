@@ -3612,4 +3612,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         });
 
     }
+
+    @Test
+    @SneakyThrows
+    public void testPermissions() {
+        String namespace = "prop-xyz/ns1/";
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://" + namespace + random;
+        final String subject = UUID.randomUUID().toString();
+        assertThrows(NotFoundException.class, () -> admin.topics().getPermissions(topic));
+        assertThrows(NotFoundException.class, () -> admin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce)));
+        assertThrows(NotFoundException.class, () -> admin.topics().revokePermissions(topic, subject));
+    }
 }

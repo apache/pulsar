@@ -262,8 +262,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.close();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
-        admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
-                EnumSet.allOf(AuthAction.class));
+        String topic = "persistent://my-property/my-ns/my-topic";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, "anonymousUser", EnumSet.allOf(AuthAction.class));
 
         // setup the client
         replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
