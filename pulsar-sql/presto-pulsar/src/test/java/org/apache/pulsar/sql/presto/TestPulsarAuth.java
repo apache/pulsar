@@ -154,7 +154,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         String partitionedTopic = "persistent://p1/c1/ns1/" + RandomStringUtils.randomAlphabetic(4);
         String passToken = AuthTokenUtils.createToken(secretKey, passRole, Optional.empty());
         String deniedToken = AuthTokenUtils.createToken(secretKey, deniedRole, Optional.empty());
-
+        admin.topics().createNonPartitionedTopic(topic);
         admin.topics().grantPermission(topic, passRole, EnumSet.of(AuthAction.consume));
         admin.topics().createPartitionedTopic(partitionedTopic, 2);
         admin.topics().grantPermission(partitionedTopic, passRole, EnumSet.of(AuthAction.consume));

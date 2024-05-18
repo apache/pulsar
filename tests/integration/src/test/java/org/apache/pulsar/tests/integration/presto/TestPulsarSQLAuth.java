@@ -173,9 +173,8 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         String topic1 = "testCheckAuthForMultipleTopics1";
         String topic2 = "testCheckAuthForMultipleTopics2";
 
-        admin.topics().grantPermission(topic1, testRole, EnumSet.of(AuthAction.consume));
-
         admin.topics().createNonPartitionedTopic(topic1);
+        admin.topics().grantPermission(topic1, testRole, EnumSet.of(AuthAction.consume));
 
         admin.topics().createPartitionedTopic(topic2, 2); // Test for partitioned topic
 
