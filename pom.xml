@@ -259,6 +259,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
+    <restassured.version>5.4.0</restassured.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.3.0</docker-java.version>
@@ -1458,6 +1459,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.github.oshi</groupId>
         <artifactId>oshi-core-java11</artifactId>
         <version>${oshi.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>${restassured.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
