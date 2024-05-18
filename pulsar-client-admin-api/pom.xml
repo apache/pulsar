@@ -26,7 +26,6 @@
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar</artifactId>
         <version>3.4.0-SNAPSHOT</version>
-        <relativePath>..</relativePath>
     </parent>
 
     <artifactId>pulsar-client-admin-api</artifactId>
@@ -43,7 +42,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-        
+
     </dependencies>
 
     <build>
