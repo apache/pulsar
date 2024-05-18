@@ -1087,6 +1087,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public boolean checkAndResumeIfPaused() {
         boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        // Calling "cursor.isCursorDataFullyPersistable()" will loop the collection "individualDeletedMessages". It is
+        // not a light method.
+        // If never enabled "dispatcherPauseOnAckStatePersistentEnabled", skip the following checks to improve
+        // performance.
+        if (!paused && !topic.isDispatcherPauseOnAckStatePersistentEnabled()){
+            // "true" means no need to pause.
+            return true;
+        }
+        // Enabled "dispatcherPauseOnAckStatePersistentEnabled" before.
         boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
                 && topic.isDispatcherPauseOnAckStatePersistentEnabled();
         // No need to change.
