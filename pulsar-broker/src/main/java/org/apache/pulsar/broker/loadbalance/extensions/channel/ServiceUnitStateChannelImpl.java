@@ -834,17 +834,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next;
+            CompletableFuture<Integer> unloadFuture;
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-
+                // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
+                var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
+                unloadFuture = closeServiceUnit(serviceUnit, disconnectClients);
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
+                unloadFuture = closeServiceUnit(serviceUnit, true);
             }
-            var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
             // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
-            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit, disconnectClients)
+            stateChangeListeners.notifyOnCompletion(unloadFuture
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -864,12 +867,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         if (isTargetBroker(data.sourceBroker())) {
-            CompletableFuture<Integer> unloadFuture = closeServiceUnit(serviceUnit, true);
             // If data.force() is true, it means that this Free state is from the orphan cleanup job, where
             // the source broker is likely unavailable. In this case, we don't tombstone it immediately.
             CompletableFuture<Void> future =
-                    (data.force() ? unloadFuture
-                            : unloadFuture.thenCompose(__ -> tombstoneAsync(serviceUnit))).thenApply(__ -> null);
+                    (data.force() ? closeServiceUnit(serviceUnit, true)
+                            : tombstoneAsync(serviceUnit)).thenApply(__ -> null);
             stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         } else {

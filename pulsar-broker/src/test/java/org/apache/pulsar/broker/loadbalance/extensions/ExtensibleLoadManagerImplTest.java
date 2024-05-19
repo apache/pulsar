@@ -375,7 +375,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         Awaitility.await().untilAsserted(() -> {
             assertEquals(onloadCount.get(), 1);
-            assertEquals(unloadCount.get(), 2); //one from releasing and one from Free
+            assertEquals(unloadCount.get(), 1);
         });
 
         broker = admin.lookups().lookupTopic(topicName.toString());
@@ -385,7 +385,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().untilAsserted(() -> {
             checkOwnershipState(finalBroker, bundle);
             assertEquals(onloadCount.get(), 2);
-            assertEquals(unloadCount.get(), 2);
+            assertEquals(unloadCount.get(), 1);
         });
 
 
@@ -402,7 +402,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(onloadCount.get(), 3);
-            assertEquals(unloadCount.get(), 4); //one from releasing and one from owned
+            assertEquals(unloadCount.get(), 3); //one from releasing and one from owned
         });
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
