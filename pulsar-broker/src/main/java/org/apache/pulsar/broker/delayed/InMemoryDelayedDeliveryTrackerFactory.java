@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -55,14 +56,19 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
         String subscriptionName = dispatcher.getSubscription().getName();
         DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
         try {
-            tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                    isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+            tracker = newTracker0(dispatcher);
         } catch (Exception e) {
             // it should never go here
             log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic {}, subscription {}",
                     topicName, subscriptionName, e);
         }
         return tracker;
+    }
+
+    @VisibleForTesting
+    InMemoryDelayedDeliveryTracker newTracker0(PersistentDispatcherMultipleConsumers dispatcher) {
+        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 
     @Override

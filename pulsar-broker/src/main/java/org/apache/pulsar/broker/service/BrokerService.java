@@ -285,12 +285,11 @@ public class BrokerService implements Closeable {
     private final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-
-    @Getter
     @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
-    // inMemoryRedeliveryTrackerFactory is for the purpose of fallback if recover BucketDelayedDeliveryTracker failed.
-    private volatile DelayedDeliveryTrackerFactory fallbackRedeliveryTrackerFactory;
+    // InMemoryDelayedDeliveryTrackerFactory is for the purpose of
+    // fallback if recover BucketDelayedDeliveryTracker failed.
+    private volatile DelayedDeliveryTrackerFactory fallbackDelayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
 
@@ -841,8 +840,8 @@ public class BrokerService implements Closeable {
                                 pendingLookupOperationsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
-                                    if (fallbackRedeliveryTrackerFactory != null) {
-                                        fallbackRedeliveryTrackerFactory.close();
+                                    if (fallbackDelayedDeliveryTrackerFactory != null) {
+                                        fallbackDelayedDeliveryTrackerFactory.close();
                                     }
                                 } catch (Exception e) {
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
@@ -3402,14 +3401,14 @@ public class BrokerService implements Closeable {
      * BucketDelayedDeliveryTrackerFactory.newTracker failed.
      */
     public synchronized void initializeFallbackDelayedDeliveryTrackerFactory() {
-        if (fallbackRedeliveryTrackerFactory != null) {
+        if (fallbackDelayedDeliveryTrackerFactory != null) {
             return;
         }
 
         DelayedDeliveryTrackerFactory factory = new InMemoryDelayedDeliveryTrackerFactory();
         try {
             factory.initialize(pulsar);
-            this.fallbackRedeliveryTrackerFactory = factory;
+            this.fallbackDelayedDeliveryTrackerFactory = factory;
         } catch (Exception e) {
             // it should never go here
             log.error("Failed to initialize InMemoryDelayedDeliveryTrackerFactory", e);

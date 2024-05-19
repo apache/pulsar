@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -84,18 +85,24 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         DelayedDeliveryTracker tracker;
 
         try {
-           tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                   isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
-                    TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
-                    delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+            tracker = newTracker0(dispatcher);
         } catch (RecoverDelayedDeliveryTrackerException ex) {
             log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker."
                     + " topic {}, subscription {}", topicName, subscriptionName, ex);
             // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
             brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
-            tracker = brokerService.getFallbackRedeliveryTrackerFactory().newTracker(dispatcher);
+            tracker = brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);
         }
         return tracker;
+    }
+
+    @VisibleForTesting
+    BucketDelayedDeliveryTracker newTracker0(PersistentDispatcherMultipleConsumers dispatcher)
+            throws RecoverDelayedDeliveryTrackerException {
+        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+                TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
+                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
     }
 
     /**
