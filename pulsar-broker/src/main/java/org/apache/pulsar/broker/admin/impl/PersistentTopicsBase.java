@@ -3274,12 +3274,14 @@ public class PersistentTopicsBase extends AdminResource {
         }
         Set<String> replicationClusters = Sets.newHashSet(clusterIds);
         return validatePoliciesReadOnlyAccessAsync()
-                .thenCompose(__ -> {
+                .thenAccept(__ -> {
                     if (replicationClusters.contains("global")) {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Cannot specify global in the list of replication clusters");
                     }
-                    Set<String> clusters = clusters();
+                })
+                .thenCompose(__ -> clustersAsync())
+                .thenCompose(clusters -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>(replicationClusters.size());
                     for (String clusterId : replicationClusters) {
                         if (!clusters.contains(clusterId)) {
