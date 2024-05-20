@@ -276,7 +276,9 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
             assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
                     || unwrapEx instanceof PulsarClientException.NotFoundException);
         }
+
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().partitionedTopicExists(topicName);
         assertFalse(partitionedTopics.contains(topicNameStr));
         List<String> topicList = admin.topics().getList("public/default");
         assertFalse(topicList.contains(topicNameStr));

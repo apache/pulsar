@@ -59,6 +59,16 @@ public interface LookupService extends AutoCloseable {
     CompletableFuture<LookupTopicResult> getBroker(TopicName topicName);
 
     /**
+     * Returns {@link PartitionedTopicMetadata} for a given topic.
+     * Note: this method will try to create the topic partitioned metadata if it does not exist.
+     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean)}}.
+     */
+    @Deprecated
+    default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+        return getPartitionedTopicMetadata(topicName, true);
+    }
+
+    /**
      * 1.Get the partitions if the topic exists. Return "{partition: n}" if a partitioned topic exists;
      *  return "{partition: 0}" if a non-partitioned topic exists.
      * 2. When {@param metadataAutoCreationEnabled} is "false," neither partitioned topic nor non-partitioned topic

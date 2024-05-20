@@ -610,81 +610,88 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     isAuthorized -> {
                 if (isAuthorized) {
                     // Get if exists, respond not found error if not exists.
-                    if (!partitionMetadata.isMetadataAutoCreationEnabled()) {
-                        final NamespaceResources namespaceResources = getBrokerService().pulsar().getPulsarResources()
-                                .getNamespaceResources();
-                        final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
-                                .getTopicResources();
-                        namespaceResources.getPartitionedTopicResources()
-                            .getPartitionedTopicMetadataAsync(topicName, false)
-                            .thenAccept(metadata -> {
-                                if (metadata.isPresent()) {
-                                    commandSender.sendPartitionMetadataResponse(metadata.get().partitions, requestId);
-                                    lookupSemaphore.release();
-                                    return;
-                                }
-                                if (topicName.isPersistent()) {
-                                    topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
-                                        if (exists) {
-                                            commandSender.sendPartitionMetadataResponse(0, requestId);
+                    getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
+                        boolean autoCreateIfNotExist = brokerAllowAutoCreate
+                                && partitionMetadata.isMetadataAutoCreationEnabled();
+                        if (!autoCreateIfNotExist) {
+                            final NamespaceResources namespaceResources = getBrokerService().pulsar().getPulsarResources()
+                                    .getNamespaceResources();
+                            final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
+                                    .getTopicResources();
+                            namespaceResources.getPartitionedTopicResources()
+                                .getPartitionedTopicMetadataAsync(topicName, false)
+                                .thenAccept(metadata -> {
+                                    if (metadata.isPresent()) {
+                                        commandSender.sendPartitionMetadataResponse(metadata.get().partitions, requestId);
+                                        lookupSemaphore.release();
+                                        return;
+                                    }
+                                    if (topicName.isPersistent()) {
+                                        topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
+                                            if (exists) {
+                                                commandSender.sendPartitionMetadataResponse(0, requestId);
+                                                lookupSemaphore.release();
+                                                return;
+                                            }
+                                            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
+                                                    "", requestId));
                                             lookupSemaphore.release();
                                             return;
-                                        }
-                                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
-                                                        "", requestId));
-                                        lookupSemaphore.release();
-                                    }).exceptionally(ex -> {
-                                        log.error("{} {} Failed to get partition metadata", topicName,
-                                                ServerCnx.this.toString(), ex);
-                                        writeAndFlush(
-                                                Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                "Failed to check partition metadata",
-                                                requestId));
-                                        lookupSemaphore.release();
-                                        return null;
-                                    });
-                                }
-                            }).exceptionally(ex -> {
-                                log.error("{} {} Failed to get partition metadata", topicName,
-                                        ServerCnx.this.toString(), ex);
-                                writeAndFlush(
-                                        Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                "Failed to get partition metadata",
-                                                requestId));
-                                lookupSemaphore.release();
-                                return null;
-                            });
-                    }
-                    // Get if exists, create a new one if not exists.
-                    unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
-                        .handle((metadata, ex) -> {
-                                if (ex == null) {
-                                    int partitions = metadata.partitions;
-                                    commandSender.sendPartitionMetadataResponse(partitions, requestId);
-                                } else {
-                                    if (ex instanceof PulsarClientException) {
-                                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                remoteAddress, topicName, ex.getMessage());
-                                        commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
-                                                ex.getMessage(), requestId);
-                                    } else {
-                                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                topicName, ex.getMessage(), ex);
-                                        ServerError error = ServerError.ServiceNotReady;
-                                        if (ex instanceof RestException restException){
-                                            int responseCode = restException.getResponse().getStatus();
-                                            if (responseCode == NOT_FOUND.getStatusCode()){
-                                                error = ServerError.TopicNotFound;
-                                            } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
-                                                error = ServerError.MetadataError;
-                                            }
-                                        }
-                                        commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
+                                        }).exceptionally(ex -> {
+                                            log.error("{} {} Failed to get partition metadata", topicName,
+                                                    ServerCnx.this.toString(), ex);
+                                            writeAndFlush(
+                                                    Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                            "Failed to check partition metadata",
+                                                            requestId));
+                                            lookupSemaphore.release();
+                                            return null;
+                                        });
                                     }
-                                }
-                                lookupSemaphore.release();
-                                return null;
-                            });
+                                }).exceptionally(ex -> {
+                                    log.error("{} {} Failed to get partition metadata", topicName,
+                                            ServerCnx.this.toString(), ex);
+                                    writeAndFlush(
+                                            Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                    "Failed to get partition metadata",
+                                                    requestId));
+                                    lookupSemaphore.release();
+                                    return null;
+                                });
+                        } else {
+                            // Get if exists, create a new one if not exists.
+                            unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
+                                .handle((metadata, ex) -> {
+                                    if (ex == null) {
+                                        int partitions = metadata.partitions;
+                                        commandSender.sendPartitionMetadataResponse(partitions, requestId);
+                                    } else {
+                                        if (ex instanceof PulsarClientException) {
+                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                    remoteAddress, topicName, ex.getMessage());
+                                            commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
+                                                    ex.getMessage(), requestId);
+                                        } else {
+                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                    topicName, ex.getMessage(), ex);
+                                            ServerError error = ServerError.ServiceNotReady;
+                                            if (ex instanceof RestException restException){
+                                                int responseCode = restException.getResponse().getStatus();
+                                                if (responseCode == NOT_FOUND.getStatusCode()){
+                                                    error = ServerError.TopicNotFound;
+                                                } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
+                                                    error = ServerError.MetadataError;
+                                                }
+                                            }
+                                            commandSender.sendPartitionMetadataResponse(error, ex.getMessage(),
+                                                    requestId);
+                                        }
+                                    }
+                                    lookupSemaphore.release();
+                                    return null;
+                                });
+                        }
+                    });
                 } else {
                     final String msg = "Client is not authorized to Get Partition Metadata";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
