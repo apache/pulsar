@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryProducerStats implements AutoCloseable {
@@ -33,7 +34,7 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
     // Replaces pulsar_producer_msg_rate_in
     public static final String MESSAGE_IN_COUNTER = "pulsar.broker.producer.message.incoming.count";
     // Replaces pulsar_producer_msg_throughput_in
-    public static final String BYTES_IN_COUNTER = "pulsar.broker.producer.message.incoming.size";
+    public static final String BYTES_IN_COUNTER = "pulsar.broker.consumer.message.incoming.size";
     public static final String MESSAGE_DROP_COUNTER = "pulsar.broker.producer.message.drop.count";
     private final ObservableLongMeasurement messageInCounter;
     private final ObservableLongMeasurement bytesInCounter;
@@ -114,9 +115,12 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
         builder.put(OpenTelemetryAttributes.PULSAR_PRODUCER_METADATA, metadataList);
         var attributes = builder.build();
 
-        var dummyValue = 0;
-        messageInCounter.record(dummyValue, attributes);
-        bytesInCounter.record(dummyValue, attributes);
-        messageDropCounter.record(dummyValue, attributes);
+        var stats = producer.getStats();
+        messageInCounter.record(stats.getMsgInCounter(), attributes);
+        bytesInCounter.record(stats.getBytesInCounter(), attributes);
+
+        if (stats instanceof NonPersistentPublisherStatsImpl nonPersistentStats) {
+            messageDropCounter.record(nonPersistentStats.getMsgDropCount(), attributes);
+        }
     }
 }
