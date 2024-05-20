@@ -92,6 +92,31 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Long> PULSAR_CONSUMER_CONNECTED_SINCE = AttributeKey.longKey("pulsar.consumer.connected_since");
 
     /**
+     * The name of the Pulsar producer.
+     */
+    AttributeKey<String> PULSAR_PRODUCER_NAME = AttributeKey.stringKey("pulsar.producer.name");
+
+    /**
+     * The ID of the Pulsar producer.
+     */
+    AttributeKey<Long> PULSAR_PRODUCER_ID = AttributeKey.longKey("pulsar.producer.id");
+
+    /**
+     * The access mode of the Pulsar producer.
+     */
+    AttributeKey<String> PULSAR_PRODUCER_ACCESS_MODE = AttributeKey.stringKey("pulsar.producer.access_mode");
+
+    /**
+     * The producer metadata properties, as a list of "key:value" pairs.
+     */
+    AttributeKey<List<String>> PULSAR_PRODUCER_METADATA = AttributeKey.stringArrayKey("pulsar.producer.metadata");
+
+    /**
+     * The UTC timestamp of the Pulsar producer creation.
+     */
+    AttributeKey<Long> PULSAR_PRODUCER_CONNECTED_SINCE = AttributeKey.longKey("pulsar.producer.connected_since");
+
+    /**
      * The address of the Pulsar client.
      */
     AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");
