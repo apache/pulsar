@@ -82,6 +82,8 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -607,6 +609,53 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
+                    // Get if exists, respond not found error if not exists.
+                    if (!partitionMetadata.isMetadataAutoCreationEnabled()) {
+                        final NamespaceResources namespaceResources = getBrokerService().pulsar().getPulsarResources()
+                                .getNamespaceResources();
+                        final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
+                                .getTopicResources();
+                        namespaceResources.getPartitionedTopicResources()
+                            .getPartitionedTopicMetadataAsync(topicName, false)
+                            .thenAccept(metadata -> {
+                                if (metadata.isPresent()) {
+                                    commandSender.sendPartitionMetadataResponse(metadata.get().partitions, requestId);
+                                    lookupSemaphore.release();
+                                    return;
+                                }
+                                if (topicName.isPersistent()) {
+                                    topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
+                                        if (exists) {
+                                            commandSender.sendPartitionMetadataResponse(0, requestId);
+                                            lookupSemaphore.release();
+                                            return;
+                                        }
+                                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
+                                                        "", requestId));
+                                        lookupSemaphore.release();
+                                    }).exceptionally(ex -> {
+                                        log.error("{} {} Failed to get partition metadata", topicName,
+                                                ServerCnx.this.toString(), ex);
+                                        writeAndFlush(
+                                                Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                "Failed to check partition metadata",
+                                                requestId));
+                                        lookupSemaphore.release();
+                                        return null;
+                                    });
+                                }
+                            }).exceptionally(ex -> {
+                                log.error("{} {} Failed to get partition metadata", topicName,
+                                        ServerCnx.this.toString(), ex);
+                                writeAndFlush(
+                                        Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                "Failed to get partition metadata",
+                                                requestId));
+                                lookupSemaphore.release();
+                                return null;
+                            });
+                    }
+                    // Get if exists, create a new one if not exists.
                     unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
                         .handle((metadata, ex) -> {
                                 if (ex == null) {

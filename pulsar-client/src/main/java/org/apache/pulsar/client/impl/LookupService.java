@@ -59,12 +59,19 @@ public interface LookupService extends AutoCloseable {
     CompletableFuture<LookupTopicResult> getBroker(TopicName topicName);
 
     /**
-     * Returns {@link PartitionedTopicMetadata} for a given topic.
-     *
-     * @param topicName topic-name
-     * @return
+     * 1.Get the partitions if the topic exists. Return "{partition: n}" if a partitioned topic exists;
+     *  return "{partition: 0}" if a non-partitioned topic exists.
+     * 2. When {@param metadataAutoCreationEnabled} is "false," neither partitioned topic nor non-partitioned topic
+     *   does not exist. You will get an {@link PulsarClientException.NotFoundException}.
+     *  2-1. You will get a {@link PulsarClientException.NotSupportedException} if the broker's version is an older
+     *   one that does not support this feature and the Pulsar client is using a binary protocol "serviceUrl".
+     * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
+     *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
+     *  For the result, see case 1.
+     * @version 3.3.0.
      */
-    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
+                                                                            boolean metadataAutoCreationEnabled);
 
     /**
      * Returns current SchemaInfo {@link SchemaInfo} for a given topic.

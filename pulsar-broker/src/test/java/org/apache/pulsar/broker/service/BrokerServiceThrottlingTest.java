@@ -198,7 +198,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             for (int i = 0; i < totalConsumers; i++) {
                 long reqId = 0xdeadbeef + i;
                 Future<?> f = executor.submit(() -> {
-                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId);
+                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId, true);
                         pool.getConnection(resolver.resolveHost())
                             .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
                             .get();
