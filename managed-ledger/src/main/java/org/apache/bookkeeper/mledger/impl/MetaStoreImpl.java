@@ -249,6 +249,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
         String path = PREFIX + ledgerName + "/" + cursorName;
         byte[] content = compressCursorInfo(info);
+        log.info("[{}] Persisting cursor={} info with content size {} bytes to metastore",
+                ledgerName, cursorName, content.length);
 
         long expectedVersion;
 
@@ -267,6 +269,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor
                         .chooseThread(ledgerName))
                 .exceptionally(ex -> {
+                    log.error("[{}] [{}] Failed to update cursor info", ledgerName, cursorName, ex);
                     executor.executeOrdered(ledgerName,
                             () -> callback.operationFailed(getException(ex)));
                     return null;
@@ -525,6 +528,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             compositeByteBuf.addComponent(true, encodeByteBuf);
             byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
             compositeByteBuf.readBytes(dataBytes);
+            log.info("Compressed cursor info, info size {}, metadata size {}, compressed size: {}",
+                    info.length, metadata.length, dataBytes.length);
             return dataBytes;
         } finally {
             if (metadataByteBuf != null) {

@@ -2793,6 +2793,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
             return;
         }
+        log.info("[{}][{}] Persisting cursor metadata into metadata store (persistIndividualDeletedMessageRanges: {})",
+                ledger.getName(), name, persistIndividualDeletedMessageRanges);
 
         final Stat lastCursorLedgerStat = cursorLedgerStat;
 
@@ -2807,7 +2809,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         info.addAllProperties(buildPropertiesMap(properties));
         info.addAllCursorProperties(buildStringPropertiesMap(cursorProperties));
         if (persistIndividualDeletedMessageRanges) {
-            info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+            info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges(true));
             if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
                 info.addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList());
             }
@@ -3153,7 +3155,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return stringProperties;
     }
 
-    private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
+    private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges(boolean forMetastore) {
         lock.writeLock().lock();
         try {
             log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {}",
@@ -3188,19 +3190,28 @@ public class ManagedCursorImpl implements ManagedCursor {
                         .setUpperEndpoint(upperPosition)
                         .build();
 
-                acksSerializedSize.addAndGet(messageRange.getSerializedSize());
+                int currentSize = acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);
+
+                if (forMetastore && currentSize > (1024 * 1024 - 10 * 1024)) {
+                    log.warn("[{}] [{}] buildIndividualDeletedMessageRanges, "
+                                    + "rangeListSize {} "
+                                    + "maxUnackedRangesToPersist {}, "
+                                    + "reached {} bytes that is too big for the metastore",
+                            ledger.getName(), name,
+                            rangeList.size(),
+                            getConfig().getMaxUnackedRangesToPersist(), currentSize);
+                    return false;
+                }
 
                 return rangeList.size() <= getConfig().getMaxUnackedRangesToPersist();
             });
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
-            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, numRanges {} "
-                            + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
+            log.info("[{}] [{}] buildIndividualDeletedMessageRanges, rangeListSize {} "
                             + "maxUnackedRangesToPersist {}",
-                    ledger.getName(), name, individualDeletedMessages.size(),
-                    individualDeletedMessagesSerializedSize, rangeList.size(),
+                    ledger.getName(), name, rangeList.size(),
                     getConfig().getMaxUnackedRangesToPersist());
 
             return rangeList;
@@ -3230,11 +3241,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
-            log.info("[{}] [{}] scanIndividualDeletedMessageRanges, numRanges {} "
-                            + "individualDeletedMessagesSerializedSize {} rangeListSize {} "
+            log.info("[{}] [{}] scanIndividualDeletedMessageRanges, "
+                            + "rangeListSize {} "
                             + "maxUnackedRangesToPersist {}",
-                    ledger.getName(), name, individualDeletedMessages.size(),
-                    individualDeletedMessagesSerializedSize, rangeCount.get(),
+                    ledger.getName(), name,
+                    rangeCount.get(),
                     getConfig().getMaxUnackedRangesToPersist());
         } finally {
             lock.readLock().unlock();
@@ -3387,27 +3398,30 @@ public class ManagedCursorImpl implements ManagedCursor {
                                             PositionImpl position,
                                             Runnable onFinished) {
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
-            if (rc == BKException.Code.OK) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Updated cursor {} position {} in meta-ledger {}", ledger.getName(), name, position,
-                            lh1.getId());
+            try {
+                if (rc == BKException.Code.OK) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Updated cursor {} position {} in meta-ledger {}", ledger.getName(), name,
+                                position,
+                                lh1.getId());
+                    }
+
+                    rolloverLedgerIfNeeded(lh1);
+
+                    mbean.persistToLedger(true);
+                    mbean.addWriteCursorLedgerSize(data.readableBytes());
+                    callback.operationComplete();
+                } else {
+                    log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,
+                            position, lh1.getId(), BKException.getMessage(rc));
+                    // If we've had a write error, the ledger will be automatically closed, we need to create a new one,
+                    // in the meantime the mark-delete will be queued.
+                    STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
+
+                    // Before giving up, try to persist the position in the metadata store.
+                    persistPositionToMetaStore(mdEntry, callback);
                 }
-
-                rolloverLedgerIfNeeded(lh1);
-
-                mbean.persistToLedger(true);
-                mbean.addWriteCursorLedgerSize(data.readableBytes());
-                callback.operationComplete();
-                onFinished.run();
-            } else {
-                log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,
-                        position, lh1.getId(), BKException.getMessage(rc));
-                // If we've had a write error, the ledger will be automatically closed, we need to create a new one,
-                // in the meantime the mark-delete will be queued.
-                STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
-
-                // Before giving up, try to persist the position in the metadata store.
-                persistPositionToMetaStore(mdEntry, callback);
+            } finally {
                 onFinished.run();
             }
         }, null);
@@ -3502,6 +3516,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void persistPositionToMetaStore(MarkDeleteEntry mdEntry, final VoidCallback callback) {
+        log.info("[{}][{}] Persisting cursor metadata into metadata store", ledger.getName(), name);
         final Position newPosition = mdEntry.newPosition;
         STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
         mbean.persistToLedger(false);
