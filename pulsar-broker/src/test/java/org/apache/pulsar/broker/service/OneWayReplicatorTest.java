@@ -689,4 +689,63 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin2.topics().delete(topicName);
         });
     }
+
+    @Test
+    public void testDeleteNonPartitionedTopic() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        // Verify replicator works.
+        verifyReplicationWorks(topicName);
+
+        // Disable replication.
+        setTopicLevelClusters(topicName, Arrays.asList(cluster1), admin1, pulsar1);
+        setTopicLevelClusters(topicName, Arrays.asList(cluster2), admin2, pulsar2);
+
+        // Delete topic.
+        admin1.topics().delete(topicName);
+        admin2.topics().delete(topicName);
+
+        // Verify the topic was deleted.
+        assertFalse(pulsar1.getPulsarResources().getTopicResources()
+                .persistentTopicExists(TopicName.get(topicName)).join());
+        assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                .persistentTopicExists(TopicName.get(topicName)).join());
+    }
+
+    @Test
+    public void testDeletePartitionedTopic() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createPartitionedTopic(topicName, 2);
+
+        // Verify replicator works.
+        verifyReplicationWorks(topicName);
+
+        // Disable replication.
+        setTopicLevelClusters(topicName, Arrays.asList(cluster1), admin1, pulsar1);
+        setTopicLevelClusters(topicName, Arrays.asList(cluster2), admin2, pulsar2);
+
+        // Delete topic.
+        admin1.topics().deletePartitionedTopic(topicName);
+        if (!usingGlobalZK) {
+            admin2.topics().deletePartitionedTopic(topicName);
+        }
+
+        // Verify the topic was deleted.
+        assertFalse(pulsar1.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(topicName)));
+        assertFalse(pulsar2.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExists(TopicName.get(topicName)));
+        if (!usingGlobalZK) {
+            // So far, the topic partitions on the remote cluster are needed to delete manually when using global ZK.
+            assertFalse(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(0)).join());
+            assertFalse(pulsar1.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+            assertFalse(pulsar2.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(topicName).getPartition(1)).join());
+        }
+    }
 }

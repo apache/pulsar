@@ -26,7 +26,6 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>3.4.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
   </parent>
 
   <artifactId>managed-ledger</artifactId>
@@ -147,7 +146,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>

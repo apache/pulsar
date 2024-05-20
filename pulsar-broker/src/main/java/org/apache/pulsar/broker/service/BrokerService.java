@@ -1986,6 +1986,7 @@ public class BrokerService implements Closeable {
                             .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
                 }
             }
+            managedLedgerConfig.setTriggerOffloadOnTopicLoad(serviceConfig.isTriggerOffloadOnTopicLoad());
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
                     serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());

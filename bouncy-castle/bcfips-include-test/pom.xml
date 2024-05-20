@@ -25,7 +25,6 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>bouncy-castle-parent</artifactId>
     <version>3.4.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
   </parent>
 
   <artifactId>bcfips-include-test</artifactId>
