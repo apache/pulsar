@@ -195,7 +195,17 @@ public class UnloadManager implements StateChangeListener {
         }
 
         switch (state) {
-            case Init, Owned -> complete(serviceUnit, t);
+            case Free -> {
+                if (!data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Init -> {
+                if (data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Owned -> complete(serviceUnit, t);
             case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
             case Assigning -> LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }

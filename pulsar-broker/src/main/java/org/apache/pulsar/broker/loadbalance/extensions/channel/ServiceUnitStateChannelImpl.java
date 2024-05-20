@@ -867,11 +867,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         if (isTargetBroker(data.sourceBroker())) {
-            // If data.force() is true, it means that this Free state is from the orphan cleanup job, where
-            // the source broker is likely unavailable. In this case, we don't tombstone it immediately.
+            // If data.force(), try closeServiceUnit and tombstone the bundle.
             CompletableFuture<Void> future =
                     (data.force() ? closeServiceUnit(serviceUnit, true)
-                            : tombstoneAsync(serviceUnit)).thenApply(__ -> null);
+                            .thenCompose(__ -> tombstoneAsync(serviceUnit))
+                            : CompletableFuture.completedFuture(0)).thenApply(__ -> null);
             stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         } else {

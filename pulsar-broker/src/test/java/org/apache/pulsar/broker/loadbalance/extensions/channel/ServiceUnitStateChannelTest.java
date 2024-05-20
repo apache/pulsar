@@ -1032,8 +1032,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         channel1.publishUnloadEventAsync(unload);
 
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
@@ -1054,10 +1054,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         channel2.publishUnloadEventAsync(unload2);
 
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
 
-        // test monitor if Init -> Init
+        // test monitor if Free -> Init
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
         FieldUtils.writeDeclaredField(channel1,
@@ -1078,7 +1078,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
         validateMonitorCounters(leader,
                 0,
-                0,
+                1,
                 0,
                 0,
                 0,
@@ -1105,8 +1105,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         channel1.publishUnloadEventAsync(unload);
 
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
 
         assertEquals(Optional.empty(), channel1.getOwnerAsync(bundle).get());
         assertEquals(Optional.empty(), channel2.getOwnerAsync(bundle).get());
@@ -1188,8 +1188,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         channel1.publishUnloadEventAsync(unload);
 
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
 
         channel1.publishAssignEventAsync(bundle, brokerId1);
 
@@ -1665,6 +1665,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 20 * 1000, true);
         start = System.currentTimeMillis();
         assertTrue(channel1.getOwnerAsync(bundle).get().isEmpty());
+        waitUntilState(channel1, bundle, Init);
+        waitUntilState(channel2, bundle, Init);
+
         assertTrue(System.currentTimeMillis() - start < 20_000);
         // simulate ownership cleanup(brokerId1 selected owner) by the leader channel
         overrideTableViews(bundle,
