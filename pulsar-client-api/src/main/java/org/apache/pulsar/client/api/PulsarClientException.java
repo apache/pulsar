@@ -1139,7 +1139,7 @@ public class PulsarClientException extends IOException {
         } else if (cause instanceof ConnectFailedException) {
             newException = new ConnectFailedException(msg);
         } else {
-            newException = new PulsarClientException(cause);
+            newException = new PulsarClientException(t);
         }
 
         Collection<Throwable> previousExceptions = getPreviousExceptions(t);
