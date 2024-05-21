@@ -109,6 +109,7 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -254,6 +255,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
     private OpenTelemetryTopicStats openTelemetryTopicStats;
+    private OpenTelemetryConsumerStats openTelemetryConsumerStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -442,6 +444,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public CompletableFuture<Void> closeAsync() {
         mutex.lock();
         try {
+            // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
+            // Pulsar clients that could send lookup requests that affect unloading.
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
             if (closeFuture != null) {
                 return closeFuture;
             }
@@ -449,6 +457,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (brokerService != null) {
                 brokerService.unloadNamespaceBundlesGracefully();
             }
+            // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
@@ -510,11 +519,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
-            // close protocol handler before closing broker service
-            if (protocolHandlers != null) {
-                protocolHandlers.close();
-                protocolHandlers = null;
-            }
 
             // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
             cancelLoadBalancerTasks();
@@ -630,8 +634,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
+            if (openTelemetryConsumerStats != null) {
+                openTelemetryConsumerStats.close();
+                openTelemetryConsumerStats = null;
+            }
             if (openTelemetryTopicStats != null) {
                 openTelemetryTopicStats.close();
+                openTelemetryTopicStats = null;
             }
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
@@ -775,6 +784,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
+            openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
 
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())

@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.utils.auth.tokens;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
@@ -30,6 +35,45 @@ import picocli.CommandLine.Option;
  * TokensCliUtils Tests.
  */
 public class TokensCliUtilsTest {
+
+    @Test
+    public void testCreateToken() {
+        PrintStream oldStream = System.out;
+        try {
+            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(baoStream));
+
+            new TokensCliUtils().execute(new String[]{"create-secret-key", "--base64"});
+            String secretKey = baoStream.toString();
+
+            baoStream.reset();
+
+            String[] command = {"create", "--secret-key",
+                    "data:;base64," + secretKey,
+                    "--subject", "test",
+                    "--headers", "kid=test",
+                    "--headers", "my-k=my-v"
+            };
+
+            new TokensCliUtils().execute(command);
+            String token = baoStream.toString();
+
+            Jwt<?, ?> jwt = Jwts.parserBuilder()
+                    .setSigningKey(Decoders.BASE64.decode(secretKey))
+                    .build()
+                    .parseClaimsJws(token);
+
+            JwsHeader header = (JwsHeader) jwt.getHeader();
+            String keyId = header.getKeyId();
+            assertEquals(keyId, "test");
+            assertEquals(header.get("my-k"), "my-v");
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            System.setOut(oldStream);
+        }
+    }
 
     /**
      * Test tokens generate docs.

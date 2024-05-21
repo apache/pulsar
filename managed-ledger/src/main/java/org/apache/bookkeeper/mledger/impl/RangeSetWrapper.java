@@ -52,7 +52,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                            RangeBoundConsumer<T> rangeBoundConsumer,
                            ManagedCursorImpl managedCursor) {
         requireNonNull(managedCursor);
-        this.config = managedCursor.getConfig();
+        this.config = managedCursor.getManagedLedger().getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
                 ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
