@@ -61,6 +61,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         super("oxia-metadata");
         this.client = oxia;
         this.identity = identity;
+        this.synchronizer = Optional.empty();
         init();
     }
 
