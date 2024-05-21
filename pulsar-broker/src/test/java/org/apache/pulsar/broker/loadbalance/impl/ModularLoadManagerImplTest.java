@@ -435,7 +435,7 @@ public class ModularLoadManagerImplTest {
         pulsarServices.put(pulsar1.getWebServiceAddress(), pulsar1);
         pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
         MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
-        PulsarService leaderBroker = pulsarServices.get(pulsar1.getLeaderElectionService().getCurrentLeader().get().getServiceUrl());
+        PulsarService leaderBroker = pulsarServices.get("http://" + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
                 leaderBroker.getLoadManager().get(), "loadManager");
         int topK = 1;
