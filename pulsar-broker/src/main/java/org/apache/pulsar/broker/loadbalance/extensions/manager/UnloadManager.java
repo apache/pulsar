@@ -93,7 +93,7 @@ public class UnloadManager implements StateChangeListener {
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
         ServiceUnitState state = ServiceUnitStateData.state(data);
 
-        if (StringUtils.isBlank(data.sourceBroker()) && (state == Owned || state == Assigning)) {
+        if ((state == Owned || state == Assigning) && StringUtils.isBlank(data.sourceBroker())) {
             if (log.isDebugEnabled()) {
                 log.debug("Skipping {} for service unit {} from the assignment command.", data, serviceUnit);
             }
@@ -113,7 +113,17 @@ public class UnloadManager implements StateChangeListener {
         }
 
         switch (state) {
-            case Free, Owned -> this.complete(serviceUnit, t);
+            case Free -> {
+                if (!data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Init -> {
+                if (data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Owned -> complete(serviceUnit, t);
             default -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Handling {} for service unit {}", data, serviceUnit);
