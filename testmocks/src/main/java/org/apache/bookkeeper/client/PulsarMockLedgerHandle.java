@@ -26,8 +26,10 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
@@ -65,8 +67,10 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     boolean fenced = false;
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
-                           DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
+                           DigestType digest, byte[] passwd,
+                                  Map<String, byte[]> properties) throws GeneralSecurityException {
+        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd, properties),
+                        new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
@@ -267,13 +271,15 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
+                                                 Map<String, byte[]> properties) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
         return LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
             .withId(id)
             .newEnsembleEntry(0L, ensemble)
+            .withCustomMetadata(properties != null ? properties : Collections.emptyMap())
             .build();
     }
 
