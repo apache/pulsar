@@ -40,6 +40,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -450,7 +451,7 @@ public class ModularLoadManagerImplTest {
         String protocol = "http://";
         for (int i = 0; i < totalBundles; i++) {
             final BundleData bundleData = new BundleData(10, 1000);
-            final String bundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[i]);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
             final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
             longTermMessageData.setMsgThroughputIn(1000 * i);
             longTermMessageData.setMsgThroughputOut(1000 * i);
@@ -463,7 +464,7 @@ public class ModularLoadManagerImplTest {
             metadataCache.create(bundleDataPath, bundleData).join();
         }
         for (int i = 0; i < totalBundles; i++) {
-            final String bundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[i]);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
             assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
         }
 
@@ -471,11 +472,11 @@ public class ModularLoadManagerImplTest {
         loadManager.writeBundleDataOnZooKeeper();
         int filterBundleCount = totalBundles - exportBundleCount;
         for (int i = 0; i < filterBundleCount; i++) {
-            final String bundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[i]);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
             assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
         }
         for (int i = filterBundleCount; i < totalBundles; i++) {
-            final String bundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_PATH, bundles[i]);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
             assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 1);
         }
     }
