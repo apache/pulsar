@@ -325,7 +325,8 @@ public interface PulsarClient extends Closeable {
      * 1. Get the partitions if the topic exists. Return "[{partition-0}, {partition-1}....{partition-n}}]" if a
      *   partitioned topic exists; return "[{topic}]" if a non-partitioned topic exists.
      * 2. When {@param metadataAutoCreationEnabled} is "false", neither the partitioned topic nor non-partitioned
-     *   topic does not exist. You will get an {@link PulsarClientException.NotFoundException}.
+     *   topic does not exist. You will get an {@link PulsarClientException.NotFoundException} or a
+     *   {@link PulsarClientException.TopicDoesNotExistException}.
      *  2-1. You will get a {@link PulsarClientException.NotSupportedException} with metadataAutoCreationEnabled=false
      *    on an old broker version which does not support getting partitions without partitioned metadata auto-creation.
      * 3. When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
