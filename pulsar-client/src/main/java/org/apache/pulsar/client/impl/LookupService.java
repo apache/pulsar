@@ -75,7 +75,8 @@ public interface LookupService extends AutoCloseable {
      *   does not exist. You will get a {@link PulsarClientException.NotFoundException} or
      *   a {@link PulsarClientException.TopicDoesNotExistException}.
      *  2-1. You will get a {@link PulsarClientException.NotSupportedException} with metadataAutoCreationEnabled=false
-     *       on an old broker version which does not support getting partitions without partitioned metadata auto-creation.
+     *       on an old broker version which does not support getting partitions without partitioned metadata
+     *       auto-creation.
      * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
      *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
      *  For the result, see case 1.
