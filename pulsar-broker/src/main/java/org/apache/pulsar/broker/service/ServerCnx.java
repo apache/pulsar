@@ -614,15 +614,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         boolean autoCreateIfNotExist = brokerAllowAutoCreate
                                 && partitionMetadata.isMetadataAutoCreationEnabled();
                         if (!autoCreateIfNotExist) {
-                            final NamespaceResources namespaceResources = getBrokerService().pulsar().getPulsarResources()
-                                    .getNamespaceResources();
+                            final NamespaceResources namespaceResources = getBrokerService().pulsar()
+                                    .getPulsarResources().getNamespaceResources();
                             final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
                                     .getTopicResources();
                             namespaceResources.getPartitionedTopicResources()
                                 .getPartitionedTopicMetadataAsync(topicName, false)
                                 .thenAccept(metadata -> {
                                     if (metadata.isPresent()) {
-                                        commandSender.sendPartitionMetadataResponse(metadata.get().partitions, requestId);
+                                        commandSender.sendPartitionMetadataResponse(metadata.get().partitions,
+                                                requestId);
                                         lookupSemaphore.release();
                                         return;
                                     }
@@ -633,8 +634,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 lookupSemaphore.release();
                                                 return;
                                             }
-                                            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
-                                                    "", requestId));
+                                            writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                    ServerError.TopicNotFound, "", requestId));
                                             lookupSemaphore.release();
                                             return;
                                         }).exceptionally(ex -> {
