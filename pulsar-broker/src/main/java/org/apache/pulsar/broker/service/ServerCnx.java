@@ -619,24 +619,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .getTopicResources();
                             namespaceResources.getPartitionedTopicResources()
                                 .getPartitionedTopicMetadataAsync(topicName, false)
-                                .thenAccept(metadata -> {
-                                    if (metadata.isPresent()) {
+                                .handle((metadata, getMetadataEx) -> {
+                                    if (getMetadataEx != null) {
+                                        log.error("{} {} Failed to get partition metadata", topicName,
+                                                ServerCnx.this.toString(), getMetadataEx);
+                                        writeAndFlush(
+                                                Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                        "Failed to get partition metadata",
+                                                        requestId));
+                                    } else if (metadata.isPresent()) {
                                         commandSender.sendPartitionMetadataResponse(metadata.get().partitions,
                                                 requestId);
-                                        lookupSemaphore.release();
-                                        return;
-                                    }
-                                    if (topicName.isPersistent()) {
+                                    } else if (topicName.isPersistent()) {
                                         topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
                                             if (exists) {
                                                 commandSender.sendPartitionMetadataResponse(0, requestId);
-                                                lookupSemaphore.release();
                                                 return;
                                             }
                                             writeAndFlush(Commands.newPartitionMetadataResponse(
                                                     ServerError.TopicNotFound, "", requestId));
-                                            lookupSemaphore.release();
-                                            return;
                                         }).exceptionally(ex -> {
                                             log.error("{} {} Failed to get partition metadata", topicName,
                                                     ServerCnx.this.toString(), ex);
@@ -644,24 +645,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                                                             "Failed to check partition metadata",
                                                             requestId));
-                                            lookupSemaphore.release();
                                             return null;
                                         });
+                                    } else {
+                                        // Regarding non-persistent topic, we do not know whether it exists or not.
+                                        // Just return a non-partitioned metadata if partitioned metadata does not
+                                        // exist.
+                                        // Broker will respond a not found error when doing subscribing or producing if
+                                        // broker not allow to auto create topics.
+                                        commandSender.sendPartitionMetadataResponse(0, requestId);
                                     }
-                                }).exceptionally(ex -> {
-                                    log.error("{} {} Failed to get partition metadata", topicName,
-                                            ServerCnx.this.toString(), ex);
-                                    writeAndFlush(
-                                            Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                    "Failed to get partition metadata",
-                                                    requestId));
-                                    lookupSemaphore.release();
                                     return null;
+                                }).whenComplete((ignore, ignoreEx) -> {
+                                    log.error("{} {} Failed to handle partition metadata request", topicName,
+                                            ServerCnx.this.toString(), ignoreEx);
+                                    lookupSemaphore.release();
                                 });
                         } else {
                             // Get if exists, create a new one if not exists.
                             unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
-                                .handle((metadata, ex) -> {
+                                .whenComplete((metadata, ex) -> {
+                                    lookupSemaphore.release();
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
                                         commandSender.sendPartitionMetadataResponse(partitions, requestId);
@@ -687,8 +691,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     requestId);
                                         }
                                     }
-                                    lookupSemaphore.release();
-                                    return null;
                                 });
                         }
                     });
