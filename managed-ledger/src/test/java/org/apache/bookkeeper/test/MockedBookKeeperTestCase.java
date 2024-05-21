@@ -67,6 +67,10 @@ public abstract class MockedBookKeeperTestCase {
         this.numBookies = numBookies;
     }
 
+    protected void setupManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
+        // No-op
+    }
+
     @BeforeMethod(alwaysRun = true)
     public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
@@ -84,7 +88,8 @@ public abstract class MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         initManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        setupManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, managedLedgerFactoryConfig);
 
         setUpTestCase();
     }

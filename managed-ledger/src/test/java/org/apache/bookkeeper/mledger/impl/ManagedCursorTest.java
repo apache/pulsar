@@ -128,6 +128,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+    @Override
+    protected void setupManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
+        super.setupManagedLedgerFactoryConfig(config);
+        config.setManagedCursorInfoCompressionType("LZ4");
+    }
 
     @Test
     public void testCloseCursor() throws Exception {
@@ -3269,7 +3274,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     try {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
-                        positionInfo = PositionInfo.parseFrom(entry.getEntry());
+                        byte[] data = entry.getEntry();
+                        data = ManagedCursorImpl.decompressDataIfNeeded(data, lh);
+                        positionInfo = PositionInfo.parseFrom(data);
                         individualDeletedMessagesCount.set(positionInfo.getIndividualDeletedMessagesCount());
                     } catch (Exception e) {
                     }

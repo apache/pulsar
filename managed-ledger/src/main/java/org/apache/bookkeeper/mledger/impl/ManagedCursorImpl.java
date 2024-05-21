@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.airlift.compress.MalformedInputException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.CompositeByteBuf;
@@ -3460,25 +3461,33 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private static byte[] decompressDataIfNeeded(byte[] data, LedgerHandle lh) {
+    static byte[] decompressDataIfNeeded(byte[] data, LedgerHandle lh) {
         byte[] pulsarCursorInfoCompression =
                 lh.getCustomMetadata().get(METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE);
         if (pulsarCursorInfoCompression != null) {
             String pulsarCursorInfoCompressionString = new String(pulsarCursorInfoCompression);
-            CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
-                    CompressionType.valueOf(pulsarCursorInfoCompressionString));
+            if (log.isDebugEnabled()) {
+                log.debug("Ledger {} compression {} decompressing {} bytes, full {}",
+                        lh.getId(), pulsarCursorInfoCompressionString, data.length,
+                        ByteBufUtil.prettyHexDump(Unpooled.wrappedBuffer(data)));
+            }
             ByteArrayInputStream input = new ByteArrayInputStream(data);
             DataInputStream dataInputStream = new DataInputStream(input);
             try {
                 int uncompressedSize = dataInputStream.readInt();
-                byte[] compressedData = dataInputStream.readNBytes(uncompressedSize);
+                byte[] compressedData = dataInputStream.readAllBytes();
+                CompressionCodec compressionCodec = CompressionCodecProvider.getCompressionCodec(
+                        CompressionType.valueOf(pulsarCursorInfoCompressionString));
                 ByteBuf decode = compressionCodec.decode(Unpooled.wrappedBuffer(compressedData), uncompressedSize);
                 try {
                     return ByteBufUtil.getBytes(decode);
                 } finally {
                     decode.release();
                 }
-            } catch (IOException error) {
+            } catch (IOException | MalformedInputException error) {
+                log.error("Cannot decompress cursor position using {}. Payload is {}",
+                        pulsarCursorInfoCompressionString,
+                        ByteBufUtil.prettyHexDump(Unpooled.wrappedBuffer(data)), error);
                 throw new RuntimeException(error);
             }
         } else {
