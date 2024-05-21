@@ -314,6 +314,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private void readMoreEntries(Consumer consumer) {
+        if (cursor.isClosed()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
+            }
+            return;
+        }
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
@@ -498,6 +504,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) ctx;
         Consumer c = readEntriesCtx.getConsumer();
         readEntriesCtx.recycle();
+
+        // Do not keep reading messages from a closed cursor.
+        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+            return;
+        }
 
         if (exception instanceof ConcurrentWaitCallbackException) {
             // At most one pending read request is allowed when there are no more entries, we should not trigger more
