@@ -197,6 +197,13 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                         cb.addComplete(PulsarMockBookKeeper.getExceptionCode(exception),
                                        PulsarMockLedgerHandle.this, LedgerHandle.INVALID_ENTRY_ID, ctx);
                     } else {
+                        Long responseDelayMillis = bk.addEntryResponseDelaysMillis.poll();
+                        if (responseDelayMillis != null) {
+                            try {
+                                Thread.sleep(responseDelayMillis);
+                            } catch (InterruptedException e) {
+                            }
+                        }
                         cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
                     }
                 }, bk.executor);

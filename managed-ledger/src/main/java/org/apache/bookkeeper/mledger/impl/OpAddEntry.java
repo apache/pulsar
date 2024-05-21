@@ -24,8 +24,10 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -46,7 +48,7 @@ import org.apache.bookkeeper.util.SafeRunnable;
 public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
-    private long entryId;
+    long entryId;
     private int numberOfMessages;
 
     @SuppressWarnings("unused")
@@ -69,6 +71,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             AtomicReferenceFieldUpdater.newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
     volatile State state;
 
+    @Setter
+    private AtomicBoolean timeoutTriggered;
+
     enum State {
         OPEN,
         INITIATED,
@@ -77,8 +82,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback,
-                                                  Object ctx) {
-        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
+                                                  Object ctx, AtomicBoolean timeoutTriggered) {
+        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
         }
@@ -86,8 +91,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages,
-                                                  AddEntryCallback callback, Object ctx) {
-        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx);
+                                                  AddEntryCallback callback, Object ctx,
+                                                  AtomicBoolean timeoutTriggered) {
+        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
         op.numberOfMessages = numberOfMessages;
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
@@ -96,7 +102,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data,
-                                                             AddEntryCallback callback, Object ctx) {
+                                                             AddEntryCallback callback, Object ctx,
+                                                             AtomicBoolean timeoutTriggered) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -110,6 +117,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
         op.payloadProcessorHandle = null;
+        op.timeoutTriggered = timeoutTriggered;
         ml.mbean.addAddEntrySample(op.dataLength);
         return op;
     }
@@ -167,7 +175,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         if (!STATE_UPDATER.compareAndSet(OpAddEntry.this, State.INITIATED, State.COMPLETED)) {
             log.warn("[{}] The add op is terminal legacy callback for entry {}-{} adding.", ml.getName(), lh.getId(),
                     entryId);
-            OpAddEntry.this.recycle();
+            // Since there is a thread is coping this object, do not recycle this object to avoid other problems.
+            // For example: we recycled this object, other thread get a null "opAddEntry.{variable_name}".
+            // Recycling is not mandatory, JVM GC will collect it.
             return;
         }
 
@@ -188,7 +198,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                     lh.getId(), entryId, dataLength, rc);
         }
 
-        if (rc != BKException.Code.OK) {
+        if (rc != BKException.Code.OK || timeoutTriggered.get()) {
             handleAddFailure(lh);
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
@@ -291,13 +301,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return false;
     }
 
-    void handleAddTimeoutFailure(final LedgerHandle ledger, Object ctx) {
-        if (checkAndCompleteOp(ctx)) {
-            this.close();
-            this.handleAddFailure(ledger);
-        }
-    }
-
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
      *
@@ -317,8 +320,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }));
     }
 
-    void close() {
+    OpAddEntry duplicateAndClose(AtomicBoolean timeoutTriggered) {
         STATE_UPDATER.set(OpAddEntry.this, State.CLOSED);
+        OpAddEntry duplicate =
+                OpAddEntry.createNoRetainBuffer(ml, data, getNumberOfMessages(), callback, ctx, timeoutTriggered);
+        return duplicate;
     }
 
     public State getState() {
@@ -373,6 +379,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         startTime = -1;
         lastInitTime = -1;
         payloadProcessorHandle = null;
+        timeoutTriggered = null;
         recyclerHandle.recycle(this);
     }
 
