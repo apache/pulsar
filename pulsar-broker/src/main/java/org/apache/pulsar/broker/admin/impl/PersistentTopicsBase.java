@@ -537,7 +537,6 @@ public class PersistentTopicsBase extends AdminResource {
                                                                           boolean checkAllowAutoCreation) {
         return getPartitionedTopicMetadataAsync(topicName, authoritative, checkAllowAutoCreation)
                 .thenCompose(metadata -> {
-                    CompletableFuture<Void> ret = new CompletableFuture<>();
                     if (metadata.partitions > 1) {
                         // Some clients does not support partitioned topic.
                         return internalValidateClientVersionAsync().thenApply(__ -> metadata);
@@ -551,7 +550,7 @@ public class PersistentTopicsBase extends AdminResource {
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
                         return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
                                 .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
+                            if (checkAllowAutoCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {

@@ -611,8 +611,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     // Get if exists, respond not found error if not exists.
                     getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
-                        boolean autoCreateIfNotExist = brokerAllowAutoCreate
-                                && partitionMetadata.isMetadataAutoCreationEnabled();
+                        boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled();
                         if (!autoCreateIfNotExist) {
                             final NamespaceResources namespaceResources = getBrokerService().pulsar()
                                     .getPulsarResources().getNamespaceResources();

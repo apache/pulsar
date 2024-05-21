@@ -246,10 +246,12 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
                 // configAllowAutoTopicCreation, paramCreateIfAutoCreationEnabled, isUsingHttpLookup.
                 {true, false, true},
                 {true, false, false},
-                {false, true, true},
-                {false, true, false},
                 {false, false, true},
                 {false, false, false},
+                // These test cases are for the following PR.
+                // Which was described in the Motivation of https://github.com/apache/pulsar/pull/22206.
+                //{false, true, true},
+                //{false, true, false},
         };
     }
 
