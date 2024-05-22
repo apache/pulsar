@@ -876,6 +876,23 @@ jobs:
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        with:
+          image-ref: "apachepulsar/pulsar:latest"
+          scanners: vuln
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          limit-severities-for-sarif: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        with:
+          sarif_file: 'trivy-results.sarif'
+
       - name: Clean up disk space
         run: |
           # release disk space since saving docker image consumes local disk space
@@ -1481,12 +1498,16 @@ jobs:
         with:
           action: wait
 
-  # This job is required for pulls to be merged.
+  # This job is required for pulls to be merged. This job is referenced by name in .asf.yaml file in the
+  # protected_branches section for master branch required_status_checks.
   # It depends on all other jobs in this workflow.
-  # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
+  # This job also cleans up the binaries at the end of the workflow.
   pulsar-ci-checks-completed:
     name: "Pulsar CI checks completed"
-    if: ${{ always() && needs.preconditions.result == 'success' }}
+    # run always, but skip for other repositories than apache/pulsar when a scheduled workflow is cancelled
+    # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled
+    # jobs are not enabled for other than apache/pulsar repository.
+    if: ${{ always() && !(cancelled() && github.repository != 'apache/pulsar' && github.event_name == 'schedule') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     needs: [
@@ -1504,10 +1525,11 @@ jobs:
     ]
     steps:
       - name: Check that all required jobs were completed successfully
-        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.result != 'success' || needs.preconditions.outputs.docs_only != 'true'  }}
         run: |
           if [[ ! ( \
-                   "${{ needs.unit-tests.result }}" == "success" \
+                   "${{ needs.preconditions.result }}" == "success" \
+                && "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \

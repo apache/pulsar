@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 import com.google.common.io.Resources;
 import com.google.common.collect.Sets;
@@ -119,6 +120,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     protected final String cluster2 = "r2";
     protected final String cluster3 = "r3";
     protected final String cluster4 = "r4";
+    protected String loadManagerClassName;
+
+    protected String getLoadManagerClassName() {
+        return loadManagerClassName;
+    }
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -254,9 +260,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
         admin4.clusters().createCluster(cluster4, ClusterData.builder()
-                .serviceUrl(url4.toString())
                 .serviceUrlTls(urlTls4.toString())
-                .brokerServiceUrl(pulsar4.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls())
                 .brokerClientTlsEnabled(true)
                 .brokerClientCertificateFilePath(clientCertFilePath)
@@ -271,17 +275,29 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
-        admin1.tenants().createTenant("pulsar",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+        updateTenantInfo("pulsar",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                        Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
         assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrl(), url3.toString());
+        assertNull(admin2.clusters().getCluster(cluster4).getServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+        assertNull(admin2.clusters().getCluster(cluster4).getBrokerServiceUrl());
+
+        assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrlTls(), urlTls1.toString());
+        assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrlTls(), urlTls2.toString());
+        assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrlTls(), urlTls3.toString());
+        assertEquals(admin2.clusters().getCluster(cluster4).getServiceUrlTls(), urlTls4.toString());
+        assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrlTls(), pulsar1.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
@@ -344,26 +360,23 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setLoadManagerClassName(getLoadManagerClassName());
     }
 
     public void resetConfig1() {
         config1 = new ServiceConfiguration();
-        setConfig1DefaultValue();
     }
 
     public void resetConfig2() {
         config2 = new ServiceConfiguration();
-        setConfig2DefaultValue();
     }
 
     public void resetConfig3() {
         config3 = new ServiceConfiguration();
-        setConfig3DefaultValue();
     }
 
     public void resetConfig4() {
         config4 = new ServiceConfiguration();
-        setConfig4DefaultValue();
     }
 
     private int inSec(int time, TimeUnit unit) {
@@ -379,34 +392,73 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             executor = null;
         }
 
-        admin1.close();
-        admin2.close();
-        admin3.close();
-        admin4.close();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
+        if (admin3 != null) {
+            admin3.close();
+            admin3 = null;
+        }
+        if (admin4 != null) {
+            admin4.close();
+            admin4 = null;
+        }
 
         if (pulsar4 != null) {
             pulsar4.close();
+            pulsar4 = null;
         }
         if (pulsar3 != null) {
             pulsar3.close();
+            pulsar3 = null;
         }
         if (pulsar2 != null) {
             pulsar2.close();
+            pulsar2 = null;
         }
         if (pulsar1 != null) {
             pulsar1.close();
+            pulsar1 = null;
         }
 
-        bkEnsemble1.stop();
-        bkEnsemble2.stop();
-        bkEnsemble3.stop();
-        bkEnsemble4.stop();
-        globalZkS.stop();
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (bkEnsemble3 != null) {
+            bkEnsemble3.stop();
+            bkEnsemble3 = null;
+        }
+        if (bkEnsemble4 != null) {
+            bkEnsemble4.stop();
+            bkEnsemble4 = null;
+        }
+        if (globalZkS != null) {
+            globalZkS.stop();
+            globalZkS = null;
+        }
 
         resetConfig1();
         resetConfig2();
         resetConfig3();
         resetConfig4();
+    }
+
+    protected void updateTenantInfo(String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin1.tenants().getTenants().contains(tenant)) {
+            admin1.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin1.tenants().updateTenant(tenant, tenantInfo);
+        }
     }
 
     static class MessageProducer implements AutoCloseable {

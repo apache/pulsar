@@ -16,41 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.pulsar.testclient;
 
-public final class WindowWrap<T> {
-    private final long interval;
-    private long start;
-    private T value;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import picocli.CommandLine.ITypeConverter;
 
-    public WindowWrap(long interval, long windowStart, T value) {
-        this.interval = interval;
-        this.start = windowStart;
-        this.value = value;
-    }
+public class ProxyProtocolConverter implements ITypeConverter<ProxyProtocol> {
 
-    public long interval() {
-        return this.interval;
-    }
-
-    public long start() {
-        return this.start;
-    }
-
-    public T value() {
-        return value;
-    }
-
-    public void value(T value) {
-        this.value = value;
-    }
-
-    public WindowWrap<T> resetWindowStart(long startTime) {
-        this.start = startTime;
-        return this;
-    }
-
-    public boolean isTimeInWindow(long timeMillis) {
-        return start <= timeMillis && timeMillis < start + interval;
+    @Override
+    public ProxyProtocol convert(String value) throws Exception {
+        String proxyProtocolString = StringUtils.trimToNull(value);
+        if (proxyProtocolString != null) {
+            return ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+        }
+        return null;
     }
 }

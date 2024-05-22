@@ -23,10 +23,10 @@ import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getDefaultAggreg
 import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getTopicAttributes;
 import com.google.common.collect.Lists;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.incubator.metrics.ExtendedDoubleHistogramBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.extension.incubator.metrics.ExtendedDoubleHistogramBuilder;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 

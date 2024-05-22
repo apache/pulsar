@@ -158,6 +158,7 @@ class AdminProxyHandler extends ProxyServlet {
             client.start();
 
             // Content must not be decoded, otherwise the client gets confused.
+            // Allow encoded content, such as "Content-Encoding: gzip", to pass through without decoding it.
             client.getContentDecoderFactories().clear();
 
             // Pass traffic to the client, only intercept what's necessary.

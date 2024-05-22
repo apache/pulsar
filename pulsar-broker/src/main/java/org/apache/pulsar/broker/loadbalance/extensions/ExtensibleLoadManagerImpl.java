@@ -85,9 +85,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategyFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -103,7 +105,7 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
 @Slf4j
-public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
+public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerSelectionStrategyFactory {
 
     public static final String BROKER_LOAD_DATA_STORE_TOPIC = TopicName.get(
             TopicDomain.non_persistent.value(),
@@ -202,13 +204,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     /**
      * Get all the bundles that are owned by this broker.
      */
-    public Set<NamespaceBundle> getOwnedServiceUnits() {
+    public CompletableFuture<Set<NamespaceBundle>> getOwnedServiceUnitsAsync() {
         if (!started) {
             log.warn("Failed to get owned service units, load manager is not started.");
-            return Collections.emptySet();
+            return CompletableFuture.completedFuture(Collections.emptySet());
         }
-        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
+
         String brokerId = brokerRegistry.getBrokerId();
+        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
         Set<NamespaceBundle> ownedServiceUnits = entrySet.stream()
                 .filter(entry -> {
                     var stateData = entry.getValue();
@@ -221,34 +224,31 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 }).collect(Collectors.toSet());
         // Add heartbeat and SLA monitor namespace bundle.
         NamespaceName heartbeatNamespace = NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(heartbeatNamespace);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get heartbeat namespace bundle.", e);
-        }
         NamespaceName heartbeatNamespaceV2 = NamespaceService
                 .getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(heartbeatNamespaceV2);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get heartbeat namespace V2 bundle.", e);
-        }
-
         NamespaceName slaMonitorNamespace = NamespaceService
                 .getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
-        try {
-            NamespaceBundle fullBundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
-                    .getFullBundle(slaMonitorNamespace);
-            ownedServiceUnits.add(fullBundle);
-        } catch (Exception e) {
-            log.warn("Failed to get SLA Monitor namespace bundle.", e);
-        }
+        return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundleAsync(heartbeatNamespace)
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get heartbeat namespace bundle.", e);
+                    return null;
+                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
+                        .getFullBundleAsync(heartbeatNamespaceV2))
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get heartbeat namespace V2 bundle.", e);
+                    return null;
+                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
+                        .getFullBundleAsync(slaMonitorNamespace))
+                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
+                    log.warn("Failed to get SLA Monitor namespace bundle.", e);
+                    return null;
+                }).thenApply(__ -> ownedServiceUnits);
+    }
 
-        return ownedServiceUnits;
+    @Override
+    public BrokerSelectionStrategy createBrokerSelectionStrategy() {
+        return new LeastResourceUsageWithWeight();
     }
 
     public enum Role {
@@ -266,8 +266,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerFilterPipeline.add(new BrokerLoadManagerClassFilter());
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
-        // TODO: Make brokerSelectionStrategy configurable.
-        this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
+        this.brokerSelectionStrategy = createBrokerSelectionStrategy();
     }
 
     public static boolean isLoadManagerExtensionEnabled(PulsarService pulsar) {
@@ -482,7 +481,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
-                                                                ServiceUnitId serviceUnit) {
+                                                                ServiceUnitId serviceUnit,
+                                                                LookupOptions options) {
 
         final String bundle = serviceUnit.toString();
 
@@ -492,45 +492,35 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
                 owner = serviceUnitStateChannel.getChannelOwnerAsync();
             } else {
-                String candidateBrokerId = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
-                if (candidateBrokerId != null) {
-                    owner = CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
-                } else {
-                    owner = getOrSelectOwnerAsync(serviceUnit, bundle).thenApply(Optional::ofNullable);
-                }
+                owner = getHeartbeatOrSLAMonitorBrokerId(serviceUnit).thenCompose(candidateBrokerId -> {
+                    if (candidateBrokerId != null) {
+                        return CompletableFuture.completedFuture(Optional.of(candidateBrokerId));
+                    }
+                    return getOrSelectOwnerAsync(serviceUnit, bundle, options).thenApply(Optional::ofNullable);
+                });
             }
             return getBrokerLookupData(owner, bundle);
         });
     }
 
-    private String getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
-        // Check if this is Heartbeat or SLAMonitor namespace
-        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
-        if (candidateBroker == null) {
-            candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
-        }
-        if (candidateBroker == null) {
-            candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
-        }
-        if (candidateBroker != null) {
-            return candidateBroker.substring(candidateBroker.lastIndexOf('/') + 1);
-        }
-        return candidateBroker;
+    private CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(ServiceUnitId serviceUnit) {
+        return pulsar.getNamespaceService().getHeartbeatOrSLAMonitorBrokerId(serviceUnit,
+                cb -> brokerRegistry.lookupAsync(cb).thenApply(Optional::isPresent));
     }
 
     private CompletableFuture<String> getOrSelectOwnerAsync(ServiceUnitId serviceUnit,
-                                                            String bundle) {
+                                                            String bundle,
+                                                            LookupOptions options) {
         return serviceUnitStateChannel.getOwnerAsync(bundle).thenCompose(broker -> {
             // If the bundle not assign yet, select and publish assign event to channel.
             if (broker.isEmpty()) {
-                return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
+                return this.selectAsync(serviceUnit, Collections.emptySet(), options).thenCompose(brokerOpt -> {
                     if (brokerOpt.isPresent()) {
                         assignCounter.incrementSuccess();
                         log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
                         return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
                     }
-                    throw new IllegalStateException(
-                            "Failed to select the new owner broker for bundle: " + bundle);
+                    return CompletableFuture.completedFuture(null);
                 });
             }
             assignCounter.incrementSkip();
@@ -544,22 +534,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             String bundle) {
         return owner.thenCompose(broker -> {
             if (broker.isEmpty()) {
-                String errorMsg = String.format(
-                        "Failed to get or assign the owner for bundle:%s", bundle);
-                log.error(errorMsg);
-                throw new IllegalStateException(errorMsg);
+                return CompletableFuture.completedFuture(Optional.empty());
             }
-            return CompletableFuture.completedFuture(broker.get());
-        }).thenCompose(broker -> this.getBrokerRegistry().lookupAsync(broker).thenCompose(brokerLookupData -> {
-            if (brokerLookupData.isEmpty()) {
-                String errorMsg = String.format(
-                        "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
-                        broker, bundle);
-                log.error(errorMsg);
-                throw new IllegalStateException(errorMsg);
-            }
-            return CompletableFuture.completedFuture(brokerLookupData);
-        }));
+            return this.getBrokerRegistry().lookupAsync(broker.get()).thenCompose(brokerLookupData -> {
+                if (brokerLookupData.isEmpty()) {
+                    String errorMsg = String.format(
+                            "Failed to lookup broker:%s for bundle:%s, the broker has not been registered.",
+                            broker, bundle);
+                    log.error(errorMsg);
+                    throw new IllegalStateException(errorMsg);
+                }
+                return CompletableFuture.completedFuture(brokerLookupData);
+            });
+        });
     }
 
     /**
@@ -572,7 +559,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle namespaceBundle) {
         log.info("Try acquiring ownership for bundle: {} - {}.", namespaceBundle, brokerRegistry.getBrokerId());
         final String bundle = namespaceBundle.toString();
-        return assign(Optional.empty(), namespaceBundle)
+        return assign(Optional.empty(), namespaceBundle, LookupOptions.builder().readOnly(false).build())
                 .thenApply(brokerLookupData -> {
                     if (brokerLookupData.isEmpty()) {
                         String errorMsg = String.format(
@@ -605,12 +592,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
-        return selectAsync(bundle, Collections.emptySet());
-    }
-
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
-                                                           Set<String> excludeBrokerSet) {
+                                                           Set<String> excludeBrokerSet,
+                                                           LookupOptions options) {
+        if (options.isReadOnly()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenComposeAsync(availableBrokers -> {
@@ -662,11 +649,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
             return serviceUnitStateChannel.getChannelOwnerAsync();
         }
-        String candidateBroker = getHeartbeatOrSLAMonitorBrokerId(serviceUnit);
-        if (candidateBroker != null) {
-            return CompletableFuture.completedFuture(Optional.of(candidateBroker));
-        }
-        return serviceUnitStateChannel.getOwnerAsync(bundle);
+        return getHeartbeatOrSLAMonitorBrokerId(serviceUnit).thenCompose(candidateBroker -> {
+            if (candidateBroker != null) {
+                return CompletableFuture.completedFuture(Optional.of(candidateBroker));
+            }
+            return serviceUnitStateChannel.getOwnerAsync(bundle);
+        });
     }
 
     public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit) {
@@ -679,7 +667,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundleAsync(ServiceUnitId bundle,
-                                                              Optional<String> destinationBroker) {
+                                                              Optional<String> destinationBroker,
+                                                              boolean force) {
         if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
             log.info("Skip unloading namespace bundle: {}.", bundle);
             return CompletableFuture.completedFuture(null);
@@ -698,7 +687,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         log.warn(msg);
                         throw new IllegalArgumentException(msg);
                     }
-                    Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker, true);
+                    Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker, force);
                     UnloadDecision unloadDecision =
                             new UnloadDecision(unload, UnloadDecision.Label.Success, UnloadDecision.Reason.Admin);
                     return unloadAsync(unloadDecision,
@@ -825,11 +814,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (!serviceUnitStateChannel.isChannelOwner()) {
                     becameFollower = true;
                     break;
                 }
-                initWaiter.await();
                 // Confirm the system topics have been created or create them if they do not exist.
                 // If the leader has changed, the new leader need to reset
                 // the local brokerService.topics (by this topic creations).
@@ -875,11 +864,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                initWaiter.await();
                 if (serviceUnitStateChannel.isChannelOwner()) {
                     becameLeader = true;
                     break;
                 }
-                initWaiter.await();
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
                 brokerLoadDataStore.init();

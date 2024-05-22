@@ -66,8 +66,14 @@ public class AdvertisedAddressTest {
 
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
-        pulsar.close();
-        bkEnsemble.stop();
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @Test

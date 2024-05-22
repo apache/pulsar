@@ -69,11 +69,11 @@ import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -1087,6 +1087,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public boolean checkAndResumeIfPaused() {
         boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        // Calling "cursor.isCursorDataFullyPersistable()" will loop the collection "individualDeletedMessages". It is
+        // not a light method.
+        // If never enabled "dispatcherPauseOnAckStatePersistentEnabled", skip the following checks to improve
+        // performance.
+        if (!paused && !topic.isDispatcherPauseOnAckStatePersistentEnabled()){
+            // "true" means no need to pause.
+            return true;
+        }
+        // Enabled "dispatcherPauseOnAckStatePersistentEnabled" before.
         boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
                 && topic.isDispatcherPauseOnAckStatePersistentEnabled();
         // No need to change.

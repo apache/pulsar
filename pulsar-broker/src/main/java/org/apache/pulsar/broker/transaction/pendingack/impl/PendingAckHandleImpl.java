@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,9 +36,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -45,6 +48,7 @@ import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -53,11 +57,13 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -134,6 +140,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
+    private final long pendingAckInitFailureBackoffInitialTimeInMs = 100;
+
+    public final Backoff backoff = new Backoff(pendingAckInitFailureBackoffInitialTimeInMs, TimeUnit.MILLISECONDS,
+            1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+
+    private final Timer transactionOpTimer;
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
@@ -153,7 +165,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
+        transactionOpTimer = persistentSubscription.getTopic().getBrokerService().getPulsar().getTransactionTimer();
+        init();
+    }
 
+    private void init() {
         pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
                 .thenAcceptAsync(init -> {
                     if (init) {
@@ -164,9 +180,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }, internalPinnedExecutor)
                 .exceptionallyAsync(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
-                    changeToErrorState();
+                    // Handling the exceptions in `exceptionHandleFuture`,
+                    // it will be helpful to make the exception handling clearer.
                     exceptionHandleFuture(t);
-                    this.pendingAckStoreFuture.completeExceptionally(t);
                     return null;
                 }, internalPinnedExecutor);
     }
@@ -180,9 +196,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionallyAsync(e -> {
-                    handleCacheRequest();
-                    changeToErrorState();
-                    log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
+                    // Handling the exceptions in `exceptionHandleFuture`,
+                    // it will be helpful to make the exception handling clearer.
                     exceptionHandleFuture(e.getCause());
                     return null;
                 }, internalPinnedExecutor);
@@ -945,10 +960,37 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        if (isRetryableException(t)) {
+            this.state = State.None;
+            long retryTime = backoff.next();
+            log.warn("[{}][{}] Failed to init transaction pending ack. It will be retried in {} Ms",
+                    persistentSubscription.getTopic().getName(), subName, retryTime, t);
+            transactionOpTimer.newTimeout((timeout) -> init(), retryTime, TimeUnit.MILLISECONDS);
+            return;
+        }
+        log.error("[{}] [{}] PendingAckHandleImpl init fail!", topicName, subName, t);
+        handleCacheRequest();
+        changeToErrorState();
+        // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
+        //  and before that a `Unknown` will be returned first.
+        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
+                        String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
+        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
+                new BrokerServiceException(
+                String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
+    }
+
+    private static boolean isRetryableException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return (realCause instanceof ManagedLedgerException
+                && !(realCause instanceof ManagedLedgerException.ManagedLedgerFencedException)
+                && !(realCause instanceof ManagedLedgerException.NonRecoverableLedgerException))
+                || realCause instanceof PulsarClientException.BrokerPersistenceException
+                || realCause instanceof PulsarClientException.LookupException
+                || realCause instanceof PulsarClientException.ConnectException;
     }
 
     @Override

@@ -121,6 +121,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,25 +148,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void rest() throws Exception {
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+    public void cleanupAfterMethod() throws Exception {
+        try {
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    deleteNamespaceWithRetry(namespace, true);
+                }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
+
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
+
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+            super.producerBaseSetup();
+        } catch (Exception | AssertionError e) {
+            log.warn("Failed to clean up state. Restarting broker.", e);
+            log.warn("Thread dump:\n{}", ThreadDumpUtil.buildThreadDiagnosticString());
+            cleanup();
+            setup();
         }
-
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
-
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-
-        super.producerBaseSetup();
     }
 
     @DataProvider
@@ -4344,37 +4351,43 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.send(payload);
         producer.close();
 
-        GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
-        consumer.close();
-        assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
-        JsonNode nativeJsonRecord = null;
-        if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
-            assertNotNull(nativeAvroRecord);
-        } else {
-            nativeJsonRecord = (JsonNode) res.getNativeObject();
-            assertNotNull(nativeJsonRecord);
-        }
-        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
-            log.info("field {} {}", f.getName(), res.getField(f));
-            assertEquals("field", f.getName());
-            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-
-            if (nativeAvroRecord != null) {
-                // test that the native schema is accessible
-                org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
-                // a nullable string is an UNION
-                assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
-                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+        try {
+            GenericRecord res = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getValue();
+            consumer.close();
+            assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
+            org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
+            JsonNode nativeJsonRecord = null;
+            if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeObject();
+                assertNotNull(nativeAvroRecord);
             } else {
-                assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                nativeJsonRecord = (JsonNode) res.getNativeObject();
+                assertNotNull(nativeJsonRecord);
             }
-        }
-        assertEquals(1, res.getFields().size());
+            for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+                log.info("field {} {}", f.getName(), res.getField(f));
+                assertEquals("field", f.getName());
+                assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
 
-        admin.schemas().deleteSchema(topic);
+                if (nativeAvroRecord != null) {
+                    // test that the native schema is accessible
+                    org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
+                    // a nullable string is an UNION
+                    assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
+                    assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+                } else {
+                    assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+                }
+            }
+            assertEquals(1, res.getFields().size());
+        } catch (Exception e) {
+            fail();
+        } finally {
+            pulsarClient.shutdown();
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+            admin.schemas().deleteSchema(topic);
+        }
     }
 
     @Test(timeOut = 100000)
@@ -4813,6 +4826,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         producerBase.close();
         admin.topics().delete(topic, false);
+    }
+
+    /**
+     * It verifies that consumer receives configured number of messages into the batch.
+     * @throws Exception
+     */
+    @Test
+    public void testBatchReceiveWithMaxBatchSize() throws Exception {
+        int maxBatchSize = 100;
+        final int internalQueueSize = 10;
+        final int maxBytes = 2000000;
+        final int timeOutInSeconds = 900;
+        final String topic = "persistent://my-property/my-ns/testBatchReceive";
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumBytes(maxBytes)
+                .maxNumMessages(maxBatchSize).timeout(timeOutInSeconds, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(internalQueueSize)
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).send();
+        }
+
+        assertEquals(consumer.batchReceive().size(), maxBatchSize);
     }
 
     private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {

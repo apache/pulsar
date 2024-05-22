@@ -309,8 +309,14 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), ex);
                                             return FutureUtil.failedFuture(ex);
                                         }
+                                        log.info("[{}] Deleting namespace bundle {}/{}", clientAppId(),
+                                                namespaceName, bundle.getBundleRange());
                                         return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
                                                 bundle.getBundleRange(), force);
+                                    } else {
+                                        log.warn("[{}] Skipping deleting namespace bundle {}/{} "
+                                                        + "as it's not owned by any broker",
+                                                clientAppId(), namespaceName, bundle.getBundleRange());
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
@@ -321,8 +327,11 @@ public abstract class NamespacesBase extends AdminResource {
                         final Throwable rc = FutureUtil.unwrapCompletionException(error);
                         if (rc instanceof MetadataStoreException) {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                KeeperException.NotEmptyException ne =
+                                        (KeeperException.NotEmptyException) rc.getCause();
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
-                                        + "retry to delete the namespace again.", namespaceName);
+                                        + "retry to delete the namespace again. (path {} is not empty on metadata)",
+                                        namespaceName, ne.getPath());
                                 final int next = retryTimes - 1;
                                 if (next > 0) {
                                     // async recursive
@@ -330,7 +339,8 @@ public abstract class NamespacesBase extends AdminResource {
                                 } else {
                                     callback.completeExceptionally(
                                             new RestException(Status.CONFLICT, "The broker still have in-flight topics"
-                                                    + " created during namespace deletion, please try again."));
+                                                    + " created during namespace deletion (path " + ne.getPath() + ") "
+                                                    + "is not empty on metadata store, please try again."));
                                     // drop out recursive
                                 }
                                 return;
@@ -476,6 +486,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative,
                                                                          boolean force) {
+        log.info("[{}] Deleting namespace bundle {}/{} authoritative:{} force:{}",
+                clientAppId(), namespaceName, bundleRange, authoritative, force);
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
@@ -2019,7 +2031,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -2125,9 +2137,10 @@ public abstract class NamespacesBase extends AdminResource {
                     f.complete(null);
                 })
                 .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
                             clientAppId(), namespaceName, t);
-                    f.completeExceptionally(new RestException(t));
+                    f.completeExceptionally(new RestException(cause));
                     return null;
                 });
 
