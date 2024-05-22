@@ -159,8 +159,8 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 // Some handlers in the pipeline will modify the bytebufs passed in to them (i.e. SslHandler).
                 // For these handlers, we need to pass a copy of the buffers as the source buffers may be cached
                 // for multiple requests.
-                ctx.write(nioBufferCopy(b.getFirst()), ctx.voidPromise());
-                ctx.write(nioBufferCopy(b.getSecond()), compositePromise);
+                ctx.write(nioBufferReadOnlyWrapper(b.getFirst()), ctx.voidPromise());
+                ctx.write(nioBufferReadOnlyWrapper(b.getSecond()), compositePromise);
             } else {
                 ctx.write(msg, promise);
             }
@@ -173,14 +173,16 @@ public final class ByteBufPair extends AbstractReferenceCounted {
         // Notice: The original ByteBuf continues to control the lifecycle of the underlying memory allocation.
         // This is fine in this case since the ByteBufPair keeps the reference counts, and it is released after
         // the write method completes.
-        private ByteBuf nioBufferCopy(ByteBuf buf) {
+        // Use Unpooled.unmodifiableBuffer instead of asReadOnly() to make the ByteBuf read-only
+        // since Unpooled.unmodifiableBuffer works around an issue in Netty's SslHandler before the fix is available.
+        private ByteBuf nioBufferReadOnlyWrapper(ByteBuf buf) {
             // avoid calling nioBufferCount() for performance reasons on CompositeByteBuf
             // there's a similar optimization in Netty's SslHandler.wrap method where this is explained
             if (buf instanceof CompositeByteBuf || buf.nioBufferCount() > 1) {
-                return Unpooled.wrappedBuffer(buf.nioBuffers());
+                return Unpooled.unmodifiableBuffer(Unpooled.wrappedBuffer(buf.nioBuffers()));
             } else {
                 // Single buffer, no need to wrap it in an array as the nioBuffers() method would do
-                return Unpooled.wrappedBuffer(buf.nioBuffer());
+                return Unpooled.unmodifiableBuffer(Unpooled.wrappedBuffer(buf.nioBuffer()));
             }
         }
     }
