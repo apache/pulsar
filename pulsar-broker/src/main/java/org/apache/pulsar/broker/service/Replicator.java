@@ -27,6 +27,8 @@ public interface Replicator {
 
     void startProducer();
 
+    Topic getTopic();
+
     ReplicatorStatsImpl getStats();
 
     CompletableFuture<Void> terminate();

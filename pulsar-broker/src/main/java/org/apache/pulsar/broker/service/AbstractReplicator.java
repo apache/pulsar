@@ -136,6 +136,10 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void disableReplicatorRead();
 
+    public Topic getTopic() {
+        return localTopic;
+    }
+
     public String getRemoteCluster() {
         return remoteCluster;
     }
