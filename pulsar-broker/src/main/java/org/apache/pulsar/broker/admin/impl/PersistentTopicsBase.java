@@ -556,16 +556,7 @@ public class PersistentTopicsBase extends AdminResource {
                             } else {
                                 // If it does not exist, response a Not Found error.
                                 // Otherwise, response a non-partitioned metadata.
-                                if (topicName.isPersistent()) {
-                                    return internalCheckTopicExists(topicName).thenApply(__ -> metadata);
-                                } else {
-                                    // Regarding non-persistent topic, we do not know whether it exists or not.
-                                    // Just return a non-partitioned metadata if partitioned metadata does not
-                                    // exist.
-                                    // Broker will respond a not found error when doing subscribing or producing if
-                                    // broker not allow to auto create topics.
-                                    return CompletableFuture.completedFuture(metadata);
-                                }
+                                return internalCheckTopicExists(topicName).thenApply(__ -> metadata);
                             }
                         });
                     }
