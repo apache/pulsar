@@ -1130,29 +1130,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      * sort bundles by load and select topK bundles for each broker.
      * @return the number of bundles selected
      */
-    private CompletableFuture<Integer> selectTopKBundle() {
-        CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
+    private int selectTopKBundle() {
+        bundleArr.clear();
+        bundleArr.addAll(loadData.getBundleData().entrySet());
 
-        executors.execute(() -> {
-            // make the bundle-data update and sorting executed in single thread
-            bundleArr.clear();
-            bundleArr.addAll((Collection<? extends Map.Entry<String, ? extends Comparable>>)
-                    loadData.getBundleData().entrySet());
-
-            int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
-                    .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
-            if (maxNumberOfBundlesInBundleLoadReport <= 0) {
-                // select all bundle
-                completableFuture.complete(bundleArr.size());
-            } else {
-                // select topK bundle for each broker, so select topK * brokerCount bundle in total
-                int brokerCount = Math.max(1, loadData.getBrokerData().size());
-                int updateBundleCount = Math.min(maxNumberOfBundlesInBundleLoadReport * brokerCount, bundleArr.size());
-                TopKBundles.partitionSort(bundleArr, updateBundleCount);
-                completableFuture.complete(updateBundleCount);
-            }
-        });
-        return completableFuture;
+        int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
+                .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
+        if (maxNumberOfBundlesInBundleLoadReport <= 0) {
+            // select all bundle
+            return bundleArr.size();
+        } else {
+            // select topK bundle for each broker, so select topK * brokerCount bundle in total
+            int brokerCount = Math.max(1, loadData.getBrokerData().size());
+            int updateBundleCount = Math.min(maxNumberOfBundlesInBundleLoadReport * brokerCount, bundleArr.size());
+            TopKBundles.partitionSort(bundleArr, updateBundleCount);
+            return updateBundleCount;
+        }
     }
 
     /**
@@ -1164,13 +1157,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        int updateBundleCount = selectTopKBundle().join();
-        for (int i = 0; i < updateBundleCount; i++) {
-            final Map.Entry<String, BundleData> entry = (Map.Entry<String, BundleData>) bundleArr.get(i);
-            final String bundle = entry.getKey();
-            final BundleData data = entry.getValue();
-            futures.add(
-                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(bundle, data));
+        // use synchronized to protect bundleArr.
+        synchronized (this) {
+            int updateBundleCount = selectTopKBundle();
+            for (int i = 0; i < updateBundleCount; i++) {
+                final Map.Entry<String, BundleData> entry = (Map.Entry<String, BundleData>) bundleArr.get(i);
+                final String bundle = entry.getKey();
+                final BundleData data = entry.getValue();
+                futures.add(
+                        pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(bundle, data));
+            }
         }
 
         // Write the time average broker data to metadata store.
