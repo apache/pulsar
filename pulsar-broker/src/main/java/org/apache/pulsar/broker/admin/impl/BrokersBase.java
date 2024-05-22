@@ -404,13 +404,17 @@ public class BrokersBase extends AdminResource {
         }
     }
 
+    public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
+        NamespaceName namespaceName = isV2
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
+                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
+        return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+    }
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
         String brokerId = pulsar().getBrokerId();
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar().getConfiguration());
-        final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        final String topicName =
+                getHeartbeatTopicName(brokerId, pulsar().getConfiguration(), (topicVersion == TopicVersion.V2));
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
