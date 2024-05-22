@@ -317,6 +317,62 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         }
     }
 
+    @Test
+    public void testTcLookupAuth() throws Exception {
+        String role = "test";
+        String tcSystemTopic = "persistent://pulsar/system/transaction_coordinator_assign";
+        admin.topics().grantPermission(TOPIC, role, Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .authentication(AuthenticationFactory.token(generateToken(kp, "test")))
+                .enableTransaction(true)
+                .build();
+
+        try {
+            @Cleanup final Producer<String> producer = pulsarClient
+                    .newProducer(Schema.STRING)
+                    .sendTimeout(60, TimeUnit.SECONDS)
+                    .topic(TOPIC)
+                    .create();
+
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
+            producer.newMessage(transaction).value("message").send();
+            final Throwable ex = syncGetException((
+                    (PulsarClientImpl) pulsarClient).getTcClient().commitAsync(transaction.getTxnID())
+            );
+            Assert.assertNull(ex);
+        } catch (Exception e) {
+            Assert.fail();
+        }
+
+        try {
+            @Cleanup final Producer<String> producer = pulsarClient
+                    .newProducer(Schema.STRING)
+                    .sendTimeout(60, TimeUnit.SECONDS)
+                    .topic(tcSystemTopic)
+                    .create();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof PulsarClientException.AuthorizationException);
+            Assert.assertTrue(e.getMessage().contains("Client is not authorized to Produce"));
+        }
+
+        try {
+            @Cleanup final Consumer<String> consumer = pulsarClient
+                    .newConsumer(Schema.STRING)
+                    .subscriptionName("test")
+                    .topic(tcSystemTopic)
+                    .subscribe();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof PulsarClientException.AuthorizationException);
+            Assert.assertTrue(e.getMessage().contains("Client is not authorized to subscribe"));
+        }
+    }
+
     private static Throwable syncGetException(CompletableFuture<?> future) {
         try {
             future.get();
