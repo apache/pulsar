@@ -2662,8 +2662,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The load balancer distributes bundles across brokers, "
                     + "based on topK bundle load data and other broker load data."
                     + "The bigger value will increase the overhead of reporting many bundles in load data. "
-                    + "Used for ExtensibleLoadManagerImpl and ModularLoadManagerImpl. For ModularLoadManagerImpl," +
-                    "value not greater than 0 will disable the feature."
+                    + "Used for ExtensibleLoadManagerImpl and ModularLoadManagerImpl. "
+                    + "For ModularLoadManagerImpl, value not greater than 0 will disable the bundle filtering feature."
     )
     private int loadBalancerMaxNumberOfBundlesInBundleLoadReport = 10;
     @FieldContext(
