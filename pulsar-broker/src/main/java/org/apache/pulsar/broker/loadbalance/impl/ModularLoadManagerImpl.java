@@ -1143,6 +1143,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // select topK bundle for each broker, so select topK * brokerCount bundle in total
             int brokerCount = Math.max(1, loadData.getBrokerData().size());
             int updateBundleCount = Math.min(maxNumberOfBundlesInBundleLoadReport * brokerCount, bundleArr.size());
+            if (updateBundleCount == 0) {
+                // no bundle to update
+                return 0;
+            }
             TopKBundles.partitionSort(bundleArr, updateBundleCount);
             return updateBundleCount;
         }
