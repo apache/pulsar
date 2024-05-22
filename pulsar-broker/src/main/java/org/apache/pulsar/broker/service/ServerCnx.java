@@ -657,9 +657,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     }
                                     return null;
                                 }).whenComplete((ignore, ignoreEx) -> {
-                                    log.error("{} {} Failed to handle partition metadata request", topicName,
-                                            ServerCnx.this.toString(), ignoreEx);
                                     lookupSemaphore.release();
+                                    if (ignoreEx != null) {
+                                        log.error("{} {} Failed to handle partition metadata request", topicName,
+                                                ServerCnx.this.toString(), ignoreEx);
+                                    }
                                 });
                         } else {
                             // Get if exists, create a new one if not exists.
