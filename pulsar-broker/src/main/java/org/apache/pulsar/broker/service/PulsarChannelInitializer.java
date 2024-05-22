@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -113,8 +112,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             } else {
                 ch.pipeline().addLast(TLS_HANDLER, sslCtxRefresher.get().newHandler(ch.alloc()));
             }
+            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
+        } else {
+            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
-        ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
 
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
@@ -127,7 +128,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ChannelHandler cnx = newServerCnx(pulsar, listenerName);
+        ServerCnx cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
     }
 
