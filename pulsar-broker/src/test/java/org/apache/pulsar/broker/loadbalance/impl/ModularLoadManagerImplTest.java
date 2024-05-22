@@ -435,7 +435,8 @@ public class ModularLoadManagerImplTest {
         pulsarServices.put(pulsar1.getWebServiceAddress(), pulsar1);
         pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
         MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
-        PulsarService leaderBroker = pulsarServices.get("http://" + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
+        String protocol = "http://";
+        PulsarService leaderBroker = pulsarServices.get(protocol + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
                 leaderBroker.getLoadManager().get(), "loadManager");
         int topK = 1;
@@ -448,7 +449,6 @@ public class ModularLoadManagerImplTest {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
                 nsFactory, "test", "test", "test", totalBundles);
         LoadData loadData = (LoadData) getField(loadManager, "loadData");
-        String protocol = "http://";
         for (int i = 0; i < totalBundles; i++) {
             final BundleData bundleData = new BundleData(10, 1000);
             final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);

@@ -1139,13 +1139,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             bundleArr.addAll((Collection<? extends Map.Entry<String, ? extends Comparable>>)
                     loadData.getBundleData().entrySet());
 
-            // select topK bundle for each broker, so select topK * brokerCount bundle in total
-            int brokerCount = Math.max(1, loadData.getBrokerData().size());
-            int updateBundleCount = Math.min(pulsar.getConfiguration()
-                    .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport() * brokerCount, bundleArr.size());
-
-            TopKBundles.partitionSort(bundleArr, updateBundleCount);
-            completableFuture.complete(updateBundleCount);
+            int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
+                    .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
+            if (maxNumberOfBundlesInBundleLoadReport <= 0) {
+                // select all bundle
+                completableFuture.complete(bundleArr.size());
+            } else {
+                // select topK bundle for each broker, so select topK * brokerCount bundle in total
+                int brokerCount = Math.max(1, loadData.getBrokerData().size());
+                int updateBundleCount = Math.min(maxNumberOfBundlesInBundleLoadReport * brokerCount, bundleArr.size());
+                TopKBundles.partitionSort(bundleArr, updateBundleCount);
+                completableFuture.complete(updateBundleCount);
+            }
         });
         return completableFuture;
     }
