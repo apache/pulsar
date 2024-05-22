@@ -1164,8 +1164,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 final Map.Entry<String, BundleData> entry = (Map.Entry<String, BundleData>) bundleArr.get(i);
                 final String bundle = entry.getKey();
                 final BundleData data = entry.getValue();
-                futures.add(
-                        pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(bundle, data));
+                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources()
+                        .updateBundleData(bundle, data));
             }
         }
 
