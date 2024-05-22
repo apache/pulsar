@@ -122,23 +122,16 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 // Write each buffer individually on the socket. The retain() here is needed to preserve the fact that
                 // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
                 // gets written multiple times, the individual buffers refcount should be reflected as well.
+                // .asReadOnly() is needed to prevent SslHandler from modifying the input buffers.
                 try {
-                    ctx.write(readOnlyRetainedDuplicate(b.getFirst()), ctx.voidPromise());
-                    ctx.write(readOnlyRetainedDuplicate(b.getSecond()), promise);
+                    ctx.write(b.getFirst().asReadOnly().retain(), ctx.voidPromise());
+                    ctx.write(b.getSecond().asReadOnly().retain(), promise);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
             } else {
                 ctx.write(msg, promise);
             }
-        }
-
-        // .asReadOnly() is needed to prevent SslHandler from modifying the input buffers.
-        private static ByteBuf readOnlyRetainedDuplicate(ByteBuf buf) {
-            // If the buffer is already read-only, .asReadOnly() will return the same buffer.
-            // That's why the additional .retainedDuplicate() is needed to ensure that the returned buffer
-            // has independent readIndex and writeIndex.
-            return buf.asReadOnly().retainedDuplicate();
         }
     }
 }
