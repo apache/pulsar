@@ -80,29 +80,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         CLOSED
     }
 
-    public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback,
-                                                  Object ctx, AtomicBoolean timeoutTriggered) {
-        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
-        return op;
-    }
-
     public static OpAddEntry createNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages,
                                                   AddEntryCallback callback, Object ctx,
                                                   AtomicBoolean timeoutTriggered) {
-        OpAddEntry op = createOpAddEntryNoRetainBuffer(ml, data, callback, ctx, timeoutTriggered);
-        op.numberOfMessages = numberOfMessages;
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
-        return op;
-    }
-
-    private static OpAddEntry createOpAddEntryNoRetainBuffer(ManagedLedgerImpl ml, ByteBuf data,
-                                                             AddEntryCallback callback, Object ctx,
-                                                             AtomicBoolean timeoutTriggered) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -118,6 +98,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         op.payloadProcessorHandle = null;
         op.timeoutTriggered = timeoutTriggered;
         ml.mbean.addAddEntrySample(op.dataLength);
+        op.numberOfMessages = numberOfMessages;
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
         return op;
     }
 

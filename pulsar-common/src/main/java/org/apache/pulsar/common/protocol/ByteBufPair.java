@@ -108,7 +108,8 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     }
 
     public static final Encoder ENCODER = new Encoder();
-    public static final CopyingEncoder COPYING_ENCODER = new CopyingEncoder();
+    @Deprecated
+    public static final Encoder COPYING_ENCODER = ENCODER;
 
     @Sharable
     @SuppressWarnings("checkstyle:JavadocType")
@@ -121,9 +122,11 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 // Write each buffer individually on the socket. The retain() here is needed to preserve the fact that
                 // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
                 // gets written multiple times, the individual buffers refcount should be reflected as well.
+                // The usage of "retainedSlice()" prevents the SslHandler from modifying the input buffers.
+                // See https://github.com/netty/netty/pull/14086 for more details.
                 try {
-                    ctx.write(b.getFirst().retainedDuplicate(), ctx.voidPromise());
-                    ctx.write(b.getSecond().retainedDuplicate(), promise);
+                    ctx.write(b.getFirst().retainedSlice(), ctx.voidPromise());
+                    ctx.write(b.getSecond().retainedSlice(), promise);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
@@ -132,28 +135,4 @@ public final class ByteBufPair extends AbstractReferenceCounted {
             }
         }
     }
-
-    @Sharable
-    @SuppressWarnings("checkstyle:JavadocType")
-    public static class CopyingEncoder extends ChannelOutboundHandlerAdapter {
-        @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof ByteBufPair) {
-                ByteBufPair b = (ByteBufPair) msg;
-
-                // Some handlers in the pipeline will modify the bytebufs passed in to them (i.e. SslHandler).
-                // For these handlers, we need to pass a copy of the buffers as the source buffers may be cached
-                // for multiple requests.
-                try {
-                    ctx.write(b.getFirst().copy(), ctx.voidPromise());
-                    ctx.write(b.getSecond().copy(), promise);
-                } finally {
-                    ReferenceCountUtil.safeRelease(b);
-                }
-            } else {
-                ctx.write(msg, promise);
-            }
-        }
-    }
-
 }

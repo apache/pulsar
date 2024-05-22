@@ -767,34 +767,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
-        }
-
-        // retain buffer in this thread
-        buffer.retain();
-
-        // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx,
-                    currentLedgerTimeoutTriggered);
-            internalAsyncAddEntry(addOperation);
-        });
+        asyncAddEntry(buffer, 0, callback, ctx);
     }
 
     @Override
     public void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
-        }
-
         // retain buffer in this thread
-        buffer.retain();
-
+        // use `.retainedSlice()` instead of `.retain()` to ensure that the input buffer is not mutated by
+        // Netty's SslHandler
+        ByteBuf retainedBuffer = buffer.retainedSlice();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] asyncAddEntry size={} state={}", name, retainedBuffer.readableBytes(), state);
+        }
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
-                    currentLedgerTimeoutTriggered);
+            OpAddEntry addOperation =
+                    OpAddEntry.createNoRetainBuffer(this, retainedBuffer, numberOfMessages, callback, ctx,
+                            currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         });
     }
