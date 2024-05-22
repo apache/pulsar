@@ -85,6 +85,9 @@ RUN apk add --no-cache \
 # We can remove once new Alpine image is released
 RUN apk upgrade --no-cache libssl3 libcrypto3
 
+# Fix CVE-2023-42366
+RUN apk upgrade --no-cache busybox
+
 # Python dependencies
 
 # The grpcio@1.59.3 is installed by apk, and Pulsar-client@3.4.0 requires grpcio>=1.60.0, which causes the grocio to be reinstalled by pip.
