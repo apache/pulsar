@@ -67,7 +67,8 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         messageInCounter = meter
                 .upDownCounterBuilder(MESSAGE_IN_COUNTER)
                 .setUnit("{message}")
-                .setDescription("The total number of messages received from the remote cluster through this replicator.")
+                .setDescription(
+                        "The total number of messages received from the remote cluster through this replicator.")
                 .buildObserver();
 
         messageOutCounter = meter
@@ -79,13 +80,15 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         bytesInCounter = meter
                 .upDownCounterBuilder(BYTES_IN_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total number of messages bytes received from the remote cluster through this replicator.")
+                .setDescription(
+                        "The total number of messages bytes received from the remote cluster through this replicator.")
                 .buildObserver();
 
         bytesOutCounter = meter
                 .upDownCounterBuilder(BYTES_OUT_COUNTER)
                 .setUnit("{byte}")
-                .setDescription("The total number of messages bytes sent to the remote cluster through this replicator.")
+                .setDescription(
+                        "The total number of messages bytes sent to the remote cluster through this replicator.")
                 .buildObserver();
 
         backlogCounter = meter
@@ -138,9 +141,12 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     }
 
     private void recordMetricsForReplicator(AbstractReplicator replicator) {
+        var topic = replicator.getTopic();
+
         var attributes = Attributes.builder()
                 .build();
 
+        var stats = replicator.getStats();
         var dummyValue = 0L;
 
         messageInCounter.record(dummyValue, attributes);
