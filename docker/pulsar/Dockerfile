@@ -81,12 +81,8 @@ RUN apk add --no-cache \
             procps \
             curl
 
-# Fix CVE-2024-2511 by upgrading to OpenSSL 3.1.4-r6
-# We can remove once new Alpine image is released
-RUN apk upgrade --no-cache libssl3 libcrypto3
-
-# Fix CVE-2023-42366
-RUN apk upgrade --no-cache busybox
+# Upgrade all packages to get latest versions with security fixes
+RUN apk upgrade --no-cache
 
 # Python dependencies
 
