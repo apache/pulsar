@@ -133,23 +133,12 @@ public final class ByteBufPair extends AbstractReferenceCounted {
             }
         }
 
-        // readonly buffer is needed to prevent SslHandler from modifying the input buffers.
+        // .asReadOnly() is needed to prevent SslHandler from modifying the input buffers.
         private static ByteBuf readOnlyRetainedDuplicate(ByteBuf buf) {
-            if (buf.readableBytes() == 0) {
-                return Unpooled.EMPTY_BUFFER;
-            }
-
-            // using "buf.asReadOnly().retainedDuplicate()" would be preferred here, however it's not supported
-            // by SslHandler until the fix https://github.com/netty/netty/pull/14071 is released.
-            // There's a need to use ".retainedDuplicate()" together with ".asReadOnly()".
-            // If the buffer is already read-only, .asReadOnly() will return the current buffer. This would be a problem
-            // since a duplicate is needed so that the buffer has independent readIndex and writeIndex state.
-            //
-            // The alternative workaround is to use "Unpooled.unmodifiableBuffer(buf).retain()". This is a deprecated
-            // method, but it will achieve the same result with the additional detail that it won't require the PR 14071
-            // in SslHandler to be released. The reason for this is that isWritable methods return false for an
-            // unwrapped ReadOnlyByteBuf instance.
-            return Unpooled.unmodifiableBuffer(buf).retain();
+            // If the buffer is already read-only, .asReadOnly() will return the same buffer.
+            // That's why the additional .retainedDuplicate() is needed to ensure that the returned buffer
+            // has independent readIndex and writeIndex.
+            return buf.asReadOnly().retainedDuplicate();
         }
     }
 }
