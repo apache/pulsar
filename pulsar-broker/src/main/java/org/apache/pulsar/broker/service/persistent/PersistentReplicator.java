@@ -597,11 +597,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public ReplicatorStatsImpl getStats() {
+        ProducerImpl producer = this.producer;
         stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
-        ProducerImpl producer = this.producer;
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();

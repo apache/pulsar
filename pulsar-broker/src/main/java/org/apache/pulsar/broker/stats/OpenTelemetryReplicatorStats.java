@@ -22,12 +22,8 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
 
@@ -64,10 +60,8 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     private final ObservableLongMeasurement delayGauge;
 
     private final BatchCallback batchCallback;
-    private final PulsarService pulsar;
 
     public OpenTelemetryReplicatorStats(PulsarService pulsar) {
-        this.pulsar = pulsar;
         var meter = pulsar.getOpenTelemetry().getMeter();
 
         messageInCounter = meter
@@ -123,7 +117,11 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                         .values()
                         .stream()
                         .map(topicFuture -> topicFuture.getNow(Optional.empty()))
-                        .forEach(topic -> topic.ifPresent(this::recordMetricsForTopic)),
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .flatMap(topic -> topic.getReplicators().values().stream())
+                        .map(AbstractReplicator.class::cast)
+                        .forEach(this::recordMetricsForReplicator),
                 messageInCounter,
                 messageOutCounter,
                 bytesInCounter,
@@ -139,18 +137,11 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    private void recordMetricsForTopic(Topic topic) {
+    private void recordMetricsForReplicator(AbstractReplicator replicator) {
         var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic.getName())
                 .build();
-        var replicators = topic.getReplicators();
 
-        topic.getReplicators().values().stream().mapMulti(new BiConsumer<Replicator, Consumer<? extends Object>>() {
-            @Override
-            public void accept(Replicator replicator, Consumer<?> consumer) {
-
-            }
-        });
+        var dummyValue = 0L;
 
         messageInCounter.record(dummyValue, attributes);
         messageOutCounter.record(dummyValue, attributes);

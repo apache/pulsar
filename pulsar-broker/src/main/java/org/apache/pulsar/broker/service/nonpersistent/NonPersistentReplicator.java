@@ -144,10 +144,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     @Override
     public NonPersistentReplicatorStatsImpl getStats() {
+        ProducerImpl producer = this.producer;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
-        ProducerImpl producer = this.producer;
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();
