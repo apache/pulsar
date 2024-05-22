@@ -139,18 +139,16 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 return Unpooled.EMPTY_BUFFER;
             }
 
-            // The preferred approach here would be to use "buf.asReadOnly().retainedDuplicate()", however, it's not
-            // supported by SslHandler until the fix https://github.com/netty/netty/pull/14071 is released.
-            // There's a need to use ".retainedDuplicate()" in conjunction with ".asReadOnly()" because when the buffer
-            // is already read-only, ".asReadOnly()" will return the current buffer without adding a wrapper.
-            // This could be problematic since a duplicate buffer is needed so that the buffer maintains independent
-            // readerIndex and writerIndex states.
+            // using "buf.asReadOnly().retainedDuplicate()" would be preferred here, however it's not supported
+            // by SslHandler until the fix https://github.com/netty/netty/pull/14071 is released.
+            // There's a need to use ".retainedDuplicate()" together with ".asReadOnly()".
+            // If the buffer is already read-only, .asReadOnly() will return the current buffer. This would be a problem
+            // since a duplicate is needed so that the buffer has independent readIndex and writeIndex state.
             //
-            // An alternative workaround is to use "Unpooled.unmodifiableBuffer(buf).retain()". Although this method
-            // is deprecated, it achieves the same result with the additional detail that it doesn't require the
-            // PR 14071 in SslHandler to be released. The reason for this is that the isWritable methods return false
-            // for an unwrapped ReadOnlyByteBuf instance. There's no need to add a separate duplicate wrapper buffer
-            // when using Unpooled.unmodifiableBuffer.
+            // The alternative workaround is to use "Unpooled.unmodifiableBuffer(buf).retain()". This is a deprecated
+            // method, but it will achieve the same result with the additional detail that it won't require the PR 14071
+            // in SslHandler to be released. The reason for this is that isWritable methods return false for an
+            // unwrapped ReadOnlyByteBuf instance.
             return Unpooled.unmodifiableBuffer(buf).retain();
         }
     }
