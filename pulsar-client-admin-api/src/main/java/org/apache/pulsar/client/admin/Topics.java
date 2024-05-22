@@ -1638,6 +1638,7 @@ public interface Topics {
 
     /**
      * Peek messages from a topic subscription.
+     * This method will show server marker, uncommitted and aborted messages for transaction by default.
      *
      * @param topic
      *            topic name
@@ -1656,7 +1657,35 @@ public interface Topics {
     List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
 
     /**
+     * Peek messages from a topic subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param showTxnAborted
+     *            Enables the display of messages from aborted transactions
+     * @param showTxnUncommitted
+     *            Enables the display of messages from uncommitted transactions
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                       boolean showServerMarker, boolean showTxnAborted,
+                                       boolean showTxnUncommitted) throws PulsarAdminException;
+
+    /**
      * Peek messages from a topic subscription asynchronously.
+     * This method will show server marker, uncommitted and aborted messages for transaction by default.
      *
      * @param topic
      *            topic name
@@ -1667,6 +1696,27 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+
+    /**
+     * Peek messages from a topic subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param showTxnAborted
+     *            Enables the display of messages from aborted transactions
+     * @param showTxnUncommitted
+     *            Enables the display of messages from uncommitted transactions
+     * @return a future that can be used to track when the messages are returned
+     */
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages,
+                                                               boolean showServerMarker, boolean showTxnAborted,
+                                                               boolean showTxnUncommitted);
 
     /**
      * Get a message by its messageId via a topic subscription.

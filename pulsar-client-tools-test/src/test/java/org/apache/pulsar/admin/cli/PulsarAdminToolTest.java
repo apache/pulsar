@@ -1744,7 +1744,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
-        verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
+        verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3, false, false, false);
 
         MessageImpl message = mock(MessageImpl.class);
         when(message.getData()).thenReturn(new byte[]{});

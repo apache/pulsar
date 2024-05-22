@@ -65,6 +65,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1097,10 +1099,23 @@ public class CmdTopics extends CmdBase {
         @Option(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
         private int numMessages = 1;
 
+        @Option(names = { "-ssm", "--show-server-marker" },
+                description = "Enables the display of internal server write markers.", required = false)
+        private boolean showServerMarker = false;
+
+        @Option(names = { "-sta", "--show-txn-aborted" },
+                description = "Enables the display of messages from aborted transactions.", required = false)
+        private boolean showTxnAborted = false;
+
+        @Option(names = { "-stu", "--show-txn-uncommitted" },
+                description = "Enables the display of messages from uncommitted transactions.", required = false)
+        private boolean showTxnUncommitted = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
+                    showServerMarker, showTxnAborted, showTxnUncommitted);
             int position = 0;
             for (Message<byte[]> msg : messages) {
                 MessageImpl message = (MessageImpl) msg;
@@ -1121,6 +1136,10 @@ public class CmdTopics extends CmdBase {
 
                 if (message.getDeliverAtTime() != 0) {
                     System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+                MessageMetadata msgMetaData = message.getMessageBuilder();
+                if (showServerMarker && msgMetaData.hasMarkerType()) {
+                    System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
                 }
 
                 if (message.getBrokerEntryMetadata() != null) {
