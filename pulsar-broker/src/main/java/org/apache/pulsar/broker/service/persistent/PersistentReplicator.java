@@ -28,6 +28,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -119,7 +120,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
                 brokerService, replicationClient);
         this.topic = localTopic;
-        this.cursor = cursor;
+        this.cursor = Objects.requireNonNull(cursor);
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
@@ -193,10 +194,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void disableReplicatorRead() {
-        if (this.cursor != null) {
-            // deactivate cursor after successfully close the producer
-            this.cursor.setInactive();
-        }
+        // deactivate cursor after successfully close the producer
+        this.cursor.setInactive();
     }
 
     /**
@@ -335,13 +334,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateCursorState() {
-        var cursor = this.cursor;
-        if (cursor != null) {
-            if (isConnected()) {
-                cursor.setActive();
-            } else {
-                cursor.setInactive();
-            }
+        if (isConnected()) {
+            cursor.setActive();
+        } else {
+            cursor.setInactive();
         }
     }
 
