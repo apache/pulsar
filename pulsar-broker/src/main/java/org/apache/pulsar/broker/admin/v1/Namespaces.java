@@ -46,6 +46,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -67,6 +69,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -182,7 +185,9 @@ public class Namespaces extends NamespacesBase {
     @PUT
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Creates a new empty namespace with no policies attached.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Create succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace already exists"),
             @ApiResponse(code = 412, message = "Namespace name is not valid") })
@@ -232,6 +237,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Delete a namespace and all the topics under it.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Delete succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
@@ -260,6 +266,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}")
     @ApiOperation(hidden = true, value = "Delete a namespace bundle and all the topics under it.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Delete succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
@@ -284,7 +291,10 @@ public class Namespaces extends NamespacesBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}/permissions")
     @ApiOperation(hidden = true, value = "Retrieve the permissions for a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "The permissions for this namespace",
+                    response = AuthorizationService.Permissions.class),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public void getPermissions(@Suspended AsyncResponse response,
@@ -305,7 +315,10 @@ public class Namespaces extends NamespacesBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}/permissions/subscription")
     @ApiOperation(value = "Retrieve the permissions for a subscription.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "The subscription permissions for this namespace",
+                    response = AuthorizationService.SubscriptionPermissions.class),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty")})
     public void getPermissionOnSubscription(@Suspended AsyncResponse response,
@@ -328,7 +341,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/permissions/{role}")
     @ApiOperation(hidden = true, value = "Grant a new permission to a role on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Grant a new permission to a role on a namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 501, message = "Authorization is not enabled")})
@@ -352,7 +367,9 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/permissions/subscription/{subscription}")
     @ApiOperation(hidden = true, value = "Grant a new permission to roles for a subscription. "
             + "[Tenant admin is allowed to perform this operation]")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Grant a new permission to roles for a subscription succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 501, message = "Authorization is not enabled")})
@@ -375,7 +392,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/permissions/{role}")
     @ApiOperation(hidden = true, value = "Revoke all permissions to a role on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Revoke all permissions to a role on a namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void revokePermissionsOnNamespace(@Suspended AsyncResponse asyncResponse,
                                              @PathParam("property") String property,
@@ -395,7 +414,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/permissions/{subscription}/{role}")
     @ApiOperation(hidden = true, value = "Revoke subscription admin-api access permission for a role.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Revoke subscription admin-api access permission for a role succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void revokePermissionOnSubscription(@Suspended AsyncResponse asyncResponse,
                                                @PathParam("property") String property,
@@ -439,7 +460,8 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/replication")
     @ApiOperation(hidden = true, value = "Set the replication clusters for a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Set the replication clusters for a namespace succeeded"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
@@ -460,7 +482,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/messageTTL")
-    @ApiOperation(hidden = true, value = "Get the message TTL for the namespace")
+    @ApiOperation(hidden = true, value = "Get the message TTL for the namespace", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void getNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse,
@@ -482,7 +504,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/messageTTL")
     @ApiOperation(hidden = true, value = "Set message TTL in seconds for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set message TTL in seconds for namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL") })
     public void setNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
@@ -501,7 +525,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/messageTTL")
     @ApiOperation(value = "Remove message TTL in seconds for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Remove message TTL in seconds for namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL") })
     public void removeNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse,
@@ -520,7 +546,8 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
-    @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
+    @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace",
+            response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void getSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
@@ -541,12 +568,17 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(hidden = true, value = "Set subscription expiration time in minutes for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set subscription expiration time in minutes for namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid expiration time") })
     public void setSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
                                               @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, int expirationTime) {
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                              @ApiParam(value =
+                                                      "Expiration time in minutes for the specified namespace",
+                                                      required = true) int expirationTime) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionExpirationTimeAsync(expirationTime)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
@@ -561,7 +593,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(hidden = true, value = "Remove subscription expiration time for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Remove subscription expiration time for namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void removeSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
                                                  @PathParam("property") String property,
@@ -580,18 +614,22 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
     @ApiOperation(value = "Set anti-affinity group for a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set anti-affinity group for a namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid antiAffinityGroup") })
     public void setNamespaceAntiAffinityGroup(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, String antiAffinityGroup) {
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                              @ApiParam(value = "Anti-affinity group for the specified namespace",
+                                                      required = true) String antiAffinityGroup) {
         validateNamespaceName(property, cluster, namespace);
         internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
     }
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
-    @ApiOperation(value = "Get anti-affinity group of a namespace.")
+    @ApiOperation(value = "Get anti-affinity group of a namespace.", response = String.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public String getNamespaceAntiAffinityGroup(@PathParam("property") String property,
@@ -603,7 +641,8 @@ public class Namespaces extends NamespacesBase {
     @GET
     @Path("{cluster}/antiAffinity/{group}")
     @ApiOperation(value = "Get all namespaces that are grouped by given anti-affinity group in a given cluster."
-            + " api can be only accessed by admin of any of the existing property")
+            + " api can be only accessed by admin of any of the existing property",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 412, message = "Cluster not exist/Anti-affinity group can't be empty.")})
     public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
@@ -615,7 +654,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
     @ApiOperation(value = "Remove anti-affinity group of a namespace.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Remove succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void removeNamespaceAntiAffinityGroup(@PathParam("property") String property,
@@ -628,7 +669,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/deduplication")
     @ApiOperation(hidden = true, value = "Enable or disable broker side deduplication for all topics in a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void modifyDeduplication(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
                                     @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
@@ -645,7 +688,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
-    @ApiOperation(value = "Get autoTopicCreation info in a namespace")
+    @ApiOperation(value = "Get autoTopicCreation info in a namespace", response = AutoTopicCreationOverride.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
     public void getAutoTopicCreation(@Suspended AsyncResponse asyncResponse,
@@ -665,7 +708,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
     @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 406, message = "The number of partitions should be less than or equal to"
                     + " maxNumPartitionsPerPartitionedTopic"),
@@ -700,7 +745,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
     @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Remove succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
                                         @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -728,7 +775,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
     @ApiOperation(value = "Override broker's allowAutoSubscriptionCreation setting for a namespace")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 400, message = "Invalid autoSubscriptionCreation override")})
     public void setAutoSubscriptionCreation(
@@ -758,7 +807,8 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
-    @ApiOperation(value = "Get autoSubscriptionCreation info in a namespace")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a namespace",
+            response = AutoSubscriptionCreationOverride.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
     public void getAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
@@ -783,7 +833,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
     @ApiOperation(value = "Remove override of broker's allowAutoSubscriptionCreation in a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Remove succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void removeAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
                                         @PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -810,7 +862,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/bundles")
-    @ApiOperation(hidden = true, value = "Get the bundles split data.")
+    @ApiOperation(hidden = true, value = "Get the bundles split data.", response = BundlesData.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
@@ -843,6 +895,7 @@ public class Namespaces extends NamespacesBase {
                     + "This operation requires strictly super user privileges, since it wouldresult in"
                     + " non-persistent message loss and unexpected connection closure to the clients.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Unload namespace succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
@@ -874,6 +927,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}/unload")
     @ApiOperation(hidden = true, value = "Unload a namespace bundle")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Unload a namespace bundle succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
@@ -903,6 +957,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}/split")
     @ApiOperation(hidden = true, value = "Split a namespace bundle")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Split a namespace bundle succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
@@ -944,7 +999,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/{bundle}/topicHashPositions")
-    @ApiOperation(value = "Get hash positions for topics")
+    @ApiOperation(value = "Get hash positions for topics", response = TopicHashPositions.class)
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
@@ -970,7 +1025,10 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/publishRate")
     @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set publish-rate throttling succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
     public void setPublishRate(@Suspended AsyncResponse asyncResponse,
                                @PathParam("property") String property, @PathParam("cluster") String cluster,
                                @PathParam("namespace") String namespace, PublishRate publishRate) {
@@ -985,7 +1043,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/publishRate")
-    @ApiOperation(hidden = true,
+    @ApiOperation(hidden = true, response = PublishRate.class,
             value = "Get publish-rate configured for the namespace, null means publish-rate not configured, "
                     + "-1 means msg-publish-rate or byte-publish-rate not configured in publish-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1007,7 +1065,10 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set dispatch-rate throttling succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
     public void setDispatchRate(@Suspended AsyncResponse asyncResponse,
                                 @PathParam("property") String property,
                                 @PathParam("cluster") String cluster,
@@ -1025,7 +1086,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
-    @ApiOperation(hidden = true,
+    @ApiOperation(hidden = true, response = DispatchRateImpl.class,
             value = "Get dispatch-rate configured for the namespace, null means dispatch-rate not configured, "
                     + "-1 means msg-dispatch-rate or byte-dispatch-rate not configured in dispatch-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1050,7 +1111,10 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set subscription dispatch-rate throttling succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
     public void setSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
                                             @PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
@@ -1071,7 +1135,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Get subscription dispatch-rate configured for the namespace, null means subscription "
             + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
-            + "in dispatch-rate yet")
+            + "in dispatch-rate yet", response = DispatchRate.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public void getSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
@@ -1092,7 +1156,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Delete subscription dispatch-rate throttling for all topics of the namespace")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Delete succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void deleteSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
@@ -1113,7 +1179,10 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set replicator dispatch-rate throttling succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
     public void setReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("cluster") String cluster,
@@ -1128,7 +1197,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Get replicator dispatch-rate configured for the namespace, null means replicator "
             + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
-            + "in dispatch-rate yet")
+            + "in dispatch-rate yet", response = DispatchRateImpl.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void getReplicatorDispatchRate(
@@ -1156,7 +1225,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/backlogQuota")
     @ApiOperation(hidden = true, value = " Set a backlog quota for all the topics on a namespace.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set backlog quota succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota."
@@ -1174,7 +1245,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/backlogQuota")
     @ApiOperation(hidden = true, value = "Remove a backlog quota policy from a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Remove backlog quota succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void removeBacklogQuota(
@@ -1188,7 +1261,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/retention")
-    @ApiOperation(hidden = true, value = "Get retention config on a namespace.")
+    @ApiOperation(hidden = true, value = "Get retention config on a namespace.", response = RetentionPolicies.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void getRetention(@Suspended final AsyncResponse asyncResponse,
@@ -1209,13 +1282,17 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/retention")
-    @ApiOperation(hidden = true, value = " Set retention configuration on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiOperation(hidden = true, value = "Set retention configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set retention configuration succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
     public void setRetention(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, RetentionPolicies retention) {
+                             @PathParam("namespace") String namespace,
+                             @ApiParam(value = "Retention policies for the specified namespace")
+                                 RetentionPolicies retention) {
         validateNamespaceName(property, cluster, namespace);
         internalSetRetention(retention);
     }
@@ -1223,12 +1300,15 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/persistence")
     @ApiOperation(hidden = true, value = "Set the persistence configuration for all the topics on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set persistence configuration succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 400, message = "Invalid persistence policies") })
     public void setPersistence(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
                                @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                               @ApiParam(value = "Persistence policies for the specified namespace", required = true)
                                PersistencePolicies persistence) {
         validateNamespaceName(property, cluster, namespace);
         internalSetPersistenceAsync(persistence)
@@ -1245,19 +1325,23 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Set the bookie-affinity-group to namespace-local policy.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Set bookie-affinity-group to namespace-local policy succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setBookieAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, BookieAffinityGroupData bookieAffinityGroup) {
+                                       @PathParam("namespace") String namespace,
+                                       @ApiParam(value = "Bookie affinity group for the specified namespace")
+                                       BookieAffinityGroupData bookieAffinityGroup) {
         validateNamespaceName(property, cluster, namespace);
         internalSetBookieAffinityGroup(bookieAffinityGroup);
     }
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
-    @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
+    @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.",
+            response = BookieAffinityGroupData.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1273,6 +1357,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(hidden = true, value = "Delete the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Delete succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
@@ -1285,7 +1370,8 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/persistence")
-    @ApiOperation(hidden = true, value = "Get the persistence configuration for a namespace.")
+    @ApiOperation(hidden = true, value = "Get the persistence configuration for a namespace.",
+            response = PersistencePolicies.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
@@ -1309,6 +1395,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/clearBacklog")
     @ApiOperation(hidden = true, value = "Clear backlog for all topics on a namespace.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Clear succeeded"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBacklog(@Suspended final AsyncResponse asyncResponse,
@@ -1329,6 +1416,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}/clearBacklog")
     @ApiOperation(hidden = true, value = "Clear backlog for all topics on a namespace bundle.")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Clear succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
@@ -1344,6 +1432,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/clearBacklog/{subscription}")
     @ApiOperation(hidden = true, value = "Clear backlog for a given subscription on all topics on a namespace.")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Clear succeeded"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void clearNamespaceBacklogForSubscription(@Suspended final AsyncResponse asyncResponse,
@@ -1364,6 +1453,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}/clearBacklog/{subscription}")
     @ApiOperation(hidden = true, value = "Clear backlog for a given subscription on all topics on a namespace bundle.")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Clear succeeded"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
@@ -1379,6 +1469,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/unsubscribe/{subscription}")
     @ApiOperation(hidden = true, value = "Unsubscribes the given subscription on all topics on a namespace.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Unsubscribes succeeded"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespace(@Suspended final AsyncResponse asyncResponse,
@@ -1399,6 +1490,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/{bundle}/unsubscribe/{subscription}")
     @ApiOperation(hidden = true, value = "Unsubscribes the given subscription on all topics on a namespace bundle.")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Unsubscribes succeeded"),
             @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespaceBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -1412,7 +1504,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/subscriptionAuthMode")
     @ApiOperation(value = " Set a subscription auth mode for all the topics on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Set a subscription auth mode succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setSubscriptionAuthMode(@PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -1423,7 +1517,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/subscriptionAuthMode")
-    @ApiOperation(value = "Get subscription auth mode in a namespace")
+    @ApiOperation(value = "Get subscription auth mode in a namespace", response = SubscriptionAuthMode.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
     public void getSubscriptionAuthMode(@Suspended final AsyncResponse asyncResponse,
@@ -1445,7 +1539,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/encryptionRequired")
     @ApiOperation(hidden = true, value = "Message encryption is required or not for all topics in a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
     public void modifyEncryptionRequired(@PathParam("property") String property, @PathParam("cluster") String cluster,
@@ -1456,7 +1552,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/encryptionRequired")
-    @ApiOperation(value = "Get message encryption required status in a namespace")
+    @ApiOperation(value = "Get message encryption required status in a namespace", response = Boolean.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist")})
     public Boolean getEncryptionRequired(@PathParam("property") String property,
@@ -1469,7 +1565,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/maxProducersPerTopic")
-    @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
+    @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void getMaxProducersPerTopic(
@@ -1491,8 +1587,10 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/maxProducersPerTopic")
-    @ApiOperation(value = " Set maxProducersPerTopic configuration on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiOperation(value = "Set maxProducersPerTopic configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Set maxProducersPerTopic configuration succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxProducersPerTopic value is not valid") })
@@ -1504,7 +1602,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/maxConsumersPerTopic")
-    @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
+    @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void getMaxConsumersPerTopic(
@@ -1527,7 +1625,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/maxConsumersPerTopic")
     @ApiOperation(value = " Set maxConsumersPerTopic configuration on a namespace.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerTopic value is not valid") })
@@ -1539,7 +1639,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/maxConsumersPerSubscription")
-    @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
+    @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public void getMaxConsumersPerSubscription(
@@ -1561,8 +1661,10 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/maxConsumersPerSubscription")
-    @ApiOperation(value = " Set maxConsumersPerSubscription configuration on a namespace.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiOperation(value = "Set maxConsumersPerSubscription configuration on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Set maxConsumersPerSubscription configuration succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
@@ -1577,7 +1679,9 @@ public class Namespaces extends NamespacesBase {
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/maxConsumersPerSubscription")
     @ApiOperation(value = "Remove maxConsumersPerSubscription configuration on a namespace.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Remove maxConsumersPerSubscription configuration succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void removeMaxConsumersPerSubscription(
@@ -1592,7 +1696,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/compactionThreshold")
     @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
                   notes = "The backlog size is compared to the threshold periodically. "
-                          + "A threshold of 0 disabled automatic compaction")
+                          + "A threshold of 0 disabled automatic compaction", response = Long.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public void getCompactionThreshold(
@@ -1618,6 +1722,7 @@ public class Namespaces extends NamespacesBase {
                   notes = "The backlog size is compared to the threshold periodically. "
                           + "A threshold of 0 disabled automatic compaction")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 200, message = "Set aximum number of uncompacted bytes succeeded"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification"),
                             @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
@@ -1633,7 +1738,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/offloadThreshold")
     @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
                           + " before the broker will start offloading to longterm storage",
-                  notes = "A negative value disables automatic offloading")
+                  notes = "A negative value disables automatic offloading", response = Long.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public void getOffloadThreshold(
@@ -1664,6 +1769,7 @@ public class Namespaces extends NamespacesBase {
                           + " before the broker will start offloading to longterm storage",
                   notes = "A negative value disables automatic offloading")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 200, message = "Set maximum number of bytes stored succeeded"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification"),
                             @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
@@ -1680,7 +1786,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "The strategy used to check the compatibility of new schemas,"
                           + " provided by producers, before automatically updating the schema",
                   notes = "The value AutoUpdateDisabled prevents producers from updating the schema. "
-                          + " If set to AutoUpdateDisabled, schemas must be updated through the REST api")
+                          + " If set to AutoUpdateDisabled, schemas must be updated through the REST api",
+            response = SchemaAutoUpdateCompatibilityStrategy.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification") })
@@ -1699,6 +1806,7 @@ public class Namespaces extends NamespacesBase {
                   notes = "The value AutoUpdateDisabled prevents producers from updating the schema. "
                           + " If set to AutoUpdateDisabled, schemas must be updated through the REST api")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 200, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
                             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setSchemaAutoUpdateCompatibilityStrategy(@PathParam("tenant") String tenant,
@@ -1712,7 +1820,9 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/migration")
     @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Update succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public void enableMigration(@PathParam("property") String property,
                                 @PathParam("cluster") String cluster,
@@ -1725,7 +1835,9 @@ public class Namespaces extends NamespacesBase {
     @PUT
     @Path("/{property}/{cluster}/{namespace}/policy")
     @ApiOperation(value = "Creates a new namespace with the specified policies")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Creates a new namespace succeeded"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace already exists"),
             @ApiResponse(code = 412, message = "Namespace name is not valid") })

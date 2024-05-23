@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.ws.rs.core.Response;
+import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -831,5 +832,15 @@ public class AuthorizationService {
 
     public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
         return provider.getSubscriptionPermissionsAsync(namespaceName);
+    }
+
+    @Data
+    public static class Permissions {
+        private Map<String, Set<AuthAction>> permissions;
+    }
+
+    @Data
+    public static class SubscriptionPermissions {
+        private Map<String, Set<String>> subscriptionPermissions;
     }
 }
