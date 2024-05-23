@@ -2762,7 +2762,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return Sets.newHashSet(clusterIds);
                     });
                 })
-                // Verify the allowed clusters are valid and the do not contain the peer clusters.
+                // Verify the allowed clusters are valid and they do not contain the peer clusters.
                 .thenCompose(allowedClusters -> clustersAsync()
                         .thenCompose(clusters -> {
                             List<CompletableFuture<Void>> futures =

@@ -2630,31 +2630,31 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set allowed clusters for a namespace")
+    @Command(description = "Set allowed clusters for a namespace")
     private class SetAllowedClusters extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
 
-        @Parameter(names = { "--clusters",
-                "-c" }, description = "Allowed Cluster Ids list (comma separated values)", required = true)
+        @Option(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
         private String clusterIds;
 
         @Override
         void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
+            String namespace = validateNamespace(namespaceName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
             getAdmin().namespaces().setNamespaceAllowedClusters(namespace, Sets.newHashSet(clusters));
         }
     }
 
-    @Parameters(commandDescription = "Get allowed clusters for a namespace")
+    @Command(description = "Get allowed clusters for a namespace")
     private class GetAllowedClusters extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
 
         @Override
         void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
+            String namespace = validateNamespace(namespaceName);
             print(getAdmin().namespaces().getNamespaceAllowedClusters(namespace));
         }
     }
