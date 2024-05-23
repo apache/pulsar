@@ -102,7 +102,7 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
-    public static String getPartitionPatten(String topic) {
+    public static String getPartitionPattern(String topic) {
         return "^" + get(topic).getPartitionedTopicName().toString() + "-partition-[0-9]+$";
     }
 

@@ -26,7 +26,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -141,7 +140,7 @@ public interface LookupService extends AutoCloseable {
                 if (getTopicsResult.isFiltered()) {
                     clientSideFilter = __ -> true;
                 } else {
-                    clientSideFilter = tp -> Pattern.compile(TopicName.getPartitionPatten(topic)).matcher(tp).matches();
+                    clientSideFilter = tp -> Pattern.compile(TopicName.getPartitionPattern(topic)).matcher(tp).matches();
                 }
                 ArrayList<Integer> list = new ArrayList<>(getTopicsResult.getNonPartitionedOrPartitionTopics().size());
                 for (String partition : getTopicsResult.getNonPartitionedOrPartitionTopics()) {
