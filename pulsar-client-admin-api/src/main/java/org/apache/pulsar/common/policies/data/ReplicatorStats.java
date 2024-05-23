@@ -24,19 +24,29 @@ package org.apache.pulsar.common.policies.data;
 public interface ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */
+    @Deprecated
     double getMsgRateIn();
+    long getMsgInCount();
 
     /** Total throughput received from the remote cluster (bytes/s). */
+    @Deprecated
     double getMsgThroughputIn();
+    long getBytesInCount();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
+    @Deprecated
     double getMsgRateOut();
+    long getMsgOutCount();
 
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
+    @Deprecated
     double getMsgThroughputOut();
+    long getBytesOutCount();
 
     /** Total rate of messages expired (msg/s). */
+    @Deprecated
     double getMsgRateExpired();
+    long getMsgExpiredCount();
 
     /** Number of messages pending to be replicated to remote cluster. */
     long getReplicationBacklog();

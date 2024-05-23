@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
@@ -31,14 +32,22 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     /** Total rate of messages received from the remote cluster (msg/s). */
     public double msgRateIn;
 
+    private final LongAdder msgInCount = new LongAdder();
+
     /** Total throughput received from the remote cluster (bytes/s). */
     public double msgThroughputIn;
+
+    private final LongAdder bytesInCount = new LongAdder();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
     public double msgRateOut;
 
+    private final LongAdder msgOutCount = new LongAdder();
+
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     public double msgThroughputOut;
+
+    private final LongAdder bytesOutCount = new LongAdder();
 
     /** Total rate of messages expired (msg/s). */
     public double msgRateExpired;
@@ -72,10 +81,49 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.msgRateExpired += stats.msgRateExpired;
         this.replicationBacklog += stats.replicationBacklog;
-        if (this.connected) {
-            this.connected &= stats.connected;
-        }
+        this.connected &= stats.connected;
         this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
         return this;
+    }
+
+    @Override
+    public long getMsgInCount() {
+        return msgInCount.sum();
+    }
+
+    public void incrementMsgInCounter() {
+        msgInCount.increment();
+    }
+
+    @Override
+    public long getBytesInCount() {
+        return bytesInCount.sum();
+    }
+
+    public void incrementBytesInCounter(long bytes) {
+        bytesInCount.add(bytes);
+    }
+
+    @Override
+    public long getMsgOutCount() {
+        return msgOutCount.sum();
+    }
+
+    public void incrementMsgOutCounter() {
+        msgOutCount.increment();
+    }
+
+    @Override
+    public long getBytesOutCount() {
+        return bytesOutCount.sum();
+    }
+
+    public void incrementBytesOutCounter(long bytes) {
+        bytesOutCount.add(bytes);
+    }
+
+    @Override
+    public long getMsgExpiredCount() {
+        return 0;
     }
 }

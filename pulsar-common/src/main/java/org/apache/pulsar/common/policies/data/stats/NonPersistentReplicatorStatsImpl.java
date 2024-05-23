@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
-import lombok.Getter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 
 /**
  * Statistics for a non-persistent replicator.
  */
-@SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implements NonPersistentReplicatorStats {
 
     /**
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
-    @Getter
     public double msgDropRate;
 
     public NonPersistentReplicatorStatsImpl add(NonPersistentReplicatorStatsImpl stats) {
@@ -40,5 +40,10 @@ public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implem
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;
+    }
+
+    @Override
+    public long getMsgDropCount() {
+        return 0;
     }
 }
