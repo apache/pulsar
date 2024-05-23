@@ -1038,12 +1038,12 @@ public class BrokerServiceTest extends BrokerTestBase {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
-            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1, true);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
             long reqId2 = reqId++;
-            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2, true);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
@@ -1058,17 +1058,17 @@ public class BrokerServiceTest extends BrokerTestBase {
             // 3 lookup will fail
             latchRef.set(new CountDownLatch(1));
             long reqId3 = reqId++;
-            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3, true);
             f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
 
             long reqId4 = reqId++;
-            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4, true);
             f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
 
             long reqId5 = reqId++;
-            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5, true);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
