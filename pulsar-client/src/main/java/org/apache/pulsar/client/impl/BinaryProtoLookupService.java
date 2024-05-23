@@ -254,6 +254,11 @@ public class BinaryProtoLookupService implements LookupService {
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
+                partitionFuture.completeExceptionally(new PulsarClientException.NotSupportedException("The broker"
+                        + " version is too old to support getting partitions without auto-creation"));
+                return;
+            }
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
                     metadataAutoCreationEnabled);
