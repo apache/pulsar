@@ -20,10 +20,16 @@ package org.apache.pulsar.broker.stats;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
+import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
+import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
 
@@ -57,7 +63,7 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
 
     // Replaces pulsar_replication_delay_in_seconds
     public static final String DELAY_GAUGE = "pulsar.broker.replication.message.age";
-    private final ObservableLongMeasurement delayGauge;
+    private final ObservableDoubleMeasurement delayGauge;
 
     private final BatchCallback batchCallback;
 
@@ -110,7 +116,7 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                 .buildObserver();
 
         delayGauge = meter
-                .upDownCounterBuilder(DELAY_GAUGE)
+                .gaugeBuilder(DELAY_GAUGE)
                 .setUnit("{second}")
                 .setDescription("The total number of messages that expired for this replicator.")
                 .buildObserver();
@@ -142,6 +148,7 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
 
     private void recordMetricsForReplicator(AbstractReplicator replicator) {
         var topic = replicator.getTopic();
+        var topic = replicator.getLocalTopic();
 
         var attributes = Attributes.builder()
                 .build();
@@ -149,13 +156,21 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         var stats = replicator.getStats();
         var dummyValue = 0L;
 
-        messageInCounter.record(dummyValue, attributes);
-        messageOutCounter.record(dummyValue, attributes);
-        bytesInCounter.record(dummyValue, attributes);
-        bytesOutCounter.record(dummyValue, attributes);
-        backlogCounter.record(dummyValue, attributes);
-        expiredCounter.record(dummyValue, attributes);
-        connectedCounter.record(dummyValue, attributes);
-        delayGauge.record(dummyValue, attributes);
+        messageInCounter.record(stats.getMsgInCount(), attributes);
+        messageOutCounter.record(stats.getMsgOutCount(), attributes);
+        bytesInCounter.record(stats.getBytesInCount(), attributes);
+        bytesOutCounter.record(stats.getBytesOutCount(), attributes);
+        connectedCounter.record(replicator.isConnected() ? 0 : 1, attributes);
+        var delaySeconds = MetricsUtil.convertToSeconds(replicator.getReplicationDelayMs(), TimeUnit.MILLISECONDS);
+        delayGauge.record(delaySeconds, attributes);
+
+        if (replicator instanceof PersistentReplicator persistentReplicator) {
+            expiredCounter.record(persistentReplicator.getMessageExpiredCount(), attributes);
+            backlogCounter.record(persistentReplicator.getNumberOfEntriesInBacklog(), attributes);
+        }
+
+        if (stats instanceof NonPersistentReplicatorStats nonPersistentStats) {
+            var dropCount = nonPersistentStats.getMsgDropCount();
+        }
     }
 }
