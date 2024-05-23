@@ -136,6 +136,11 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void disableReplicatorRead();
 
+    public long getReplicationDelayMs() {
+        var producer = this.producer;
+        return producer == null ? 0 : producer.getDelayInMillis();
+    }
+
     public Topic getTopic() {
         return localTopic;
     }

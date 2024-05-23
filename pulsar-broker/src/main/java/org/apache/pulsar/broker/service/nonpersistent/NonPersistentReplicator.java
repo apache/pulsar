@@ -146,7 +146,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     public NonPersistentReplicatorStatsImpl getStats() {
         ProducerImpl producer = this.producer;
         stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
@@ -157,13 +157,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         }
 
         return stats;
-    }
-
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
     }
 
     private static final class ProducerSendCallback implements SendCallback {

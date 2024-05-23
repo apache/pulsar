@@ -600,7 +600,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         ProducerImpl producer = this.producer;
         stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
@@ -615,13 +615,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     public void updateMessageTTL(int messageTTLInSeconds) {
         this.messageTTLInSeconds = messageTTLInSeconds;
-    }
-
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
     }
 
     @Override
