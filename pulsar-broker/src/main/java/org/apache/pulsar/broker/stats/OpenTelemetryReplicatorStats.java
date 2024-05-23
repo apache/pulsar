@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
@@ -147,14 +146,12 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     }
 
     private void recordMetricsForReplicator(AbstractReplicator replicator) {
-        var topic = replicator.getTopic();
         var topic = replicator.getLocalTopic();
 
         var attributes = Attributes.builder()
                 .build();
 
         var stats = replicator.getStats();
-        var dummyValue = 0L;
 
         messageInCounter.record(stats.getMsgInCount(), attributes);
         messageOutCounter.record(stats.getMsgOutCount(), attributes);
