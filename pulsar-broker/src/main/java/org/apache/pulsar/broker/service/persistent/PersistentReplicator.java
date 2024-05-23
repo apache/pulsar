@@ -331,11 +331,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateCursorState() {
-        if (this.cursor != null) {
-            if (producer != null && producer.isConnected()) {
-                this.cursor.setActive();
+        var cursor = this.cursor;
+        if (cursor != null) {
+            if (isConnected()) {
+                cursor.setActive();
             } else {
-                this.cursor.setInactive();
+                cursor.setInactive();
             }
         }
     }
