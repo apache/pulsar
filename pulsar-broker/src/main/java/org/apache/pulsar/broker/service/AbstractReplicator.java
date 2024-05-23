@@ -55,6 +55,7 @@ public abstract class AbstractReplicator implements Replicator {
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
     protected String replicatorId;
+    @Getter
     protected final Topic localTopic;
 
     protected volatile ProducerImpl producer;
@@ -145,10 +146,6 @@ public abstract class AbstractReplicator implements Replicator {
     public long getReplicationDelayMs() {
         var producer = this.producer;
         return producer == null ? 0 : producer.getDelayInMillis();
-    }
-
-    public Topic getTopic() {
-        return localTopic;
     }
 
     public String getRemoteCluster() {

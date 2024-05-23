@@ -27,7 +27,7 @@ public interface Replicator {
 
     void startProducer();
 
-    Topic getTopic();
+    Topic getLocalTopic();
 
     ReplicatorStatsImpl getStats();
 
