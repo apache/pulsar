@@ -300,6 +300,7 @@ message FeatureFlags {
   optional bool supports_broker_entry_metadata = 2 [default = false];
   optional bool supports_partial_producer = 3 [default = false];
   optional bool supports_topic_watchers = 4 [default = false];
+  optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
 }
 
 message CommandConnected {
@@ -413,6 +414,7 @@ message CommandPartitionedTopicMetadata {
     // to the proxy.
     optional string original_auth_data = 4;
     optional string original_auth_method = 5;
+    optional bool metadata_auto_creation_enabled = 6 [default = true];
 }
 
 message CommandPartitionedTopicMetadataResponse {

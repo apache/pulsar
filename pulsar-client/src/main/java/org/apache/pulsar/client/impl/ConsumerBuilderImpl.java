@@ -136,9 +136,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
                 CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
+                        client.getPartitionedTopicMetadata(oldRetryLetterTopic, true);
                 CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+                        client.getPartitionedTopicMetadata(oldDeadLetterTopic, true);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
