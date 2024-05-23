@@ -109,7 +109,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
+    protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
 
