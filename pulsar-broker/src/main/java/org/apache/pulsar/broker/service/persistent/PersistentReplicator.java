@@ -598,7 +598,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public ReplicatorStatsImpl getStats() {
-        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
         stats.connected = isConnected();
         stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
