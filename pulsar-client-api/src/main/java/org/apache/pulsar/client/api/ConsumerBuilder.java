@@ -464,7 +464,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> readCompacted(boolean readCompacted);
 
     /**
-     * Sets topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topic's consumer.
      * The period is in minutes, and the default and minimum values are 1 minute.
      *
      * @param periodInMinutes
@@ -476,7 +476,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
 
     /**
-     * Sets topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topic's consumer.
+     * The default value of period is 1 minute, with a minimum of 1 second.
      *
      * @param interval
      *            the amount of delay between checks for

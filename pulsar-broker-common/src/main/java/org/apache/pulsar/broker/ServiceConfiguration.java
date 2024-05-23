@@ -250,6 +250,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " when getting topic statistics data.")
     private boolean haProxyProtocolEnabled;
 
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for Netty Acceptor."
@@ -330,6 +346,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Gzip compression is enabled by default. Specific paths can be excluded from compression.\n"
+                    + "There are 2 syntaxes supported, Servlet url-pattern based, and Regex based.\n"
+                    + "If the spec starts with '^' the spec is assumed to be a regex based path spec and will match "
+                    + "with normal Java regex rules.\n"
+                    + "If the spec starts with '/' then spec is assumed to be a Servlet url-pattern rules path spec "
+                    + "for either an exact match or prefix based match.\n"
+                    + "If the spec starts with '*.' then spec is assumed to be a Servlet url-pattern rules path spec "
+                    + "for a suffix based match.\n"
+                    + "All other syntaxes are unsupported.\n"
+                    + "Disable all compression with ^.* or ^.*$")
+    private List<String> httpServerGzipCompressionExcludedPaths = new ArrayList<>();
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
@@ -622,6 +651,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(disable default-ttl with value 0)"
         )
     private int ttlDurationDefaultInSeconds = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Additional system subscriptions that will be ignored by ttl check. "
+                + "The cursor names are comma separated. Default is empty."
+    )
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1344,7 +1380,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             dynamic = true,
             doc = "The number of partitions per partitioned topic.\n"
-                + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
+                + "If try to create or update partitioned topics by exceeded number of partitions, then fail.\n"
+                + "Use 0 or negative number to disable the check."
     )
     private int maxNumPartitionsPerPartitionedTopic = 0;
 
@@ -1453,11 +1490,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable or disable exposing broker entry metadata to client.")
     private boolean exposingBrokerEntryMetadataToClientEnabled = false;
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable namespaceIsolation policy update take effect ontime or not,"
-                + " if set to ture, then the related namespaces will be unloaded after reset policy to make it "
-                + "take effect."
+        doc = "This config never takes effect and will be removed in the next release"
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
@@ -1689,6 +1725,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_BK,
         doc = "Parameters for bookkeeper auth plugin"
     )
+    @ToString.Exclude
     private String bookkeeperClientAuthenticationParameters;
 
     @FieldContext(
@@ -2053,10 +2090,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "The threshold to triggering automatic offload to long term storage"
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The threshold to triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Trigger offload on topic load or not. Default is false"
+    )
+    private boolean triggerOffloadOnTopicLoad = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -2554,7 +2596,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(100% resource usage is 1.0 load). "
                     + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
                     + "The smaller value will incur load balancing more frequently. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private double loadBalancerBrokerLoadTargetStd = 0.25;
 
@@ -2565,7 +2607,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If the unload scheduler consecutively finds bundles that meet unload conditions "
                     + "many times bigger than this threshold, the scheduler will shed the bundles. "
                     + "The bigger value will incur less bundle unloading/transfers. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerSheddingConditionHitCountThreshold = 3;
 
@@ -2577,7 +2619,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "-- pre-assigns the destination broker upon unloading). "
                     + "Off: unload bundles from overloaded brokers "
                     + "-- post-assigns the destination broker upon lookups). "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private boolean loadBalancerTransferEnabled = true;
 
@@ -2586,7 +2628,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "Maximum number of brokers to unload bundle load for each unloading cycle. "
                     + "The bigger value will incur more unloading/transfers for each unloading cycle. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerMaxNumberOfBrokerSheddingPerCycle = 3;
 
@@ -2596,7 +2638,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Delay (in seconds) to the next unloading cycle after unloading. "
                     + "The logic tries to give enough time for brokers to recompute load after unloading. "
                     + "The bigger value will delay the next unloading cycle longer. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalanceSheddingDelayInSeconds = 180;
 
@@ -2609,7 +2651,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
                     + "The current default value is loadBalancerReportUpdateMaxIntervalMinutes * 120, reflecting "
                     + "twice the duration in seconds. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
 
@@ -2882,6 +2924,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy"
+    )
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Time in milliseconds that idle WebSocket session times out"
@@ -2914,8 +2963,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "If true, export buffered metrics"
-    )
+            doc = "Set to true to enable the broker to cache the metrics response; the default is false. "
+                    + "The caching period is defined by `managedLedgerStatsPeriodSeconds`. "
+                    + "The broker returns the same response for subsequent requests within the same period. "
+                    + "Ensure that the scrape interval of your monitoring system matches the caching period.")
     private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
@@ -3303,6 +3354,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Authentication parameters of the authentication plugin the broker is using to connect "
                     + "to other brokers"
     )
+    @ToString.Exclude
     private String brokerClientAuthenticationParameters = "";
     @FieldContext(
             category = CATEGORY_REPLICATION,

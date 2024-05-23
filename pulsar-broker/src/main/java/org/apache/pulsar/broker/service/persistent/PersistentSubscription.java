@@ -97,7 +97,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription extends AbstractSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -308,7 +308,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
-            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -338,11 +337,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     if (!isResetCursor) {
                         try {
                             topic.getManagedLedger().deleteCursor(cursor.getName());
+                            topic.getManagedLedger().removeWaitingCursor(cursor);
                         } catch (InterruptedException | ManagedLedgerException e) {
                             log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                         }
                     }
                 });
+            } else {
+                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 

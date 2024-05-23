@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.3.0-SNAPSHOT</version>
+  <version>3.4.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,17 +92,18 @@ flexible messaging model and an intuitive client API.</description>
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups>quarantine</excludedGroups>
+    <excludedGroups>quarantine,flaky</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-05-13T09:56:12Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
     <docker.platforms></docker.platforms>
+    <docker.skip.push>true</docker.skip.push>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -115,6 +116,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
+    <testMaxHeapSize>1300M</testMaxHeapSize>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -129,6 +131,8 @@ flexible messaging model and an intuitive client API.</description>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
+    <docker.image>pulsar</docker.image>
+    <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <shadePluginPhase>package</shadePluginPhase>
@@ -137,14 +141,14 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.26.0</commons-compress.version>
 
-    <bookkeeper.version>4.16.4</bookkeeper.version>
+    <bookkeeper.version>4.17.0</bookkeeper.version>
     <zookeeper.version>3.9.2</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.105.Final</netty.version>
+    <netty.version>4.1.108.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -153,10 +157,10 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.3.8</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
-    <slf4j.version>1.7.32</slf4j.version>
+    <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.18.0</log4j2.version>
-    <bouncycastle.version>1.75</bouncycastle.version>
+    <log4j2.version>2.23.1</log4j2.version>
+    <bouncycastle.version>1.78</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
     <jackson.version>2.14.2</jackson.version>
@@ -168,9 +172,9 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <byte-buddy.version>1.14.12</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
-    <protobuf3.version>3.19.6</protobuf3.version>
+    <protobuf3.version>3.22.3</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.55.3</grpc.version>
+    <grpc.version>1.56.0</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -182,23 +186,23 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.5.0</aerospike-client.version>
     <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
-    <aws-sdk.version>1.12.262</aws-sdk.version>
+    <aws-sdk.version>1.12.638</aws-sdk.version>
     <avro.version>1.11.3</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
-    <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
+    <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
-    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
+    <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
@@ -213,7 +217,6 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.82</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -228,7 +231,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.30</lombok.version>
+    <lombok.version>1.18.32</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -249,17 +252,18 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.5</jetcd.version>
-    <oxia.version>0.1.0</oxia.version>
+    <oxia.version>0.2.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.34.1</opentelemetry.version>
-    <opentelemetry.alpha.version>1.34.1-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>1.32.1-alpha</opentelemetry.instrumentation.version>
-    <opentelemetry.semconv.version>1.23.1-alpha</opentelemetry.semconv.version>
+    <opentelemetry.version>1.37.0</opentelemetry.version>
+    <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
+    <opentelemetry.instrumentation.version>1.33.2</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
+    <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
 
     <!-- test dependencies -->
@@ -279,6 +283,7 @@ flexible messaging model and an intuitive client API.</description>
     <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
+    <consolecaptor.version>1.0.3</consolecaptor.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -308,7 +313,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.21</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>9.0.7</dependency-check-maven.version>
+    <dependency-check-maven.version>9.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
@@ -351,6 +356,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclusion>
                 <groupId>org.yaml</groupId>
                 <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>*</artifactId>
             </exclusion>
         </exclusions>
       </dependency>
@@ -459,6 +468,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.bouncycastle</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
           </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -694,12 +707,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.beust</groupId>
-        <artifactId>jcommander</artifactId>
-        <version>${jcommander.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>info.picocli</groupId>
         <artifactId>picocli</artifactId>
         <version>${picocli.version}</version>
@@ -761,20 +768,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
+        <artifactId>slf4j-bom</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-simple</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>jcl-over-slf4j</artifactId>
-        <version>${slf4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -1199,7 +1196,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.streamnative.oxia</groupId>
         <artifactId>oxia-client</artifactId>
         <version>${oxia.version}</version>
-        <classifier>shaded</classifier>
       </dependency>
       <dependency>
         <groupId>io.streamnative.oxia</groupId>
@@ -1505,8 +1501,17 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.instrumentation</groupId>
-        <artifactId>opentelemetry-resources</artifactId>
+        <artifactId>opentelemetry-instrumentation-bom</artifactId>
         <version>${opentelemetry.instrumentation.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+        <version>${opentelemetry.instrumentation.alpha.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.semconv</groupId>
@@ -1589,6 +1594,10 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.zookeeper</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>log4j-slf4j-impl</artifactId>
+          <groupId>org.apache.logging.log4j</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -1646,7 +1655,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseZGC
+          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx${testMaxHeapSize} -XX:+UseZGC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
@@ -2704,6 +2713,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <!-- For the BDB JE dependency -->
+    <repository>
+      <id>oracle.releases</id>
+      <url>https://download.oracle.com/maven</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

@@ -123,40 +123,23 @@ public class SplitManagerTest {
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
 
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
-        counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
+        assertEquals(inFlightUnloadRequests.size(), 1);
+
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequests.size(), 1);
 
         // Success with Init state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
-        inFlightUnloadRequests = getinFlightUnloadRequests(manager);
-        assertEquals(inFlightUnloadRequests.size(), 1);
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
         counterExpected.update(SplitDecision.Label.Success, Sessions);
         assertEquals(counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
-        future.get();
 
-        // Success with Owned state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
-        inFlightUnloadRequests = getinFlightUnloadRequests(manager);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
         future.get();
     }
 

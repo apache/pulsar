@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
@@ -43,12 +42,11 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -121,7 +119,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         deleteSchema(schemaId, version(1));
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, output);
         output.flush();
         String metricsStr = output.toString(StandardCharsets.UTF_8);
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
@@ -407,7 +405,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                         .build(),
                 SchemaInfo.builder().type(SchemaType.BOOLEAN).schema(new byte[0])
                         .build(), KeyValueEncodingType.SEPARATED);
-        assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.schemas().testCompatibility(topicName, schemaInfo));
+        Assert.assertTrue(admin.schemas().testCompatibility(topicName, schemaInfo).isCompatibility());
         admin.schemas().createSchema(topicName, schemaInfo);
 
         final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);

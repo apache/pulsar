@@ -25,28 +25,45 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 class TopicStats {
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER)
     int subscriptionsCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.PRODUCER_COUNTER)
     int producersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.CONSUMER_COUNTER)
     int consumersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     double rateIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     double rateOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     double throughputIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     double throughputOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     long msgInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     long bytesInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     long msgOutCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     long bytesOutCounter;
+    @PulsarDeprecatedMetric // Can be derived from MESSAGE_IN_COUNTER and BYTES_IN_COUNTER
     double averageMsgSize;
 
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long ongoingTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long abortedTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long committedTxnCount;
 
     public long msgBacklog;
@@ -507,7 +524,9 @@ class TopicStats {
     static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        int baseLabelCount = splitTopicAndPartitionIndexLabel ? 8 : 6;
+        String[] labelsAndValues =
+                new String[baseLabelCount + (extraLabelsAndValues != null ? extraLabelsAndValues.length : 0)];
         labelsAndValues[0] = "cluster";
         labelsAndValues[1] = cluster;
         labelsAndValues[2] = "namespace";
@@ -527,7 +546,11 @@ class TopicStats {
         } else {
             labelsAndValues[5] = topic;
         }
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
+        if (extraLabelsAndValues != null) {
+            for (int i = 0; i < extraLabelsAndValues.length; i++) {
+                labelsAndValues[baseLabelCount + i] = extraLabelsAndValues[i];
+            }
+        }
+        stream.writeSample(metricName, value, labelsAndValues);
     }
 }

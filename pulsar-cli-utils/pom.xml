@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-cli-utils</artifactId>
@@ -35,11 +34,6 @@
   <description>Isolated CLI utility module</description>
 
   <dependencies>
-    <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
-      <scope>compile</scope>
-    </dependency>
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
@@ -78,7 +72,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
@@ -117,7 +111,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
@@ -54,6 +55,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                    String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
         this.sourceMLName = config.getShadowSourceName();
+        // ShadowManagedLedgerImpl does not implement add entry timeout yet, so this variable will always be false.
+        this.currentLedgerTimeoutTriggered = new AtomicBoolean(false);
     }
 
     /**

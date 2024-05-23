@@ -40,6 +40,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.common.Attributes;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -79,6 +80,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
@@ -91,6 +93,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -142,6 +146,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -182,7 +187,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testTopicTransactionMetrics() throws Exception {
-        final String topic = "persistent://tnx/ns1/test_transaction_topic";
+        final String topic = BrokerTestUtil.newUniqueName("persistent://tnx/ns1/test_transaction_topic");
 
         @Cleanup
         Producer<byte[]> producer = this.pulsarClient.newProducer()
@@ -216,6 +221,33 @@ public class TransactionTest extends TransactionTestBase {
         assertEquals(stats.committedTxnCount, 1);
         assertEquals(stats.abortedTxnCount, 1);
         assertEquals(stats.ongoingTxnCount, 1);
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .build();
+
+        var metrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
+                        .build(),
+                1);
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
+                        .build(),
+                1);
     }
 
     @Test
@@ -1063,10 +1095,10 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
+    public void testNotChangeMaxReadPositionCountWhenCheckIfNoSnapshot() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
+                .getTopic(NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
@@ -1074,9 +1106,9 @@ public class TransactionTest extends TransactionTestBase {
 
         AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(buffer);
         Field changeTimeField = TopicTransactionBuffer
-                .class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+                .class.getDeclaredField("changeMaxReadPositionCount");
         changeTimeField.setAccessible(true);
-        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) changeTimeField.get(buffer);
+        AtomicLong changeMaxReadPositionCount = (AtomicLong) changeTimeField.get(buffer);
 
         Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
         field1.setAccessible(true);
@@ -1085,10 +1117,10 @@ public class TransactionTest extends TransactionTestBase {
                     TopicTransactionBufferState.State state = (TopicTransactionBufferState.State) field1.get(buffer);
                     Assert.assertEquals(state, TopicTransactionBufferState.State.NoSnapshot);
         });
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
-        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1), false);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
     }
 
@@ -1517,7 +1549,7 @@ public class TransactionTest extends TransactionTestBase {
             fail("Expect failure by PendingAckHandle closed, but success");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
-            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            Assert.assertTrue(t instanceof BrokerServiceException);
         }
     }
 
@@ -1945,5 +1977,74 @@ public class TransactionTest extends TransactionTestBase {
             assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
+    }
+
+    @Test
+    public void testPersistentTopicGetLastDispatchablePositionWithTxn() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testPersistentTopicGetLastDispatchablePositionWithTxn";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
+
+
+        // send a normal message
+        String body = UUID.randomUUID().toString();
+        MessageIdImpl msgId = (MessageIdImpl) producer.send(body);
+
+        // send 3 txn messages
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+
+        // get last dispatchable position
+        PositionImpl lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+
+        // abort the txn
+        txn.abort().get(5, TimeUnit.SECONDS);
+
+        // get last dispatchable position
+        lastDispatchablePosition = (PositionImpl) persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId()));
+
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        List<Message<String>> messages = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            messages.add(reader.readNext());
+        }
+        assertEquals(messages.size(), 1);
+        assertEquals(messages.get(0).getValue(), body);
+
+        txn1.abort().get(5, TimeUnit.SECONDS);
+
+        @Cleanup
+        Reader<String> reader1 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<Message<String>> messages1 = new ArrayList<>();
+        while (reader1.hasMessageAvailable()) {
+            messages1.add(reader1.readNext());
+        }
+        assertEquals(messages1.size(), 1);
+        assertEquals(messages1.get(0).getValue(), body);
     }
 }

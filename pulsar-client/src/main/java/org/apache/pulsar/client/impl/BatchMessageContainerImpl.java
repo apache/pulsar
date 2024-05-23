@@ -263,8 +263,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             // Because when invoke `ProducerImpl.processOpSendMsg` on flush,
             // if `op.msg != null && isBatchMessagingEnabled()` checks true, it will call `batchMessageAndSend` to flush
             // messageContainers before publishing this one-batch message.
-            op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(), firstCallback,
-                    batchAllocatedSizeBytes);
+            op = OpSendMsg.create(producer.rpcLatencyHistogram, messages, cmd, messageMetadata.getSequenceId(),
+                    firstCallback, batchAllocatedSizeBytes);
 
             // NumMessagesInBatch and BatchSizeByte will not be serialized to the binary cmd. It's just useful for the
             // ProducerStats
@@ -314,7 +314,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                     messageMetadata.getUncompressedSize(), encryptedPayload.readableBytes());
         }
 
-        OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(),
+        OpSendMsg op = OpSendMsg.create(producer.rpcLatencyHistogram, messages, cmd, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), firstCallback, batchAllocatedSizeBytes);
 
         op.setNumMessagesInBatch(numMessagesInBatch);

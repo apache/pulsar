@@ -199,7 +199,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     void configureDefaults(ServiceConfiguration conf) {
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setLoadBalancerEnabled(true);
-        conf.setEnableNamespaceIsolationUpdateOnTime(true);
         conf.setAllowOverrideEntryFilters(true);
         conf.setEntryFilterNames(List.of());
         conf.setMaxNumPartitionsPerPartitionedTopic(0);
@@ -1394,6 +1393,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         try {
             admin.lookups().lookupTopic(ns1Name + "/topic3");
+            fail();
         } catch (Exception e) {
             // expected lookup fail, because no brokers matched the policy.
             log.info(" 2 expected fail lookup");
@@ -1401,6 +1401,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         try {
             admin.lookups().lookupTopic(ns1Name + "/topic1");
+            fail();
         } catch (Exception e) {
             // expected lookup fail, because no brokers matched the policy.
             log.info(" 22 expected fail lookup");
@@ -2887,7 +2888,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
-            assertTrue(e.getMessage().contains("Topic reached max producers limit"));
+            String expectMsg = "Topic '" + topic + "' reached max producers limit";
+            assertTrue(e.getMessage().contains(expectMsg));
         }
         //set the limit to 3
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
@@ -2901,7 +2903,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
-            assertTrue(e.getMessage().contains("Topic reached max producers limit"));
+            String expectMsg = "Topic '" + topic + "' reached max producers limit";
+            assertTrue(e.getMessage().contains(expectMsg));
         }
 
         //clean up

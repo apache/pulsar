@@ -20,20 +20,23 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -64,11 +67,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -79,6 +85,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -99,6 +106,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -107,12 +115,19 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -997,7 +1012,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Using an AtomicReference in order to reset a new CountDownLatch
         AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
         latchRef.set(new CountDownLatch(1));
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
+                () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
                 try {
@@ -1587,82 +1603,93 @@ public class BrokerServiceTest extends BrokerTestBase {
         });
     }
 
-    // this test is disabled since it is flaky
-    @Test(enabled = false)
-    public void testBrokerStatsTopicLoadFailed() throws Exception {
-        admin.namespaces().createNamespace("prop/ns-test");
+    @Test
+    public void testMetricsPersistentTopicLoadFails() throws Exception {
+        final String namespace = "prop/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String topic = "persistent://" + namespace + "/topic1_" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().unload(topic);
 
-        String persistentTopic = "persistent://prop/ns-test/topic1_" + UUID.randomUUID();
-        String nonPersistentTopic = "non-persistent://prop/ns-test/topic2_" + UUID.randomUUID();
-
-        BrokerService brokerService = pulsar.getBrokerService();
-        brokerService = Mockito.spy(brokerService);
-        // mock create persistent topic failed
-        Mockito
-                .doAnswer(invocation -> {
-                    CompletableFuture<ManagedLedgerConfig> f = new CompletableFuture<>();
-                    f.completeExceptionally(new RuntimeException("This is an exception"));
-                    return f;
-                })
-                .when(brokerService).getManagedLedgerConfig(Mockito.eq(TopicName.get(persistentTopic)));
-
-        // mock create non-persistent topic failed
-        Mockito
-                .doAnswer(inv -> {
-                    CompletableFuture<Void> f = new CompletableFuture<>();
-                    f.completeExceptionally(new RuntimeException("This is an exception"));
-                    return f;
-                })
-                .when(brokerService).checkTopicNsOwnership(Mockito.eq(nonPersistentTopic));
-
-
-        PulsarService pulsarService = pulsar;
-        Field field = PulsarService.class.getDeclaredField("brokerService");
-        field.setAccessible(true);
-        field.set(pulsarService, brokerService);
-
-        CompletableFuture<Producer<String>> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(persistentTopic)
-                .createAsync();
-        CompletableFuture<Producer<String>> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic(nonPersistentTopic)
-                .createAsync();
-
-        producer.whenComplete((v, t) -> {
-            if (t == null) {
-                try {
-                    v.close();
-                } catch (PulsarClientException e) {
-                    // ignore
-                }
+        // Inject an error that makes the topic load fails.
+        AtomicBoolean failMarker = new AtomicBoolean(true);
+        mockZooKeeper.failConditional(KeeperException.Code.NODEEXISTS, (op, path) -> {
+            if (failMarker.get() && op.equals(MockZooKeeper.Op.SET) &&
+                    path.endsWith(TopicName.get(topic).getPersistenceNamingEncoding())) {
+                return true;
             }
+            return false;
         });
-        producer1.whenComplete((v, t) -> {
-            if (t == null) {
-                try {
-                    v.close();
-                } catch (PulsarClientException e) {
-                    // ignore
-                }
+
+        // Do test
+        CompletableFuture<Producer<byte[]>> producer = pulsarClient.newProducer().topic(topic).createAsync();
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        Awaitility.await().until(() -> {
+            String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_topic_load_failed_count")) {
+                return false;
             }
+            double topic_load_failed_count = 0;
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
+                topic_load_failed_count += metric.value;
+            }
+            return topic_load_failed_count >= 1D;
         });
 
-        Awaitility.waitAtMost(2, TimeUnit.MINUTES).until(() -> {
-            String json = admin.brokerStats().getMetrics();
-            JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
-            AtomicBoolean flag = new AtomicBoolean(false);
+        // Remove the injection.
+        failMarker.set(false);
+        // cleanup.
+        httpClient.close();
+        producer.join().close();
+        admin.topics().delete(topic);
+        admin.namespaces().deleteNamespace(namespace);
+    }
 
-            metrics.forEach(ele -> {
-                JsonObject obj = ((JsonObject) ele);
-                JsonObject metrics0 = (JsonObject) obj.get("metrics");
-                JsonPrimitive v = (JsonPrimitive) metrics0.get("brk_topic_load_failed_count");
-                if (null != v && v.getAsDouble() >= 2D) {
-                    flag.set(true);
-                }
-            });
+    @Test
+    public void testMetricsNonPersistentTopicLoadFails() throws Exception {
+        final String namespace = "prop/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String topic = "non-persistent://" + namespace + "/topic1_" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
 
-            return flag.get();
+        // Inject an error that makes the topic load fails.
+        // Since we did not set a topic factory name, the "topicFactory" variable is null, inject a mocked
+        // "topicFactory".
+        Field fieldTopicFactory = BrokerService.class.getDeclaredField("topicFactory");
+        fieldTopicFactory.setAccessible(true);
+        TopicFactory originalTopicFactory = (TopicFactory) fieldTopicFactory.get(pulsar.getBrokerService());
+        assertNull(originalTopicFactory);
+        TopicFactory mockedTopicFactory = mock(TopicFactory.class);
+        when(mockedTopicFactory.create(anyString(), any(), any(), any()))
+                .thenThrow(new RuntimeException("mocked error"));
+        fieldTopicFactory.set(pulsar.getBrokerService(), mockedTopicFactory);
+
+        // Do test.
+        CompletableFuture<Producer<byte[]>> producer = pulsarClient.newProducer().topic(topic).createAsync();
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        Awaitility.await().until(() -> {
+            String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_topic_load_failed_count")) {
+                return false;
+            }
+            double topic_load_failed_count = 0;
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
+                topic_load_failed_count += metric.value;
+            }
+            return topic_load_failed_count >= 1D;
         });
+
+        // Remove the injection.
+        fieldTopicFactory.set(pulsar.getBrokerService(), null);
+
+        // cleanup.
+        httpClient.close();
+        producer.join().close();
+        admin.topics().delete(topic);
+        admin.namespaces().deleteNamespace(namespace);
     }
 
     @Test
@@ -1724,4 +1751,92 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("Unsubscribe failed");
         }
     }
+
+
+    @Test
+    public void testOffloadConfShouldNotAppliedForSystemTopic() throws PulsarAdminException {
+        final String driver = "aws-s3";
+        final String region = "test-region";
+        final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
+        final String endPoint = "test-endpoint";
+        final Integer maxBlockSizeInBytes = 5;
+        final Integer readBufferSizeInBytes = 2;
+        final Long offloadThresholdInBytes = 10L;
+        final Long offloadThresholdInSeconds = 1000L;
+        final Long offloadDeletionLagInMillis = 5L;
+
+        final OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                driver,
+                region,
+                bucket,
+                endPoint,
+                role,
+                roleSessionName,
+                credentialId,
+                credentialSecret,
+                maxBlockSizeInBytes,
+                readBufferSizeInBytes,
+                offloadThresholdInBytes,
+                offloadThresholdInSeconds,
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
+        );
+
+        var fakeOffloader = new LedgerOffloader() {
+            @Override
+            public String getOffloadDriverName() {
+                return driver;
+            }
+
+            @Override
+            public CompletableFuture<Void> offload(ReadHandle ledger, UUID uid, Map<String, String> extraMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public OffloadPolicies getOffloadPolicies() {
+                return offloadPolicies;
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+
+        final BrokerService brokerService = pulsar.getBrokerService();
+        final String namespace = "prop/" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
+
+        // Inject the cache to avoid real load off-loader jar
+        final Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = pulsar.getLedgerOffloaderMap();
+        ledgerOffloaderMap.put(NamespaceName.get(namespace), fakeOffloader);
+
+        // (1) test normal topic
+        final String normalTopic = "persistent://" + namespace + "/" + UUID.randomUUID();
+        var managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(normalTopic)).join();
+
+        Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), fakeOffloader);
+
+        // (2) test system topic
+        for (String eventTopicName : SystemTopicNames.EVENTS_TOPIC_NAMES) {
+            managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
+            Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+        }
+    }
 }
+

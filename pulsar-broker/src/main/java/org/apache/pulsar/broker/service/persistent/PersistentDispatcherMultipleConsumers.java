@@ -69,11 +69,11 @@ import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -334,24 +334,25 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
 
             NavigableSet<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
-
-            if (!messagesToReplayNow.isEmpty()) {
+            NavigableSet<PositionImpl> messagesToReplayFiltered = filterOutEntriesWillBeDiscarded(messagesToReplayNow);
+            if (!messagesToReplayFiltered.isEmpty()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
-                            consumerList.size());
+                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
+                            messagesToReplayFiltered.size(), consumerList.size());
                 }
 
                 havePendingReplayRead = true;
                 minReplayedPosition = messagesToReplayNow.first();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
+                        ? asyncReplayEntriesInOrder(messagesToReplayFiltered)
+                        : asyncReplayEntries(messagesToReplayFiltered);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> redeliveryMessages.remove(((PositionImpl) position).getLedgerId(),
                         ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                if ((messagesToReplayFiltered.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntriesAsync();
                 }
@@ -360,7 +361,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
-            } else if (!havePendingRead) {
+            } else if (!havePendingRead && hasConsumersNeededNormalRead()) {
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
@@ -396,7 +397,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             topic.getMaxReadPosition());
                 }
             } else {
-                log.debug("[{}] Cannot schedule next read until previous one is done", name);
+                if (log.isDebugEnabled()) {
+                    if (!messagesToReplayNow.isEmpty()) {
+                        log.debug("[{}] [{}] Skipping read for the topic: because all entries in replay queue were"
+                                + " filtered out due to the mechanism of Key_Shared mode, and the left consumers have"
+                                + " no permits now",
+                                topic.getName(), getSubscriptionName());
+                    } else {
+                        log.debug("[{}] Cannot schedule next read until previous one is done", name);
+                    }
+                }
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -1077,6 +1087,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public boolean checkAndResumeIfPaused() {
         boolean paused = blockedDispatcherOnCursorDataCanNotFullyPersist == TRUE;
+        // Calling "cursor.isCursorDataFullyPersistable()" will loop the collection "individualDeletedMessages". It is
+        // not a light method.
+        // If never enabled "dispatcherPauseOnAckStatePersistentEnabled", skip the following checks to improve
+        // performance.
+        if (!paused && !topic.isDispatcherPauseOnAckStatePersistentEnabled()){
+            // "true" means no need to pause.
+            return true;
+        }
+        // Enabled "dispatcherPauseOnAckStatePersistentEnabled" before.
         boolean shouldPauseNow = !cursor.isCursorDataFullyPersistable()
                 && topic.isDispatcherPauseOnAckStatePersistentEnabled();
         // No need to change.
@@ -1177,6 +1196,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             return Collections.emptyNavigableSet();
         }
+    }
+
+    /**
+     * This is a mode method designed for Key_Shared mode.
+     * Filter out the entries that will be discarded due to the order guarantee mechanism of Key_Shared mode.
+     * This method is in order to avoid the scenario below:
+     * - Get positions from the Replay queue.
+     * - Read entries from BK.
+     * - The order guarantee mechanism of Key_Shared mode filtered out all the entries.
+     * - Delivery non entry to the client, but we did a BK read.
+     */
+    protected NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+        return src;
+    }
+
+    /**
+     * This is a mode method designed for Key_Shared mode, to avoid unnecessary stuck.
+     * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#hasConsumersNeededNormalRead}.
+     */
+    protected boolean hasConsumersNeededNormalRead() {
+        return true;
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {

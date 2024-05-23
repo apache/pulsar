@@ -97,7 +97,7 @@ public class SplitManager implements StateChangeListener {
             return;
         }
         switch (state) {
-            case Deleted, Owned, Init -> this.complete(serviceUnit, t);
+            case Init -> this.complete(serviceUnit, t);
             default -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Handling {} for service unit {}", data, serviceUnit);

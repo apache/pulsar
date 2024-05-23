@@ -36,6 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
@@ -66,8 +69,8 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -77,7 +80,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -89,7 +92,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -198,21 +201,41 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         testReadMessages(topic, true);
     }
 
-    @Test
-    public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
+    @DataProvider
+    public static Object[][] seekBeforeHasMessageAvailable() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(timeOut = 20000, dataProvider = "seekBeforeHasMessageAvailable")
+    public void testReadMessageWithBatchingWithMessageInclusive(boolean seekBeforeHasMessageAvailable)
+            throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                             .startMessageIdInclusive().readerName(subscription).create();
 
-        while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext().getKey()));
+        if (seekBeforeHasMessageAvailable) {
+            reader.seek(0L); // it should seek to the earliest
         }
+
+        assertTrue(reader.hasMessageAvailable());
+        final Message<byte[]> msg = reader.readNext();
+        assertTrue(keys.remove(msg.getKey()));
         // start from latest with start message inclusive should only read the last message in batch
         assertEquals(keys.size(), 9);
-        Assert.assertFalse(keys.contains("key9"));
-        Assert.assertFalse(reader.hasMessageAvailable());
+
+        final MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
+        if (seekBeforeHasMessageAvailable) {
+            assertEquals(msgId.getBatchIndex(), 0);
+            assertFalse(keys.contains("key0"));
+            assertTrue(reader.hasMessageAvailable());
+        } else {
+            assertEquals(msgId.getBatchIndex(), 9);
+            assertFalse(reader.hasMessageAvailable());
+            assertFalse(keys.contains("key9"));
+            assertFalse(reader.hasMessageAvailable());
+        }
     }
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
@@ -310,7 +333,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
-        String topic = "persistent://" + ns + "/testReadFromPartition";
+        String topic = "persistent://" + ns + "/testReaderWithTimeLong";
         RetentionPolicies retention = new RetentionPolicies(-1, -1);
         admin.namespaces().setRetention(ns, retention);
 
@@ -839,5 +862,71 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         producer.send("msg");
         assertTrue(reader.hasMessageAvailable());
+    }
+
+    @Test(dataProvider = "initializeLastMessageIdInBroker")
+    public void testHasMessageAvailableAfterSeekTimestamp(boolean initializeLastMessageIdInBroker) throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-has-message-available-after-seek-timestamp";
+
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final long timestampBeforeSend = System.currentTimeMillis();
+        final MessageId sentMsgId = producer.send("msg");
+
+        final List<MessageId> messageIds = new ArrayList<>();
+        messageIds.add(MessageId.earliest);
+        messageIds.add(sentMsgId);
+        messageIds.add(MessageId.latest);
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                if (messageId == MessageId.earliest) {
+                    assertTrue(reader.hasMessageAvailable());
+                } else {
+                    assertFalse(reader.hasMessageAvailable());
+                }
+            } // else: lastMessageIdInBroker is earliest
+            reader.seek(System.currentTimeMillis());
+            assertFalse(reader.hasMessageAvailable());
+        }
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                if (messageId == MessageId.earliest) {
+                    assertTrue(reader.hasMessageAvailable());
+                } else {
+                    assertFalse(reader.hasMessageAvailable());
+                }
+            } // else: lastMessageIdInBroker is earliest
+            reader.seek(timestampBeforeSend);
+            assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
+    @Test
+    public void testReaderBuilderStateOnRetryFailure() throws Exception {
+        String ns = "my-property/my-ns";
+        String topic = "persistent://" + ns + "/testRetryReader";
+        RetentionPolicies retention = new RetentionPolicies(-1, -1);
+        admin.namespaces().setRetention(ns, retention);
+        String badUrl = "pulsar://bad-host:8080";
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(badUrl).build();
+
+        ReaderBuilder<byte[]> readerBuilder = client.newReader().topic(topic).startMessageFromRollbackDuration(100,
+                TimeUnit.SECONDS);
+
+        for (int i = 0; i < 3; i++) {
+            try {
+                readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                log.info("It should time out due to invalid url");
+            } catch (IllegalArgumentException e) {
+                fail("It should not fail with corrupt reader state");
+            }
+        }
     }
 }
