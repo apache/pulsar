@@ -19,8 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -28,6 +34,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Provides lookup service to find broker which serves given topic. It helps to
@@ -105,4 +112,50 @@ public interface LookupService extends AutoCloseable {
      */
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                String topicPattern, String topicsHash);
+
+    /**
+     * Get the exists partitions of a partitioned topic, the result does not contain the partitions which has not been
+     * created yet(in other words, the partitions that do not exist in the response of "pulsar-admin topics list").
+     * @return sorted partitions list if it is a partitioned topic; @return an empty list if it is a non-partitioned
+     * topic.
+     */
+    default CompletableFuture<List<Integer>> getExistsPartitions(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (!topicName.isPersistent()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("The API LookupService.getExistsPartitions does"
+                    + " not support non-persistent topic yet."));
+        }
+        return getTopicsUnderNamespace(topicName.getNamespaceObject(),
+            topicName.isPersistent() ? Mode.PERSISTENT : Mode.NON_PERSISTENT,
+            "^" + topicName.getPartitionedTopicName() + "$",
+            null).thenApply(getTopicsResult -> {
+                if (getTopicsResult.getNonPartitionedOrPartitionTopics() == null
+                        || getTopicsResult.getNonPartitionedOrPartitionTopics().isEmpty()) {
+                    return Collections.emptyList();
+                }
+                // If broker version is less than "2.11.x", it does not support broker-side pattern check, so append
+                // a client-side pattern check.
+                // If lookup service is typed HttpLookupService, the HTTP API does not support broker-side pattern
+                // check yet, so append a client-side pattern check.
+                Predicate<String> clientSideFilter;
+                if (getTopicsResult.isFiltered()) {
+                    clientSideFilter = __ -> true;
+                } else {
+                    clientSideFilter = tp -> Pattern.compile(TopicName.getPartitionPatten(topic)).matcher(tp).matches();
+                }
+                ArrayList<Integer> list = new ArrayList<>(getTopicsResult.getNonPartitionedOrPartitionTopics().size());
+                for (String partition : getTopicsResult.getNonPartitionedOrPartitionTopics()) {
+                    int partitionIndex = TopicName.get(partition).getPartitionIndex();
+                    if (partitionIndex < 0) {
+                        // It is not a partition.
+                        continue;
+                    }
+                    if (clientSideFilter.test(partition)) {
+                        list.add(partitionIndex);
+                    }
+                }
+                Collections.sort(list);
+                return list;
+        });
+    }
 }
