@@ -597,11 +597,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public ReplicatorStatsImpl getStats() {
-        ProducerImpl producer = this.producer;
         stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
-        stats.connected = producer != null && producer.isConnected();
+        stats.connected = isConnected();
         stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
+        ProducerImpl producer = this.producer;
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();
@@ -683,12 +683,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
         default:
             // Do nothing
         }
-    }
-
-    @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
     }
 
     @Override

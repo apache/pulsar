@@ -136,6 +136,12 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void disableReplicatorRead();
 
+    @Override
+    public boolean isConnected() {
+        var producer = this.producer;
+        return producer != null && producer.isConnected();
+    }
+
     public long getReplicationDelayMs() {
         var producer = this.producer;
         return producer == null ? 0 : producer.getDelayInMillis();

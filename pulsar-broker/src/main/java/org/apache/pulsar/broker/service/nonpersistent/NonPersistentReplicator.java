@@ -145,7 +145,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     public NonPersistentReplicatorStatsImpl getStats() {
         ProducerImpl producer = this.producer;
-        stats.connected = producer != null && producer.isConnected();
+        stats.connected = isConnected();
         stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
         if (producer != null) {
@@ -248,11 +248,5 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     protected void disableReplicatorRead() {
         // No-op
-    }
-
-    @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
     }
 }
