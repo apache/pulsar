@@ -23,6 +23,7 @@ import java.io.IOException;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 @Slf4j
@@ -30,15 +31,19 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
     private final NarClassLoader classLoader;
+    private final boolean classLoaderOwned;
 
-    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader) {
+    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader, boolean classLoaderOwned) {
         this.entryFilter = entryFilter;
         this.classLoader = classLoader;
+        this.classLoaderOwned = classLoaderOwned;
     }
 
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
-        return entryFilter.filterEntry(entry, context);
+        try (ClassLoaderSwitcher switcher = new ClassLoaderSwitcher(classLoader)) {
+            return entryFilter.filterEntry(entry, context);
+        }
     }
 
     @VisibleForTesting
@@ -48,11 +53,16 @@ public class EntryFilterWithClassLoader implements EntryFilter {
 
     @Override
     public void close() {
-        entryFilter.close();
-        try {
-            classLoader.close();
-        } catch (IOException e) {
-            log.error("close EntryFilterWithClassLoader failed", e);
+        try (ClassLoaderSwitcher switcher = new ClassLoaderSwitcher(classLoader)) {
+            entryFilter.close();
+        }
+        if (classLoaderOwned) {
+            log.info("Closing classloader {} for EntryFilter {}", classLoader, entryFilter.getClass().getName());
+            try {
+                classLoader.close();
+            } catch (IOException e) {
+                log.error("close EntryFilterWithClassLoader failed", e);
+            }
         }
     }
 }
