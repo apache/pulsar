@@ -40,7 +40,7 @@ import org.apache.pulsar.common.topics.TopicList;
 public class GetTopicsResult {
 
     /**
-     * Non partitioned topics, and topic partitions of partitioned topics.
+     * Non-partitioned topics, and topic partitions of partitioned topics.
      */
     @Getter
     private final List<String> nonPartitionedOrPartitionTopics;
@@ -76,7 +76,8 @@ public class GetTopicsResult {
     /**
      * Partitioned topics and non-partitioned topics.
      * In other words, there is no topic partitions of partitioned topics in this list.
-     * Note: this filed is not defined in the API "LookupService.getTopicsUnderNamespace", it is calculated client-side.
+     * Note: it is not a field of the response of "LookupService.getTopicsUnderNamespace", it is generated in
+     * client-side memory.
      */
     private volatile List<String> topics;
 
