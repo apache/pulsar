@@ -199,9 +199,9 @@ public class FutureUtil {
 
     public static Throwable unwrapCompletionException(Throwable ex) {
         if (ex instanceof CompletionException) {
-            return ex.getCause();
+            return unwrapCompletionException(ex.getCause());
         } else if (ex instanceof ExecutionException) {
-            return ex.getCause();
+            return unwrapCompletionException(ex.getCause());
         } else {
             return ex;
         }

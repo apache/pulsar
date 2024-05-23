@@ -931,7 +931,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // Verify the request is works after merge the requests.
         List<CompletableFuture<PartitionedTopicMetadata>> futures = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName)));
+            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName), false));
         }
         for (CompletableFuture<PartitionedTopicMetadata> future : futures) {
             assertEquals(future.join().partitions, topicPartitions);

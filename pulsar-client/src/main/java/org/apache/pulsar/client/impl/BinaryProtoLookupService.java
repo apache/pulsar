@@ -146,12 +146,14 @@ public class BinaryProtoLookupService implements LookupService {
      * calls broker binaryProto-lookup api to get metadata of partitioned-topic.
      *
      */
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+    @Override
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            TopicName topicName, boolean metadataAutoCreationEnabled) {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<PartitionedTopicMetadata> newFuture =
-                        getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+                CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadata(
+                        serviceNameResolver.resolveHost(), topicName, metadataAutoCreationEnabled);
                 newFutureCreated.setValue(newFuture);
                 return newFuture;
             });
@@ -248,14 +250,15 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
-            TopicName topicName) {
+            TopicName topicName, boolean metadataAutoCreationEnabled) {
 
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
+                    metadataAutoCreationEnabled);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
