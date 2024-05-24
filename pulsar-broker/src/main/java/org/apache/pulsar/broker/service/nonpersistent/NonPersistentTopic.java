@@ -936,6 +936,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
+        stats.msgOutInternalCounter = msgOutFromRemovedSystemSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
             NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
@@ -945,6 +947,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             stats.bytesOutCounter += subStats.bytesOutCounter;
             stats.msgOutCounter += subStats.msgOutCounter;
             stats.getSubscriptions().put(name, subStats);
+
+            if (isSystemCursor(name)) {
+                stats.msgOutInternalCounter += subStats.msgOutCounter;
+                stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+            }
         });
 
         replicators.forEach((cluster, replicator) -> {

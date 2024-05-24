@@ -82,6 +82,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -203,6 +204,61 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test
+    public void testBrokerMetrics() throws Exception {
+        cleanup();
+        conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
+        setup();
+
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .subscriptionName("test-cursor")
+                .subscribe();
+
+        final int messages = 10;
+        int bytesCount = 0;
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+            bytesCount += message.getBytes().length * 2;
+        }
+
+        int internalBytesOutCount = 0;
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> msg = c1.receive();
+            internalBytesOutCount += msg.getData().length;
+            c1.acknowledge(msg);
+            c2.acknowledge(c2.receive());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        });
+
+        List<Metric> bytesOutTotal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total");
+        List<Metric> bytesInTotal = (List<Metric>) metrics.get("pulsar_broker_in_bytes_total");
+        List<Metric> bytesOutTotalInternal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total_internal");
+        assertEquals(bytesOutTotal.size(), 1);
+        assertEquals(bytesInTotal.size(), 1);
+        assertEquals(bytesOutTotalInternal.size(), 1);
+        assertEquals(bytesOutTotal.get(0).value, bytesInTotal.get(0).value);
+        assertEquals(bytesOutTotal.get(0).value / 2, bytesOutTotalInternal.get(0).value);
     }
 
     @Test

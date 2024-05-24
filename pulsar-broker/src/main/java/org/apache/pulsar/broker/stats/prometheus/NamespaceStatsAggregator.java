@@ -212,6 +212,8 @@ public class NamespaceStatsAggregator {
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
+        stats.bytesOutInternalCounter = tStatus.bytesOutInternalCounter;
+        stats.msgOutInternalCounter = tStatus.msgOutInternalCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
         stats.delayedMessageIndexSizeInBytes = tStatus.delayedMessageIndexSizeInBytes;
@@ -358,6 +360,9 @@ public class NamespaceStatsAggregator {
                 brokerStats.timeBasedBacklogQuotaExceededEvictionCount, cluster, BacklogQuotaType.message_age);
 
         writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
+        writeMetric(stream, "pulsar_broker_out_bytes_total", brokerStats.bytesOutCounter, cluster);
+        writeMetric(stream, "pulsar_broker_in_bytes_total", brokerStats.bytesInCounter, cluster);
+        writeMetric(stream, "pulsar_broker_out_bytes_total_internal", brokerStats.bytesOutInternalCounter, cluster);
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,

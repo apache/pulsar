@@ -284,7 +284,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
-    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -420,7 +419,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             shadowSourceTopic = null;
         }
-        additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
     }
 
     @Override
@@ -1390,6 +1388,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             SubscriptionStatsImpl stats = sub.getStats(new GetStatsOptions(false, false, false, false, false));
             bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
             msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+
+            if (isSystemCursor(subscriptionName)) {
+                bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                msgOutFromRemovedSystemSubscriptions.add(stats.msgOutCounter);
+            }
         }
     }
 
@@ -2559,6 +2562,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
+        stats.msgOutInternalCounter = msgOutFromRemovedSystemSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
         TransactionBuffer txnBuffer = getTransactionBuffer();
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
@@ -2585,6 +2590,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicMetricBean.labelsAndValues = v.labelsAndValues;
                 topicMetricBean.value += v.value;
             });
+
+            if (isSystemCursor(name)) {
+                stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+                stats.msgOutInternalCounter += subStats.msgOutCounter;
+            }
         });
 
         replicators.forEach((cluster, replicator) -> {
@@ -4342,5 +4352,4 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         return false;
     }
-
 }

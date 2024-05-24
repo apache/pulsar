@@ -72,6 +72,12 @@ public class TopicStatsImpl implements TopicStats {
     /** Total messages delivered to consumer (msg). */
     public long msgOutCounter;
 
+    /** Total bytes delivered to internal consumer (bytes) */
+    public long bytesOutInternalCounter;
+
+    /** Total messages delivered to internal consumer (msg) */
+    public long msgOutInternalCounter;
+
     /** Average size of published messages (bytes). */
     public double averageMsgSize;
 
