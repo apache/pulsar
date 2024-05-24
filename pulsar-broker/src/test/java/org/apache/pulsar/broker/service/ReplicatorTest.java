@@ -36,6 +36,7 @@ import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -521,11 +522,17 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setReplicationProducerQueueSize(originalReplicationProducerQueueSize);
     }
 
-    private static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
-        Awaitility.await().untilAsserted(() -> {
-            for (Map.Entry<String, ? extends ReplicatorStats> subStats :
-                    admin.topics().getStats(topicName.toString(), true, false, false).getReplication().entrySet()){
-                assertTrue(subStats.getValue().getReplicationBacklog() == 0, "replication task finished");
+    private void waitReplicateFinish(TopicName topicName, PulsarAdmin admin) {
+        Awaitility.await().atMost(Duration.ofMinutes(5)).untilAsserted(() -> {
+            try {
+                var stats = admin.topics().getStats(topicName.toString(), true, false, false);
+                var replicationStats = stats.getReplication();
+                var entries = replicationStats.entrySet();
+                for (Map.Entry<String, ? extends ReplicatorStats> subStats : entries) {
+                    assertEquals(subStats.getValue().getReplicationBacklog(), 0, "replication task finished");
+                }
+            } catch (PulsarAdminException e) {
+                assert false;
             }
         });
     }

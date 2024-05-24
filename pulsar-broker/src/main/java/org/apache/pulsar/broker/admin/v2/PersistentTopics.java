@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -79,6 +80,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -1221,7 +1223,13 @@ public class PersistentTopics extends PersistentTopicsBase {
                 new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
                         excludePublishers, excludeConsumers);
         internalGetStatsAsync(authoritative, getStatsOptions)
-                .thenAccept(asyncResponse::resume)
+                .thenAccept(new Consumer<TopicStats>() {
+                    @Override
+                    public void accept(TopicStats topicStats) {
+                        log.info("Completed getStats request for topic {}", topicName);
+                        asyncResponse.resume(topicStats);
+                    }
+                })
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {

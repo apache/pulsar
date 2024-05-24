@@ -320,13 +320,13 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     }
 
     private PulsarService buildPulsarService(ServiceConfiguration config, InMemoryMetricReader metricReader) {
-        var otelSdkCustomizer = metricReader != null ?
-        BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(metricReader) : null;
+        //var otelSdkCustomizer = metricReader != null ?
+        //BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(metricReader) : null;
         return new PulsarService(config,
                 new WorkerConfig(),
                 Optional.empty(),
                 exitCode -> log.info("Pulsar service finished with exit code {}", exitCode),
-                otelSdkCustomizer);
+                null);
     }
 
     public void setConfig3DefaultValue() {
