@@ -19,20 +19,18 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import java.util.Objects;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 
 /**
  * Statistics for a non-persistent replicator.
  */
-@Data
-@EqualsAndHashCode(callSuper = true)
 public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implements NonPersistentReplicatorStats {
 
     /**
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
+    @Getter
     public double msgDropRate;
 
     public NonPersistentReplicatorStatsImpl add(NonPersistentReplicatorStatsImpl stats) {

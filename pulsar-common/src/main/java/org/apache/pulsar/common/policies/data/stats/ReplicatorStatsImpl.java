@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data.stats;
 import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
 /**
@@ -32,21 +33,25 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     /** Total rate of messages received from the remote cluster (msg/s). */
     public double msgRateIn;
 
+    @EqualsAndHashCode.Exclude
     private final LongAdder msgInCount = new LongAdder();
 
     /** Total throughput received from the remote cluster (bytes/s). */
     public double msgThroughputIn;
 
+    @EqualsAndHashCode.Exclude
     private final LongAdder bytesInCount = new LongAdder();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
     public double msgRateOut;
 
+    @EqualsAndHashCode.Exclude
     private final LongAdder msgOutCount = new LongAdder();
 
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     public double msgThroughputOut;
 
+    @EqualsAndHashCode.Exclude
     private final LongAdder bytesOutCount = new LongAdder();
 
     /** Total rate of messages expired (msg/s). */
