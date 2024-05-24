@@ -523,7 +523,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     private void waitReplicateFinish(TopicName topicName, PulsarAdmin admin) {
-        Awaitility.await().atMost(Duration.ofMinutes(5)).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             try {
                 var stats = admin.topics().getStats(topicName.toString(), true, false, false);
                 var replicationStats = stats.getReplication();
