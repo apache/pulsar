@@ -1857,28 +1857,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (log.isDebugEnabled()) {
             log.debug("[{}] Checking replication status", name);
         }
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        if (CollectionUtils.isEmpty(configuredClusters)) {
+            log.warn("[{}] No replication clusters configured", name);
+            return CompletableFuture.completedFuture(null);
+        }
 
-        return checkAllowedCluster().thenCompose(__ -> {
-            List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-            if (CollectionUtils.isEmpty(configuredClusters)) {
-                log.warn("[{}] No replication clusters configured", name);
-                return CompletableFuture.completedFuture(null);
-            }
+        // The replication clusters at namespace level will get local cluster when creating a namespace.
+        // If there only is a cluster in the replication clusters, it means the replication is not enable.
+        // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
+        // without enabling geo-replication, then the replication clusters always has cluster1.
+        // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
+        // remote cluster and start geo-replication. So the check for the size of `configuredClusters` is necessary.
+        if (configuredClusters.size() == 1) {
+            return CompletableFuture.completedFuture(null);
+        }
 
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-            // The replication clusters at namespace level will get local cluster when creating a namespace.
-            // If there only is a cluster in the replication clusters, it means the replication is not enable.
-            // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
-            // without enabling geo-replication, then the replication clusters always has cluster1. When a topic under the
-            // namespace is load in the cluster2, the `cluster1` may be identified as remote cluster and
-            // start geo-replication. So the check for the size of `configuredClusters` is necessary.
-            if (configuredClusters.size() == 1) {
-                return CompletableFuture.completedFuture(null);
-            }
+        return checkAllowedCluster(localCluster).thenCompose(__ -> {
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-
-            String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
             removeTerminatedReplicators(replicators);
             List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -1910,9 +1909,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    private CompletableFuture<Void> checkAllowedCluster() {
+    private CompletableFuture<Void> checkAllowedCluster(String localCluster) {
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
                     Set<String> allowedClusters = Set.of();
