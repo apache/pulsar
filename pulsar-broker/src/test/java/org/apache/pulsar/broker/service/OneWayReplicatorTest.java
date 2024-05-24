@@ -709,7 +709,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         verifyReplicationWorks(topicName);
 
         admin1.topicPolicies().setCompactionThreshold(topicName, 1000_000);
-        Awaitility.await().atMost(Duration.ofSeconds(3600)).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             assertEquals(admin2.topicPolicies().getCompactionThreshold(topicName), 1000_000);
         });
 
@@ -718,8 +718,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         setTopicLevelClusters(topicName, Arrays.asList(cluster2), admin2, pulsar2);
 
         Thread.sleep(3 * 1000);
-        TopicPolicies topicPolicies1 = pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topicName));
-        TopicPolicies topicPolicies2 = pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topicName));
 
         // Delete topic.
         admin1.topics().delete(topicName);
@@ -787,6 +785,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Wait for async tasks that were triggered by expanding topic partitions.
         Thread.sleep(3 * 1000);
 
+
         // Verify: the topics on the remote cluster did not been expanded.
         assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
 
@@ -808,7 +807,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().updatePartitionedTopic(topicName, 3);
         assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, 3);
 
-        // Verify: the topics on the remote cluster did not been expanded.
+        // Verify: the topics on the remote cluster will be expanded.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 3);
         });
