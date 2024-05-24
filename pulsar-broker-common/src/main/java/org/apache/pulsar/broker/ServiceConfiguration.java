@@ -2665,6 +2665,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Used for ExtensibleLoadManagerImpl and ModularLoadManagerImpl, default value is 10. "
                     + "User can disable the bundle filtering feature of ModularLoadManagerImpl by setting this value to -1. "
                     + "Enabling this feature can reduce the pressure on the zookeeper when doing load report."
+                    + "WARNING: too small value could result in a long load balance time."
     )
     private int loadBalancerMaxNumberOfBundlesInBundleLoadReport = 10;
     @FieldContext(
