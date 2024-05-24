@@ -456,7 +456,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 Set<String> replicationClusters = policies.get().replication_clusters;
                                 TopicPolicies topicPolicies =
                                         pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
-                                if (topicPolicies != null ) {
+                                if (topicPolicies != null) {
                                     replicationClusters = new HashSet<>(topicPolicies.getReplicationClusters());
                                 }
                                 // Do check replicated clusters.
