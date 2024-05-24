@@ -941,7 +941,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         } catch (PulsarAdminException.ConflictException ignore) {}
 
         // CleanUp: Namespace with replication clusters can not be deleted by force.
-        namespaces.setNamespaceReplicationClusters(namespace, Set.of());
+        namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()));
         admin.namespaces().deleteNamespace(namespace, true);
         admin.tenants().deleteTenant(tenant, true);
         for (String cluster : clusters) {
