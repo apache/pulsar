@@ -140,7 +140,8 @@ public interface LookupService extends AutoCloseable {
                 if (getTopicsResult.isFiltered()) {
                     clientSideFilter = __ -> true;
                 } else {
-                    clientSideFilter = tp -> Pattern.compile(TopicName.getPartitionPattern(topic)).matcher(tp).matches();
+                    clientSideFilter =
+                            tp -> Pattern.compile(TopicName.getPartitionPattern(topic)).matcher(tp).matches();
                 }
                 ArrayList<Integer> list = new ArrayList<>(getTopicsResult.getNonPartitionedOrPartitionTopics().size());
                 for (String partition : getTopicsResult.getNonPartitionedOrPartitionTopics()) {
