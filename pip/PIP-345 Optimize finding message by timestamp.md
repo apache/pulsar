@@ -25,31 +25,32 @@ The motivation of this PIP is to optimize the finding message by timestamp, to m
 
 # Goals
 
-Add the `beginPublishTimestamp` and `endPublishTimestamp` to `LedgerInfo`, to speed up the finding message by timestamp.
+Add the `properties` to `LedgerInfo` to store `minPublishTimestamp` and `maxPublishTimestamp` of the ledger, to speed up the finding message by timestamp.
 
-Before read entries from the ledger, we can use the `beginPublishTimestamp` and `endPublishTimestamp` to calculate the 
+Before read entries from the ledger, we can get `minPublishTimestamp` and `maxPublishTimestamp` from the `LedgerInfo#properties` to calculate the 
 range of the entries, and just scan the entries in the range, so we don't need to scan all the ledgers to find the message by timestamp.
 
 It will make the finding message by timestamp more efficient and faster, and reduce the number of iterations to find the message.
 
 ## In Scope
 
-* Record the begin/end publish timestamp to `LedgerInfo`, to speed-up the seeking by timestamp.
+* Introduce `properties` to `LedgerInfo`, to speed-up the seeking by timestamp.
 
 ## Out of Scope
 
 N/A
 
 # High Level Design
-1. Add the `beginPublishTimestamp` and `endPublishTimestamp` to `LedgerInfo`, persist them to the ledger metadata store.
-2. When the broker writes the message to the ledger, it will record the `publishTimestamp` to the `LedgerInfo`.
-3. When the client/admin/expiry-monitor finds message by timestamp, it will use the `beginPublishTimestamp` and `endPublishTimestamp` to speed up the finding.
+1. Add `properties` to `LedgerInfo`.
+2. After the broker writes the message to the ledger finished, update the `minPublishTimestamp` and `maxPublishTimestamp` of the ledger and store them as a temporary value to `PersistentTopic`.
+3. Before close a `LedgerHandle`, get the `minPublishTimestamp` and `maxPublishTimestamp` from the `PersistentTopic`, and set them to `LedgerInfo#properties`.
+4. When the client/admin/expiry-monitor finds message by timestamp, get `minPublishTimestamp` and `maxPublishTimestamp` from `LedgerInfo#properties` to speed up the finding.
 
 # Detailed Design
 
 ## Design & Implementation Details
 
-#### 1. Add the `beginPublishTimestamp` and `endPublishTimestamp` to `LedgerInfo`, persist them to the ledger metadata store.
+#### 1. Add the `properties` to `LedgerInfo`, persist them to the ledger metadata store.
 ```protobuf
   message LedgerInfo {
         required int64 ledgerId = 1;
@@ -57,13 +58,16 @@ N/A
         optional int64 size = 3;
         optional int64 timestamp = 4;
         optional OffloadContext offloadContext = 5;
-        // Add the begin/end publish timestamp
-        optional int64 beginPublishTimestamp = 6;
-        optional int64 endPublishTimestamp = 7;
+        // Add per-ledgerInfo properties
+        repeated KeyValue properties = 6;
 }
 ```
 
 #### 2. Deserialize the MessageMetadata from the message payload once the broker received the message, and pass it to Producer.
+
+Since there are many places can deserialize the `MessageMetadata` from the message payload, 
+deserializing the `MessageMetadata` once the broker received the message and pass it to Producer should improve the performance in some cases.
+
 ```java
 public class ServerCnx {
     // ...
@@ -93,46 +97,22 @@ public class ServerCnx {
 }
 ```
 
-#### 3. Add a new interface `PublishTimestampProvider` to `Entry` to get the `publishTimestamp` of the message.
-```java
-public interface Entry {
+#### 3. Pass the `MessageMetadata` to `Producer#MessagePublishContext`, add `getMessageMetadata` method to expose the `MessageMetadata`.
 
-    interface PublishTimestampProvider {
-        default Long getPublishTimestamp() {
-            return null;
-        }
-    }
-}
-```
-
-#### 4. Make `MessagePublishContext` to extend `Entry.PublishTimestampProvider` to get the `publishTimestamp` of the message.
-```java
-public class Topic {
-    // ...
-    public interface PublishContext extends Entry.PublishTimestampProvider {
-        // ...
-    }
-}
-```
-
-#### 5. Pass the `MessageMetadata` to `Producer#MessagePublishContext`, implement the `getPublishTimestamp` method to get the `publishTimestamp` of the message.
 ```java
 public class Producer {
     // ...
     public class MessagePublishContext implements Topic.PublishContext {
         private MessageMetadata messageMetadata;
-        
-        public Long getPublishTimestamp() {
-            if (messageMetadata == null) {
-                return null;
-            }
-            return messageMetadata.getPublishTime();
+
+        public MessageMetadata getMessageMetadata() {
+            return messageMetadata;
         }
     }
 }
 ```
 
-#### 6. Change `TransactionBuffer#appendToTxn(TxnId, long, ByteBuf)` to `TransactionBuffer#appendToTxn(TxnId,PublishContext,ByteBuf)`.
+#### 4. Change `TransactionBuffer#appendToTxn(TxnId, long, ByteBuf)` to `TransactionBuffer#appendToTxn(TxnId,PublishContext,ByteBuf)`.
 ```java
 public interface TransactionBuffer {
     // ...
@@ -140,7 +120,10 @@ public interface TransactionBuffer {
 }
 ```
 
-#### 7. Pass `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)` when adding the entry to the ledger in `TopicTransactionBuffer`.
+#### 5. Pass `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)` when adding the entry to the ledger in `TopicTransactionBuffer`.
+
+Add normal message to ledger is already passed the `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)`, only need to change the `TopicTransactionBuffer`.
+
 ```java
 public class TopicTransactionBuffer implements TransactionBuffer {
     // ...
@@ -153,78 +136,91 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 }
 ```
 
-#### 8. Add normal message to ledger is already passed the `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)`, so we don't need to change it.
+#### 6. Handle add entries finished, update the `minPublishTimestamp` and `maxPublishTimestamp` in `PersistentTopic`.
+
 ```java
 public class PersistentTopic {
-    // ...
-    // Add normal message to ledger, already passed the PublishContext to LedgerHandle#addEntry(ByteBuf, AddCallback, Object), dont need to change it.
-    private void addEntry(ByteBuf headersAndPayload, Producer.MessagePublishContext context) {
-        if (brokerService.isBrokerEntryMetadataEnabled()) {
-            ledger.asyncAddEntry(headersAndPayload,
-                    (int) publishContext.getNumberOfMessages(), this, publishContext);
-        } else {
-            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-        }
-    }
-}
-```
-
-#### 9. Add a new method `updatePublishTimestamp` to `ManagedLedgerImpl` to update the `beginPublishTimestamp` and `endPublishTimestamp` of the ledger, after the ledger closed, set them to `LedgerInfo`.
-```java
-public class ManagedLedgerImpl {
-    // New field
-    // Add a map to record the begin/end publish timestamp of the ledger
-    private final NavigableMap<Long, MutablePair</* begin publish timestamp*/Long, /* end publish timestamp*/Long>> publishTimestamps 
-            = new ConcurrentSkipListMap<>();
-    
-    // Update the begin/end publish timestamp of the ledger after the entry is added to the ledger.
-    // New method
-    protected void updatePublishTimestamp(long ledgerId, long publishTimestamp) {
-        MutablePair<Long, Long> pair = publishTimestamps.computeIfAbsent(ledgerId, k -> new MutablePair<>(Long.MAX_VALUE, Long.MIN_VALUE));
-        pair.setLeft(Math.min(pair.getLeft(), publishTimestamp));
-        pair.setRight(Math.max(pair.getRight(), publishTimestamp));
-    }
-
-    // Existed method
-    // Set the begin/end publish timestamp to LedgerInfo after the ledger closed.
-    synchronized void ledgerClosed(final LedgerHandle lh) {
-        // ...
-        if (entriesInLedger > 0) {
-            // Set the begin/end publish timestamp to LedgerInfo
-            MutablePair<Long, Long> pair = publishTimestamps.remove(lh.getId());
-            LedgerInfo ledgerInfo = LedgerInfo.newBuilder().setLedgerId(lh.getId())
-                    .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                    .setTimestamp(clock.millis()).setBeginPublishTimestamp(pair.getLeft())
-                    .setEndPublishTimestamp(pair.getRight()).build();
-            ledgers.put(lh.getId(), ledgerInfo);
-        }
-        // ...
-    }
-}
-```
-
-#### 10. Once add entry to the ledger, update the `beginPublishTimestamp` and `endPublishTimestamp` of the ledger.
-```java
-public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
-    // ...
-    private Object ctx;
+    private final NavigableMap<Long, MutablePair<Long, Long>> ledgerMinMaxPublishTimestamp = new ConcurrentSkipListMap<>();
     
     @Override
-    public void run() {
+    public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         // ...
-        // Update the begin/end publish timestamp of the ledger after the entry is added to the ledger.
-        if (ctx instanceof Entry.PublishTimestampProvider) {
-            Entry.PublishTimestampProvider provider = (Entry.PublishTimestampProvider) ctx;
-            Long publishTimestamp = provider.getPublishTimestamp();
-            if (publishTimestamp != null) {
-                ledger.updatePublishTimestamp(ledgerId, publishTimestamp);
-            }
+        // Update the minPublishTimestamp and maxPublishTimestamp of the ledger after add entry finished.
+        updatePublishTimestamp(position, context);
+        // ...
+    }
+
+    @Override
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+        switch (status) {
+            case NotDup:
+                transactionBuffer.appendBufferToTxn(txnID, publishContext, headersAndPayload)
+                        .thenAccept(position -> {
+                            // ...
+                            // Update the minPublishTimestamp and maxPublishTimestamp of the ledger after add entry finished.
+                            updatePublishTimestamp(position, context);
+                            // ...
+                        });
         }
+    }
+
+    // Record minPublishTimestamp and maxPublishTimestamp of the ledger
+    private void updatePublishTimestamp(Position position, PublishContext context) {
+        MessageMetadata metadata = context.getMessageMetadata();
+        if (null == metadata || !metadata.hasPublishTime()) {
+            return;
+        }
+        long ledgerId = position.getLedgerId();
+        long publishTimestamp = metadata.getPublishTime();
+        MutablePair<Long, Long> pair =
+                ledgerMinMaxPublishTimestamp.computeIfAbsent(ledgerId, k -> MutablePair.of(Long.MAX_VALUE, Long.MIN_VALUE));
+        long start = pair.getLeft();
+        long end = pair.getRight();
+        if (publishTime < start) {
+            pair.setLeft(publishTime);
+        }
+        if (publishTime > end) {
+            pair.setRight(publishTime);
+        }
+    }
+}
+
+```
+
+### 7. Before close a `LedgerHandle`, get `minPublishTimestamp` and `maxPublishTimestamp` properties via a `callback` and then set to `LedgerInfo#properties`.
+
+```java
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Function;
+
+public class ManagedLedgerImpl implements ManagedLedger {
+    private volatile Function<Long, Map<String, String>> ledgerInfoPropertiesGetter = null;
+
+    synchronized void ledgerClosed(final LedgerHandle lh) {
+        //...
+        if (entriesInLedger > 0) {
+            Map<String, String> properties = Collections.emptyMap();
+            if (ledgerInfoPropertiesGetter != null) {
+                // Get the minPublishTimestamp and maxPublishTimestamp from the PersistentTopic via the callback.
+                properties = ledgerInfoPropertiesGetter.apply(lh.getId());
+            }
+            LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
+                    .setSize(lh.getLength()).setTimestamp(clock.millis()).addAllProperties(properties).build();
+            ledgers.put(lh.getId(), info);
+        }
+        // ...
+    }
+
+    // Set the callback to get the LedgerInfo properties.
+    void setLedgerInfoPropertiesGetter(Function<Long, Map<String, String>> ledgerInfoPropertiesGetter) {
+        this.ledgerInfoPropertiesGetter = ledgerInfoPropertiesGetter;
     }
 }
 ```
 
-#### 11. Add a new method to `ManageCursor` to find the newest matching entry.
+
+#### 8. Add a new method to `ManageCursor` to find the newest matching entry.
 ```java
 
 public class ManagedCursor {
@@ -257,23 +253,23 @@ public class ManagedCursorImpl implements ManagedCursor {
 }
 ```
 
-#### 12. Calculate the `start`/`end` position based on the `beginPublishTimestamp`/`endPublishTimestamp` of the ledger, and pass them to `ManagedCursor#asyncFindNewestMatching`.
+#### 9. Calculate the `start`/`end` position based on the `LedgerInfo#Properties`, and pass them to `ManagedCursor#asyncFindNewestMatching`.
+
 ```java
 public class PersistentMessageFinder {
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
         this.timestamp = timestamp;
         // ...
         // Find the start/end position based on the begin/end publish timestamp of the ledger
-        Position start = null;
-        Position end = null;
+        Position startPosition = null;
+        Position endPosition = null;
         for (LedgerInfo info : ledger.getLedgersInfo.values()) {
-            if (!info.hasBeginPublishTimestamp() || !info.hasEndPublishTimestamp()) {
-                start = end = null;
-                break;
-            }
+            List<KeyValue> properties = info.getPropertiesList();
+            long minPublishTimestamp = getMinPublishTimestamp(properties);
+            long maxPublishTimestamp = getMaxPublishTimestamp(properties);
             // ... 
-            start = ...;
-            end = ...;
+            startPosition = ...;
+            endPosition = ...;
         }
         // ... pass the start/end position to ManagedCursor#asyncFindNewestMatching
         cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
@@ -292,35 +288,13 @@ public class PersistentMessageFinder {
 }
 ```
 
-#### 13. For the `expiry-monitor`, we can also use the `beginPublishTimestamp` and `endPublishTimestamp` to speed-up.
-```java
-public class PersistentMessageExpiryMonitor implements FindEntryCallback, MessageExpirer {
-    @Override
-    public boolean expireMessages(int messageTTLInSeconds) {
-        // ...
-        // Calculate the expiredTime
-        long expiredTime = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTTLInSeconds);
-        // Use the begin/end publish timestamp to speed-up
-        PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor);
-        finder.findMessages(expiredTime, this);
-    }
-}
-```
-
 # Backward & Forward Compatibility
 
-This change is backward compatible, the old clients can still work with the new broker.
+This change is *fully* backward compatible.
 
 # Alternatives
 
-An alternative is introducing a new configuration `enableSpeedUpFindingMessageByTimestamp` to broker.conf,
-if it set to `true`, the broker will calculate the `start`/`end` position based on the `LedgerInfo#timestamp` of the ledger, 
-and pass them to `ManagedCursor#asyncFindNewestMatching` to speed-up the finding message by timestamp,
-so we don't need to change the `LedgerInfo`, deserialize `MessageMetadata` once broker received the message,
-and add additional logic to manage the `beginPublishTimestamp` and `endPublishTimestamp` of the ledger.
-
-But the `LedgerInfo#timestamp` is the broker's timestamp, it's not accurate, 
-and it's not suitable for finding message by timestamp if clients' clocks are not synchronized with the broker's clock.
+N/A
 
 
 # General Notes
