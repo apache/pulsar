@@ -28,5 +28,7 @@ public interface NonPersistentReplicatorStats extends ReplicatorStats {
      **/
     double getMsgDropRate();
 
-    long getMsgDropCount();
+    default long getMsgDropCount() {
+        return 0;
+    }
 }
