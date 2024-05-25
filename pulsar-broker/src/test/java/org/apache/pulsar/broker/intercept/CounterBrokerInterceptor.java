@@ -294,7 +294,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
-        var meter = pulsarService.getInterceptorOpenTelemetry().getMeter();
+        var meter = pulsarService.getOpenTelemetry().getMeter();
 
         messageCounter = meter
                 .counterBuilder(MESSAGE_COUNTER)
