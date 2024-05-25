@@ -286,7 +286,7 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     private CompletableFuture<Void> validateAdminRoleAsync(TenantInfoImpl info) {
-        if (!info.getAdminRoles().isEmpty()) {
+        if (info.getAdminRoles() != null && !info.getAdminRoles().isEmpty()) {
             for (String adminRole : info.getAdminRoles()) {
                 if (!StringUtils.trim(adminRole).equals(adminRole)) {
                     log.warn("[{}] Failed to validate due to adminRole {} contains whitespace in the beginning or end.",

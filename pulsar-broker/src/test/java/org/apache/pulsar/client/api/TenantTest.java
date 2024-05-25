@@ -80,18 +80,16 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant1", noneBlankAdminRoleTenantInfo);
         try {
             admin.tenants().createTenant("testTenant2", blankAdminRoleTenantInfo);
-            Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "AdminRole can not be blank or containsWhitespace");
+            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
         }
 
         try {
             admin.tenants().createTenant("testTenant3", containsWhitespaceAdminRoleTenantInfo);
-            Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "AdminRole can not be blank or containsWhitespace");
+            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
         }
     }
 }
