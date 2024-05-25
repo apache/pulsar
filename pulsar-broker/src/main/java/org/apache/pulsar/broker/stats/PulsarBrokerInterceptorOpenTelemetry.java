@@ -58,6 +58,8 @@ public class PulsarBrokerInterceptorOpenTelemetry implements Closeable {
 
     @Override
     public void close() {
-        openTelemetryService.close();
+        if (openTelemetryService != null) {
+            openTelemetryService.close();
+        }
     }
 }
