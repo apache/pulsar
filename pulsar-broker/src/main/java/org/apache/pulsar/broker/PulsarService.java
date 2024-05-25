@@ -111,6 +111,7 @@ import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.stats.PulsarBrokerInterceptorOpenTelemetry;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -254,6 +255,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
+    private PulsarBrokerInterceptorOpenTelemetry interceptorOpenTelemetry;
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
 
@@ -327,6 +329,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.config = config;
 
         this.openTelemetry = new PulsarBrokerOpenTelemetry(config, openTelemetrySdkBuilderCustomizer);
+        this.interceptorOpenTelemetry = new PulsarBrokerInterceptorOpenTelemetry(config,
+                openTelemetrySdkBuilderCustomizer);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -491,6 +495,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             resetMetricsServlet();
             if (openTelemetry != null) {
                 openTelemetry.close();
+            }
+            if (interceptorOpenTelemetry != null) {
+                interceptorOpenTelemetry.close();
             }
 
             if (this.compactionServiceFactory != null) {
@@ -844,6 +851,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // use getter to support mocking getBrokerInterceptor method in tests
             BrokerInterceptor interceptor = getBrokerInterceptor();
             if (interceptor != null) {
+                this.interceptorOpenTelemetry.build();
                 brokerService.setInterceptor(interceptor);
                 interceptor.initialize(this);
             }
