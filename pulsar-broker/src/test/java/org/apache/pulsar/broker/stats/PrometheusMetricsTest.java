@@ -226,19 +226,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscribe();
 
         final int messages = 10;
-        int bytesCount = 0;
         for (int i = 0; i < messages; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
             p2.send(message.getBytes());
-            bytesCount += message.getBytes().length * 2;
         }
 
-        int internalBytesOutCount = 0;
         for (int i = 0; i < messages; i++) {
-            Message<byte[]> msg = c1.receive();
-            internalBytesOutCount += msg.getData().length;
-            c1.acknowledge(msg);
+            c1.acknowledge(c1.receive());
             c2.acknowledge(c2.receive());
         }
 
