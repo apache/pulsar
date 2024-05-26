@@ -49,8 +49,6 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.eclipse.jetty.server.Response;
 
 
