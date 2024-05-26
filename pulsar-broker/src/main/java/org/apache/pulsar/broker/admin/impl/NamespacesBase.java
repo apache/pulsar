@@ -704,18 +704,19 @@ public abstract class NamespacesBase extends AdminResource {
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
                                                 .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
-                                                        .thenAccept(nsPolicies -> {
+                                                        .thenCompose(nsPolicies -> {
                                                             if (nsPolicies.allowed_clusters.isEmpty()) {
-                                                                validateClusterForTenantAsync(
+                                                                return validateClusterForTenantAsync(
                                                                         namespaceName.getTenant(), clusterId);
-                                                            } else if (!nsPolicies.allowed_clusters
-                                                                    .contains(clusterId)) {
+                                                            }
+                                                            if (!nsPolicies.allowed_clusters.contains(clusterId)) {
                                                                 String msg = String.format("Cluster [%s] is not in the "
                                                                         + "list of allowed clusters list for namespace "
                                                                         + "[%s]", clusterId, namespaceName.toString());
                                                                 log.info(msg);
                                                                 throw new RestException(Status.FORBIDDEN, msg);
                                                             }
+                                                            return CompletableFuture.completedFuture(null);
                                                         }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);

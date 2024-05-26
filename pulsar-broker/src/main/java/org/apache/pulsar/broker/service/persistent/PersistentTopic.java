@@ -1863,17 +1863,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
-        // The replication clusters at namespace level will get local cluster when creating a namespace.
-        // If there are only one cluster in the replication clusters, it means the replication is not enabled.
-        // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
-        // without enabling geo-replication, then the replication clusters always has cluster1.
-        //
-        // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
-        // remote cluster and start geo-replication. This check is to avoid the above case.
-        if (configuredClusters.size() == 1 && replicators.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
         return checkAllowedCluster(localCluster).thenCompose(__ -> {
@@ -1883,26 +1872,34 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             removeTerminatedReplicators(replicators);
             List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-            // Check for missing replicators
-            for (String cluster : configuredClusters) {
-                if (cluster.equals(localCluster)) {
-                    continue;
-                }
-                if (!replicators.containsKey(cluster)) {
-                    futures.add(startReplicator(cluster));
-                }
-            }
-
-            // Check for replicators to be stopped
-            replicators.forEach((cluster, replicator) -> {
-                // Update message TTL
-                ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
-                if (!cluster.equals(localCluster)) {
-                    if (!configuredClusters.contains(cluster)) {
-                        futures.add(removeReplicator(cluster));
+            // The replication clusters at namespace level will get local cluster when creating a namespace.
+            // If there are only one cluster in the replication clusters, it means the replication is not enabled.
+            // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
+            // without enabling geo-replication, then the replication clusters always has cluster1.
+            //
+            // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
+            // remote cluster and start geo-replication. This check is to avoid the above case.
+            if (!(configuredClusters.size() == 1 && replicators.isEmpty())) {
+                // Check for missing replicators
+                for (String cluster : configuredClusters) {
+                    if (cluster.equals(localCluster)) {
+                        continue;
+                    }
+                    if (!replicators.containsKey(cluster)) {
+                        futures.add(startReplicator(cluster));
                     }
                 }
-            });
+                // Check for replicators to be stopped
+                replicators.forEach((cluster, replicator) -> {
+                    // Update message TTL
+                    ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
+                    if (!cluster.equals(localCluster)) {
+                        if (!configuredClusters.contains(cluster)) {
+                            futures.add(removeReplicator(cluster));
+                        }
+                    }
+                });
+            }
 
             futures.add(checkShadowReplication());
 
