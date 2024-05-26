@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import java.io.IOException;
@@ -67,6 +68,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     private LongCounter messageCounter;
     public static final String MESSAGE_COUNTER = "pulsar.broker.interceptor.message.count";
+    public static final AttributeKey<String> CUSTOMIZE = AttributeKey.stringKey("pulsar.interceptor.customize");
     private final AtomicInteger messageDispatchCount = new AtomicInteger();
     private final AtomicInteger messageAckCount = new AtomicInteger();
     private final AtomicInteger handleAckCount = new AtomicInteger();
@@ -171,9 +173,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         }
         messageCount.incrementAndGet();
 
-        var topicName = TopicName.get(producer.getTopic().getName());
         var builder = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+                .put(CUSTOMIZE, "customize");
         var attributes = builder.build();
 
         messageCounter.add(1, attributes);

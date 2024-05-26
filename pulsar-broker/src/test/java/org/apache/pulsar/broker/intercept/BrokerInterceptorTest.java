@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.apache.pulsar.broker.intercept.CounterBrokerInterceptor.CUSTOMIZE;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
@@ -337,7 +338,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         producer.send("hello world");
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .put(CUSTOMIZE, "customize")
                 .build();
         assertMetricLongSumValue(metrics, CounterBrokerInterceptor.MESSAGE_COUNTER, attributes, 2);
 
