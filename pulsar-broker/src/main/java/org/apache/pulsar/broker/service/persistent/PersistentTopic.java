@@ -1918,8 +1918,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (policiesOptional.isPresent()) {
                         allowedClusters = policiesOptional.get().allowed_clusters;
                     }
-                    log.info("[{}] Checking allowed clusters, local cluster: {}, replication clusters: {}, allowed clusters: {}",
-                            topic, localCluster, replicationClusters, allowedClusters);
                     // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
                     // because pulsar doesn't serve global topic without local repl-cluster configured.
                     if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
