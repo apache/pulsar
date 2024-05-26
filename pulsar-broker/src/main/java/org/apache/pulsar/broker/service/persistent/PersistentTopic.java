@@ -1864,12 +1864,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         // The replication clusters at namespace level will get local cluster when creating a namespace.
-        // If there only is a cluster in the replication clusters, it means the replication is not enable.
+        // If there are only one cluster in the replication clusters, it means the replication is not enabled.
         // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
         // without enabling geo-replication, then the replication clusters always has cluster1.
+        //
         // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
-        // remote cluster and start geo-replication. So the check for the size of `configuredClusters` is necessary.
-        if (configuredClusters.size() == 1) {
+        // remote cluster and start geo-replication. This check is to avoid the above case.
+        if (configuredClusters.size() == 1 && replicators.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -1917,6 +1918,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (policiesOptional.isPresent()) {
                         allowedClusters = policiesOptional.get().allowed_clusters;
                     }
+                    log.info("[{}] Checking allowed clusters, local cluster: {}, replication clusters: {}, allowed clusters: {}",
+                            topic, localCluster, replicationClusters, allowedClusters);
                     // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
                     // because pulsar doesn't serve global topic without local repl-cluster configured.
                     if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
