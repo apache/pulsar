@@ -41,6 +41,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
@@ -3741,9 +3742,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public PositionImpl getFirstPosition() {
-        Long ledgerId = ledgers.firstKey();
-        if (ledgerId == null) {
-            return null;
+        Long ledgerId;
+        try {
+            ledgerId = ledgers.firstKey();
+        } catch (NoSuchElementException e){
+            return PositionImpl.EARLIEST;
         }
         if (ledgerId > lastConfirmedEntry.getLedgerId()) {
             checkState(ledgers.get(ledgerId).getEntries() == 0);
