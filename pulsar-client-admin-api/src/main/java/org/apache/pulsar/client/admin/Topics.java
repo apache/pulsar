@@ -1643,6 +1643,27 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
+     * @param  offset
+     *            Start index to start reading messages.
+     * @param numMessages
+     *            Number of messages
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int offset, int numMessages) throws PulsarAdminException;
+
+    /**
+     * Peek messages from a topic subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
      * @param numMessages
      *            Number of messages
      * @return
@@ -1654,6 +1675,22 @@ public interface Topics {
      *             Unexpected error
      */
     List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+
+    /**
+     * Peek messages from a topic subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param offset
+     *            Start index to start reading messages
+     * @param numMessages
+     *            Number of messages
+     * @return a future that can be used to track when the messages are returned
+     */
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int offset,
+                                                               int numMessages);
 
     /**
      * Peek messages from a topic subscription asynchronously.
