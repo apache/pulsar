@@ -61,6 +61,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1103,19 +1104,19 @@ public class CmdTopics extends CmdBase {
                 description = "Enables the display of internal server write markers.", required = false)
         private boolean showServerMarker = false;
 
-        @Option(names = { "-sta", "--show-txn-aborted" },
-                description = "Enables the display of messages from aborted transactions.", required = false)
-        private boolean showTxnAborted = false;
-
-        @Option(names = { "-stu", "--show-txn-uncommitted" },
-                description = "Enables the display of messages from uncommitted transactions.", required = false)
-        private boolean showTxnUncommitted = false;
+        @Option(names = { "-til", "--transaction-isolation-level" },
+                description = "Sets the isolation level for consuming messages within transactions. "
+                   + "'READ_COMMITTED' allows consuming only committed transactional messages. "
+                   + "'READ_UNCOMMITTED' allows consuming all messages, "
+                        + "even transactional messages which have been aborted.",
+                required = false)
+        private SubscriptionIsolationLevel transactionIsolationLevel = SubscriptionIsolationLevel.READ_COMMITTED;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
-                    showServerMarker, showTxnAborted, showTxnUncommitted);
+                    showServerMarker, transactionIsolationLevel);
             int position = 0;
             for (Message<byte[]> msg : messages) {
                 MessageImpl message = (MessageImpl) msg;

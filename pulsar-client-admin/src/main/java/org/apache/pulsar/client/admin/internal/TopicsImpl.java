@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -869,9 +870,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition,
-                                                                    boolean showServerMarker, boolean showTxnAborted,
-                                                                    boolean showTxnUncommitted) {
+    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(
+            String topic, String subName, int messagePosition, boolean showServerMarker,
+            SubscriptionIsolationLevel transactionIsolationLevel) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
@@ -884,7 +885,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     public void completed(Response response) {
                         try {
                             future.complete(getMessagesFromHttpResponse(tn.toString(), response,
-                                    showServerMarker, showTxnAborted, showTxnUncommitted));
+                                    showServerMarker, transactionIsolationLevel));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -901,15 +902,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages, true, true, true));
+        return sync(() -> peekMessagesAsync(topic, subName, numMessages,
+                false, SubscriptionIsolationLevel.READ_COMMITTED));
     }
 
     @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
-                                              boolean showServerMarker, boolean showTxnAborted,
-                                              boolean showTxnUncommitted) throws PulsarAdminException {
-        return sync(() ->
-                peekMessagesAsync(topic, subName, numMessages, showServerMarker, showTxnAborted, showTxnUncommitted));
+                                              boolean showServerMarker,
+                                              SubscriptionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException {
+        return sync(() -> peekMessagesAsync(topic, subName, numMessages, showServerMarker, transactionIsolationLevel));
     }
 
     @Override
@@ -917,30 +919,31 @@ public class TopicsImpl extends BaseResource implements Topics {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
-                future, 1, true, true, true);
+                future, 1, false, SubscriptionIsolationLevel.READ_COMMITTED);
         return future;
     }
 
     @Override
-    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages,
-                                        boolean showServerMarker, boolean showTxnAborted, boolean showTxnUncommitted) {
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
-                future, 1, showServerMarker, showTxnAborted, showTxnUncommitted);
+                future, 1, showServerMarker, transactionIsolationLevel);
         return future;
     }
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,
             List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage,
-            boolean showServerMarker, boolean showTxnAborted, boolean showTxnUncommitted) {
+            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
         }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
-        peekNthMessage(topic, subName, nthMessage, showServerMarker, showTxnAborted, showTxnUncommitted)
+        peekNthMessage(topic, subName, nthMessage, showServerMarker, transactionIsolationLevel)
                 .handle((r, ex) -> {
             if (ex != null) {
                 // if we get a not found exception, it means that the position for the message we are trying to get
@@ -957,7 +960,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 messages.add(r.get(i));
             }
             peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future,
-                    nthMessage + 1, showServerMarker, showTxnAborted, showTxnUncommitted);
+                    nthMessage + 1, showServerMarker, transactionIsolationLevel);
             return null;
         });
     }
@@ -1280,12 +1283,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
-        return getMessagesFromHttpResponse(topic, response, true, true, true);
+        return getMessagesFromHttpResponse(topic, response, true,
+                SubscriptionIsolationLevel.READ_UNCOMMITTED);
     }
 
-    private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response,
-                                                              boolean showServerMarker, boolean showTxnAborted,
-                                                              boolean showTxnUncommitted) throws Exception {
+    private List<Message<byte[]>> getMessagesFromHttpResponse(
+            String topic, Response response, boolean showServerMarker,
+            SubscriptionIsolationLevel transactionIsolationLevel) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
@@ -1329,7 +1333,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(TXN_ABORTED);
             if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
                 properties.put(TXN_ABORTED, tmp.toString());
-                if (!showTxnAborted) {
+                if (transactionIsolationLevel == SubscriptionIsolationLevel.READ_COMMITTED) {
                     return new ArrayList<>();
                 }
             }
@@ -1337,7 +1341,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(TXN_UNCOMMITTED);
             if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
                 properties.put(TXN_UNCOMMITTED, tmp.toString());
-                if (!showTxnUncommitted) {
+                if (transactionIsolationLevel == SubscriptionIsolationLevel.READ_COMMITTED) {
                     return new ArrayList<>();
                 }
             }
