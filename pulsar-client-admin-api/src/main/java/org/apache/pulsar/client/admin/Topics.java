@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -1638,7 +1639,6 @@ public interface Topics {
 
     /**
      * Peek messages from a topic subscription.
-     * This method will show server marker, uncommitted and aborted messages for transaction by default.
      *
      * @param topic
      *            topic name
@@ -1667,10 +1667,11 @@ public interface Topics {
      *            Number of messages
      * @param showServerMarker
      *            Enables the display of internal server write markers
-     * @param showTxnAborted
-     *            Enables the display of messages from aborted transactions
-     * @param showTxnUncommitted
-     *            Enables the display of messages from uncommitted transactions
+     * @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
      * @return
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1680,12 +1681,11 @@ public interface Topics {
      *             Unexpected error
      */
     List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
-                                       boolean showServerMarker, boolean showTxnAborted,
-                                       boolean showTxnUncommitted) throws PulsarAdminException;
+                                       boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously.
-     * This method will show server marker, uncommitted and aborted messages for transaction by default.
      *
      * @param topic
      *            topic name
@@ -1708,15 +1708,16 @@ public interface Topics {
      *            Number of messages
      * @param showServerMarker
      *            Enables the display of internal server write markers
-     * @param showTxnAborted
-     *            Enables the display of messages from aborted transactions
-     * @param showTxnUncommitted
-     *            Enables the display of messages from uncommitted transactions
+      @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages,
-                                                               boolean showServerMarker, boolean showTxnAborted,
-                                                               boolean showTxnUncommitted);
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel);
 
     /**
      * Get a message by its messageId via a topic subscription.
