@@ -628,13 +628,7 @@ public class ResourceGroupService implements AutoCloseable{
                             globUsageMessagesArray);
 
                     BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
-                    // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
-                    if (updatedQuota.messages >= 0) {
-                        rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
-                    }
-                    if (updatedQuota.bytes >= 0) {
-                        rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
-                    }
+                    incRgCalculatedQuota(rgName, monClass, updatedQuota, resourceUsagePublishPeriodInSeconds);
                     if (oldBMCount != null) {
                         long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
                         long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
@@ -722,6 +716,19 @@ public class ResourceGroupService implements AutoCloseable{
         ResourceGroup rg = getResourceGroupInternal(rgName);
         if (rg != null) {
             throw new PulsarAdminException("Resource group already exists:" + rgName);
+        }
+    }
+
+    static void incRgCalculatedQuota(String rgName, ResourceGroupMonitoringClass monClass,
+                                     BytesAndMessagesCount updatedQuota, long resourceUsagePublishPeriodInSeconds) {
+        // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
+        if (updatedQuota.messages >= 0) {
+            rgCalculatedQuotaMessages.labels(rgName, monClass.name())
+                    .inc(updatedQuota.messages * resourceUsagePublishPeriodInSeconds);
+        }
+        if (updatedQuota.bytes >= 0) {
+            rgCalculatedQuotaBytes.labels(rgName, monClass.name())
+                    .inc(updatedQuota.bytes * resourceUsagePublishPeriodInSeconds);
         }
     }
 
