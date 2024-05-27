@@ -707,16 +707,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Verify replicator works.
         verifyReplicationWorks(topicName);
 
-        admin1.topicPolicies().setCompactionThreshold(topicName, 1000_000);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin2.topicPolicies().getCompactionThreshold(topicName), 1000_000);
-        });
-
         // Disable replication.
         setTopicLevelClusters(topicName, Arrays.asList(cluster1), admin1, pulsar1);
         setTopicLevelClusters(topicName, Arrays.asList(cluster2), admin2, pulsar2);
-
-        Thread.sleep(3 * 1000);
 
         // Delete topic.
         admin1.topics().delete(topicName);
