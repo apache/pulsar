@@ -62,8 +62,19 @@ N/A
         repeated KeyValue properties = 6;
 }
 ```
+#### 2. Add new methods to `ManagedLedger` to operate the `properties` of `LedgerInfo`.
 
-#### 2. Deserialize the MessageMetadata from the message payload once the broker received the message, and pass it to Producer.
+```java
+public interface ManagedLedger {
+    Map<String, String> getLedgerInfoProperties(long ledgerId);
+
+    void addLedgerInfoProperties(long ledgerId, Map<String, String> properties);
+
+    void removeLedgerInfoProperties(long ledgerId, Collection<String> keys);
+}
+```
+
+#### 3. Deserialize the MessageMetadata from the message payload once the broker received the message, and pass it to Producer.
 
 Since there are many places can deserialize the `MessageMetadata` from the message payload, 
 deserializing the `MessageMetadata` once the broker received the message and pass it to Producer should improve the performance in some cases.
@@ -97,7 +108,7 @@ public class ServerCnx {
 }
 ```
 
-#### 3. Pass the `MessageMetadata` to `Producer#MessagePublishContext`, add `getMessageMetadata` method to expose the `MessageMetadata`.
+#### 4. Pass the `MessageMetadata` to `Producer#MessagePublishContext`, add `getMessageMetadata` method to expose the `MessageMetadata`.
 
 ```java
 public class Producer {
@@ -112,7 +123,7 @@ public class Producer {
 }
 ```
 
-#### 4. Change `TransactionBuffer#appendToTxn(TxnId, long, ByteBuf)` to `TransactionBuffer#appendToTxn(TxnId,PublishContext,ByteBuf)`.
+#### 5. Change `TransactionBuffer#appendToTxn(TxnId, long, ByteBuf)` to `TransactionBuffer#appendToTxn(TxnId,PublishContext,ByteBuf)`.
 ```java
 public interface TransactionBuffer {
     // ...
@@ -120,7 +131,7 @@ public interface TransactionBuffer {
 }
 ```
 
-#### 5. Pass `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)` when adding the entry to the ledger in `TopicTransactionBuffer`.
+#### 6. Pass `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)` when adding the entry to the ledger in `TopicTransactionBuffer`.
 
 Add normal message to ledger is already passed the `PublishContext` to `LedgerHandle#addEntry(ByteBuf, AddCallback, Object)`, only need to change the `TopicTransactionBuffer`.
 
@@ -136,7 +147,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 }
 ```
 
-#### 6. Handle add entries finished, update the `minPublishTimestamp` and `maxPublishTimestamp` in `PersistentTopic`.
+#### 7. Handle add entries finished, update the `minPublishTimestamp` and `maxPublishTimestamp` in `PersistentTopic`.
 
 ```java
 public class PersistentTopic {
@@ -187,23 +198,20 @@ public class PersistentTopic {
 
 ```
 
-### 7. Before close a `LedgerHandle`, get `minPublishTimestamp` and `maxPublishTimestamp` properties via a `callback` and then set to `LedgerInfo#properties`.
+### 8. Before close a `LedgerHandle`, set properties to `LedgerInfo#properties`.
 
 ```java
-import java.util.Collections;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 public class ManagedLedgerImpl implements ManagedLedger {
-    private volatile Function<Long, Map<String, String>> ledgerInfoPropertiesGetter = null;
+    private volatile Consumer<Long> ledgerClosedListener = null;
 
     synchronized void ledgerClosed(final LedgerHandle lh) {
         //...
         if (entriesInLedger > 0) {
-            Map<String, String> properties = Collections.emptyMap();
-            if (ledgerInfoPropertiesGetter != null) {
-                // Get the minPublishTimestamp and maxPublishTimestamp from the PersistentTopic via the callback.
-                properties = ledgerInfoPropertiesGetter.apply(lh.getId());
+            // Trigger the listener before close the ledger handle, set the properties to LedgerInfo#properties via the listener.
+            if (ledgerClosedListener != null) {
+                ledgerClosedListener.accept(lh.getId());
             }
             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
                     .setSize(lh.getLength()).setTimestamp(clock.millis()).addAllProperties(properties).build();
@@ -211,16 +219,11 @@ public class ManagedLedgerImpl implements ManagedLedger {
         }
         // ...
     }
-
-    // Set the callback to get the LedgerInfo properties.
-    void setLedgerInfoPropertiesGetter(Function<Long, Map<String, String>> ledgerInfoPropertiesGetter) {
-        this.ledgerInfoPropertiesGetter = ledgerInfoPropertiesGetter;
-    }
 }
 ```
 
 
-#### 8. Add a new method to `ManageCursor` to find the newest matching entry.
+#### 9. Add a new method to `ManageCursor` to find the newest matching entry.
 ```java
 
 public class ManagedCursor {
@@ -253,7 +256,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 }
 ```
 
-#### 9. Calculate the `start`/`end` position based on the `LedgerInfo#Properties`, and pass them to `ManagedCursor#asyncFindNewestMatching`.
+#### 10. Calculate the `start`/`end` position based on the `LedgerInfo#Properties`, and pass them to `ManagedCursor#asyncFindNewestMatching`.
 
 ```java
 public class PersistentMessageFinder {
@@ -303,5 +306,5 @@ N/A
 
 # Links
 
-* Mailing List discussion thread: https://lists.apache.org/thread/5owc9os6wmy52zxbv07qo2jrfjm17hd2
+* Mailing List discussion thread: 
 * Mailing List voting thread:
