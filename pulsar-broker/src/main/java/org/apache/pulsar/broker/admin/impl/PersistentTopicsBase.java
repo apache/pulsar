@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.service.TopicPoliciesService.DEFAULT_GET_TOPIC_POLICY_TIMEOUT;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
@@ -77,6 +78,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -97,8 +99,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -3408,7 +3413,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
-                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                TopicPolicies topicPolicies = op.map(TopicPolicies::new).orElseGet(TopicPolicies::new);
                 for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
                     BacklogQuota backlogQuota = topicPolicies.getBackLogQuotaMap().get(backlogQuotaType.name());
                     if (backlogQuota == null) {
@@ -3428,7 +3433,43 @@ public class PersistentTopicsBase extends AdminResource {
                 topicPolicies.setRetentionPolicies(retention);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
-            });
+            }).thenCompose(__ -> isRetentionUpdateSuccess(isGlobal, retention));
+    }
+
+    private CompletableFuture<Void> isRetentionUpdateSuccess(boolean isGlobal, RetentionPolicies retention) {
+
+        CompletableFuture<Void> response = new CompletableFuture<>();
+        Backoff usedBackoff = new BackoffBuilder()
+                .setInitialTime(500, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .create();
+        log.info("start currentTime:{}", System.currentTimeMillis());
+        try {
+            RetryUtil.retryWithoutLogAsynchronously(() -> {
+                log.info("end currentTime:{}", System.currentTimeMillis());
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                        .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies))
+                        .thenAccept(retentionPolicies -> {
+                            if (retentionPolicies.isPresent() && retentionPolicies.get().equals(retention)) {
+                                future.complete(null);
+                            } else if (!retentionPolicies.isPresent() && retention == null) {
+                                future.complete(null);
+                            } else {
+                                log.info("retentionPolicies:{}, retention:{}", retentionPolicies.orElse(null), retention);
+                                future.completeExceptionally(new BrokerServiceException.TopicPoliciesCacheNotUpdateAfterSetException());
+                            }
+                        }).exceptionally(ex -> {
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
+                return future;
+            }, usedBackoff, pulsar().getExecutor(), response);
+        } catch (Exception e) {
+            response.completeExceptionally(e);
+        }
+        return response;
     }
 
     protected CompletableFuture<Void> internalRemoveRetention(boolean isGlobal) {
@@ -3437,9 +3478,10 @@ public class PersistentTopicsBase extends AdminResource {
                     if (!op.isPresent()) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    op.get().setRetentionPolicies(null);
-                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
-                });
+                    TopicPolicies topicPolicies = op.map(TopicPolicies::new).get();
+                    topicPolicies.setRetentionPolicies(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                }).thenCompose(__ -> isRetentionUpdateSuccess(isGlobal, null));
     }
 
     protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistent(boolean isGlobal) {

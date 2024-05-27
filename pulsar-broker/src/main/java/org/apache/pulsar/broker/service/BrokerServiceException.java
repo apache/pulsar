@@ -224,6 +224,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicPoliciesCacheNotUpdateAfterSetException extends BrokerServiceException {
+        public TopicPoliciesCacheNotUpdateAfterSetException() {
+            super("Topic policies cache have not update after set.");
+        }
+    }
+
     public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;
