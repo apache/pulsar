@@ -3325,7 +3325,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Terminate a topic. A topic that is terminated will not accept any more "
             + "messages to be published and will let consumer to drain existing messages in backlog")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(
+                    code = 200,
+                    message = "Operation terminated successfully. The response includes the 'lastMessageId',"
+                            + " which is the identifier of the last message processed.",
+                    response = MessageIdAdv.class
+            ),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
