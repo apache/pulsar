@@ -1162,15 +1162,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // use synchronized to protect bundleArr.
-        synchronized (this) {
+        synchronized (bundleArr) {
             int updateBundleCount = selectTopKBundle();
-            for (int i = 0; i < updateBundleCount; i++) {
-                final Map.Entry<String, BundleData> entry = (Map.Entry<String, BundleData>) bundleArr.get(i);
-                final String bundle = entry.getKey();
-                final BundleData data = entry.getValue();
-                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources()
-                        .updateBundleData(bundle, data));
-            }
+            bundleArr.stream().limit(updateBundleCount).forEach(entry -> futures.add(
+                    pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
+                            entry.getKey(), (BundleData) entry.getValue())));
         }
 
         // Write the time average broker data to metadata store.
