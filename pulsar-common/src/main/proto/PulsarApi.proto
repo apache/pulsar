@@ -466,6 +466,8 @@ message CommandLookupTopicResponse {
     // always connect through the service url after the
     // lookup has been completed.
     optional bool proxy_through_service_url = 8 [default = false];
+
+    optional string brokerId = 9;
 }
 
 /// Create a new Producer on a topic, assigning the given producer_id,
@@ -637,7 +639,8 @@ message CommandTopicMigrated {
     required ResourceType resource_type = 2;
     optional string brokerServiceUrl      = 3;
     optional string brokerServiceUrlTls   = 4;
-    
+    optional string brokerId = 5;
+
 }
 
 
@@ -646,6 +649,7 @@ message CommandCloseProducer {
     required uint64 request_id = 2;
     optional string assignedBrokerServiceUrl = 3;
     optional string assignedBrokerServiceUrlTls = 4;
+    optional string assignedBrokerId = 5;
 }
 
 message CommandCloseConsumer {
@@ -653,6 +657,7 @@ message CommandCloseConsumer {
     required uint64 request_id = 2;
     optional string assignedBrokerServiceUrl = 3;
     optional string assignedBrokerServiceUrlTls = 4;
+    optional string assignedBrokerId = 5;
 }
 
 message CommandRedeliverUnacknowledgedMessages {
@@ -1132,6 +1137,6 @@ message BaseCommand {
     optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
     optional CommandWatchTopicUpdate watchTopicUpdate = 66;
     optional CommandWatchTopicListClose watchTopicListClose = 67;
-    
+
     optional CommandTopicMigrated topicMigrated = 68;
 }

@@ -3189,9 +3189,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void closeProducer(long producerId, long epoch, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             if (assignedBrokerLookupData.isPresent()) {
+                BrokerLookupData brokerLookupData = assignedBrokerLookupData.get();
                 writeAndFlush(Commands.newCloseProducer(producerId, -1L,
-                        assignedBrokerLookupData.get().pulsarServiceUrl(),
-                        assignedBrokerLookupData.get().pulsarServiceUrlTls()));
+                        brokerLookupData.brokerId(),
+                        brokerLookupData.pulsarServiceUrl(),
+                        brokerLookupData.pulsarServiceUrlTls()));
             } else {
                 writeAndFlush(Commands.newCloseProducer(producerId, -1L));
             }
@@ -3221,6 +3223,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void closeConsumer(long consumerId, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(newCloseConsumer(consumerId, -1L,
+                    assignedBrokerLookupData.map(BrokerLookupData::brokerId).orElse(null),
                     assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrl).orElse(null),
                     assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrlTls).orElse(null)));
         } else {

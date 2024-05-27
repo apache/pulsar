@@ -55,24 +55,14 @@ public class OwnershipCache {
     private static final Logger LOG = LoggerFactory.getLogger(OwnershipCache.class);
 
     /**
-     * The local broker URL that this <code>OwnershipCache</code> will set as owner.
-     */
-    private final String ownerBrokerUrl;
-
-    /**
-     * The local broker URL that this <code>OwnershipCache</code> will set as owner.
-     */
-    private final String ownerBrokerUrlTls;
-
-    /**
      * The NamespaceEphemeralData objects that can be associated with the current owner.
      */
-    private NamespaceEphemeralData selfOwnerInfo;
+    private volatile NamespaceEphemeralData selfOwnerInfo;
 
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner, when the broker is disabled.
      */
-    private final NamespaceEphemeralData selfOwnerInfoDisabled;
+    private volatile NamespaceEphemeralData selfOwnerInfoDisabled;
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
@@ -94,6 +84,11 @@ public class OwnershipCache {
 
         @Override
         public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
+            if (selfOwnerInfo == null) {
+                throw new IllegalStateException(
+                        "Not ready for acquiring ownership. selfOwnerInfo is null which means that "
+                                + "refreshSelfOwnerInfo hasn't been called yet.");
+            }
             return lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
                     .thenApply(rl -> {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
@@ -117,14 +112,6 @@ public class OwnershipCache {
     public OwnershipCache(PulsarService pulsar, NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
-        this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
-        this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
-        this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                false, pulsar.getAdvertisedListeners());
-        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                true, pulsar.getAdvertisedListeners());
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
@@ -331,11 +318,9 @@ public class OwnershipCache {
         return locallyAcquiredLocks;
     }
 
-
-    public synchronized boolean refreshSelfOwnerInfo() {
-        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
-                pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
-                pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+    public boolean refreshSelfOwnerInfo() {
+        this.selfOwnerInfo = NamespaceEphemeralData.create(pulsar, false);
+        this.selfOwnerInfoDisabled = NamespaceEphemeralData.create(pulsar, true);
         return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }

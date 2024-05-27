@@ -139,7 +139,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             when(mockLookup.getBroker(any())).thenAnswer(ignored -> {
                 InetSocketAddress brokerAddress =
                         new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
-                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress, false));
+                return CompletableFuture.completedFuture(
+                        new LookupTopicResult(pulsar.getBrokerId(), brokerAddress, brokerAddress, false));
             });
             final String topicPoliciesServiceInitException
                     = "Topic creation encountered an exception by initialize topic policies service";

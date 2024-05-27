@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +37,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.Resource
  */
 @JsonDeserialize(as = LoadReport.class)
 public class LoadReport implements LoadManagerReport {
-    private String name;
+    private String brokerId;
     private String brokerVersionString;
 
     private final String webServiceUrl;
@@ -118,12 +120,15 @@ public class LoadReport implements LoadManagerReport {
         return bundleStats;
     }
 
-    public String getName() {
-        return name;
+    @JsonGetter("name")
+    @Override
+    public String getBrokerId() {
+        return brokerId;
     }
 
-    public void setName(String brokerName) {
-        this.name = brokerName;
+    @JsonSetter("name")
+    public void setBrokerId(String brokerId) {
+        this.brokerId = brokerId;
     }
 
     public SystemResourceUsage getSystemResourceUsage() {

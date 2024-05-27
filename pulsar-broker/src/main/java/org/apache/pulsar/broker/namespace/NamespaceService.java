@@ -730,12 +730,13 @@ public class NamespaceService implements AutoCloseable {
                         } else {
                             URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
-                            lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                                    lookupData.getWebServiceUrlTls(), url == null ? null : url.toString(),
-                                    urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
+                            lookupFuture.complete(
+                                    new LookupResult(lookupData.getBrokerId(), lookupData.getWebServiceUrl(),
+                                            lookupData.getWebServiceUrlTls(), url == null ? null : url.toString(),
+                                            urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
                         }
                     } else {
-                        lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
+                        lookupFuture.complete(new LookupResult(lookupData.getBrokerId(), lookupData.getWebServiceUrl(),
                                 lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
                                 lookupData.getPulsarServiceUrlTls(), authoritativeRedirect));
                     }

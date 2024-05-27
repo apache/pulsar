@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @JsonIgnoreProperties(value = {"bundleStats"})
 @JsonDeserialize(as = LocalBrokerData.class)
 public class LocalBrokerData implements LoadManagerReport {
-
+    private final String brokerId;
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
     private final String webServiceUrl;
     private final String webServiceUrlTls;
@@ -96,20 +99,24 @@ public class LocalBrokerData implements LoadManagerReport {
 
     // For JSON only.
     public LocalBrokerData() {
-        this(null, null, null, null);
+        this(null, null, null, null, null);
     }
 
     /**
      * Broker data constructor which takes in four URLs to satisfy the contract of ServiceLookupData.
      */
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
-            final String pulsarServiceUrlTls) {
-        this(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
+    public LocalBrokerData(final String brokerId, final String webServiceUrl, final String webServiceUrlTls,
+                           final String pulsarServiceUrl, final String pulsarServiceUrlTls) {
+        this(brokerId, webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 Collections.unmodifiableMap(Collections.emptyMap()));
     }
 
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
-                           final String pulsarServiceUrlTls, Map<String, AdvertisedListener> advertisedListeners) {
+    @JsonCreator
+    public LocalBrokerData(@JsonProperty("name") final String brokerId, final String webServiceUrl,
+                           final String webServiceUrlTls,
+                           final String pulsarServiceUrl, final String pulsarServiceUrlTls,
+                           Map<String, AdvertisedListener> advertisedListeners) {
+        this.brokerId = brokerId;
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
@@ -129,6 +136,12 @@ public class LocalBrokerData implements LoadManagerReport {
         this.advertisedListeners = Collections.unmodifiableMap(new HashMap<>(advertisedListeners));
     }
 
+    @JsonGetter("name")
+    @Override
+    public String getBrokerId() {
+        return brokerId;
+    }
+
     /**
      * Since the broker data is also used as a lock for the broker, we need to have a stable comparison
      * operator that is not affected by the actual load on the broker.
@@ -137,7 +150,8 @@ public class LocalBrokerData implements LoadManagerReport {
     public boolean equals(Object o) {
         if (o instanceof LocalBrokerData) {
             LocalBrokerData other = (LocalBrokerData) o;
-            return Objects.equals(webServiceUrl, other.webServiceUrl)
+            return Objects.equals(brokerId, other.brokerId)
+                    && Objects.equals(webServiceUrl, other.webServiceUrl)
                     && Objects.equals(webServiceUrlTls, other.webServiceUrlTls)
                     && Objects.equals(pulsarServiceUrl, other.pulsarServiceUrl)
                     && Objects.equals(pulsarServiceUrlTls, other.pulsarServiceUrlTls);
@@ -148,7 +162,7 @@ public class LocalBrokerData implements LoadManagerReport {
 
     @Override
     public int hashCode() {
-        return Objects.hash(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls);
+        return Objects.hash(brokerId, webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls);
     }
 
     /**

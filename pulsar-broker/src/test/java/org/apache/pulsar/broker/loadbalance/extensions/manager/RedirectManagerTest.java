@@ -95,6 +95,7 @@ public class RedirectManagerTest {
 
 
     public BrokerLookupData getLookupData(String broker, String loadManagerClassName, long startTimeStamp) {
+        String brokerId = "broker:8081";
         String webServiceUrl = "http://" + broker + ":8080";
         String webServiceUrlTls = "https://" + broker + ":8081";
         String pulsarServiceUrl = "pulsar://" + broker + ":6650";
@@ -103,7 +104,7 @@ public class RedirectManagerTest {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        return new BrokerLookupData(
+        return new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
                 loadManagerClassName, startTimeStamp, "3.0.0");

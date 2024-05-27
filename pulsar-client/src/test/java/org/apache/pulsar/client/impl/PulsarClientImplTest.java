@@ -111,7 +111,7 @@ public class PulsarClientImplTest {
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))
-                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(null,
                         mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
         ConnectionPool pool = mock(ConnectionPool.class);
         ClientCnx cnx = mock(ClientCnx.class);

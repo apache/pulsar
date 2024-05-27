@@ -2415,7 +2415,7 @@ public class ServerCnxTest {
         channel.writeInbound(subscribe1);
 
         ByteBuf closeConsumer = Commands.newCloseConsumer(1 /* consumer id */, 2 /* request id */,
-                null /* assignedBrokerServiceUrl */, null /* assignedBrokerServiceUrlTls */);
+                null /* assignedBrokerId */, null /* assignedBrokerServiceUrl */, null /* assignedBrokerServiceUrlTls */);
         channel.writeInbound(closeConsumer);
 
         ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //

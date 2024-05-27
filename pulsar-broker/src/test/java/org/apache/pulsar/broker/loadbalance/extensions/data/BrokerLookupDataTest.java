@@ -39,8 +39,9 @@ public class BrokerLookupDataTest {
 
     @Test
     public void testConstructors() throws PulsarServerException, URISyntaxException {
+        String brokerId = "localhost:8081";
         String webServiceUrl = "http://localhost:8080";
-        String webServiceUrlTls = "https://localhoss:8081";
+        String webServiceUrlTls = "https://localhost:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
         String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
         final String listenerUrl = "pulsar://gateway:7000";
@@ -55,10 +56,11 @@ public class BrokerLookupDataTest {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        BrokerLookupData lookupData = new BrokerLookupData(
+        BrokerLookupData lookupData = new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
                 ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0");
+        assertEquals(brokerId, lookupData.getBrokerId());
         assertEquals(webServiceUrl, lookupData.webServiceUrl());
         assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
         assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());
@@ -68,7 +70,6 @@ public class BrokerLookupDataTest {
         assertTrue(lookupData.persistentTopicsEnabled());
         assertTrue(lookupData.nonPersistentTopicsEnabled());
         assertEquals("3.0", lookupData.brokerVersion());
-
 
         LookupResult lookupResult = lookupData.toLookupResult(LookupOptions.builder().build());
         assertEquals(webServiceUrl, lookupResult.getLookupData().getHttpUrl());

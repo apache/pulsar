@@ -942,7 +942,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // in case it was indeed created, otherwise it might prevent new create consumer operation,
                     // since we are not necessarily closing the connection.
                     long closeRequestId = client.newRequestId();
-                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null);
+                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null, null);
                     cnx.sendRequestWithId(cmd, closeRequestId);
                 }
 
@@ -1121,7 +1121,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (null == cnx) {
             cleanupAtClose(closeFuture, null);
         } else {
-            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId, null, null);
+            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId, null, null, null);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
                 final ChannelHandlerContext ctx = cnx.ctx();
                 boolean ignoreException = ctx == null || !ctx.channel().isActive();

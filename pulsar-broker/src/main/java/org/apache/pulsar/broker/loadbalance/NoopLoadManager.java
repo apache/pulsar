@@ -60,7 +60,7 @@ public class NoopLoadManager implements LoadManager {
         brokerId = pulsar.getBrokerId();
         localResourceUnit = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
 
-        LocalBrokerData localData = new LocalBrokerData(pulsar.getWebServiceAddress(),
+        LocalBrokerData localData = new LocalBrokerData(brokerId, pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());

@@ -270,7 +270,7 @@ public class ClientErrorsTest {
             if (subscribeCount == 1) {
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
                 // Trigger reconnect
-                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1, null, null));
+                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1, null, null, null));
             } else if (subscribeCount != 2) {
                 // Respond to subsequent requests to prevent timeouts
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
@@ -408,7 +408,8 @@ public class ClientErrorsTest {
                 return;
             }
             ctx.writeAndFlush(
-                    Commands.newLookupResponse(mockBrokerService.getBrokerAddress(), null, true, LookupType.Connect,
+                    Commands.newLookupResponse(mockBrokerService.getBrokerId(), mockBrokerService.getBrokerAddress(),
+                            null, true, LookupType.Connect,
                             lookup.getRequestId(), false));
         });
 

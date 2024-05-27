@@ -24,11 +24,13 @@ import java.util.Map;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 @Data
 @NoArgsConstructor
 public class NamespaceEphemeralData {
+    private String brokerId;
     private String nativeUrl;
     private String nativeUrlTls;
     private String httpUrl;
@@ -36,13 +38,15 @@ public class NamespaceEphemeralData {
     private boolean disabled;
     private Map<String, AdvertisedListener> advertisedListeners;
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-            boolean disabled) {
-        this(brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
+    public NamespaceEphemeralData(String brokerId, String brokerUrl, String brokerUrlTls, String httpUrl,
+                                  String httpUrlTls, boolean disabled) {
+        this(brokerId, brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
     }
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-                                  boolean disabled, Map<String, AdvertisedListener> advertisedListeners) {
+    public NamespaceEphemeralData(String brokerId, String brokerUrl, String brokerUrlTls, String httpUrl,
+                                  String httpUrlTls, boolean disabled,
+                                  Map<String, AdvertisedListener> advertisedListeners) {
+        this.brokerId = brokerId;
         this.nativeUrl = brokerUrl;
         this.nativeUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
@@ -53,6 +57,12 @@ public class NamespaceEphemeralData {
         } else {
             this.advertisedListeners = new HashMap<>(advertisedListeners);
         }
+    }
+
+    public static NamespaceEphemeralData create(PulsarService pulsar, boolean disabled) {
+        return new NamespaceEphemeralData(pulsar.getBrokerId(), pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                disabled, pulsar.getAdvertisedListeners());
     }
 
     @NotNull

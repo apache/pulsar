@@ -225,11 +225,12 @@ public class BinaryProtoLookupService implements LookupService {
                             if (r.proxyThroughServiceUrl) {
                                 // Connect through proxy
                                 addressFuture.complete(
-                                        new LookupTopicResult(responseBrokerAddress, socketAddress, true));
+                                        new LookupTopicResult(r.brokerId, responseBrokerAddress, socketAddress, true));
                             } else {
                                 // Normal result with direct connection to broker
                                 addressFuture.complete(
-                                        new LookupTopicResult(responseBrokerAddress, responseBrokerAddress, false));
+                                        new LookupTopicResult(r.brokerId, responseBrokerAddress, responseBrokerAddress,
+                                                false));
                             }
                         }
 
@@ -420,7 +421,7 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     public static class LookupDataResult {
-
+        public final String brokerId;
         public final String brokerUrl;
         public final String brokerUrlTls;
         public final int partitions;
@@ -429,6 +430,7 @@ public class BinaryProtoLookupService implements LookupService {
         public final boolean redirect;
 
         public LookupDataResult(CommandLookupTopicResponse result) {
+            this.brokerId = result.hasBrokerId() ? result.getBrokerId() : null;
             this.brokerUrl = result.hasBrokerServiceUrl() ? result.getBrokerServiceUrl() : null;
             this.brokerUrlTls = result.hasBrokerServiceUrlTls() ? result.getBrokerServiceUrlTls() : null;
             this.authoritative = result.isAuthoritative();
@@ -440,6 +442,7 @@ public class BinaryProtoLookupService implements LookupService {
         public LookupDataResult(int partitions) {
             super();
             this.partitions = partitions;
+            this.brokerId = null;
             this.brokerUrl = null;
             this.brokerUrlTls = null;
             this.authoritative = false;

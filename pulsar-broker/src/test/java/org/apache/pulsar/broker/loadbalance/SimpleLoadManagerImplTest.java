@@ -352,7 +352,7 @@ public class SimpleLoadManagerImplTest {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
         org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
-        reportData.setName("b1");
+        reportData.setBrokerId("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
         resource.setBandwidthIn(resourceUsage);

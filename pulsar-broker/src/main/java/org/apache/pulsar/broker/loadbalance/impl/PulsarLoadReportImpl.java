@@ -55,7 +55,7 @@ public class PulsarLoadReportImpl implements LoadReport {
             org.apache.pulsar.policies.data.loadbalancer.LoadReport report =
                     LOAD_REPORT_READER.readValue(loadReportJson);
             SystemResourceUsage sru = report.getSystemResourceUsage();
-            String resourceUnitName = report.getName();
+            String resourceUnitName = report.getBrokerId();
             pulsarLoadReport.resourceDescription = new PulsarResourceDescription();
             if (sru.bandwidthIn != null) {
                 pulsarLoadReport.resourceDescription.put("bandwidthIn", sru.bandwidthIn);

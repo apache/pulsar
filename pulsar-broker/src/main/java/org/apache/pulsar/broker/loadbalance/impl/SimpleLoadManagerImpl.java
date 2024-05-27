@@ -1003,7 +1003,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     try {
                         String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
                         LoadReport lr = loadReports.readLock(key).join().get();
-                        ResourceUnit ru = new SimpleResourceUnit(lr.getName(), fromLoadReport(lr));
+                        ResourceUnit ru = new SimpleResourceUnit(lr.getBrokerId(), fromLoadReport(lr));
                         this.currentLoadReports.put(ru, lr);
                     } catch (Exception e) {
                         log.warn("Error reading load report from Cache for broker - [{}], [{}]", broker, e);
@@ -1075,7 +1075,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-                loadReport.setName(pulsar.getBrokerId());
+                loadReport.setBrokerId(pulsar.getBrokerId());
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
 
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
@@ -1119,7 +1119,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setAllocatedMsgRateOut(allocatedQuota.getMsgRateOut());
 
                 final ResourceUnit resourceUnit =
-                        new SimpleResourceUnit(loadReport.getName(), fromLoadReport(loadReport));
+                        new SimpleResourceUnit(loadReport.getBrokerId(), fromLoadReport(loadReport));
                 Set<String> preAllocatedBundles;
                 if (resourceUnitRankings.containsKey(resourceUnit)) {
                     preAllocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
@@ -1328,7 +1328,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     ResourceType bottleneckResourceType = lr.getBottleneckResourceType();
                     Map<String, NamespaceBundleStats> bundleStats = lr.getSortedBundleStats(bottleneckResourceType);
                     if (bundleStats == null) {
-                        log.warn("Null bundle stats for bundle {}", lr.getName());
+                        log.warn("Null bundle stats for bundle {}", lr.getBrokerId());
                         continue;
 
                     }

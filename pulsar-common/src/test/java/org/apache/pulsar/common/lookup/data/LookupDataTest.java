@@ -38,17 +38,18 @@ public class LookupDataTest {
 
     @Test
     public void withConstructor() {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData("localhost:8081", "pulsar://localhost:8888", "pulsar://localhost:8884",
+                "http://localhost:8080", "http://localhost:8081");
         assertEquals(data.getBrokerUrl(), "pulsar://localhost:8888");
         assertEquals(data.getHttpUrl(), "http://localhost:8080");
+        assertEquals(data.getBrokerId(), "localhost:8081");
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void serializeToJsonTest() throws Exception {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData("localhost:8081", "pulsar://localhost:8888", "pulsar://localhost:8884",
+                "http://localhost:8080", "http://localhost:8081");
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String json = mapper.writeValueAsString(data);
 
@@ -60,6 +61,7 @@ public class LookupDataTest {
         assertEquals(jsonMap.get("nativeUrl"), "pulsar://localhost:8888");
         assertEquals(jsonMap.get("httpUrl"), "http://localhost:8080");
         assertEquals(jsonMap.get("httpUrlTls"), "http://localhost:8081");
+        assertEquals(jsonMap.get("brokerId"), "localhost:8081");
     }
 
     @Test
@@ -94,7 +96,7 @@ public class LookupDataTest {
 
         assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
         assertTrue(simpleLoadReport instanceof LoadReport);
-        assertEquals(((LoadReport) simpleLoadReport).getName(), simpleLmReportName);
+        assertEquals(((LoadReport) simpleLoadReport).getBrokerId(), simpleLmReportName);
         assertEquals(((LoadReport) simpleLoadReport).getSystemResourceUsage().bandwidthIn.usage, usage);
 
         assertEquals(modularLoadReport.getWebServiceUrl(), modularLmBrokerUrl);
@@ -106,13 +108,13 @@ public class LookupDataTest {
     private LoadReport getSimpleLoadManagerLoadReport(String brokerUrl, String reportName,
             SystemResourceUsage systemResourceUsage) {
         LoadReport report = new LoadReport(brokerUrl, null, null, null);
-        report.setName(reportName);
+        report.setBrokerId(reportName);
         report.setSystemResourceUsage(systemResourceUsage);
         return report;
     }
 
     private LocalBrokerData getModularLoadManagerLoadReport(String brokerUrl, ResourceUsage bandwidthIn) {
-        LocalBrokerData report = new LocalBrokerData(brokerUrl, null, null, null);
+        LocalBrokerData report = new LocalBrokerData(null, brokerUrl, null, null, null);
         report.setBandwidthIn(bandwidthIn);
         return report;
     }
