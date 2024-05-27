@@ -43,6 +43,17 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
+import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jetbrains.annotations.Nullable;
 
@@ -55,7 +66,8 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/coordinators")
-    @ApiOperation(value = "List transaction coordinators.")
+    @ApiOperation(value = "List transaction coordinators.",
+            response = TransactionCoordinatorInfo.class, responseContainer = "List")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 503, message = "This Broker is not "
                     + "configured with transactionCoordinatorEnabled=true.")})
@@ -66,7 +78,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/coordinatorStats")
-    @ApiOperation(value = "Get transaction coordinator stats.")
+    @ApiOperation(value = "Get transaction coordinator stats.", response = TransactionCoordinatorStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 503, message = "This Broker is not "
                     + "configured with transactionCoordinatorEnabled=true."),
@@ -82,7 +94,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/transactionInBufferStats/{tenant}/{namespace}/{topic}/{mostSigBits}/{leastSigBits}")
-    @ApiOperation(value = "Get transaction state in transaction buffer.")
+    @ApiOperation(value = "Get transaction state in transaction buffer.", response = TransactionInBufferStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
@@ -119,7 +131,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/transactionInPendingAckStats/{tenant}/{namespace}/{topic}/{subName}/{mostSigBits}/{leastSigBits}")
-    @ApiOperation(value = "Get transaction state in pending ack.")
+    @ApiOperation(value = "Get transaction state in pending ack.", response = TransactionInPendingAckStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
@@ -157,7 +169,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/transactionBufferStats/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Get transaction buffer stats in topic.")
+    @ApiOperation(value = "Get transaction buffer stats in topic.", response = TransactionBufferStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
@@ -195,7 +207,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/pendingAckStats/{tenant}/{namespace}/{topic}/{subName}")
-    @ApiOperation(value = "Get transaction pending ack stats in topic.")
+    @ApiOperation(value = "Get transaction pending ack stats in topic.", response = TransactionPendingAckStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or subName doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
@@ -231,7 +243,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/transactionMetadata/{mostSigBits}/{leastSigBits}")
-    @ApiOperation(value = "Get transaction metadata")
+    @ApiOperation(value = "Get transaction metadata", response = TransactionMetadata.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or coordinator or transaction doesn't exist"),
@@ -252,7 +264,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/slowTransactions/{timeout}")
-    @ApiOperation(value = "Get slow transactions.")
+    @ApiOperation(value = "Get slow transactions.", response = TransactionMetadata.class, responseContainer = "Map")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or coordinator or transaction doesn't exist"),
@@ -272,7 +284,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/coordinatorInternalStats/{coordinatorId}")
-    @ApiOperation(value = "Get coordinator internal stats.")
+    @ApiOperation(value = "Get coordinator internal stats.", response = TransactionCoordinatorInternalStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 503, message = "This Broker is not "
                     + "configured with transactionCoordinatorEnabled=true."),
@@ -290,7 +302,8 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/pendingAckInternalStats/{tenant}/{namespace}/{topic}/{subName}")
-    @ApiOperation(value = "Get transaction pending ack internal stats.")
+    @ApiOperation(value = "Get transaction pending ack internal stats.",
+            response = TransactionPendingAckInternalStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or subscription name doesn't exist"),
@@ -343,7 +356,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/transactionBufferInternalStats/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Get transaction buffer internal stats.")
+    @ApiOperation(value = "Get transaction buffer internal stats.", response = TransactionBufferInternalStats.class)
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
@@ -379,6 +392,7 @@ public class Transactions extends TransactionsBase {
     @POST
     @Path("/transactionCoordinator/replicas")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 406, message = "The number of replicas should be more than "
@@ -401,7 +415,7 @@ public class Transactions extends TransactionsBase {
 
     @GET
     @Path("/positionStatsInPendingAck/{tenant}/{namespace}/{topic}/{subName}/{ledgerId}/{entryId}")
-    @ApiOperation(value = "Get position stats in pending ack.")
+    @ApiOperation(value = "Get position stats in pending ack.", response = PositionInPendingAckStats.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or subscription name doesn't exist"),
@@ -443,6 +457,7 @@ public class Transactions extends TransactionsBase {
     @Path("/abortTransaction/{mostSigBits}/{leastSigBits}")
     @ApiOperation(value = "Abort transaction")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or coordinator or transaction doesn't exist"),
             @ApiResponse(code = 503, message = "This Broker is not configured "
