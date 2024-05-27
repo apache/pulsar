@@ -859,6 +859,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             fail();
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 403);
+            assertEquals(e.getMessage(),
+                    "Cluster [r3] is not in the list of allowed clusters list for tenant [my-tenant]");
         }
         // 3. Clean up
         admin.namespaces().deleteNamespace(namespace, true);
