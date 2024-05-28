@@ -1315,8 +1315,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCheckInactiveSubscription() throws Exception {
-        String namespace = "prop/testInactiveSubscription";
+    public void testCheckInactiveSubscriptionWhenNoMessageToAck() throws Exception {
+        String namespace = "prop/testInactiveSubscriptionWhenNoMessageToAck";
 
         try {
             admin.namespaces().createNamespace(namespace);
