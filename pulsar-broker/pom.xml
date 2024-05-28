@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker</artifactId>
@@ -145,6 +144,18 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-opentelemetry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-batch-discovery-triggerers</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -161,6 +172,19 @@
       <groupId>com.github.tomakehurst</groupId>
       <artifactId>wiremock-jre8</artifactId>
       <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.hakky54</groupId>
+      <artifactId>consolecaptor</artifactId>
+      <version>${consolecaptor.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -200,6 +224,14 @@
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker-common</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
@@ -302,8 +334,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
     </dependency>
 
     <dependency>
@@ -463,7 +495,6 @@
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
-
   </dependencies>
 
   <build>

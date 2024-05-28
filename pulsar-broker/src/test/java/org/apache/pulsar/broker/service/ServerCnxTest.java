@@ -3382,8 +3382,9 @@ public class ServerCnxTest {
             };
             // assert error response
             assertTrue(responseAssert.test(responseAssert));
-            // assert consumer-delete event occur
-            assertEquals(1L,
+            // The delete event will only occur after the future is completed.
+            // assert consumer-delete event will not occur.
+            assertEquals(0L,
                     deleteTimesMark.getAllValues().stream().filter(f -> f == existingConsumerFuture).count());
             // Server will not close the connection
             assertTrue(channel.isOpen());
@@ -3570,7 +3571,7 @@ public class ServerCnxTest {
         doReturn(false).when(pulsar).isRunning();
         assertTrue(channel.isActive());
 
-        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1, true);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);

@@ -54,13 +54,14 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
-        serviceStarter = new ProxyServiceStarter(ARGS);
+        serviceStarter = new ProxyServiceStarter(ARGS, null, true);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
         serviceStarter.getConfig().setWebServicePort(Optional.of(0));
         serviceStarter.getConfig().setServicePort(Optional.of(0));
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
         serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
+        serviceStarter.getConfig().setClusterName(configClusterName);
         serviceStarter.start();
         serviceUrl = serviceStarter.getProxyService().getServiceUrl();
     }

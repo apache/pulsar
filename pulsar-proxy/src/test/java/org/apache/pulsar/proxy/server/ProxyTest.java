@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -106,6 +107,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
     }
 
     @Override
@@ -373,8 +375,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
         registerCloseable(() -> eventLoopGroup.shutdownNow());
 
-        ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
-            return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
+        ConnectionPool cnxPool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup, () -> {
+            return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
                 @Override
                 protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
                     throw new UnsupportedOperationException();

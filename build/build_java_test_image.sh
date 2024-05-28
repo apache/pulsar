@@ -20,13 +20,6 @@
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$SCRIPT_DIR/.."
-SQUASH_PARAM=""
-# check if docker experimental mode is enabled which is required for
-# using "docker build --squash" for squashing all intermediate layers of the build to a single layer
-if [[ "$(docker version -f '{{.Server.Experimental}}' 2>/dev/null)" == "true" ]]; then
-  SQUASH_PARAM="-Ddocker.squash=true"
-fi
 mvn -am -pl tests/docker-images/java-test-image -Pcore-modules,-main,integrationTests,docker \
-  -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
-  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM \
+  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true \
   "$@" install

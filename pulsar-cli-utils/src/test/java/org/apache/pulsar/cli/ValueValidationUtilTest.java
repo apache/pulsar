@@ -19,14 +19,13 @@
 package org.apache.pulsar.cli;
 
 import static org.testng.Assert.assertThrows;
-import com.beust.jcommander.ParameterException;
 import org.testng.annotations.Test;
 
 public class ValueValidationUtilTest {
 
     @Test
     public void testMaxValueCheck() {
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.maxValueCheck("param1", 11L, 10L));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.maxValueCheck("param1", 11L, 10L));
         ValueValidationUtil.maxValueCheck("param2", 10L, 10L);
         ValueValidationUtil.maxValueCheck("param3", 9L, 10L);
     }
@@ -34,34 +33,34 @@ public class ValueValidationUtilTest {
     @Test
     public void testPositiveCheck() {
         // Long
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param1", 0L));
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param2", -1L));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param1", 0L));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param2", -1L));
         ValueValidationUtil.positiveCheck("param3", 1L);
 
         // Integer
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param4", 0));
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param5", -1));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param4", 0));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param5", -1));
         ValueValidationUtil.positiveCheck("param6", 1);
     }
 
     @Test
     public void testEmptyCheck() {
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.emptyCheck("param1", ""));
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.emptyCheck("param2", null));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.emptyCheck("param1", ""));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.emptyCheck("param2", null));
         ValueValidationUtil.emptyCheck("param3", "nonEmpty");
     }
 
     @Test
     public void testMinValueCheck() {
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.minValueCheck("param1", 9L, 10L));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.minValueCheck("param1", 9L, 10L));
         ValueValidationUtil.minValueCheck("param2", 10L, 10L);
         ValueValidationUtil.minValueCheck("param3", 11L, 10L);
     }
 
     @Test
     public void testPositiveCheckInt() {
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param1", 0));
-        assertThrows(ParameterException.class, () -> ValueValidationUtil.positiveCheck("param2", -1));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param1", 0));
+        assertThrows(IllegalArgumentException.class, () -> ValueValidationUtil.positiveCheck("param2", -1));
         ValueValidationUtil.positiveCheck("param3", 1);
     }
 }

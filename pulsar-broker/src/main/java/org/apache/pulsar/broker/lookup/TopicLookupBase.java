@@ -30,6 +30,7 @@ import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -333,13 +334,16 @@ public class TopicLookupBase extends PulsarWebResource {
 
     private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName, String clientAppId,
                                    long requestId, Throwable ex){
-        final Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
+        Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
         final String errorMsg = unwrapEx.getMessage();
+        if (unwrapEx instanceof PulsarServerException) {
+            unwrapEx = FutureUtil.unwrapCompletionException(unwrapEx.getCause());
+        }
         if (unwrapEx instanceof IllegalStateException) {
             // Current broker still hold the bundle's lock, but the bundle is being unloading.
             log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);
             lookupFuture.complete(newLookupErrorResponse(ServerError.MetadataError, errorMsg, requestId));
-        } else if (unwrapEx instanceof MetadataStoreException){
+        } else if (unwrapEx instanceof MetadataStoreException) {
             // Load bundle ownership or acquire lock failed.
             // Differ with "IllegalStateException", print warning log.
             log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);

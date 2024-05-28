@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +56,7 @@ public class PerfClientUtilsTest {
     @Test
     public void testClientCreation() throws Exception {
 
-        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
         args.tlsHostnameVerificationEnable = true;
         args.authPluginClassName = MyAuth.class.getName();
@@ -70,6 +71,7 @@ public class PerfClientUtilsTest {
         args.tlsTrustCertsFilePath = "path";
         args.tlsAllowInsecureConnection = true;
         args.maxLookupRequest = 100000;
+        args.memoryLimit = 10240;
 
         final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -89,13 +91,14 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
         Assert.assertNull(conf.getProxyServiceUrl());
         Assert.assertNull(conf.getProxyProtocol());
+        Assert.assertEquals(conf.getMemoryLimitBytes(), 10240L);
 
     }
 
     @Test
     public void testClientCreationWithProxy() throws Exception {
 
-        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
 
         args.serviceURL = "pulsar+ssl://my-pulsar:6651";
         args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
@@ -118,11 +121,13 @@ public class PerfClientUtilsTest {
                     + "proxyServiceUrl=pulsar+ssl://my-proxy-pulsar:4443\n"
                     + "proxyProtocol=SNI");
 
-            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
-
-            args.confFile = testConf.toString();
-            args.fillArgumentsFromProperties();
-
+            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(testConf.toString())) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
             final ClientBuilderImpl builder =
                     (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -143,16 +148,19 @@ public class PerfClientUtilsTest {
                     + "proxyServiceUrl=\n"
                     + "proxyProtocol=");
 
-            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault();
-
-            args.confFile = testConf.toString();
-            args.fillArgumentsFromProperties();
+            final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(testConf.toString())) {
+                prop.load(fis);
+            }
+            args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            args.parse(new String[]{});
 
             final ClientBuilderImpl builder =
                     (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
 
-            Assert.assertNull(conf.getProxyServiceUrl());
+            Assert.assertEquals(conf.getProxyServiceUrl(),"");
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);
@@ -161,7 +169,13 @@ public class PerfClientUtilsTest {
 }
 
 class PerformanceArgumentsTestDefault extends PerformanceBaseArguments {
+    public PerformanceArgumentsTestDefault(String cmdName) {
+        super(cmdName);
+    }
+
+
     @Override
-    public void fillArgumentsFromProperties(Properties prop) {
+    public void run() throws Exception {
+
     }
 }

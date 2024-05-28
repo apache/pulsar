@@ -112,8 +112,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         // Create a new store instance
         store = new RocksdbMetadataStore(metadataStoreUri, conf);
         // update synchronizer and register sync listener
-        store.synchronizer = conf.getSynchronizer();
-        store.registerSyncListener(Optional.ofNullable(store.synchronizer));
+        store.updateMetadataEventSynchronizer(conf.getSynchronizer());
         instancesCache.put(metadataStoreUri, store);
         return store;
     }
@@ -571,6 +570,12 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = synchronizer;
+        registerSyncListener(Optional.ofNullable(synchronizer));
     }
 }
 

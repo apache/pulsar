@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newCloseConsumer;
@@ -81,6 +82,8 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -606,35 +609,93 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
-                    unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
-                        .handle((metadata, ex) -> {
-                                if (ex == null) {
-                                    int partitions = metadata.partitions;
-                                    commandSender.sendPartitionMetadataResponse(partitions, requestId);
-                                } else {
-                                    if (ex instanceof PulsarClientException) {
-                                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                remoteAddress, topicName, ex.getMessage());
-                                        commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
-                                                ex.getMessage(), requestId);
-                                    } else {
-                                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                topicName, ex.getMessage(), ex);
-                                        ServerError error = ServerError.ServiceNotReady;
-                                        if (ex instanceof RestException restException){
-                                            int responseCode = restException.getResponse().getStatus();
-                                            if (responseCode == NOT_FOUND.getStatusCode()){
-                                                error = ServerError.TopicNotFound;
-                                            } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
-                                                error = ServerError.MetadataError;
+                    // Get if exists, respond not found error if not exists.
+                    getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
+                        boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled();
+                        if (!autoCreateIfNotExist) {
+                            final NamespaceResources namespaceResources = getBrokerService().pulsar()
+                                    .getPulsarResources().getNamespaceResources();
+                            final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
+                                    .getTopicResources();
+                            namespaceResources.getPartitionedTopicResources()
+                                .getPartitionedTopicMetadataAsync(topicName, false)
+                                .handle((metadata, getMetadataEx) -> {
+                                    if (getMetadataEx != null) {
+                                        log.error("{} {} Failed to get partition metadata", topicName,
+                                                ServerCnx.this.toString(), getMetadataEx);
+                                        writeAndFlush(
+                                                Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                        "Failed to get partition metadata",
+                                                        requestId));
+                                    } else if (metadata.isPresent()) {
+                                        commandSender.sendPartitionMetadataResponse(metadata.get().partitions,
+                                                requestId);
+                                    } else if (topicName.isPersistent()) {
+                                        topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
+                                            if (exists) {
+                                                commandSender.sendPartitionMetadataResponse(0, requestId);
+                                                return;
                                             }
-                                        }
-                                        commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
+                                            writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                    ServerError.TopicNotFound, "", requestId));
+                                        }).exceptionally(ex -> {
+                                            log.error("{} {} Failed to get partition metadata", topicName,
+                                                    ServerCnx.this.toString(), ex);
+                                            writeAndFlush(
+                                                    Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                            "Failed to check partition metadata",
+                                                            requestId));
+                                            return null;
+                                        });
+                                    } else {
+                                        // Regarding non-persistent topic, we do not know whether it exists or not.
+                                        // Just return a non-partitioned metadata if partitioned metadata does not
+                                        // exist.
+                                        // Broker will respond a not found error when doing subscribing or producing if
+                                        // broker not allow to auto create topics.
+                                        commandSender.sendPartitionMetadataResponse(0, requestId);
                                     }
-                                }
-                                lookupSemaphore.release();
-                                return null;
-                            });
+                                    return null;
+                                }).whenComplete((ignore, ignoreEx) -> {
+                                    lookupSemaphore.release();
+                                    if (ignoreEx != null) {
+                                        log.error("{} {} Failed to handle partition metadata request", topicName,
+                                                ServerCnx.this.toString(), ignoreEx);
+                                    }
+                                });
+                        } else {
+                            // Get if exists, create a new one if not exists.
+                            unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
+                                .whenComplete((metadata, ex) -> {
+                                    lookupSemaphore.release();
+                                    if (ex == null) {
+                                        int partitions = metadata.partitions;
+                                        commandSender.sendPartitionMetadataResponse(partitions, requestId);
+                                    } else {
+                                        if (ex instanceof PulsarClientException) {
+                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                    remoteAddress, topicName, ex.getMessage());
+                                            commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
+                                                    ex.getMessage(), requestId);
+                                        } else {
+                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                    topicName, ex.getMessage(), ex);
+                                            ServerError error = ServerError.ServiceNotReady;
+                                            if (ex instanceof RestException restException){
+                                                int responseCode = restException.getResponse().getStatus();
+                                                if (responseCode == NOT_FOUND.getStatusCode()){
+                                                    error = ServerError.TopicNotFound;
+                                                } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
+                                                    error = ServerError.MetadataError;
+                                                }
+                                            }
+                                            commandSender.sendPartitionMetadataResponse(error, ex.getMessage(),
+                                                    requestId);
+                                        }
+                                    }
+                                });
+                        }
+                    });
                 } else {
                     final String msg = "Client is not authorized to Get Partition Metadata";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
@@ -1200,7 +1261,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}", this.ctx().channel().toString(),
+                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}", this.toString(),
                         topicName, subscriptionName, consumerId);
                 try {
                     Metadata.validateMetadata(metadata,
@@ -1224,10 +1285,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
                                 "Consumer is already present on the connection");
                     } else if (existingConsumerFuture.isCompletedExceptionally()){
+                        log.warn("[{}][{}][{}] A failed consumer with id is already present on the connection,"
+                                + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
-                                String.format("Consumer subscribe failure. remoteAddress: %s, subscription: %s",
-                                        remoteAddress, subscriptionName));
-                        consumers.remove(consumerId, existingConsumerFuture);
+                                String.format("A failed consumer with id is already present on the connection."
+                                                + " consumerId: %s, remoteAddress: %s, subscription: %s",
+                                        consumerId, remoteAddress, subscriptionName));
+                        /**
+                         * This future may was failed due to the client closed a in-progress subscribing.
+                         * See {@link #handleCloseConsumer(CommandCloseConsumer)}
+                         * Do not remove the failed future at current line, it will be removed after the progress of
+                         * the previous subscribing is done.
+                         * Before the previous subscribing is done, the new subscribe request will always fail.
+                         * This mechanism is in order to prevent more complex logic to handle the race conditions.
+                         */
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {
@@ -1281,7 +1352,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .schemaType(schema == null ? null : schema.getType())
                                                 .build();
                                         if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
-                                            return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                            return ignoreUnrecoverableBKException
+                                                    (topic.addSchemaIfIdleOrCheckCompatible(schema))
                                                     .thenCompose(v -> topic.subscribe(option));
                                         } else {
                                             return topic.subscribe(option);
@@ -1364,7 +1436,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             // Send error back to client, only if not completed already.
                             if (consumerFuture.completeExceptionally(exception)) {
                                 commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception),
+                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
                                         exception.getCause().getMessage());
                             }
                             consumers.remove(consumerId, consumerFuture);
@@ -1909,7 +1981,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (log.isDebugEnabled()) {
                 log.debug("Consumer future is not complete(not complete or error), but received command ack. so discard"
                                 + " this command. consumerId: {}, cnx: {}, messageIdCount: {}", ack.getConsumerId(),
-                        this.ctx().channel().toString(), ack.getMessageIdsCount());
+                        this.toString(), ack.getMessageIdsCount());
             }
         }
     }
@@ -2162,29 +2234,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            topic.checkIfTransactionBufferRecoverCompletely(true).thenRun(() -> {
-                Position lastPosition = ((PersistentTopic) topic).getMaxReadPosition();
-                int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            topic.checkIfTransactionBufferRecoverCompletely(true)
+                 .thenCompose(__ -> topic.getLastDispatchablePosition())
+                 .thenApply(lastPosition -> {
+                     int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-                Position markDeletePosition = null;
-                if (consumer.getSubscription() instanceof PersistentSubscription) {
-                    markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
-                            .getMarkDeletedPosition();
-                }
+                     Position markDeletePosition = null;
+                     if (consumer.getSubscription() instanceof PersistentSubscription) {
+                         markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
+                                 .getMarkDeletedPosition();
+                     }
 
-                getLargestBatchIndexWhenPossible(
-                        topic,
-                        (PositionImpl) lastPosition,
-                        (PositionImpl) markDeletePosition,
-                        partitionIndex,
-                        requestId,
-                        consumer.getSubscription().getName(),
-                        consumer.readCompacted());
-            }).exceptionally(e -> {
-                writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
-                        ServerError.UnknownError, "Failed to recover Transaction Buffer."));
-                return null;
-            });
+                     getLargestBatchIndexWhenPossible(
+                             topic,
+                             (PositionImpl) lastPosition,
+                             (PositionImpl) markDeletePosition,
+                             partitionIndex,
+                             requestId,
+                             consumer.getSubscription().getName(),
+                             consumer.readCompacted());
+                    return null;
+                 }).exceptionally(e -> {
+                     writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+                             ServerError.UnknownError, "Failed to recover Transaction Buffer."));
+                     return null;
+                 });
         } else {
             writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
                     ServerError.MetadataError, "Consumer not found"));
@@ -2253,7 +2327,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 @Override
                 public String toString() {
                     return String.format("ServerCnx [%s] get largest batch index when possible",
-                            ServerCnx.this.ctx.channel());
+                            ServerCnx.this.toString());
                 }
             }, null);
 
@@ -2494,9 +2568,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion());
         }
 
+        final String topic = commandGetSchema.getTopic();
         String schemaName;
         try {
-            schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
+            schemaName = TopicName.get(topic).getSchemaName();
         } catch (Throwable t) {
             commandSender.sendGetSchemaErrorResponse(requestId, ServerError.InvalidTopicName, t.getMessage());
             return;
@@ -2505,7 +2580,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
             if (schemaAndMetadata == null) {
                 commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
-                        String.format("Topic not found or no-schema %s", commandGetSchema.getTopic()));
+                        String.format("Topic not found or no-schema %s", topic));
             } else {
                 commandSender.sendGetSchemaResponse(requestId,
                         SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version);
@@ -3286,7 +3361,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             } catch (Throwable t) {
                 log.warn("[{}] [{}] Failed to remove TCP no-delay property on client cnx {}", topic, producerName,
-                        ctx.channel());
+                        this.toString());
             }
         }
     }
@@ -3347,6 +3422,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     public SocketAddress getRemoteAddress() {
         return remoteAddress;
+    }
+
+    /**
+     * Demo: [id: 0x2561bcd1, L:/10.0.136.103:6650 ! R:/240.240.0.5:58038] [SR:/240.240.0.5:58038].
+     * L: local Address.
+     * R: remote address.
+     * SR: source remote address. It is the source address when enabled "haProxyProtocolEnabled".
+     */
+    @Override
+    public String toString() {
+        ChannelHandlerContext ctx = ctx();
+        // ctx.channel(): 96.
+        // clientSourceAddress: 5 + 46(ipv6).
+        // state: 19.
+        // Len = 166.
+        StringBuilder buf = new StringBuilder(166);
+        if (ctx == null) {
+            buf.append("[ctx: null]");
+        } else {
+            buf.append(ctx.channel().toString());
+        }
+        String clientSourceAddr = clientSourceAddress();
+        buf.append(" [SR:").append(clientSourceAddr == null ? "-" : clientSourceAddr)
+                .append(", state:").append(state).append("]");
+        return buf.toString();
     }
 
     @Override
@@ -3495,7 +3595,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ctx.executor().schedule(() -> {
                         if (finalConnectionCheckInProgress == connectionCheckInProgress
                                 && !finalConnectionCheckInProgress.isDone()) {
-                            log.warn("[{}] Connection check timed out. Closing connection.", remoteAddress);
+                            log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
                             ctx.close();
                         }
                     }, connectionLivenessCheckTimeoutMillis, TimeUnit.MILLISECONDS);

@@ -18,18 +18,62 @@
  */
 package org.apache.pulsar.utils.auth.tokens;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 /**
  * TokensCliUtils Tests.
  */
 public class TokensCliUtilsTest {
+
+    @Test
+    public void testCreateToken() {
+        PrintStream oldStream = System.out;
+        try {
+            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(baoStream));
+
+            new TokensCliUtils().execute(new String[]{"create-secret-key", "--base64"});
+            String secretKey = baoStream.toString();
+
+            baoStream.reset();
+
+            String[] command = {"create", "--secret-key",
+                    "data:;base64," + secretKey,
+                    "--subject", "test",
+                    "--headers", "kid=test",
+                    "--headers", "my-k=my-v"
+            };
+
+            new TokensCliUtils().execute(command);
+            String token = baoStream.toString();
+
+            Jwt<?, ?> jwt = Jwts.parserBuilder()
+                    .setSigningKey(Decoders.BASE64.decode(secretKey))
+                    .build()
+                    .parseClaimsJws(token);
+
+            JwsHeader header = (JwsHeader) jwt.getHeader();
+            String keyId = header.getKeyId();
+            assertEquals(keyId, "test");
+            assertEquals(header.get("my-k"), "my-v");
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            System.setOut(oldStream);
+        }
+    }
 
     /**
      * Test tokens generate docs.
@@ -43,7 +87,7 @@ public class TokensCliUtilsTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            TokensCliUtils.main(new String[]{"gen-doc"});
+            new TokensCliUtils().execute(new String[]{"gen-doc"});
 
             String message = baoStream.toString();
 
@@ -68,9 +112,9 @@ public class TokensCliUtilsTest {
         Class argumentsClass = Class.forName(className);
         Field[] fields = argumentsClass.getDeclaredFields();
         for (Field field : fields) {
-            boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+            boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
             if (fieldHasAnno) {
-                Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                Option fieldAnno = field.getAnnotation(Option.class);
                 String[] names = fieldAnno.names();
                 if (names.length < 1) {
                     continue;

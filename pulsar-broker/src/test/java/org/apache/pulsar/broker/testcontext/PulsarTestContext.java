@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -52,6 +54,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.PortManager;
@@ -160,6 +163,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean preallocatePorts;
 
+    private final boolean enableOpenTelemetry;
+    private final InMemoryMetricReader openTelemetryMetricReader;
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -325,7 +330,17 @@ public class PulsarTestContext implements AutoCloseable {
          * @return the builder
          */
         public Builder spyByDefault() {
-            spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.SPY);
+            spyConfigDefault(SpyConfig.SpyType.SPY);
+            return this;
+        }
+
+        public Builder spyNoneByDefault() {
+            spyConfigDefault(SpyConfig.SpyType.NONE);
+            return this;
+        }
+
+        public Builder spyConfigDefault(SpyConfig.SpyType spyType) {
+            spyConfigBuilder = SpyConfig.builder(spyType);
             return this;
         }
 
@@ -727,11 +742,21 @@ public class PulsarTestContext implements AutoCloseable {
                     .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
+            Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer;
+            if (builder.enableOpenTelemetry) {
+                var reader = InMemoryMetricReader.create();
+                openTelemetryMetricReader(reader);
+                registerCloseable(reader);
+                openTelemetrySdkBuilderCustomizer = BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
+            } else {
+                openTelemetrySdkBuilderCustomizer = null;
+            }
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer,
+                            openTelemetrySdkBuilderCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }

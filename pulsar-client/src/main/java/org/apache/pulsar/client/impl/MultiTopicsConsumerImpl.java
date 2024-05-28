@@ -165,7 +165,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return;
         }
 
-        checkArgument(topicNamesValid(conf.getTopicNames()), "Topics is invalid.");
+        checkArgument(topicNamesValid(conf.getTopicNames()), "Subscription topics include duplicate items"
+                + " or invalid names.");
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream()
                 .map(t -> subscribeAsync(t, createTopicIfDoesNotExist))
@@ -202,21 +203,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkState(topics != null && topics.size() >= 1,
             "topics should contain more than 1 topic");
 
-        Optional<String> result = topics.stream()
-                .filter(topic -> !TopicName.isValid(topic))
-                .findFirst();
+        Set<TopicName> topicNames = new HashSet<>();
 
-        if (result.isPresent()) {
-            log.warn("Received invalid topic name: {}", result.get());
-            return false;
+        for (String topic : topics) {
+            if (!TopicName.isValid(topic)) {
+                log.warn("Received invalid topic name: {}", topic);
+                return false;
+            }
+            topicNames.add(TopicName.get(topic));
         }
 
         // check topic names are unique
-        HashSet<String> set = new HashSet<>(topics);
-        if (set.size() == topics.size()) {
+        if (topicNames.size() == topics.size()) {
             return true;
         } else {
-            log.warn("Topic names not unique. unique/all : {}/{}", set.size(), topics.size());
+            log.warn("Topic names not unique. unique/all : {}/{}", topicNames.size(), topics.size());
             return false;
         }
     }
@@ -929,7 +930,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    // subscribe one more given topic
+    /***
+     * Subscribe one more given topic.
+     * @param topicName topic name without the partition suffix.
+     */
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {
@@ -950,7 +954,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> subscribeResult = new CompletableFuture<>();
 
-        client.getPartitionedTopicMetadata(topicName)
+        client.getPartitionedTopicMetadata(topicName, true)
                 .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, fullTopicName, metadata.partitions,
                     createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
@@ -1251,7 +1255,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return unsubscribeFuture;
     }
 
-    // Remove a consumer for a topic
+    /***
+     * Remove a consumer for a topic.
+     * @param topicName topic name contains the partition suffix.
+     */
     public CompletableFuture<Void> removeConsumerAsync(String topicName) {
         checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
 

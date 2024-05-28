@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -57,6 +58,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -95,7 +97,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription extends AbstractSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -156,7 +158,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(TopicName.get(topicName))) {
+                && !isEventSystemTopic(TopicName.get(topicName))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topicName)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -305,7 +308,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
-            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -335,11 +337,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     if (!isResetCursor) {
                         try {
                             topic.getManagedLedger().deleteCursor(cursor.getName());
+                            topic.getManagedLedger().removeWaitingCursor(cursor);
                         } catch (InterruptedException | ManagedLedgerException e) {
                             log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                         }
                     }
                 });
+            } else {
+                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 
@@ -530,9 +535,15 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return "Null";
     }
 
-    @Override
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
-
+        final ManagedLedger managedLedger = topic.getManagedLedger();
+        final String newNonDurableCursorName = "analyze-backlog-" + UUID.randomUUID();
+        ManagedCursor newNonDurableCursor;
+        try {
+            newNonDurableCursor = ((ManagedCursorImpl) cursor).duplicateNonDurableCursor(newNonDurableCursorName);
+        } catch (ManagedLedgerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
         long start = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
@@ -547,7 +558,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
 
-        Position currentPosition = cursor.getMarkDeletedPosition();
+        Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] currentPosition {}",
@@ -607,7 +618,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             return true;
         };
-        return cursor.scan(
+        CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
                 position,
                 condition,
                 batchSize,
@@ -634,7 +645,22 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     topicName, subName, end - start, result);
             return result;
         });
+        res.whenComplete((__, ex) -> {
+            managedLedger.asyncDeleteCursor(newNonDurableCursorName,
+                new AsyncCallbacks.DeleteCursorCallback(){
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        // Nothing to do.
+                    }
 
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn("[{}][{}] Delete non-durable cursor[{}] failed when analyze backlog.",
+                                topicName, subName, newNonDurableCursor.getName());
+                    }
+                }, null);
+        });
+        return res;
     }
 
     @Override

@@ -65,7 +65,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "topicsPattern",
-            value = "Topic pattern"
+            value = "The regexp for the topic name(not contains partition suffix)."
     )
     private Pattern topicsPattern;
 
@@ -310,7 +310,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "patternAutoDiscoveryPeriod",
             value = "Topic auto discovery period when using a pattern for topic's consumer.\n"
                     + "\n"
-                    + "The default and minimum value is 1 minute."
+                    + "The default value is 1 minute, with a minimum of 1 second."
     )
     private int patternAutoDiscoveryPeriod = 60;
 

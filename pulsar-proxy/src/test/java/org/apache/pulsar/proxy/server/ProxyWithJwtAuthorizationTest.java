@@ -67,6 +67,7 @@ import org.testng.annotations.Test;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
+    private static final String CLUSTER_NAME = "proxy-authorization";
 
     private final String ADMIN_ROLE = "admin";
     private final String PROXY_ROLE = "proxy";
@@ -104,7 +105,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("proxy-authorization");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
@@ -119,6 +120,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         // enable auth&auth and use JWT at proxy
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());

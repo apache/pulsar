@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-common</artifactId>
@@ -97,6 +96,12 @@
       <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-epoll</artifactId>
       <classifier>linux-x86_64</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <classifier>linux-aarch_64</classifier>
     </dependency>
 
     <dependency>

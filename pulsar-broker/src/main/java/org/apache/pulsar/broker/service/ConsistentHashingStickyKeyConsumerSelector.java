@@ -39,7 +39,8 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
  * number of keys assigned to each consumer.
  */
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
-
+    // use NUL character as field separator for hash key calculation
+    private static final String KEY_SEPARATOR = "\0";
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     // Consistent-Hash ring
@@ -59,8 +60,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
             for (int i = 0; i < numberOfPoints; i++) {
-                String key = consumer.consumerName() + i;
-                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+                int hash = calculateHashForConsumerAndIndex(consumer, i);
                 hashRing.compute(hash, (k, v) -> {
                     if (v == null) {
                         return Lists.newArrayList(consumer);
@@ -79,14 +79,18 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
+    private static int calculateHashForConsumerAndIndex(Consumer consumer, int index) {
+        String key = consumer.consumerName() + KEY_SEPARATOR + index;
+        return Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+    }
+
     @Override
     public void removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             // Remove all the points that were added for this consumer
             for (int i = 0; i < numberOfPoints; i++) {
-                String key = consumer.consumerName() + i;
-                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+                int hash = calculateHashForConsumerAndIndex(consumer, i);
                 hashRing.compute(hash, (k, v) -> {
                     if (v == null) {
                         return null;

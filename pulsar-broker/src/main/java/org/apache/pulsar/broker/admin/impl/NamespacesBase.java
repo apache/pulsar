@@ -309,8 +309,14 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), ex);
                                             return FutureUtil.failedFuture(ex);
                                         }
+                                        log.info("[{}] Deleting namespace bundle {}/{}", clientAppId(),
+                                                namespaceName, bundle.getBundleRange());
                                         return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
                                                 bundle.getBundleRange(), force);
+                                    } else {
+                                        log.warn("[{}] Skipping deleting namespace bundle {}/{} "
+                                                        + "as it's not owned by any broker",
+                                                clientAppId(), namespaceName, bundle.getBundleRange());
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
@@ -321,8 +327,11 @@ public abstract class NamespacesBase extends AdminResource {
                         final Throwable rc = FutureUtil.unwrapCompletionException(error);
                         if (rc instanceof MetadataStoreException) {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                KeeperException.NotEmptyException ne =
+                                        (KeeperException.NotEmptyException) rc.getCause();
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
-                                        + "retry to delete the namespace again.", namespaceName);
+                                        + "retry to delete the namespace again. (path {} is not empty on metadata)",
+                                        namespaceName, ne.getPath());
                                 final int next = retryTimes - 1;
                                 if (next > 0) {
                                     // async recursive
@@ -330,7 +339,8 @@ public abstract class NamespacesBase extends AdminResource {
                                 } else {
                                     callback.completeExceptionally(
                                             new RestException(Status.CONFLICT, "The broker still have in-flight topics"
-                                                    + " created during namespace deletion, please try again."));
+                                                    + " created during namespace deletion (path " + ne.getPath() + ") "
+                                                    + "is not empty on metadata store, please try again."));
                                     // drop out recursive
                                 }
                                 return;
@@ -476,6 +486,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative,
                                                                          boolean force) {
+        log.info("[{}] Deleting namespace bundle {}/{} authoritative:{} force:{}",
+                clientAppId(), namespaceName, bundleRange, authoritative, force);
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
@@ -969,13 +981,13 @@ public abstract class NamespacesBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return CompletableFuture.completedFuture(null);
                     }
                     return validateLeaderBrokerAsync();
                 })
                 .thenAccept(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return;
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
@@ -2019,7 +2031,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -2125,9 +2137,10 @@ public abstract class NamespacesBase extends AdminResource {
                     f.complete(null);
                 })
                 .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
                             clientAppId(), namespaceName, t);
-                    f.completeExceptionally(new RestException(t));
+                    f.completeExceptionally(new RestException(cause));
                     return null;
                 });
 
@@ -2339,102 +2352,110 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-       updatePoliciesAsync(namespaceName, policies -> {
-           policies.properties.put(key, value);
-           return policies;
-       }).thenAccept(v -> {
-           log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName);
-           asyncResponse.resume(Response.noContent().build());
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   policies.properties.put(key, value);
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName);
+                   asyncResponse.resume(Response.noContent().build());
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-       updatePoliciesAsync(namespaceName, policies -> {
-           policies.properties.putAll(properties);
-           return policies;
-       }).thenAccept(v -> {
-           log.info("[{}] Successfully set {} properties on namespace {}", clientAppId(), properties.size(),
-                   namespaceName);
-           asyncResponse.resume(Response.noContent().build());
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to set {} properties on namespace {}", clientAppId(), properties.size(),
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   policies.properties.putAll(properties);
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   log.info("[{}] Successfully set {} properties on namespace {}", clientAppId(), properties.size(),
+                           namespaceName);
+                   asyncResponse.resume(Response.noContent().build());
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to set {} properties on namespace {}", clientAppId(), properties.size(),
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalGetProperty(String key, AsyncResponse asyncResponse) {
-        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-            asyncResponse.resume(policies.properties.get(key));
-        }).exceptionally(ex -> {
-            Throwable cause = ex.getCause();
-            log.error("[{}] Failed to get property for key {} of namespace {}", clientAppId(), key,
-                    namespaceName, cause);
-            asyncResponse.resume(cause);
-            return null;
-        });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+               .thenAccept(policies -> asyncResponse.resume(policies.properties.get(key)))
+               .exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to get property for key {} of namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalGetProperties(AsyncResponse asyncResponse) {
-       getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-           asyncResponse.resume(policies.properties);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to get properties of namespace {}", clientAppId(), namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+               .thenAccept(policies -> asyncResponse.resume(policies.properties))
+               .exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to get properties of namespace {}", clientAppId(), namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-
        AtomicReference<String> oldVal = new AtomicReference<>(null);
-       updatePoliciesAsync(namespaceName, policies -> {
-           oldVal.set(policies.properties.remove(key));
-           return policies;
-       }).thenAccept(v -> {
-           asyncResponse.resume(oldVal.get());
-           log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-          return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   oldVal.set(policies.properties.remove(key));
+                   return policies;
+               })).thenAccept(v -> {
+                   asyncResponse.resume(oldVal.get());
+                   log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName);
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalClearProperties(AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
        AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
-       updatePoliciesAsync(namespaceName, policies -> {
-           clearedCount.set(policies.properties.size());
-           policies.properties.clear();
-           return policies;
-       }).thenAccept(v -> {
-           asyncResponse.resume(Response.noContent().build());
-           log.info("[{}] Successfully clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
-                   namespaceName);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   clearedCount.set(policies.properties.size());
+                   policies.properties.clear();
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   asyncResponse.resume(Response.noContent().build());
+                   log.info("[{}] Successfully clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
+                           namespaceName);
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    private CompletableFuture<Void> updatePoliciesAsync(NamespaceName ns, Function<Policies, Policies> updateFunction) {
@@ -2690,7 +2711,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistentAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName,
                     PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
                 .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))

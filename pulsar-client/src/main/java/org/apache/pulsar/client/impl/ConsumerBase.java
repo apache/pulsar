@@ -64,6 +64,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -1274,6 +1275,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return true;
+    }
+
+    protected boolean isSingleMessageAcked(BitSetRecyclable ackBitSet, int batchIndex) {
+        return ackBitSet != null && !ackBitSet.get(batchIndex);
     }
 
     public boolean hasBatchReceiveTimeout() {

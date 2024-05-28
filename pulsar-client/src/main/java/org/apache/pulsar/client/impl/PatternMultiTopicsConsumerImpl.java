@@ -43,6 +43,8 @@ import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +69,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private volatile Timeout recheckPatternTimeout = null;
     private volatile String topicsHash;
 
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
                                           String topicsHash,
                                           PulsarClientImpl client,
@@ -220,14 +225,26 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     interface TopicsChangedListener {
-        // unsubscribe and delete ConsumerImpl in the `consumers` map in `MultiTopicsConsumerImpl` based on added topics
+        /***
+         * unsubscribe and delete {@link ConsumerImpl} in the {@link MultiTopicsConsumerImpl#consumers} map in
+         * {@link MultiTopicsConsumerImpl}.
+         * @param removedTopics topic names removed(contains the partition suffix).
+         */
         CompletableFuture<Void> onTopicsRemoved(Collection<String> removedTopics);
-        // subscribe and create a list of new ConsumerImpl, added them to the `consumers` map in
-        // `MultiTopicsConsumerImpl`.
+
+        /***
+         * subscribe and create a list of new {@link ConsumerImpl}, added them to the
+         * {@link MultiTopicsConsumerImpl#consumers} map in {@link MultiTopicsConsumerImpl}.
+         * @param addedTopics topic names added(contains the partition suffix).
+         */
         CompletableFuture<Void> onTopicsAdded(Collection<String> addedTopics);
     }
 
     private class PatternTopicsChangedListener implements TopicsChangedListener {
+
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public CompletableFuture<Void> onTopicsRemoved(Collection<String> removedTopics) {
             CompletableFuture<Void> removeFuture = new CompletableFuture<>();
@@ -249,6 +266,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             return removeFuture;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public CompletableFuture<Void> onTopicsAdded(Collection<String> addedTopics) {
             CompletableFuture<Void> addFuture = new CompletableFuture<>();

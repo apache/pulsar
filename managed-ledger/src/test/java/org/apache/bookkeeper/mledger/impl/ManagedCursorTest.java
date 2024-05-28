@@ -234,15 +234,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testPersistentMarkDeleteIfCreateCursorLedgerFailed() throws Exception {
-        final int entryCount = 10;
+        final int entryCount = 9;
         final String cursorName = "c1";
         final String mlName = "ml_test";
-        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        // Avoid creating new empty ledger after the last ledger is full and remove fail future.
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
 
         ManagedCursor cursor = ml.openCursor("c1");
         Position lastEntry = null;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < entryCount; i++) {
             lastEntry = ml.addEntry(("entry-" + i).getBytes(Encoding));
         }
 
@@ -264,6 +265,48 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
         assertEquals(cursorRecovered.getPersistentMarkDeletedPosition(), lastEntry);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    void testSwitchLedgerFailed() throws Exception {
+        final String cursorName = "c1";
+        final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
+        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        mlConfig.setMaxEntriesPerLedger(1);
+        mlConfig.setMetadataMaxEntriesPerLedger(1);
+        mlConfig.setThrottleMarkDelete(Double.MAX_VALUE);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+        ManagedCursor cursor = ml.openCursor(cursorName);
+
+        List<Position> positionList = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positionList.add(ml.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+
+        // Inject an error when persistent at the third time.
+        AtomicInteger persistentCounter = new AtomicInteger();
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("mock error"), (op, path) -> {
+            if (path.equals(String.format("/managed-ledgers/%s/%s", mlName, cursorName))
+                    && persistentCounter.incrementAndGet() == 3) {
+                log.info("Trigger an error");
+                return true;
+            }
+            return false;
+        });
+
+        // Verify: the cursor can be recovered after it fails once.
+        int failedCount = 0;
+        for (Position position : positionList) {
+            try {
+                cursor.markDelete(position);
+            } catch (Exception ex) {
+                failedCount++;
+            }
+        }
+        assertEquals(failedCount, 1);
 
         // cleanup.
         ml.delete();
@@ -809,7 +852,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(firstInNext, cursor.getReadPosition());
         moveStatus.set(false);
 
-        // reset to a non exist larger ledger should point to the first non-exist entry in the last ledger
+        // reset to a non exist larger ledger should point to the first non-exist entry in the next ledger
         PositionImpl latest = new PositionImpl(last.getLedgerId() + 2, 0);
         try {
             cursor.resetCursor(latest);
@@ -818,11 +861,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             log.warn("error in reset cursor", e.getCause());
         }
         assertTrue(moveStatus.get());
-        PositionImpl lastPos = new PositionImpl(last.getLedgerId(), last.getEntryId() + 1);
-        assertEquals(lastPos, cursor.getReadPosition());
+        PositionImpl lastPos = new PositionImpl(last.getLedgerId() + 1, 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lastPos, cursor.getReadPosition());
+        });
         moveStatus.set(false);
 
-        // reset to latest should point to the first non-exist entry in the last ledger
+        // reset to latest should point to the first non-exist entry in the next ledger
         PositionImpl anotherLast = PositionImpl.LATEST;
         try {
             cursor.resetCursor(anotherLast);
@@ -1701,7 +1746,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testSkipEntries(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", new ManagedLedgerConfig()
                 .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet).setMaxEntriesPerLedger(2));
         Position pos;
 
@@ -1715,6 +1760,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         pos = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         pos = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
+        // Wait new empty ledger created completely.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), 2);
+        });
+
         // skip entries in same ledger
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 1);
@@ -1722,7 +1772,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // skip entries until end of ledger
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getReadPosition(), pos.getNext());
+        assertEquals(c1.getReadPosition(), new PositionImpl(ledger.currentLedger.getId(), 0));
         assertEquals(c1.getMarkDeletedPosition(), pos);
 
         // skip entries across ledgers
@@ -1737,7 +1787,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.skipEntries(10, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 0);
         assertFalse(c1.hasMoreEntries());
-        assertEquals(c1.getReadPosition(), pos.getNext());
+        // We can not check the ledger id because a cursor leger can be created.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(c1.getReadPosition().getEntryId(), 0);
+        });
         assertEquals(c1.getMarkDeletedPosition(), pos);
     }
 
@@ -1759,7 +1812,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         c1.skipEntries(3, IndividualDeletedEntries.Exclude);
         assertEquals(c1.getNumberOfEntries(), 0);
-        assertEquals(c1.getReadPosition(), pos5.getNext());
+        assertEquals(c1.getReadPosition(), new PositionImpl(pos5.getLedgerId() + 1, 0));
         assertEquals(c1.getMarkDeletedPosition(), pos5);
 
         pos1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -3412,10 +3465,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
         when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
         when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
+        when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         BookKeeper mockBookKeeper = mock(BookKeeper.class);
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, new ManagedLedgerConfig(), ml,
-                cursorName);
+        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, ml, cursorName);
 
         cursor.recover(new VoidCallback() {
             @Override
@@ -4682,6 +4735,66 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position expectReadPosition = maxReadPosition;
         assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
                 && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
+    }
+
+    @Test
+    public void testRecoverCursorWithTerminateManagedLedger() throws Exception {
+        String mlName = "my_test_ledger";
+        String cursorName = "c1";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
+
+        // Write some data.
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+        Position p1 = ledger.addEntry("entry-1".getBytes());
+
+        // Read message.
+        List<Entry> entries = c1.readEntries(2);
+        assertEquals(entries.size(), 2);
+        assertEquals(entries.get(0).getPosition(), p0);
+        assertEquals(entries.get(1).getPosition(), p1);
+        entries.forEach(Entry::release);
+
+        // Mark delete the last message.
+        c1.markDelete(p1);
+        Position markDeletedPosition = c1.getMarkDeletedPosition();
+        Assert.assertEquals(markDeletedPosition, p1);
+
+        // Terminate the managed ledger.
+        Position lastPosition = ledger.terminate();
+        assertEquals(lastPosition, p1);
+
+        // Close the ledger.
+        ledger.close();
+
+        // Reopen the ledger.
+        ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+        BookKeeper mockBookKeeper = mock(BookKeeper.class);
+        final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, ledger, cursorName);
+
+        CompletableFuture<Void> recoverFuture = new CompletableFuture<>();
+        // Recover the cursor.
+        cursor.recover(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recoverFuture.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recoverFuture.completeExceptionally(exception);
+            }
+        });
+
+        recoverFuture.join();
+        assertTrue(recoverFuture.isDone());
+        assertFalse(recoverFuture.isCompletedExceptionally());
+
+        // Verify the cursor state.
+        assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition);
+        assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

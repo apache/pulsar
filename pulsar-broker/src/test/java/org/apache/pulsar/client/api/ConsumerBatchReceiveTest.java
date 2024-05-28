@@ -112,7 +112,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 // Number of message limitation exceed receiverQueue size
                 {
                     BatchReceivePolicy.builder()
-                        .maxNumMessages(70)
+                        .maxNumMessages(50)
                         .build(), true, 50, false
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation
@@ -147,7 +147,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 // Number of message limitation exceed receiverQueue size
                 {
                     BatchReceivePolicy.builder()
-                        .maxNumMessages(70)
+                        .maxNumMessages(50)
                         .build(), false, 50, false
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation
@@ -248,7 +248,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 // Number of message limitation exceed receiverQueue size
                 {
                         BatchReceivePolicy.builder()
-                                .maxNumMessages(70)
+                                .maxNumMessages(50)
                                 .build(), true, 50, true
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation
@@ -283,7 +283,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 // Number of message limitation exceed receiverQueue size
                 {
                         BatchReceivePolicy.builder()
-                                .maxNumMessages(70)
+                                .maxNumMessages(50)
                                 .build(), false, 50, true
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation

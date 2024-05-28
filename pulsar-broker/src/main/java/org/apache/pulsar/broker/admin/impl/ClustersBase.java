@@ -133,7 +133,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges, and the name cannot contain the '/' characters."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been created."),
+            @ApiResponse(code = 200, message = "Cluster has been created."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
             @ApiResponse(code = 409, message = "Cluster already exists."),
@@ -199,7 +199,7 @@ public class ClustersBase extends AdminResource {
         value = "Update the configuration for a cluster.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -292,7 +292,7 @@ public class ClustersBase extends AdminResource {
         value = "Update the configuration for a cluster migration.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Cluster url must not be empty."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -692,6 +692,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set namespace isolation policy successfully."),
         @ApiResponse(code = 400, message = "Namespace isolation policy data is invalid."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
@@ -802,6 +803,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Delete namespace isolation policy successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
@@ -849,6 +851,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set the failure domain of the cluster successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission."),
         @ApiResponse(code = 404, message = "Failure domain doesn't exist."),
         @ApiResponse(code = 409, message = "Broker already exists in another domain."),
@@ -984,6 +987,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 200, message = "Delete the failure domain of the cluster successfully"),
         @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
         @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),

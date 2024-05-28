@@ -57,6 +57,7 @@ import org.testng.collections.Maps;
 
 public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationNegTest.class);
+    private static final String CLUSTER_NAME = "proxy-authorization-neg";
 
     private final String TLS_PROXY_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem";
     private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
@@ -104,7 +105,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("proxy-authorization-neg");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
@@ -121,6 +122,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         // enable tls and auth&auth at proxy
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
