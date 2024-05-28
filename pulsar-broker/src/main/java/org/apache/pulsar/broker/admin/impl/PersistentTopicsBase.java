@@ -95,6 +95,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -2925,7 +2926,7 @@ public class PersistentTopicsBase extends AdminResource {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                results.complete(generateResponseWithEntry(entry));
+                                results.complete(generateResponseWithEntry(entry, (PersistentTopic) topic));
                             } catch (IOException exception) {
                                 throw new RestException(exception);
                             } finally {
@@ -2999,57 +3000,59 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
                                                                       boolean authoritative) {
-        CompletableFuture<Void> ret;
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (!topicName.isPartitioned()) {
-            ret = getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                    .thenCompose(topicMetadata -> {
-                        if (topicMetadata.partitions > 0) {
-                            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                    "Peek messages on a partitioned topic is not allowed");
-                        }
-                        return CompletableFuture.completedFuture(null);
-                    });
-        } else {
-            ret = CompletableFuture.completedFuture(null);
-        }
-        return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES, subName))
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> {
-                    CompletableFuture<Entry> entry;
-                    if (!(topic instanceof PersistentTopic)) {
-                        log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(),
-                                topicName, subName);
-                        throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Peek messages on a non-persistent topic is not allowed");
-                    } else {
-                        if (subName.startsWith(((PersistentTopic) topic).getReplicatorPrefix())) {
-                            PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
-                            entry = repl.peekNthMessage(messagePosition);
-                        } else {
-                            PersistentSubscription sub =
-                                    (PersistentSubscription) getSubscriptionReference(subName, (PersistentTopic) topic);
-                            entry = sub.peekNthMessage(messagePosition);
-                        }
-                    }
-                    return entry;
-                }).thenCompose(entry -> {
-                    try {
-                        Response response = generateResponseWithEntry(entry);
-                        return CompletableFuture.completedFuture(response);
-                    } catch (NullPointerException npe) {
-                        throw new RestException(Status.NOT_FOUND, "Message not found");
-                    } catch (Exception exception) {
-                        log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(),
-                                messagePosition, topicName, subName, exception);
-                        throw new RestException(exception);
-                    } finally {
-                        if (entry != null) {
-                            entry.release();
-                        }
-                    }
-                });
+        CompletableFuture<Void> ret = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES, subName);
+        return ret.thenCompose(__ -> {
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (!topicName.isPartitioned()) {
+                return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                        .thenCompose(topicMetadata -> {
+                            if (topicMetadata.partitions > 0) {
+                                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                        "Peek messages on a partitioned topic is not allowed");
+                            }
+                            return CompletableFuture.completedFuture(null);
+                        });
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        .thenCompose(__ -> getTopicReferenceAsync(topicName))
+        .thenCompose(topic -> {
+            CompletableFuture<Entry> entry;
+            if (!(topic instanceof PersistentTopic)) {
+                log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(),
+                        topicName, subName);
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Peek messages on a non-persistent topic is not allowed");
+            } else {
+                if (subName.startsWith(((PersistentTopic) topic).getReplicatorPrefix())) {
+                    PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
+                    entry = repl.peekNthMessage(messagePosition);
+                } else {
+                    PersistentSubscription sub =
+                            (PersistentSubscription) getSubscriptionReference(subName, (PersistentTopic) topic);
+                    entry = sub.peekNthMessage(messagePosition);
+                }
+            }
+            return entry.thenApply(e -> Pair.of(e, (PersistentTopic) topic));
+        }).thenCompose(entryTopicPair -> {
+            Entry entry = entryTopicPair.getLeft();
+            PersistentTopic persistentTopic = entryTopicPair.getRight();
+            try {
+                Response response = generateResponseWithEntry(entry, persistentTopic);
+                return CompletableFuture.completedFuture(response);
+            } catch (NullPointerException npe) {
+                throw new RestException(Status.NOT_FOUND, "Message not found");
+            } catch (Exception exception) {
+                log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(),
+                        messagePosition, topicName, subName, exception);
+                throw new RestException(exception);
+            } finally {
+                if (entry != null) {
+                    entry.release();
+                }
+            }
+        });
     }
 
     protected CompletableFuture<Response> internalExamineMessageAsync(String initialPosition, long messagePosition,
@@ -3113,7 +3116,7 @@ public class PersistentTopicsBase extends AdminResource {
                                         PersistentTopicsBase.this.topicName);
                             }
                         }, null);
-                        return future;
+                        return future.thenApply(entry -> Pair.of(entry, (PersistentTopic) topic));
                     } catch (ManagedLedgerException exception) {
                         log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
                                 messagePosition,
@@ -3121,9 +3124,11 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(exception);
                     }
 
-                }).thenApply(entry -> {
+                }).thenApply(entryTopicPair -> {
+                    Entry entry = entryTopicPair.getLeft();
+                    PersistentTopic persistentTopic = entryTopicPair.getRight();
                     try {
-                        return generateResponseWithEntry(entry);
+                        return generateResponseWithEntry(entry, persistentTopic);
                     } catch (IOException exception) {
                         throw new RestException(exception);
                     } finally {
@@ -3134,7 +3139,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private Response generateResponseWithEntry(Entry entry) throws IOException {
+    private Response generateResponseWithEntry(Entry entry, PersistentTopic persistentTopic) throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -3250,6 +3255,14 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNullPartitionKey()) {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
         }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
+            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+        }
+        boolean isTxnUncommitted = ((PositionImpl) entry.getPosition())
+                .compareTo(persistentTopic.getMaxReadPosition()) > 0;
+        responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
