@@ -127,7 +127,7 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(narClassLoader);
-            this.interceptor.consumerCreated( cnx, consumer, metadata);
+            this.interceptor.consumerCreated(cnx, consumer, metadata);
         } finally {
             Thread.currentThread().setContextClassLoader(previousContext);
         }
