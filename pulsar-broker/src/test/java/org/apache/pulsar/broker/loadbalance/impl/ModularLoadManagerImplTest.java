@@ -40,6 +40,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -422,6 +423,61 @@ public class ModularLoadManagerImplTest {
 
         for (int i = 1; i < totalBundles; i++) {
             assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
+        }
+    }
+
+    /**
+     * It verifies that the load-manager of leader broker only write topK * brokerCount bundles to zk.
+     */
+    @Test
+    public void testFilterBundlesWhileWritingToMetadataStore() throws Exception {
+        Map<String, PulsarService> pulsarServices = new HashMap<>();
+        pulsarServices.put(pulsar1.getWebServiceAddress(), pulsar1);
+        pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        String protocol = "http://";
+        PulsarService leaderBroker = pulsarServices.get(protocol + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
+                leaderBroker.getLoadManager().get(), "loadManager");
+        int topK = 1;
+        leaderBroker.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(topK);
+        // there are two broker in cluster, so total bundle count will be topK * 2
+        int exportBundleCount = topK * 2;
+
+        // create and configure bundle-data
+        final int totalBundles = 5;
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
+                nsFactory, "test", "test", "test", totalBundles);
+        LoadData loadData = (LoadData) getField(loadManager, "loadData");
+        for (int i = 0; i < totalBundles; i++) {
+            final BundleData bundleData = new BundleData(10, 1000);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
+            longTermMessageData.setMsgThroughputIn(1000 * i);
+            longTermMessageData.setMsgThroughputOut(1000 * i);
+            longTermMessageData.setMsgRateIn(1000 * i);
+            longTermMessageData.setNumSamples(1000);
+            bundleData.setLongTermData(longTermMessageData);
+            loadData.getBundleData().put(bundles[i].toString(), bundleData);
+            loadData.getBrokerData().get(leaderBroker.getWebServiceAddress().substring(protocol.length()))
+                    .getLocalData().getLastStats().put(bundles[i].toString(), new NamespaceBundleStats());
+            metadataCache.create(bundleDataPath, bundleData).join();
+        }
+        for (int i = 0; i < totalBundles; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+        }
+
+        // update bundle data to zk and verify
+        loadManager.writeBundleDataOnZooKeeper();
+        int filterBundleCount = totalBundles - exportBundleCount;
+        for (int i = 0; i < filterBundleCount; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+        }
+        for (int i = filterBundleCount; i < totalBundles; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 1);
         }
     }
 
