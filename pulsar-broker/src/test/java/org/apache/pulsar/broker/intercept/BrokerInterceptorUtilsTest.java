@@ -65,7 +65,7 @@ public class BrokerInterceptorUtilsTest {
             BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
             BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
-            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+            assertSame(mockLoader, returnedPhWithCL.getNarClassLoader());
             assertTrue(returnedPh instanceof MockBrokerInterceptor);
         }
     }
