@@ -1014,8 +1014,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     OpenTelemetryAttributes.PULSAR_TOPIC, dest.getPartitionedTopicName(),
                     OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
             );
-            assertMetricLongSumValue(
-                    metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            var metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
 
             // Next message will not be replicated, because r2 has reached the quota
             producer1.produce(1);
@@ -1023,8 +1024,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Thread.sleep(500);
 
             assertEquals(replicator.getStats().replicationBacklog, 1);
-            assertMetricLongSumValue(
-                    metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
+            metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
+                    aDouble -> assertThat(aDouble).isGreaterThan(0.5));
 
             // Consumer will now drain 1 message and the replication backlog will be cleared
             consumer2.receive(1);
@@ -1040,8 +1043,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
             }
 
             assertEquals(replicator.getStats().replicationBacklog, 0);
-            assertMetricLongSumValue(
-                    metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
         }
     }
 
