@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -48,12 +49,16 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -914,6 +919,127 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
+        }
+    }
+
+    @Test
+    public void testPeekMessageForSkipTxnMarker() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_marker");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        for (int i = 0; i < n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            producer.newMessage(txn).value("msg").send();
+            txn.commit().get();
+        }
+
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+        assertEquals(peekMsgs.size(), n);
+        for (Message<byte[]> peekMsg : peekMsgs) {
+            assertEquals(new String(peekMsg.getValue()), "msg");
+        }
+    }
+
+    @Test
+    public void testPeekMessageFoReadCommittedMessages() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_txn");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        // Alternately sends `n` committed transactional messages and `n` abort transactional messages.
+        for (int i = 0; i < 2 * n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            if (i % 2 == 0) {
+                producer.newMessage(txn).value("msg").send();
+                txn.commit().get();
+            } else {
+                producer.newMessage(txn).value("msg-aborted").send();
+                txn.abort();
+            } 
+        }
+        // Then sends 1 uncommitted transactional messages.
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value("msg-uncommitted").send();
+        // Then sends n-1 no transaction messages.
+        for (int i = 0; i < n - 1; i++) {
+            producer.newMessage().value("msg-after-uncommitted").send();
+        }
+        
+        // peek n message, all messages value should be "msg"
+        {
+            List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
+                    false, TransactionIsolationLevel.READ_COMMITTED);
+            assertEquals(peekMsgs.size(), n);
+            for (Message<byte[]> peekMsg : peekMsgs) {
+                assertEquals(new String(peekMsg.getValue()), "msg");
+            }
+        }
+
+        // peek 3 * n message, and still get n message, all messages value should be "msg"
+        {
+            List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 2 * n,
+                    false, TransactionIsolationLevel.READ_COMMITTED);
+            assertEquals(peekMsgs.size(), n);
+            for (Message<byte[]> peekMsg : peekMsgs) {
+                assertEquals(new String(peekMsg.getValue()), "msg");
+            }
+        }
+    }
+
+    @Test
+    public void testPeekMessageForShowAllMessages() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_all");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        // Alternately sends `n` committed transactional messages and `n` abort transactional messages.
+        for (int i = 0; i < 2 * n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            if (i % 2 == 0) {
+                producer.newMessage(txn).value("msg").send();
+                txn.commit().get();
+            } else {
+                producer.newMessage(txn).value("msg-aborted").send();
+                txn.abort();
+            }
+        }
+        // Then sends `n` uncommitted transactional messages.
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        for (int i = 0; i < n; i++) {
+            producer.newMessage(txn).value("msg-uncommitted").send();
+        }
+
+        // peek 5 * n message, will get 5 * n msg.
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 5 * n,
+                true, TransactionIsolationLevel.READ_UNCOMMITTED);
+        assertEquals(peekMsgs.size(), 5 * n);
+
+        for (int i = 0; i < 4 * n; i++) {
+            Message<byte[]> peekMsg = peekMsgs.get(i);
+            MessageImpl peekMsgImpl = (MessageImpl) peekMsg;
+            MessageMetadata metadata = peekMsgImpl.getMessageBuilder();
+            if (metadata.hasMarkerType()) {
+                assertTrue(metadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE ||
+                        metadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE);
+            } else {
+                String value = new String(peekMsg.getValue());
+                assertTrue(value.equals("msg") || value.equals("msg-aborted"));
+            } 
+        }
+        for (int i = 4 * n; i < peekMsgs.size(); i++) {
+            Message<byte[]> peekMsg = peekMsgs.get(i);
+            assertEquals(new String(peekMsg.getValue()), "msg-uncommitted"); 
         }
     }
 
