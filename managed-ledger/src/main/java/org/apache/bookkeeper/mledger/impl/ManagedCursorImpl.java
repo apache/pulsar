@@ -1214,25 +1214,72 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, null, null, callback, ctx,
+                isFindFromLedger);
+    }
+
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                        Position start, Position end, FindEntryCallback callback,
+                                        Object ctx, boolean isFindFromLedger) {
         OpFindNewest op;
-        PositionImpl startPosition = null;
+        PositionImpl startPosition;
         long max = 0;
         switch (constraint) {
-        case SearchAllAvailableEntries:
-            startPosition = (PositionImpl) getFirstPosition();
-            max = ledger.getNumberOfEntries() - 1;
-            break;
-        case SearchActiveEntries:
-            startPosition = ledger.getNextValidPosition(markDeletePosition);
-            max = getNumberOfEntriesInStorage();
-            break;
-        default:
-            callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
-            return;
+            case SearchAllAvailableEntries -> {
+                if (start instanceof PositionImpl start0) {
+                    startPosition = start0;
+                } else {
+                    startPosition = (PositionImpl) getFirstPosition();
+                }
+                if (startPosition != null) {
+                    if (end instanceof PositionImpl end0) {
+                        if (startPosition.compareTo(end0) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                        }
+                    } else {
+                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
+                        }
+                    }
+                }
+            }
+            case SearchActiveEntries -> {
+                if (start instanceof PositionImpl start0) {
+                    if (start0.compareTo(markDeletePosition) <= 0) {
+                        startPosition = ledger.getNextValidPosition(markDeletePosition);
+                    } else {
+                        startPosition = start0;
+                    }
+                } else {
+                    startPosition = ledger.getNextValidPosition(markDeletePosition);
+                }
+                if (startPosition != null) {
+                    if (end instanceof PositionImpl end0) {
+                        if (startPosition.compareTo(end0) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
+                        }
+                    } else {
+                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
+                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
+                        }
+                    }
+                }
+            }
+            default -> {
+                callback.findEntryFailed(
+                        new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
+                return;
+            }
         }
         if (startPosition == null) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
+            return;
+        }
+        if (max == 0) {
+            callback.findEntryComplete(null, ctx);
             return;
         }
         if (isFindFromLedger) {

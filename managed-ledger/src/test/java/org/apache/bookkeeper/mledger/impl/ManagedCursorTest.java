@@ -4797,5 +4797,296 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
     }
 
+    @Test
+    public void testFindNewestMatching_SearchAllAvailableEntries_ByStartAndEnd() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFindNewestMatching_SearchAllAvailableEntries_ByStartAndEnd", managedLedgerConfig);
+        @Cleanup
+        ManagedCursor managedCursor = ledger.openCursor("test");
+
+        Position position = ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test1".getBytes(Encoding));
+        Position position2 = ledger.addEntry("test2".getBytes(Encoding));
+        Position position3 = ledger.addEntry("test3".getBytes(Encoding));
+
+        Predicate<Entry> condition = entry -> {
+            try {
+                PositionImpl p = (PositionImpl) entry.getPosition();
+                return p.compareTo((PositionImpl) position1) <= 0;
+            } finally {
+                entry.release();
+            }
+        };
+
+        // find the newest entry with start and end position
+        AtomicBoolean failed = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> positionRef = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, position, position2, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef.set(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, true);
+
+        latch.await();
+        assertFalse(failed.get());
+        assertNotNull(positionRef.get());
+        assertEquals(positionRef.get(), position1);
+
+        // find the newest entry with start
+        AtomicBoolean failed1 = new AtomicBoolean(false);
+        CountDownLatch latch1 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef1 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, position, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef1.set(position);
+                latch1.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed1.set(true);
+                latch1.countDown();
+            }
+        }, null, true);
+        latch1.await();
+        assertFalse(failed1.get());
+        assertNotNull(positionRef1.get());
+        assertEquals(positionRef1.get(), position1);
+
+        // find the newest entry with end
+        AtomicBoolean failed2 = new AtomicBoolean(false);
+        CountDownLatch latch2 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef2 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, null, position2, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef2.set(position);
+                latch2.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed2.set(true);
+                latch2.countDown();
+            }
+        }, null, true);
+        latch2.await();
+        assertFalse(failed2.get());
+        assertNotNull(positionRef2.get());
+        assertEquals(positionRef2.get(), position1);
+
+        // find the newest entry without start and end position
+        AtomicBoolean failed3 = new AtomicBoolean(false);
+        CountDownLatch latch3 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef3 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, null, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef3.set(position);
+                latch3.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed3.set(true);
+                latch3.countDown();
+            }
+        }, null, true);
+        latch3.await();
+        assertFalse(failed3.get());
+        assertNotNull(positionRef3.get());
+        assertEquals(positionRef3.get(), position1);
+
+        // find position3
+        AtomicBoolean failed4 = new AtomicBoolean(false);
+        CountDownLatch latch4 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef4 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
+            try {
+                PositionImpl p = (PositionImpl) entry.getPosition();
+                return p.compareTo((PositionImpl) position3) <= 0;
+            } finally {
+                entry.release();
+            }
+        }, position3, position3, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef4.set(position);
+                latch4.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed4.set(true);
+                latch4.countDown();
+            }
+        }, null, true);
+        latch4.await();
+        assertFalse(failed4.get());
+        assertNotNull(positionRef4.get());
+        assertEquals(positionRef4.get(), position3);
+    }
+
+
+    @Test
+    public void testFindNewestMatching_SearchActiveEntries_ByStartAndEnd() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFindNewestMatching_SearchActiveEntries_ByStartAndEnd", managedLedgerConfig);
+        @Cleanup
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        Position position = ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test1".getBytes(Encoding));
+        Position position2 = ledger.addEntry("test2".getBytes(Encoding));
+        Position position3 = ledger.addEntry("test3".getBytes(Encoding));
+        Position position4 = ledger.addEntry("test4".getBytes(Encoding));
+        managedCursor.markDelete(position1);
+        assertEquals(managedCursor.getNumberOfEntries(), 3);
+
+        Predicate<Entry> condition = entry -> {
+            try {
+                PositionImpl p = (PositionImpl) entry.getPosition();
+                return p.compareTo((PositionImpl) position3) <= 0;
+            } finally {
+                entry.release();
+            }
+        };
+
+        // find the newest entry with start and end position
+        AtomicBoolean failed = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> positionRef = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, position2, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef.set(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, true);
+        latch.await();
+        assertFalse(failed.get());
+        assertNotNull(positionRef.get());
+        assertEquals(positionRef.get(), position3);
+
+        // find the newest entry with start
+        AtomicBoolean failed1 = new AtomicBoolean(false);
+        CountDownLatch latch1 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef1 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, position2, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef1.set(position);
+                latch1.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed1.set(true);
+                latch1.countDown();
+            }
+        }, null, true);
+
+        latch1.await();
+        assertFalse(failed1.get());
+        assertNotNull(positionRef1.get());
+        assertEquals(positionRef1.get(), position3);
+
+        // find the newest entry with end
+        AtomicBoolean failed2 = new AtomicBoolean(false);
+        CountDownLatch latch2 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef2 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, null, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef2.set(position);
+                latch2.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed2.set(true);
+                latch2.countDown();
+            }
+        }, null, true);
+
+        latch2.await();
+        assertFalse(failed2.get());
+        assertNotNull(positionRef2.get());
+        assertEquals(positionRef2.get(), position3);
+
+        // find the newest entry without start and end position
+        AtomicBoolean failed3 = new AtomicBoolean(false);
+        CountDownLatch latch3 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef3 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, null, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef3.set(position);
+                latch3.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed3.set(true);
+                latch3.countDown();
+            }
+        }, null, true);
+        latch3.await();
+        assertFalse(failed3.get());
+        assertNotNull(positionRef3.get());
+        assertEquals(positionRef3.get(), position3);
+
+        // find position4
+        AtomicBoolean failed4 = new AtomicBoolean(false);
+        CountDownLatch latch4 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef4 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
+            try {
+                PositionImpl p = (PositionImpl) entry.getPosition();
+                return p.compareTo((PositionImpl) position4) <= 0;
+            } finally {
+                entry.release();
+            }
+        }, position4, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef4.set(position);
+                latch4.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed4.set(true);
+                latch4.countDown();
+            }
+        }, null, true);
+        latch4.await();
+        assertFalse(failed4.get());
+        assertNotNull(positionRef4.get());
+        assertEquals(positionRef4.get(), position4);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
