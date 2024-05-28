@@ -49,7 +49,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -938,7 +938,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         }
 
         List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
-                false, SubscriptionIsolationLevel.READ_UNCOMMITTED);
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
         assertEquals(peekMsgs.size(), n);
         for (Message<byte[]> peekMsg : peekMsgs) {
             assertEquals(new String(peekMsg.getValue()), "msg");
@@ -976,7 +976,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         // peek n message, all messages value should be "msg"
         {
             List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
-                    false, SubscriptionIsolationLevel.READ_COMMITTED);
+                    false, TransactionIsolationLevel.READ_COMMITTED);
             assertEquals(peekMsgs.size(), n);
             for (Message<byte[]> peekMsg : peekMsgs) {
                 assertEquals(new String(peekMsg.getValue()), "msg");
@@ -986,7 +986,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         // peek 3 * n message, and still get n message, all messages value should be "msg"
         {
             List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 2 * n,
-                    false, SubscriptionIsolationLevel.READ_COMMITTED);
+                    false, TransactionIsolationLevel.READ_COMMITTED);
             assertEquals(peekMsgs.size(), n);
             for (Message<byte[]> peekMsg : peekMsgs) {
                 assertEquals(new String(peekMsg.getValue()), "msg");
@@ -1022,7 +1022,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         // peek 5 * n message, will get 5 * n msg.
         List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 5 * n,
-                true, SubscriptionIsolationLevel.READ_UNCOMMITTED);
+                true, TransactionIsolationLevel.READ_UNCOMMITTED);
         assertEquals(peekMsgs.size(), 5 * n);
 
         for (int i = 0; i < 4 * n; i++) {

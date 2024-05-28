@@ -61,8 +61,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -1110,7 +1110,7 @@ public class CmdTopics extends CmdBase {
                    + "'READ_UNCOMMITTED' allows peeking all messages, "
                         + "even transactional messages which have been aborted.",
                 required = false)
-        private SubscriptionIsolationLevel transactionIsolationLevel = SubscriptionIsolationLevel.READ_COMMITTED;
+        private TransactionIsolationLevel transactionIsolationLevel = TransactionIsolationLevel.READ_COMMITTED;
 
         @Override
         void run() throws PulsarAdminException {

@@ -55,8 +55,8 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -872,7 +872,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     private CompletableFuture<List<Message<byte[]>>> peekNthMessage(
             String topic, String subName, int messagePosition, boolean showServerMarker,
-            SubscriptionIsolationLevel transactionIsolationLevel) {
+            TransactionIsolationLevel transactionIsolationLevel) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
@@ -902,7 +902,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
                                               boolean showServerMarker,
-                                              SubscriptionIsolationLevel transactionIsolationLevel)
+                                              TransactionIsolationLevel transactionIsolationLevel)
             throws PulsarAdminException {
         return sync(() -> peekMessagesAsync(topic, subName, numMessages, showServerMarker, transactionIsolationLevel));
     }
@@ -910,7 +910,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
             String topic, String subName, int numMessages,
-            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel) {
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
@@ -920,7 +920,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,
             List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage,
-            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel) {
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
@@ -1268,12 +1268,12 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
         return getMessagesFromHttpResponse(topic, response, true,
-                SubscriptionIsolationLevel.READ_UNCOMMITTED);
+                TransactionIsolationLevel.READ_UNCOMMITTED);
     }
 
     private List<Message<byte[]>> getMessagesFromHttpResponse(
             String topic, Response response, boolean showServerMarker,
-            SubscriptionIsolationLevel transactionIsolationLevel) throws Exception {
+            TransactionIsolationLevel transactionIsolationLevel) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
@@ -1317,7 +1317,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(TXN_ABORTED);
             if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
                 properties.put(TXN_ABORTED, tmp.toString());
-                if (transactionIsolationLevel == SubscriptionIsolationLevel.READ_COMMITTED) {
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
                     return new ArrayList<>();
                 }
             }
@@ -1325,7 +1325,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(TXN_UNCOMMITTED);
             if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
                 properties.put(TXN_UNCOMMITTED, tmp.toString());
-                if (transactionIsolationLevel == SubscriptionIsolationLevel.READ_COMMITTED) {
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
                     return new ArrayList<>();
                 }
             }

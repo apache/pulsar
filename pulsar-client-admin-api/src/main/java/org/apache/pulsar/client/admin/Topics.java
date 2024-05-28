@@ -30,8 +30,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1656,7 +1656,7 @@ public interface Topics {
      */
     default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
             throws PulsarAdminException {
-        return peekMessages(topic, subName, numMessages, false, SubscriptionIsolationLevel.READ_COMMITTED);
+        return peekMessages(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
     }
 
     /**
@@ -1684,7 +1684,7 @@ public interface Topics {
      *             Unexpected error
      */
     List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
-                                       boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel)
+                                       boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel)
             throws PulsarAdminException;
 
     /**
@@ -1699,7 +1699,7 @@ public interface Topics {
      * @return a future that can be used to track when the messages are returned
      */
     default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
-        return peekMessagesAsync(topic, subName, numMessages, false, SubscriptionIsolationLevel.READ_COMMITTED);
+        return peekMessagesAsync(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
     }
 
     /**
@@ -1722,7 +1722,7 @@ public interface Topics {
      */
     CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
             String topic, String subName, int numMessages,
-            boolean showServerMarker, SubscriptionIsolationLevel transactionIsolationLevel);
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel);
 
     /**
      * Get a message by its messageId via a topic subscription.

@@ -81,7 +81,7 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SubscriptionIsolationLevel;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1746,7 +1746,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3,
-                false, SubscriptionIsolationLevel.READ_COMMITTED);
+                false, TransactionIsolationLevel.READ_COMMITTED);
 
         MessageImpl message = mock(MessageImpl.class);
         when(message.getData()).thenReturn(new byte[]{});
