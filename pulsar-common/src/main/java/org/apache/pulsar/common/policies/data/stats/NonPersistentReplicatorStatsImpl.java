@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
@@ -35,6 +38,9 @@ public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implem
      **/
     public double msgDropRate;
 
+    @JsonIgnore
+    private final LongAdder msgDropCount = new LongAdder();
+
     public NonPersistentReplicatorStatsImpl add(NonPersistentReplicatorStatsImpl stats) {
         Objects.requireNonNull(stats);
         super.add(stats);
@@ -43,7 +49,12 @@ public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implem
     }
 
     @Override
+    @JsonProperty
     public long getMsgDropCount() {
-        return 0;
+        return msgDropCount.sum();
+    }
+
+    public void incrementMsgDropCount() {
+        msgDropCount.increment();
     }
 }

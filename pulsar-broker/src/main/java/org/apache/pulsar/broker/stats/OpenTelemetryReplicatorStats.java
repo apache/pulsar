@@ -66,6 +66,9 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     public static final String DELAY_GAUGE = "pulsar.broker.replication.message.age";
     private final ObservableDoubleMeasurement delayGauge;
 
+    public static final String DROPPED_COUNTER = "pulsar.broker.replication.dropped.count";
+    private final ObservableLongMeasurement droppedCounter;
+
     private final BatchCallback batchCallback;
 
     public OpenTelemetryReplicatorStats(PulsarService pulsar) {
@@ -122,6 +125,12 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                 .setDescription("The total number of messages that expired for this replicator.")
                 .buildObserver();
 
+        droppedCounter = meter
+                .upDownCounterBuilder(DROPPED_COUNTER)
+                .setUnit("{message}")
+                .setDescription("The total number of dropped messages for this replicator.")
+                .buildObserver();
+
         batchCallback = meter.batchCallback(() -> pulsar.getBrokerService()
                         .getTopics()
                         .values()
@@ -139,7 +148,8 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                 backlogCounter,
                 expiredCounter,
                 connectedCounter,
-                delayGauge);
+                delayGauge,
+                droppedCounter);
     }
 
     @Override
@@ -175,7 +185,7 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         }
 
         if (stats instanceof NonPersistentReplicatorStats nonPersistentStats) {
-            var dropCount = nonPersistentStats.getMsgDropCount();
+            droppedCounter.record(nonPersistentStats.getMsgDropCount(), attributes);
         }
     }
 }

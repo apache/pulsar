@@ -116,6 +116,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             }
 
             msgOut.recordEvent(headersAndPayload.readableBytes());
+            stats.incrementMsgOutCounter();
+            stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
 
             msg.setReplicatedFrom(localCluster);
 
@@ -129,6 +131,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                         replicatorId);
             }
             msgDrop.recordEvent();
+            stats.incrementMsgDropCount();
             entry.release();
         }
     }
