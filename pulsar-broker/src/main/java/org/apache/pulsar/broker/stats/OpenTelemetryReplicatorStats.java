@@ -165,7 +165,7 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         messageOutCounter.record(stats.getMsgOutCount(), attributes);
         bytesInCounter.record(stats.getBytesInCount(), attributes);
         bytesOutCounter.record(stats.getBytesOutCount(), attributes);
-        connectedCounter.record(replicator.isConnected() ? 0 : 1, attributes);
+        connectedCounter.record(replicator.isConnected() ? 1 : 0, attributes);
         var delaySeconds = MetricsUtil.convertToSeconds(replicator.getReplicationDelayMs(), TimeUnit.MILLISECONDS);
         delayGauge.record(delaySeconds, attributes);
 

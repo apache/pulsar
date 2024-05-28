@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
@@ -1842,7 +1843,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         var consumer2 = new MessageConsumer(url2, destTopicName);
 
         // Produce from cluster 1 and consume from the 1 and 2.
-        producer1.produce(2);
+        producer1.produce(3);
         consumer1.receive(2);
         consumer2.receive(1);
 
@@ -1854,17 +1855,19 @@ public class ReplicatorTest extends ReplicatorTestBase {
         var attributes1 = Attributes.of(
                 OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
                 OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
-                OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespacePortion(),
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
                 OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
                 OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
         );
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes1, 1);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes1, 1);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes1, 1);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes1, 1);
+        var dummyValue = 0;
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes1, dummyValue);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes1, dummyValue);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes1, 3);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes1,
+                aLong -> assertThat(aLong).isGreaterThan(0));
 
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes1, 1);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.EXPIRED_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes1, 0);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.EXPIRED_COUNTER, attributes1, 0);
         assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes1, 1);
 
         assertMetricLongGaugeValue(metrics1, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes1, 1);
