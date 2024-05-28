@@ -27,41 +27,36 @@ public interface ReplicatorStats {
     @Deprecated
     double getMsgRateIn();
 
-    default long getMsgInCount() {
-        return 0;
-    }
+    /** Total number of messages received from the remote cluster. */
+    long getMsgInCount();
 
     /** Total throughput received from the remote cluster (bytes/s). */
     @Deprecated
     double getMsgThroughputIn();
 
-    default long getBytesInCount() {
-        return 0;
-    }
+    /** Total number of bytes received from the remote cluster. */
+    long getBytesInCount();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
     @Deprecated
     double getMsgRateOut();
 
-    default long getMsgOutCount() {
-        return 0;
-    }
+    /** Total number of messages sent to the remote cluster. */
+    long getMsgOutCount();
 
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     @Deprecated
     double getMsgThroughputOut();
 
-    default long getBytesOutCount() {
-        return 0;
-    }
+    /** Total number of bytes sent to the remote cluster. */
+    long getBytesOutCount();
 
     /** Total rate of messages expired (msg/s). */
     @Deprecated
     double getMsgRateExpired();
 
-    default long getMsgExpiredCount() {
-        return 0;
-    }
+    /** Total number of messages expired. */
+    long getMsgExpiredCount();
 
     /** Number of messages pending to be replicated to remote cluster. */
     long getReplicationBacklog();

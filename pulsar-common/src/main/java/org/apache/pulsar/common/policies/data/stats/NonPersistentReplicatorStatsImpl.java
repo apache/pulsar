@@ -41,4 +41,9 @@ public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implem
         this.msgDropRate += stats.msgDropRate;
         return this;
     }
+
+    @Override
+    public long getMsgDropCount() {
+        return 0;
+    }
 }

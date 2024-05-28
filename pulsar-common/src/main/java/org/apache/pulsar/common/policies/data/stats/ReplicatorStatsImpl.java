@@ -131,4 +131,10 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     public void incrementBytesOutCounter(long bytes) {
         bytesOutCount.add(bytes);
     }
+
+    @Override
+    @JsonProperty
+    public long getMsgExpiredCount() {
+        return 0;
+    }
 }

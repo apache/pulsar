@@ -28,7 +28,6 @@ public interface NonPersistentReplicatorStats extends ReplicatorStats {
      **/
     double getMsgDropRate();
 
-    default long getMsgDropCount() {
-        return 0;
-    }
+    /** Total number of messages dropped by the broker for the replicator. */
+    long getMsgDropCount();
 }
