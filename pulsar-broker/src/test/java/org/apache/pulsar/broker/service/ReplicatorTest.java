@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleGaugeValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -1870,7 +1870,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.EXPIRED_COUNTER, attributes1, 0);
         assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes1, 1);
 
-        assertMetricLongGaugeValue(metrics1, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes1, 1);
+        assertMetricDoubleGaugeValue(metrics1, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes1, 0.0);
     }
 
     private void pauseReplicator(PersistentReplicator replicator) {
