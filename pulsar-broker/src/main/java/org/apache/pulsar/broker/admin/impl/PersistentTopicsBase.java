@@ -97,6 +97,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -2707,7 +2708,7 @@ public class PersistentTopicsBase extends AdminResource {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
                             try {
-                                results.complete(generateResponseWithEntry(entry));
+                                results.complete(generateResponseWithEntry(entry, (PersistentTopic) topic));
                             } catch (IOException exception) {
                                 throw new RestException(exception);
                             } finally {
@@ -2848,10 +2849,12 @@ public class PersistentTopicsBase extends AdminResource {
                     entry = sub.peekNthMessage(messagePosition);
                 }
             }
-            return entry;
-        }).thenCompose(entry -> {
+            return entry.thenApply(e -> Pair.of(e, (PersistentTopic) topic));
+        }).thenCompose(entryTopicPair -> {
+            Entry entry = entryTopicPair.getLeft();
+            PersistentTopic persistentTopic = entryTopicPair.getRight();
             try {
-                Response response = generateResponseWithEntry(entry);
+                Response response = generateResponseWithEntry(entry, persistentTopic);
                 return CompletableFuture.completedFuture(response);
             } catch (NullPointerException npe) {
                 throw new RestException(Status.NOT_FOUND, "Message not found");
@@ -2930,17 +2933,18 @@ public class PersistentTopicsBase extends AdminResource {
                                 PersistentTopicsBase.this.topicName);
                     }
                 }, null);
-                return future;
+                return future.thenApply(entry -> Pair.of(entry, (PersistentTopic) topic));
             } catch (ManagedLedgerException exception) {
                 log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
                         messagePosition,
                         topicName, exception);
                 throw new RestException(exception);
             }
-
-        }).thenApply(entry -> {
+        }).thenApply(entryTopicPair -> {
+            Entry entry = entryTopicPair.getLeft();
+            PersistentTopic persistentTopic = entryTopicPair.getRight();
             try {
-                return generateResponseWithEntry(entry);
+                return generateResponseWithEntry(entry, persistentTopic);
             } catch (IOException exception) {
                 throw new RestException(exception);
             } finally {
@@ -2951,7 +2955,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    private Response generateResponseWithEntry(Entry entry) throws IOException {
+    private Response generateResponseWithEntry(Entry entry, PersistentTopic persistentTopic) throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -3069,6 +3073,14 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNullPartitionKey()) {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
         }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
+            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+        }
+        boolean isTxnUncommitted = ((PositionImpl) entry.getPosition())
+                .compareTo(persistentTopic.getMaxReadPosition()) > 0;
+        responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
