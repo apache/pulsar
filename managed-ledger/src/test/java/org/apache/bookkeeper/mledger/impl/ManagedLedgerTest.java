@@ -3260,7 +3260,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         class MockLedgerHandle extends PulsarMockLedgerHandle {
             public MockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
                     throws GeneralSecurityException {
-                super(bk, id, digest, passwd);
+                super(bk, id, digest, passwd, null);
             }
 
             @Override
