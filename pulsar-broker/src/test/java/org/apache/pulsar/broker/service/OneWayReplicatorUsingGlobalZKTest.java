@@ -94,4 +94,14 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testDeletePartitionedTopic() throws Exception {
         super.testDeletePartitionedTopic();
     }
+
+    @Test(enabled = false)
+    public void testNoExpandTopicPartitionsWhenDisableTopicLevelReplication() throws Exception {
+        super.testNoExpandTopicPartitionsWhenDisableTopicLevelReplication();
+    }
+
+    @Test(enabled = false)
+    public void testExpandTopicPartitionsOnNamespaceLevelReplication() throws Exception {
+        super.testExpandTopicPartitionsOnNamespaceLevelReplication();
+    }
 }

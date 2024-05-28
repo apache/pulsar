@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -451,7 +452,14 @@ public class PersistentTopicsBase extends AdminResource {
                                 if (!policies.isPresent()) {
                                     return CompletableFuture.completedFuture(null);
                                 }
-                                final Set<String> replicationClusters = policies.get().replication_clusters;
+                                // Combine namespace level policies and topic level policies.
+                                Set<String> replicationClusters = policies.get().replication_clusters;
+                                TopicPolicies topicPolicies =
+                                        pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
+                                if (topicPolicies != null) {
+                                    replicationClusters = new HashSet<>(topicPolicies.getReplicationClusters());
+                                }
+                                // Do check replicated clusters.
                                 if (replicationClusters.size() == 0) {
                                     return CompletableFuture.completedFuture(null);
                                 }
@@ -467,6 +475,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     // The replication clusters just has the current cluster itself.
                                     return CompletableFuture.completedFuture(null);
                                 }
+                                // Do sync operation to other clusters.
                                 List<CompletableFuture<Void>> futures = replicationClusters.stream()
                                         .map(replicationCluster -> admin.clusters().getClusterAsync(replicationCluster)
                                                 .thenCompose(clusterData -> pulsarService.getBrokerService()
