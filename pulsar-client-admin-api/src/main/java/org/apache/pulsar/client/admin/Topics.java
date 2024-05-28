@@ -1654,7 +1654,10 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, numMessages, false, SubscriptionIsolationLevel.READ_COMMITTED);
+    }
 
     /**
      * Peek messages from a topic subscription.
@@ -1695,7 +1698,9 @@ public interface Topics {
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+        return peekMessagesAsync(topic, subName, numMessages, false, SubscriptionIsolationLevel.READ_COMMITTED);
+    }
 
     /**
      * Peek messages from a topic subscription asynchronously.

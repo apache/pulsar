@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionIsolationLevel {
     // Consumer can only consume all transactional messages which have been committed.
     READ_COMMITTED,
