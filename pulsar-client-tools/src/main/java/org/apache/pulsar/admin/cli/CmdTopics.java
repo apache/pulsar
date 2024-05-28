@@ -1191,11 +1191,11 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
         private int numMessages = 1;
 
-        @Option(names = { "-ssm", "--show-server-marker" },
+        @Parameter(names = { "-ssm", "--show-server-marker" },
                 description = "Enables the display of internal server write markers.", required = false)
         private boolean showServerMarker = false;
 
-        @Option(names = { "-til", "--transaction-isolation-level" },
+        @Parameter(names = { "-til", "--transaction-isolation-level" },
                 description = "Sets the isolation level for peeking messages within transactions. "
                    + "'READ_COMMITTED' allows peeking only committed transactional messages. "
                    + "'READ_UNCOMMITTED' allows peeking all messages, "
