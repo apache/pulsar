@@ -115,4 +115,10 @@ public interface OpenTelemetryAttributes {
      * The type of the backlog quota.
      */
     AttributeKey<String> PULSAR_BACKLOG_QUOTA_TYPE = AttributeKey.stringKey("pulsar.backlog.quota.type");
+
+    /**
+     * The name of the remote cluster for a Pulsar replicator.
+     */
+    AttributeKey<String> PULSAR_REPLICATION_REMOTE_CLUSTER_NAME =
+            AttributeKey.stringKey("pulsar.replication.remote.cluster.name");
 }

@@ -27,8 +27,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.stats.MetricsUtil;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
 
@@ -146,13 +148,19 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     }
 
     private void recordMetricsForReplicator(AbstractReplicator replicator) {
-        var topic = replicator.getLocalTopic();
-
-        var attributes = Attributes.builder()
-                .build();
+        var topicName = TopicName.get(replicator.getLocalTopic().getName());
+        var builder = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+        if (topicName.isPartitioned()) {
+            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+        }
+        builder.put(OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, replicator.getRemoteCluster());
+        var attributes = builder.build();
 
         var stats = replicator.getStats();
-
         messageInCounter.record(stats.getMsgInCount(), attributes);
         messageOutCounter.record(stats.getMsgOutCount(), attributes);
         bytesInCounter.record(stats.getBytesInCount(), attributes);
