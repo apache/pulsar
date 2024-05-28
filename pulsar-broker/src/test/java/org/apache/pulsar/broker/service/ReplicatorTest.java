@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -33,10 +35,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +75,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -105,6 +111,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -1818,6 +1825,49 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
+    }
+
+    @Test(dataProvider = "namespace")
+    public void testReplicationMetrics(String namespace) throws Exception {
+        var destTopicName =
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/replicationMetrics"));
+
+        @Cleanup
+        var producer1 = new MessageProducer(url1, destTopicName);
+
+        @Cleanup
+        var consumer1 = new MessageConsumer(url1, destTopicName);
+
+        @Cleanup
+        var consumer2 = new MessageConsumer(url2, destTopicName);
+
+        // Produce from cluster 1 and consume from the 1 and 2.
+        producer1.produce(2);
+        consumer1.receive(2);
+        consumer2.receive(1);
+
+        var metrics1 = metricReader1.collectAllMetrics()
+                .stream()
+                .filter(metric -> metric.getName().startsWith("pulsar.broker.replication"))
+                .sorted(Comparator.comparing(MetricData::getName))
+                .toList();
+        var attributes1 = Attributes.of(
+                OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
+                OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespacePortion(),
+                OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
+                OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
+        );
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes1, 1);
+
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.EXPIRED_COUNTER, attributes1, 1);
+        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes1, 1);
+
+        assertMetricLongGaugeValue(metrics1, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes1, 1);
     }
 
     private void pauseReplicator(PersistentReplicator replicator) {
