@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.netty.util.IllegalReferenceCountException;
 import io.netty.util.ReferenceCounted;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.bookkeeper.mledger.util.RangeCache.ValueWithKeyValidation;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -37,7 +39,11 @@ import org.apache.commons.lang3.tuple.Pair;
  * @param <Value>
  *            Cache value
  */
-public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCounted> {
+public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyValidation<Key>> {
+    public interface ValueWithKeyValidation<T> extends ReferenceCounted {
+        boolean matchesKey(T key);
+    }
+
     // Map from key to nodes inside the linked list
     private final ConcurrentNavigableMap<Key, Value> entries;
     private AtomicLong size; // Total size of values stored in cache
@@ -76,6 +82,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         // retain value so that it's not released before we put it in the cache and calculate the weight
         value.retain();
         try {
+            if (!value.matchesKey(key)) {
+                throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
+            }
             if (entries.putIfAbsent(key, value) == null) {
                 size.addAndGet(weighter.getSize(value));
                 return true;
@@ -98,9 +107,15 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         } else {
             try {
                 value.retain();
+            } catch (IllegalReferenceCountException e) {
+                // Value was already deallocated
+                return null;
+            }
+            if (value.matchesKey(key)) {
                 return value;
-            } catch (Throwable t) {
-                // Value was already destroyed between get() and retain()
+            } else {
+                // Value was recycled in between
+                value.release();
                 return null;
             }
         }
@@ -118,12 +133,20 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         List<Value> values = new ArrayList();
 
         // Return the values of the entries found in cache
-        for (Value value : entries.subMap(first, true, last, true).values()) {
+        for (Map.Entry<Key, Value> entry : entries.subMap(first, true, last, true).entrySet()) {
+            Key key = entry.getKey();
+            Value value = entry.getValue();
             try {
                 value.retain();
+            } catch (IllegalReferenceCountException e) {
+                // Value was already deallocated
+                continue;
+            }
+            if (value.matchesKey(key)) {
                 values.add(value);
-            } catch (Throwable t) {
-                // Value was already destroyed between get() and retain()
+            } else {
+                // Value was recycled in between
+                value.release();
             }
         }
 
@@ -143,15 +166,28 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         int removedEntries = 0;
         long removedSize = 0;
 
-        for (Key key : subMap.keySet()) {
-            Value value = entries.remove(key);
+        for (Map.Entry<Key, Value> entry : subMap.entrySet()) {
+            Key key = entry.getKey();
+            Value value = entry.getValue();
             if (value == null) {
                 continue;
             }
-
-            removedSize += weighter.getSize(value);
+            try {
+                // add extra retain to avoid value being released while we are removing it
+                value.retain();
+            } catch (IllegalReferenceCountException e) {
+                // Value was already released
+                continue;
+            }
+            // check that the value hasn't been recycled in between
+            if (value.matchesKey(key) && entries.remove(key, value)) {
+                removedSize += weighter.getSize(value);
+                // remove the cache reference
+                value.release();
+                ++removedEntries;
+            }
+            // remove the extra retain
             value.release();
-            ++removedEntries;
         }
 
         size.addAndGet(-removedSize);
@@ -171,14 +207,27 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         int removedEntries = 0;
 
         while (removedSize < minSize) {
-            Map.Entry<Key, Value> entry = entries.pollFirstEntry();
+            Map.Entry<Key, Value> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
-
+            Key key = entry.getKey();
             Value value = entry.getValue();
-            ++removedEntries;
-            removedSize += weighter.getSize(value);
+            try {
+                // add extra retain to avoid value being released while we are removing it
+                value.retain();
+            } catch (IllegalReferenceCountException e) {
+                // Value was already released
+                continue;
+            }
+            // check that the value hasn't been recycled in between
+            if (value.matchesKey(key) && entries.remove(key, value)) {
+                ++removedEntries;
+                removedSize += weighter.getSize(value);
+                // release the cache reference
+                value.release();
+            }
+            // remove the extra retain
             value.release();
         }
 
@@ -197,18 +246,37 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
 
        while (true) {
            Map.Entry<Key, Value> entry = entries.firstEntry();
-           if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
+           if (entry == null) {
                break;
            }
+           Key key = entry.getKey();
            Value value = entry.getValue();
-           boolean removeHits = entries.remove(entry.getKey(), value);
-           if (!removeHits) {
-               break;
+           try {
+               // add extra retain to avoid value being released while we are removing it
+               value.retain();
+           } catch (IllegalReferenceCountException e) {
+               // Value was already released
+               continue;
            }
-
-           removedSize += weighter.getSize(value);
-           removedCount++;
-           value.release();
+           try {
+               // check that the value hasn't been recycled in between
+               if (!value.matchesKey(key)) {
+                   continue;
+               }
+               if (timestampExtractor.getTimestamp(value) > maxTimestamp) {
+                   break;
+               }
+               boolean removeHits = entries.remove(key, value);
+               if (!removeHits) {
+                   break;
+               }
+               removedSize += weighter.getSize(value);
+               removedCount++;
+               value.release();
+           } finally {
+                // remove the extra retain
+                value.release();
+           }
        }
 
        size.addAndGet(-removedSize);
@@ -236,13 +304,27 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         int removedCount = 0;
 
         while (true) {
-            Map.Entry<Key, Value> entry = entries.pollFirstEntry();
+            Map.Entry<Key, Value> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
+            Key key = entry.getKey();
             Value value = entry.getValue();
-            removedSize += weighter.getSize(value);
-            removedCount++;
+            try {
+                // add extra retain to avoid value being released while we are removing it
+                value.retain();
+            } catch (IllegalReferenceCountException e) {
+                // Value was already released
+                continue;
+            }
+            // check that the value hasn't been recycled in between
+            if (value.matchesKey(key) && entries.remove(key, value)) {
+                removedSize += weighter.getSize(value);
+                removedCount++;
+                // release the cache reference
+                value.release();
+            }
+            // remove the extra retain
             value.release();
         }
 
