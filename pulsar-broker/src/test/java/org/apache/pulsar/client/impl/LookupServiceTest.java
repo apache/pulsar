@@ -105,6 +105,20 @@ public class LookupServiceTest extends ProducerConsumerBase {
         assertTrue(topics.contains(partitionedTopic));
         assertFalse(topics.contains(nonPersistentTopic));
         assertFalse(topics.contains(TopicName.get(partitionedTopic).getPartition(0).toString()));
+        // Verify the new method "GetTopicsResult.nonPartitionedOrPartitionTopics" works as expected.
+        Collection<String> nonPartitionedOrPartitionTopics =
+                lookupService.getTopicsUnderNamespace(NamespaceName.get("public/default"),
+                Mode.PERSISTENT, "public/default/.*", null).join()
+                .getNonPartitionedOrPartitionTopics();
+        assertTrue(nonPartitionedOrPartitionTopics.contains(nonPartitionedTopic));
+        assertFalse(nonPartitionedOrPartitionTopics.contains(partitionedTopic));
+        assertFalse(nonPartitionedOrPartitionTopics.contains(nonPersistentTopic));
+        assertTrue(nonPartitionedOrPartitionTopics.contains(TopicName.get(partitionedTopic).getPartition(0)
+                .toString()));
+        assertTrue(nonPartitionedOrPartitionTopics.contains(TopicName.get(partitionedTopic).getPartition(1)
+                .toString()));
+        assertTrue(nonPartitionedOrPartitionTopics.contains(TopicName.get(partitionedTopic).getPartition(2)
+                .toString()));
 
         // Cleanup.
         admin.topics().deletePartitionedTopic(partitionedTopic, false);
