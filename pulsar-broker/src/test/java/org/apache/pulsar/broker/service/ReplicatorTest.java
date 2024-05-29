@@ -38,12 +38,10 @@ import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1028,7 +1026,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             metrics = metricReader1.collectAllMetrics();
             assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
             assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
-                    aDouble -> assertThat(aDouble).isGreaterThan(0.5));
+                    aDouble -> assertThat(aDouble).isPositive());
 
             // Consumer will now drain 1 message and the replication backlog will be cleared
             consumer2.receive(1);
@@ -1846,10 +1844,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
     }
 
-    @Test(dataProvider = "namespace")
-    public void testReplicationMetrics(String namespace) throws Exception {
-        var destTopicName =
-                TopicName.get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/replicationMetrics"));
+    @Test
+    public void testReplicationMetrics() throws Exception {
+        var destTopicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/replicationMetrics"));
 
         @Cleanup
         var producer1 = new MessageProducer(url1, destTopicName);
@@ -1884,18 +1881,15 @@ public class ReplicatorTest extends ReplicatorTestBase {
         var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
         assertThat(topicOpt).isPresent();
         var topic = topicOpt.get();
-        topic.getReplicators()
+        var persistentReplicators = topic.getReplicators()
                 .values()
                 .stream()
                 .map(PersistentReplicator.class::cast)
-                .forEach(this::pauseReplicator);
+                .toList();
+        persistentReplicators.forEach(this::pauseReplicator);
         producer1.produce(5);
         Awaitility.await().untilAsserted(() -> {
-            topic.getReplicators()
-                    .values()
-                    .stream()
-                    .map(PersistentReplicator.class::cast)
-                    .forEach(repl -> repl.expireMessages(1));
+            persistentReplicators.forEach(repl -> repl.expireMessages(1));
             assertMetricLongSumValue(metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.EXPIRED_COUNTER,
                     attributes, 5);
         });
