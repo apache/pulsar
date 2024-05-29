@@ -26,7 +26,6 @@
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>3.4.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
   </parent>
 
   <build>

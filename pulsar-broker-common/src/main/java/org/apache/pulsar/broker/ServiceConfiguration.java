@@ -2090,10 +2090,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "The threshold to triggering automatic offload to long term storage"
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The threshold to triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Trigger offload on topic load or not. Default is false"
+    )
+    private boolean triggerOffloadOnTopicLoad = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -2591,7 +2596,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(100% resource usage is 1.0 load). "
                     + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
                     + "The smaller value will incur load balancing more frequently. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private double loadBalancerBrokerLoadTargetStd = 0.25;
 
@@ -2602,7 +2607,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If the unload scheduler consecutively finds bundles that meet unload conditions "
                     + "many times bigger than this threshold, the scheduler will shed the bundles. "
                     + "The bigger value will incur less bundle unloading/transfers. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerSheddingConditionHitCountThreshold = 3;
 
@@ -2614,7 +2619,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "-- pre-assigns the destination broker upon unloading). "
                     + "Off: unload bundles from overloaded brokers "
                     + "-- post-assigns the destination broker upon lookups). "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private boolean loadBalancerTransferEnabled = true;
 
@@ -2623,7 +2628,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "Maximum number of brokers to unload bundle load for each unloading cycle. "
                     + "The bigger value will incur more unloading/transfers for each unloading cycle. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerMaxNumberOfBrokerSheddingPerCycle = 3;
 
@@ -2633,7 +2638,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Delay (in seconds) to the next unloading cycle after unloading. "
                     + "The logic tries to give enough time for brokers to recompute load after unloading. "
                     + "The bigger value will delay the next unloading cycle longer. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalanceSheddingDelayInSeconds = 180;
 
@@ -2646,7 +2651,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
                     + "The current default value is loadBalancerReportUpdateMaxIntervalMinutes * 120, reflecting "
                     + "twice the duration in seconds. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
 
@@ -2657,7 +2662,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The load balancer distributes bundles across brokers, "
                     + "based on topK bundle load data and other broker load data."
                     + "The bigger value will increase the overhead of reporting many bundles in load data. "
-                    + "(only used in load balancer extension logics)"
+                    + "Used for ExtensibleLoadManagerImpl and ModularLoadManagerImpl, default value is 10. "
+                    + "User can disable the bundle filtering feature of ModularLoadManagerImpl by setting to -1."
+                    + "Enabling this feature can reduce the pressure on the zookeeper when doing load report."
+                    + "WARNING: too small value could result in a long load balance time."
     )
     private int loadBalancerMaxNumberOfBundlesInBundleLoadReport = 10;
     @FieldContext(
