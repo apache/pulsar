@@ -122,9 +122,14 @@ public class ShadowTopicTest extends BrokerTestBase {
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createPartitionedTopic(sourceTopic, 3);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+
+        // We should not allow to set with the shadow partition topic which contains `-partition-n`.
+        Assert.assertThrows(PulsarAdminException.class, ()-> admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic+"-partition-0")));
         admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic).subscriptionName("test")
                 .subscribe();
 
@@ -150,9 +155,7 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
 
-        Assert.assertThrows(PulsarAdminException.class, ()->{
-            admin.topics().updatePartitionedTopic(sourceTopic, 3);
-        });
+        Assert.assertThrows(PulsarAdminException.class, () -> admin.topics().updatePartitionedTopic(sourceTopic, 3));
 
         admin.topics().updatePartitionedTopic(shadowTopic, 3);
 

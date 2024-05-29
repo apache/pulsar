@@ -5392,6 +5392,17 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Cannot specify empty shadow topics, please use remove command instead."));
         }
+        try {
+            shadowTopics.forEach(shadowTopic -> {
+                if (TopicName.get(shadowTopic).isPartitioned()) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Couldn't set a partition of a topic as the shadow topic.");
+                }
+            });
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
+
         return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> validateShadowTopics(shadowTopics))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
