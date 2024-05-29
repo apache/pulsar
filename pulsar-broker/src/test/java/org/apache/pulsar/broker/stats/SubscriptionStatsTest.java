@@ -208,7 +208,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             field.set(dispatcher, List.of(loader1));
             hasFilterField.set(dispatcher, true);
         }
