@@ -105,14 +105,10 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
     private static final Summary putOpsLatency = buildSummary("pulsar_schema_put_ops_latency", "-");
 
-    private boolean closed;
-
     private final Map<String, Long> namespaceAccess = new ConcurrentHashMap<>();
     private final ScheduledFuture<?> future;
 
     public SchemaRegistryStats(PulsarService pulsarService) {
-        this.closed = false;
-
         this.future = pulsarService.getExecutor().scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
 
         var meter = pulsarService.getOpenTelemetry().getMeter();
@@ -234,11 +230,8 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
 
     @Override
     public synchronized void close() throws Exception {
-        if (!closed) {
-            namespaceAccess.keySet().forEach(this::removeChild);
-            future.cancel(false);
-            closed = true;
-        }
+        namespaceAccess.keySet().forEach(this::removeChild);
+        future.cancel(false);
     }
 
     @Override
