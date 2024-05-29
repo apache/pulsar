@@ -23,7 +23,6 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.Map;
@@ -81,23 +80,30 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     private final LongCounter schemaCompatibilityCounter;
 
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Counter getOpsFailedCounter;
+    private static final Counter getOpsFailedCounter =
+            Counter.build("pulsar_schema_get_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Counter putOpsFailedCounter;
+    private static final Counter putOpsFailedCounter =
+            Counter.build("pulsar_schema_put_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Counter deleteOpsFailedCounter;
+    private static final Counter deleteOpsFailedCounter =
+            Counter.build("pulsar_schema_del_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
 
     @PulsarDeprecatedMetric(newMetricName = COMPATIBLE_COUNTER_METRIC_NAME)
-    private final Counter compatibleCounter;
+    private static  final Counter compatibleCounter =
+            Counter.build("pulsar_schema_compatible_total", "-").labelNames(NAMESPACE).create().register();
     @PulsarDeprecatedMetric(newMetricName = COMPATIBLE_COUNTER_METRIC_NAME)
-    private final Counter incompatibleCounter;
+    private static final Counter incompatibleCounter =
+            Counter.build("pulsar_schema_incompatible_total", "-").labelNames(NAMESPACE).create().register();
 
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Summary deleteOpsLatency;
+    private static final Summary deleteOpsLatency = buildSummary("pulsar_schema_del_ops_latency", "-");
+
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Summary getOpsLatency;
+    private static final Summary getOpsLatency = buildSummary("pulsar_schema_get_ops_latency", "-");
+
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private final Summary putOpsLatency;
+    private static final Summary putOpsLatency = buildSummary("pulsar_schema_put_ops_latency", "-");
 
     private boolean closed;
 
@@ -105,22 +111,6 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     private final ScheduledFuture<?> future;
 
     public SchemaRegistryStats(PulsarService pulsarService) {
-        this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
-        this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
-        this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_total", "-")
-                .labelNames(NAMESPACE).create().register();
-
-        this.compatibleCounter = Counter.build("pulsar_schema_compatible_total", "-")
-                .labelNames(NAMESPACE).create().register();
-        this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_total", "-")
-                .labelNames(NAMESPACE).create().register();
-
-        this.deleteOpsLatency = this.buildSummary("pulsar_schema_del_ops_latency", "-");
-        this.getOpsLatency = this.buildSummary("pulsar_schema_get_ops_latency", "-");
-        this.putOpsLatency = this.buildSummary("pulsar_schema_put_ops_latency", "-");
-
         this.closed = false;
 
         this.future = pulsarService.getExecutor().scheduleAtFixedRate(this, 1, 1, TimeUnit.MINUTES);
@@ -136,7 +126,7 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
                 .build();
     }
 
-    private Summary buildSummary(String name, String help) {
+    private static Summary buildSummary(String name, String help) {
         Summary.Builder builder = Summary.build(name, help).labelNames(NAMESPACE);
 
         for (double quantile : QUANTILES) {
@@ -147,42 +137,42 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     }
 
     void recordDelFailed(String schemaId, long millis) {
-        this.deleteOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        deleteOpsFailedCounter.labels(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.DELETE, ResponseType.FAILURE);
     }
 
     void recordGetFailed(String schemaId, long millis) {
-        this.getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.GET, ResponseType.FAILURE);
     }
 
     void recordListFailed(String schemaId, long millis) {
-        this.getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.LIST, ResponseType.FAILURE);
     }
 
     void recordPutFailed(String schemaId, long millis) {
-        this.putOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        putOpsFailedCounter.labels(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.PUT, ResponseType.FAILURE);
     }
 
     void recordDelLatency(String schemaId, long millis) {
-        this.deleteOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        deleteOpsLatency.labels(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.DELETE, ResponseType.SUCCESS);
     }
 
     void recordGetLatency(String schemaId, long millis) {
-        this.getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.GET, ResponseType.SUCCESS);
     }
 
     void recordListLatency(String schemaId, long millis) {
-        this.getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.LIST, ResponseType.SUCCESS);
     }
 
     void recordPutLatency(String schemaId, long millis) {
-        this.putOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        putOpsLatency.labels(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.PUT, ResponseType.SUCCESS);
     }
 
@@ -200,13 +190,13 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
 
     void recordSchemaIncompatible(String schemaId) {
         var namespace = getNamespace(schemaId);
-        this.incompatibleCounter.labels(namespace).inc();
+        incompatibleCounter.labels(namespace).inc();
         recordSchemaCompabilityResult(namespace, CompatibilityCheckResponse.INCOMPATIBLE);
     }
 
     void recordSchemaCompatible(String schemaId) {
         var namespace = getNamespace(schemaId);
-        this.compatibleCounter.labels(namespace).inc();
+        compatibleCounter.labels(namespace).inc();
         recordSchemaCompabilityResult(namespace, CompatibilityCheckResponse.COMPATIBLE);
     }
 
@@ -245,17 +235,8 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
     @Override
     public synchronized void close() throws Exception {
         if (!closed) {
-            CollectorRegistry.defaultRegistry.unregister(this.deleteOpsFailedCounter);
-            CollectorRegistry.defaultRegistry.unregister(this.getOpsFailedCounter);
-            CollectorRegistry.defaultRegistry.unregister(this.putOpsFailedCounter);
-            CollectorRegistry.defaultRegistry.unregister(this.compatibleCounter);
-            CollectorRegistry.defaultRegistry.unregister(this.incompatibleCounter);
-            CollectorRegistry.defaultRegistry.unregister(this.deleteOpsLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.getOpsLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.putOpsLatency);
-            if (null != this.future) {
-                this.future.cancel(false);
-            }
+            namespaceAccess.keySet().forEach(this::removeChild);
+            future.cancel(false);
             closed = true;
         }
     }
