@@ -61,6 +61,16 @@ RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress 
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+## Create one stage to include snappy-java native lib
+# Fix the issue when using snappy-java in x86 arch alpine
+# See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
+# We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
+FROM alpine AS snappy-java
+
+RUN apk add git alpine-sdk cmake autoconf automake libtool openjdk17 maven curl bash
+RUN export JAVA_HOME=/usr
+RUN git clone https://github.com/xerial/snappy-java.git
+RUN cd snappy-java && git checkout v1.1.10.5
 
 FROM apachepulsar/glibc-base:2.38 as glibc
 
@@ -114,6 +124,8 @@ RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
 
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
+
+COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
