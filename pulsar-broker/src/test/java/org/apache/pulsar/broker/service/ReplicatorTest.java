@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -1864,12 +1865,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.receive(2);
         consumer2.receive(1);
 
-        var metrics1 = metricReader1.collectAllMetrics()
-                .stream()
-                .filter(metric -> metric.getName().startsWith("pulsar.broker.replication"))
-                .sorted(Comparator.comparing(MetricData::getName))
-                .toList();
-        var attributes1 = Attributes.of(
+        var attributes = Attributes.of(
                 OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
                 OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
@@ -1877,17 +1873,32 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
         );
         var dummyValue = 0;
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes1, dummyValue);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes1, dummyValue);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes1, 3);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes1,
-                aLong -> assertThat(aLong).isGreaterThan(0));
+        var metrics = metricReader1.collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes, dummyValue);
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes, dummyValue);
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes, 3);
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes,
+                aLong -> assertThat(aLong).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes, 1);
 
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes1, 0);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.EXPIRED_COUNTER, attributes1, 0);
-        assertMetricLongSumValue(metrics1, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes1, 1);
-
-        assertMetricDoubleGaugeValue(metrics1, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes1, 0.0);
+        var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
+        assertThat(topicOpt).isPresent();
+        var topic = topicOpt.get();
+        topic.getReplicators()
+                .values()
+                .stream()
+                .map(PersistentReplicator.class::cast)
+                .forEach(this::pauseReplicator);
+        producer1.produce(5);
+        Awaitility.await().untilAsserted(() -> {
+            topic.getReplicators()
+                    .values()
+                    .stream()
+                    .map(PersistentReplicator.class::cast)
+                    .forEach(repl -> repl.expireMessages(1));
+            assertMetricLongSumValue(metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.EXPIRED_COUNTER,
+                    attributes, 5);
+        });
     }
 
     private void pauseReplicator(PersistentReplicator replicator) {
@@ -1895,5 +1906,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(replicator.isConnected());
         });
         replicator.closeProducerAsync(true);
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(replicator.isConnected());
+        });
     }
 }
