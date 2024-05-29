@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.collect.Lists;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -29,6 +31,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -111,6 +114,49 @@ public class ShadowTopicTest extends BrokerTestBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicPartition).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopicPartition);
+    }
+
+    @Test
+    public void testPartitionedShadowTopicProduceAndConsume() throws Exception {
+        String sourceTopic = newShadowSourceTopicName();
+        String shadowTopic = sourceTopic + "-shadow";
+        admin.topics().createPartitionedTopic(sourceTopic, 3);
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic).subscriptionName("test")
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.send("msg-" + i);
+        }
+
+        Set<String> set = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            Message<String> msg = consumer.receive();
+            set.add(msg.getValue());
+        }
+        for (int i = 0; i < 10; i++) {
+            Assert.assertTrue(set.contains("msg-" + i));
+        }
+    }
+
+    @Test
+    public void testPartitionedShadowTopicExpansion() throws Exception {
+        String sourceTopic = newShadowSourceTopicName();
+        String shadowTopic = sourceTopic + "-shadow";
+        admin.topics().createPartitionedTopic(sourceTopic, 1);
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+
+        Assert.assertThrows(PulsarAdminException.class, ()->{
+            admin.topics().updatePartitionedTopic(sourceTopic, 3);
+        });
+
+        admin.topics().updatePartitionedTopic(shadowTopic, 3);
+
+        admin.topics().updatePartitionedTopic(sourceTopic, 3);
     }
 
     @Test
