@@ -3278,6 +3278,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
             while (iterator.hasNext() && result.size() < getConfig().getMaxBatchDeletedIndexToPersist()) {
                 Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                nestedPositionBuilder.setLedgerId(entry.getKey().getLedgerId());
+                nestedPositionBuilder.setEntryId(entry.getKey().getEntryId());
+                batchDeletedIndexInfoBuilder.setPosition(nestedPositionBuilder.build());
                 long[] array = entry.getValue().toLongArray();
                 List<Long> deleteSet = new ArrayList<>(array.length);
                 for (long l : array) {
