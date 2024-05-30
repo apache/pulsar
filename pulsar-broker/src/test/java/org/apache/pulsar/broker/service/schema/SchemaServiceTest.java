@@ -34,6 +34,7 @@ import io.opentelemetry.api.common.Attributes;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -44,7 +45,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -65,6 +65,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -365,14 +366,15 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId, schemaData1, version(0), BACKWARD_TRANSITIVE);
         putSchema(schemaId, schemaData2, version(1), BACKWARD_TRANSITIVE);
 
+        var timeout = Duration.ofSeconds(1);
         assertThat(schemaRegistryService.isCompatible(schemaId, schemaData3, BACKWARD))
-                .isCompletedWithValue(true);
+                .succeedsWithin(timeout, InstanceOfAssertFactories.BOOLEAN)
+                .isTrue();
         assertThat(schemaRegistryService.isCompatible(schemaId, schemaData3, BACKWARD_TRANSITIVE))
-                .failsWithin(1, TimeUnit.SECONDS)
+                .failsWithin(timeout)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(IncompatibleSchemaException.class);
-        assertThatThrownBy(() ->
-                putSchema(schemaId, schemaData3, version(2), BACKWARD_TRANSITIVE))
+        assertThatThrownBy(() -> putSchema(schemaId, schemaData3, version(2), BACKWARD_TRANSITIVE))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IncompatibleSchemaException.class);
 
