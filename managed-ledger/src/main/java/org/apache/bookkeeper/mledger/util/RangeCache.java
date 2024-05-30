@@ -189,6 +189,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         return key != null ? entries.containsKey(key) : true;
     }
 
+    /**
+     * Get the value associated with the key and increment the reference count of it.
+     * The caller is responsible for releasing the reference.
+     */
     public Value get(Key key) {
         return getValue(key, entries.get(key));
     }
@@ -204,10 +208,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 // Value was already deallocated
                 return null;
             }
-            if (value.matchesKey(key)) {
+            // check that the value matches the key and that there's at least 2 references to it since
+            // the cache should be holding one reference and a new reference was just added in this method
+            if (value.refCnt() > 1 && value.matchesKey(key)) {
                 return value;
             } else {
                 // Value or IdentityWrapper was recycled and already contains another value
+                // release the reference added in this method
                 value.release();
                 return null;
             }
@@ -279,7 +286,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 return RemoveEntryResult.BREAK_LOOP;
             }
             // check that the value hasn't been recycled in between
-            if (value.matchesKey(key) && entries.remove(key, identityWrapper)) {
+            // there should be at least 2 references since this method adds one and the cache should have one
+            // it is valid that the value contains references even after the key has been removed from the cache
+            if (value.refCnt() > 1 && value.matchesKey(key) && entries.remove(key, identityWrapper)) {
                 identityWrapper.recycle();
                 counters.entryRemoved(weighter.getSize(value));
                 // remove the cache reference
