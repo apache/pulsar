@@ -1223,48 +1223,17 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                                         Position start, Position end, FindEntryCallback callback,
                                         Object ctx, boolean isFindFromLedger) {
-        OpFindNewest op;
         PositionImpl startPosition;
-        long max = 0;
         switch (constraint) {
-            case SearchAllAvailableEntries -> {
-                if (start instanceof PositionImpl start0) {
-                    startPosition = start0;
-                } else {
-                    startPosition = (PositionImpl) getFirstPosition();
-                }
-                if (startPosition != null) {
-                    if (end instanceof PositionImpl end0) {
-                        if (startPosition.compareTo(end0) <= 0) {
-                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
-                        }
-                    } else {
-                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
-                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
-                        }
-                    }
-                }
-            }
+            case SearchAllAvailableEntries ->
+                    startPosition = start == null ? (PositionImpl) getFirstPosition() : (PositionImpl) start;
             case SearchActiveEntries -> {
-                if (start instanceof PositionImpl start0) {
-                    if (start0.compareTo(markDeletePosition) <= 0) {
-                        startPosition = ledger.getNextValidPosition(markDeletePosition);
-                    } else {
-                        startPosition = start0;
-                    }
-                } else {
+                if (start == null) {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
-                }
-                if (startPosition != null) {
-                    if (end instanceof PositionImpl end0) {
-                        if (startPosition.compareTo(end0) <= 0) {
-                            max = ledger.getNumberOfEntries(Range.closed(startPosition, end0));
-                        }
-                    } else {
-                        if (startPosition.compareTo(ledger.lastConfirmedEntry) <= 0) {
-                            max = ledger.getNumberOfEntries(Range.closed(startPosition, ledger.lastConfirmedEntry));
-                        }
-                    }
+                } else {
+                    startPosition = (PositionImpl) start;
+                    startPosition = startPosition.compareTo(markDeletePosition) <= 0 ?
+                            ledger.getNextValidPosition(startPosition) : startPosition;
                 }
             }
             default -> {
@@ -1273,15 +1242,27 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
         }
+        // startPosition can't be null, should never go here.
         if (startPosition == null) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
             return;
         }
-        if (max == 0) {
+        // Calculate the end position
+        PositionImpl endPosition = end == null ? ledger.lastConfirmedEntry : (PositionImpl) end;
+        endPosition = endPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? ledger.lastConfirmedEntry : endPosition;
+        // Calculate the number of entries between the startPosition and endPosition
+        long max = 0;
+        if (startPosition.compareTo(endPosition) <= 0) {
+            max = ledger.getNumberOfEntries(Range.closed(startPosition, endPosition));
+        }
+
+        if (max <= 0) {
             callback.findEntryComplete(null, ctx);
             return;
         }
+
+        OpFindNewest op;
         if (isFindFromLedger) {
             op = new OpFindNewest(this.ledger, startPosition, condition, max, callback, ctx);
         } else {
