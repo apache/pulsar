@@ -33,20 +33,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.io.IOException;
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1930,6 +1917,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
         return Optional.ofNullable(ledgers.get(ledgerId));
+    }
+
+    @Override
+    public CompletableFuture<NavigableSet<Long>> getLedgerIds() {
+        return CompletableFuture.completedFuture(new TreeSet<>(ledgers.keySet()));
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {

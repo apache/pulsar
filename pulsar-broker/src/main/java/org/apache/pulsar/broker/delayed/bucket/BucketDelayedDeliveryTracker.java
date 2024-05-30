@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
@@ -60,6 +61,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
+import org.jetbrains.annotations.NotNull;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
@@ -103,6 +105,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private final BucketDelayedMessageIndexStats stats;
 
     private CompletableFuture<Void> pendingLoad = null;
+
+    // Whether the trim process is running
+    private final AtomicBoolean isTrimProcessRunning = new AtomicBoolean(false);
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
@@ -737,5 +742,102 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         });
         stats.recordBucketSnapshotSizeBytes(totalSnapshotLength.longValue());
         return stats.genTopicMetricMap();
+    }
+
+    /**
+     * Trim the buckets if topic ledgers are trimmed.
+     *
+     * @return
+     */
+    public CompletableFuture<Void> internalTrimBuckets() {
+        // If another trim process is running, return immediately
+        if (!isTrimProcessRunning.compareAndSet(false, true)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Set isTrimProcessRunning to false when complete
+        CompletableFuture<Void> ret = new CompletableFuture<>();
+        ret.whenComplete((__, ex) -> isTrimProcessRunning.set(false));
+
+        // If there are no ledger ids, return immediately
+        NavigableSet<Long> ledgerIds =
+                dispatcher.getCursor().getManagedLedger().getLedgerIds().getNow(Collections.emptyNavigableSet());
+
+        // The buckets to be deleted
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = getToBeTrimmedBuckets(ledgerIds);
+        // If there are no buckets to be deleted, return immediately
+        if (toBeDeletedBucketMap.isEmpty()) {
+            ret.complete(null);
+            return ret;
+        }
+
+        // Remove the buckets from `immutableBuckets` first.
+        synchronized (this) {
+            toBeDeletedBucketMap.forEach((range, bucket) -> immutableBuckets.remove(range));
+        }
+
+        // Delete the buckets asynchronously
+        List<CompletableFuture<Void>> futures = toBeDeletedBucketMap.entrySet().stream()
+                .map(entry -> {
+                    Range<Long> range = entry.getKey();
+                    ImmutableBucket bucket = entry.getValue();
+                    CompletableFuture<Void> f = new CompletableFuture<>();
+                    // Delete the bucket snapshot and cursor properties.
+                    bucket.asyncDeleteBucketSnapshot(stats)
+                            .whenComplete((__, t) -> {
+                                if (t != null) {
+                                    log.warn("[{}] Failed to delete bucket snapshot, bucketKey: {}", dispatcher.getName(),
+                                            bucket.bucketKey(), t);
+                                    // If the deletion fails, add the bucket back to `immutableBuckets`
+                                    synchronized (BucketDelayedDeliveryTracker.this) {
+                                        immutableBuckets.put(range, bucket);
+                                    }
+                                }
+                                // Complete the future even if the deletion fails.
+                                f.complete(null);
+                            });
+                    return f;
+                })
+                .toList();
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenComplete((__, t) -> {
+            if (t != null) {
+                log.warn("[{}] Failed to delete bucket snapshot", dispatcher.getName(), t);
+                ret.completeExceptionally(t);
+            } else {
+                ret.complete(null);
+            }
+        });
+    }
+
+    /**
+     * Get the buckets which the upper endpoint of the range is less than the first ledger id.
+     *
+     * @param ledgerIds
+     * @return
+     */
+    @NotNull
+    private synchronized Map<Range<Long>, ImmutableBucket> getToBeTrimmedBuckets(NavigableSet<Long> ledgerIds) {
+        // If there are no ledger ids, return immediately
+        if (ledgerIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        // If there are no immutable buckets, return immediately
+        Map<Range<Long>, ImmutableBucket> immutableBucketMap = this.immutableBuckets.asMapOfRanges();
+        if (immutableBucketMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        long firstLedgerId = ledgerIds.first();
+        // If the upper endpoint of the range is less than the first ledger id, add it to the toBeDeletedBucketMap
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
+        for (Map.Entry<Range<Long>, ImmutableBucket> entry : immutableBucketMap.entrySet()) {
+            Range<Long> key = entry.getKey();
+            ImmutableBucket immutableBucket = entry.getValue();
+            if (key.upperEndpoint() < firstLedgerId) {
+                toBeDeletedBucketMap.put(key, immutableBucket);
+            }
+        }
+        return toBeDeletedBucketMap;
     }
 }
