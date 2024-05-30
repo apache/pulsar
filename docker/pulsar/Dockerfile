@@ -70,8 +70,7 @@ FROM alpine AS snappy-java
 RUN apk add git alpine-sdk cmake autoconf automake libtool openjdk17 maven curl bash
 RUN export JAVA_HOME=/usr
 RUN git clone https://github.com/xerial/snappy-java.git
-RUN cd snappy-java && git checkout v1.1.10.5
-RUN make clean-native native
+RUN cd snappy-java && git checkout v1.1.10.5 && make clean-native native
 
 FROM apachepulsar/glibc-base:2.38 as glibc
 
