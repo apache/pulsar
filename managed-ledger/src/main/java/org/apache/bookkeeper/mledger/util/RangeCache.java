@@ -37,6 +37,10 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Special type of cache where get() and delete() operations can be done over a range of keys.
+ * The implementation avoids locks and synchronization and relies on ConcurrentSkipListMap for storing the entries.
+ * Since there is no locks, there is a need to have a way to ensure that a single entry in the cache is removed
+ * exactly once. Removing an entry multiple times would result in the entries of the cache getting released too
+ * while they could still be in use.
  *
  * @param <Key>
  *            Cache key. Needs to be Comparable
