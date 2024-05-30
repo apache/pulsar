@@ -29,6 +29,7 @@ import io.netty.util.ReferenceCounted;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 
@@ -285,14 +286,17 @@ public class RangeCacheTest {
     }
 
     @Test
-    public void testInParallel() {
+    public void testPutWhileClearIsCalledConcurrently() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(cache::clear, 10, 10, TimeUnit.MILLISECONDS);
-        for (int i = 0; i < 1000; i++) {
+        int numberOfThreads = 4;
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(numberOfThreads);
+        for (int i = 0; i < numberOfThreads; i++) {
+            executor.scheduleWithFixedDelay(cache::clear, 0, 1, TimeUnit.MILLISECONDS);
+        }
+        for (int i = 0; i < 100000; i++) {
             cache.put(i, new RefString(String.valueOf(i)));
         }
-        executor.shutdown();
     }
 
     @Test
