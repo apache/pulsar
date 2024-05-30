@@ -49,7 +49,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     }
 
     // Map from key to nodes inside the linked list
-    private final ConcurrentNavigableMap<Key, IdentityWrapper<Value>> entries;
+    private final ConcurrentNavigableMap<Key, IdentityWrapper<Key, Value>> entries;
     private AtomicLong size; // Total size of values stored in cache
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
     private final TimestampExtractor<Value> timestampExtractor; // Extract the timestamp associated with a value
@@ -59,7 +59,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * the map by calling the {@link Map#remove(Object, Object)} method. Certain race conditions could result in the
      * wrong value being removed from the map. The instances of this class are recycled to avoid creating new objects.
      */
-    private static class IdentityWrapper<T> {
+    private static class IdentityWrapper<K, V> {
         private final Handle<IdentityWrapper> recyclerHandle;
         private static final Recycler<IdentityWrapper> RECYCLER = new Recycler<IdentityWrapper>() {
             @Override
@@ -67,19 +67,25 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 return new IdentityWrapper(recyclerHandle);
             }
         };
-        private T value;
+        private K key;
+        private V value;
 
         private IdentityWrapper(Handle<IdentityWrapper> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static <T> IdentityWrapper<T> create(T value) {
-            IdentityWrapper<T> identityWrapper = RECYCLER.get();
+        static <K, V> IdentityWrapper<K, V> create(K key, V value) {
+            IdentityWrapper<K, V> identityWrapper = RECYCLER.get();
+            identityWrapper.key = key;
             identityWrapper.value = value;
             return identityWrapper;
         }
 
-        T get() {
+        K getKey() {
+            return key;
+        }
+
+        V getValue() {
             return value;
         }
 
@@ -96,7 +102,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(value);
+            return Objects.hashCode(key);
         }
     }
 
@@ -171,7 +177,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             if (!value.matchesKey(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            IdentityWrapper<Value> newWrapper = IdentityWrapper.create(value);
+            IdentityWrapper<Key, Value> newWrapper = IdentityWrapper.create(key, value);
             if (entries.putIfAbsent(key, newWrapper) == null) {
                 size.addAndGet(weighter.getSize(value));
                 return true;
@@ -197,11 +203,15 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         return getValue(key, entries.get(key));
     }
 
-    private  Value getValue(Key key, IdentityWrapper<Value> valueWrapper) {
+    private  Value getValue(Key key, IdentityWrapper<Key, Value> valueWrapper) {
         if (valueWrapper == null) {
             return null;
         } else {
-            Value value = valueWrapper.get();
+            if (valueWrapper.getKey() != key) {
+                // the wrapper has been recycled and contains another key
+                return null;
+            }
+            Value value = valueWrapper.getValue();
             try {
                 value.retain();
             } catch (IllegalReferenceCountException e) {
@@ -233,7 +243,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         List<Value> values = new ArrayList();
 
         // Return the values of the entries found in cache
-        for (Map.Entry<Key, IdentityWrapper<Value>> entry : entries.subMap(first, true, last, true).entrySet()) {
+        for (Map.Entry<Key, IdentityWrapper<Key, Value>> entry : entries.subMap(first, true, last, true).entrySet()) {
             Value value = getValue(entry.getKey(), entry.getValue());
             if (value != null) {
                 values.add(value);
@@ -252,8 +262,8 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      */
     public Pair<Integer, Long> removeRange(Key first, Key last, boolean lastInclusive) {
         RemovalCounters counters = RemovalCounters.create();
-        Map<Key, IdentityWrapper<Value>> subMap = entries.subMap(first, true, last, lastInclusive);
-        for (Map.Entry<Key, IdentityWrapper<Value>> entry : subMap.entrySet()) {
+        Map<Key, IdentityWrapper<Key, Value>> subMap = entries.subMap(first, true, last, lastInclusive);
+        for (Map.Entry<Key, IdentityWrapper<Key, Value>> entry : subMap.entrySet()) {
             removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
@@ -265,15 +275,19 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         BREAK_LOOP;
     }
 
-    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Value>> entry, RemovalCounters counters) {
+    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Key, Value>> entry, RemovalCounters counters) {
         return removeEntry(entry, counters, (x) -> true);
     }
 
-    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Value>> entry, RemovalCounters counters,
+    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Key, Value>> entry, RemovalCounters counters,
                                           Predicate<Value> removeCondition) {
         Key key = entry.getKey();
-        IdentityWrapper<Value> identityWrapper = entry.getValue();
-        Value value = identityWrapper.get();
+        IdentityWrapper<Key, Value> identityWrapper = entry.getValue();
+        if (identityWrapper.getKey() != key) {
+            // the wrapper has been recycled and contains another key
+            return RemoveEntryResult.CONTINUE_LOOP;
+        }
+        Value value = identityWrapper.getValue();
         try {
             // add extra retain to avoid value being released while we are removing it
             value.retain();
@@ -317,7 +331,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         checkArgument(minSize > 0);
         RemovalCounters counters = RemovalCounters.create();
         while (counters.removedSize < minSize) {
-            Map.Entry<Key, IdentityWrapper<Value>> entry = entries.firstEntry();
+            Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
@@ -334,7 +348,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
    public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
        RemovalCounters counters = RemovalCounters.create();
        while (true) {
-           Map.Entry<Key, IdentityWrapper<Value>> entry = entries.firstEntry();
+           Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
            if (entry == null) {
                break;
            }
@@ -365,7 +379,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     public synchronized Pair<Integer, Long> clear() {
         RemovalCounters counters = RemovalCounters.create();
         while (true) {
-            Map.Entry<Key, IdentityWrapper<Value>> entry = entries.firstEntry();
+            Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
