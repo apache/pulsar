@@ -173,19 +173,17 @@ public class BrokerLoadData {
                 bandwidthOut.percentUsage()) / 100;
     }
 
-    private double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
-                                                final double directMemoryWeight, final double bandwidthInWeight,
-                                                final double bandwidthOutWeight) {
-        return LocalBrokerData.max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
-                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    private double getMaxResourceUsageWithWeight(final double cpuWeight, final double directMemoryWeight,
+                                                 final double bandwidthInWeight, final double bandwidthOutWeight) {
+        return LocalBrokerData.max(cpu.percentUsage() * cpuWeight, directMemory.percentUsage() * directMemoryWeight,
+                bandwidthIn.percentUsage() * bandwidthInWeight, bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
     private void updateWeightedMaxEMA(ServiceConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         var weightedMax = getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight());
         weightedMaxEMA = updatedAt == 0 ? weightedMax :
@@ -221,7 +219,7 @@ public class BrokerLoadData {
     public String toString(ServiceConfiguration conf) {
         return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
                         + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
-                        + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
+                        + "cpuWeight= %f, directMemoryWeight= %f, "
                         + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
                         + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
                         + "bundleCount= %d, "
@@ -231,7 +229,6 @@ public class BrokerLoadData {
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
                 bandwidthIn.percentUsage(), bandwidthOut.percentUsage(),
                 conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight(),

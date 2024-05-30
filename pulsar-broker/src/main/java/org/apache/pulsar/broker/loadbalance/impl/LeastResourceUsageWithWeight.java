@@ -60,14 +60,13 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
             final LocalBrokerData localData = brokerData.getLocalData();
             log.warn(
                     "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
-                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
+                            + "CPU: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
                             + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
                             + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                    broker, maxUsageWithWeight * 100,
-                    localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
+                    broker, maxUsageWithWeight * 100, localData.getCpu().percentUsage(),
                     localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
                     localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                    conf.getLoadBalancerDirectMemoryResourceWeight(),
                     conf.getLoadBalancerBandwithInResourceWeight(),
                     conf.getLoadBalancerBandwithOutResourceWeight());
         }
@@ -106,10 +105,10 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         if (log.isDebugEnabled()) {
             log.debug(
                     "Broker {} get max resource usage with weight: {}, history resource percentage: {}%, CPU weight: "
-                            + "{}, MEMORY weight: {}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
+                            + "{}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
                             + "OUT weight: {} ",
                     broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                    conf.getLoadBalancerDirectMemoryResourceWeight(),
                     conf.getLoadBalancerBandwithInResourceWeight(),
                     conf.getLoadBalancerBandwithOutResourceWeight());
         }
