@@ -104,8 +104,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         conf.setSchemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
-        // Unregister the Prometheus metrics from the default collector.
-        pulsar.getSchemaRegistryService().close();
 
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
         storage.start();
