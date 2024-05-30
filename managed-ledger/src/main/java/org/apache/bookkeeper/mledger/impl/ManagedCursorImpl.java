@@ -1559,15 +1559,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
-                .forEach(p ->{
-                    if (((PositionImpl) p).compareTo(this.readPosition) == 0) {
-                        this.setReadPosition(this.readPosition.getNext());
-                        log.warn("[{}][{}] replayPosition{} equals readPosition{}," + " need set next readPosition",
-                                ledger.getName(), name, p, this.readPosition);
-                    }
-                    ledger.asyncReadEntry((PositionImpl) p, cb, ctx);
-                });
-
+                .forEach(p -> ledger.asyncReadEntry((PositionImpl) p, cb, ctx));
         return alreadyAcknowledgedPositions;
     }
 
