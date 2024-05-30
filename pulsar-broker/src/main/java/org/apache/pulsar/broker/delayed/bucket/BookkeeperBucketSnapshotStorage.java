@@ -205,7 +205,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
                 LedgerPassword,
                 (rc, handle, ctx) -> {
-                    if (rc != BKException.Code.OK) {
+                    if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                        // If the ledger does not exist, throw BucketNotExistException
+                        future.completeExceptionally(
+                                new BucketNotExistException("Bucket:" + ledgerId + " not exist"));
+                    } else if (rc != BKException.Code.OK) {
                         future.completeExceptionally(bkException("Open ledger", rc, ledgerId));
                     } else {
                         future.complete(handle);
@@ -265,10 +269,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private CompletableFuture<Void> deleteLedger(long ledgerId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-            if (rc != BKException.Code.OK) {
-                future.completeExceptionally(bkException("Delete ledger", rc, ledgerId));
-            } else {
+            if (rc == BKException.Code.NoSuchLedgerExistsException || rc == BKException.Code.OK) {
+                // If the ledger does not exist or has been deleted, we can treat it as success
                 future.complete(null);
+            } else  {
+                future.completeExceptionally(bkException("Delete ledger", rc, ledgerId));
             }
         }, null);
         return future;
