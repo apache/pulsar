@@ -376,7 +376,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      *
      * @return size of removed entries
      */
-    public synchronized Pair<Integer, Long> clear() {
+    public Pair<Integer, Long> clear() {
         RemovalCounters counters = RemovalCounters.create();
         while (true) {
             Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
