@@ -1232,8 +1232,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
                 } else {
                     startPosition = (PositionImpl) start;
-                    startPosition = startPosition.compareTo(markDeletePosition) <= 0 ?
-                            ledger.getNextValidPosition(startPosition) : startPosition;
+                    startPosition = startPosition.compareTo(markDeletePosition) <= 0
+                            ? ledger.getNextValidPosition(startPosition) : startPosition;
                 }
             }
             default -> {
