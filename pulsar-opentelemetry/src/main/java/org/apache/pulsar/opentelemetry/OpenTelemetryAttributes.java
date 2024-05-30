@@ -26,8 +26,7 @@ import java.util.List;
  */
 public interface OpenTelemetryAttributes {
     /**
-     * The name of the Pulsar cluster. This attribute is automatically added to
-     * all signals by
+     * The name of the Pulsar cluster. This attribute is automatically added to all signals by
      * {@link OpenTelemetryService}.
      */
     AttributeKey<String> PULSAR_CLUSTER = AttributeKey.stringKey("pulsar.cluster");
