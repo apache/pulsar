@@ -1865,7 +1865,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        return checkAllowedCluster(localCluster).thenCompose(__ -> {
+        return checkAllowedCluster(localCluster).thenCompose(success -> {
+            if (!success) {
+                // local cluster is not part of global namespace replication list.
+                // The topic is not allowed to serve anymore.
+                return CompletableFuture.completedFuture(null);
+            }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
@@ -1907,7 +1912,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    private CompletableFuture<Void> checkAllowedCluster(String localCluster) {
+    private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
@@ -1922,9 +1927,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         log.warn("Deleting topic [{}] because local cluster is not part of "
                                         + "global namespace repl list {} and allowed list {}", topic,
                                 replicationClusters, allowedClusters);
-                        return deleteForcefully();
+                        return deleteForcefully().thenApply(__ -> false);
                     } else {
-                        return CompletableFuture.completedFuture(null);
+                        return CompletableFuture.completedFuture(true);
                     }
                 });
     }
