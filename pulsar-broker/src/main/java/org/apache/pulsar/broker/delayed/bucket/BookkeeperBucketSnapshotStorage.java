@@ -207,8 +207,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 (rc, handle, ctx) -> {
                     if (rc == BKException.Code.NoSuchLedgerExistsException) {
                         // If the ledger does not exist, throw BucketNotExistException
-                        future.completeExceptionally(
-                                new BucketNotExistException("Bucket:" + ledgerId + " not exist"));
+                        future.completeExceptionally(noSuchLedgerException("Open ledger", ledgerId));
                     } else if (rc != BKException.Code.OK) {
                         future.completeExceptionally(bkException("Open ledger", rc, ledgerId));
                     } else {
@@ -283,5 +282,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         String message = BKException.getMessage(rc)
                 + " -  ledger=" + ledgerId + " - operation=" + operation;
         return new BucketSnapshotPersistenceException(message);
+    }
+
+    private static BucketNotExistException noSuchLedgerException(String operation, long ledgerId) {
+        String message = BKException.getMessage(BKException.Code.NoSuchLedgerExistsException)
+                + " - ledger=" + ledgerId + " - operation=" + operation;
+        return new BucketNotExistException(message);
     }
 }
