@@ -132,6 +132,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+    private LongAdder systemTopicBytesInCounter = new LongAdder();
     private final LongAdder filteredEntriesCounter = new LongAdder();
 
     private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
@@ -162,7 +163,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSystemSubscriptions = new LongAdder();
-    protected final LongAdder msgOutFromRemovedSystemSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
@@ -931,6 +931,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
+
+        if (isSystemTopic()) {
+            systemTopicBytesInCounter.add(msgSizeInBytes);
+        }
     }
 
     private void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
@@ -1194,17 +1198,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 + sumSubscriptions(AbstractSubscription::getMsgOutCounter);
     }
 
+    public long getSystemTopicBytesInCounter() {
+        return systemTopicBytesInCounter.longValue();
+    }
+
     public long getBytesOutCounter() {
         return bytesOutFromRemovedSubscriptions.longValue()
                 + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
-    }
-
-    public long getInternalBytesOutCounter() {
-        return bytesOutFromRemovedSystemSubscriptions.longValue();
-    }
-
-    public long getInternalMsgOutCounter() {
-        return msgOutFromRemovedSystemSubscriptions.longValue();
     }
 
     public long getTotalPublishRateLimitCounter() {

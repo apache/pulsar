@@ -37,6 +37,7 @@ public class AggregatedBrokerStats {
     public long timeBasedBacklogQuotaExceededEvictionCount;
     public long bytesInCounter;
     public long bytesOutCounter;
+    public long systemTopicBytesInCounter;
     public long bytesOutInternalCounter;
 
     @SuppressWarnings("DuplicatedCode")
@@ -59,6 +60,7 @@ public class AggregatedBrokerStats {
         sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
         bytesInCounter += stats.bytesInCounter;
         bytesOutCounter += stats.bytesOutCounter;
+        systemTopicBytesInCounter += stats.systemTopicBytesInCounter;
         bytesOutInternalCounter += stats.bytesOutInternalCounter;
     }
 
@@ -82,6 +84,7 @@ public class AggregatedBrokerStats {
         timeBasedBacklogQuotaExceededEvictionCount = 0;
         bytesInCounter = 0;
         bytesOutCounter = 0;
+        systemTopicBytesInCounter = 0;
         bytesOutInternalCounter = 0;
     }
 }

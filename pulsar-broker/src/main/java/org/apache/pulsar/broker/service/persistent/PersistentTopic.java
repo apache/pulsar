@@ -1391,7 +1391,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if (isSystemCursor(subscriptionName)) {
                 bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
-                msgOutFromRemovedSystemSubscriptions.add(stats.msgOutCounter);
             }
         }
     }
@@ -2558,12 +2557,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
+        stats.systemTopicBytesInCounter = getSystemTopicBytesInCounter();
         stats.msgChunkPublished = this.msgChunkPublished;
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
-        stats.msgOutInternalCounter = msgOutFromRemovedSystemSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
         TransactionBuffer txnBuffer = getTransactionBuffer();
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
@@ -2593,7 +2592,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if (isSystemCursor(name)) {
                 stats.bytesOutInternalCounter += subStats.bytesOutCounter;
-                stats.msgOutInternalCounter += subStats.msgOutCounter;
             }
         });
 

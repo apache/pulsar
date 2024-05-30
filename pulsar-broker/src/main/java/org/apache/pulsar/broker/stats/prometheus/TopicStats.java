@@ -56,8 +56,8 @@ class TopicStats {
     long msgOutCounter;
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     long bytesOutCounter;
+    long systemTopicBytesInCounter;
     long bytesOutInternalCounter;
-    long msgOutInternalCounter;
     @PulsarDeprecatedMetric // Can be derived from MESSAGE_IN_COUNTER and BYTES_IN_COUNTER
     double averageMsgSize;
 
