@@ -1323,8 +1323,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (PulsarAdminException.ConflictException e) {
             // Ok.. (if test fails intermittently and namespace is already created)
         }
-        // set enable subscription expiration.
-        admin.namespaces().setSubscriptionExpirationTime(namespace, 1);
 
         String topic = "persistent://" + namespace + "/my-topic";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
@@ -1340,11 +1338,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(topicOptional.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
 
-        // wait for 1min, but consumer is still connected all the time.
+        // wait for 1s, but consumer is still connected all the time.
         // so subscription should not be deleted.
-        Thread.sleep(60000);
-        persistentTopic.checkInactiveSubscriptions();
-        assertTrue(persistentTopic.getSubscriptions().containsKey("sub1"));
+        Thread.sleep(1000);
+        persistentTopic.checkInactiveSubscriptions(1000);
+        PersistentTopic finalPersistentTopic = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic.getSubscriptions().containsKey("sub1"));
         PersistentSubscription sub = persistentTopic.getSubscription("sub1");
 
         // shutdown pulsar ungracefully
@@ -1364,13 +1364,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         topicOptional = pulsar.getBrokerService().getTopic(topic, true).get();
         assertTrue(topicOptional.isPresent());
         persistentTopic = (PersistentTopic) topicOptional.get();
-        persistentTopic.checkInactiveSubscriptions();
-        // wait for two seconds to complete the async task
-        Thread.sleep(2000);
+        persistentTopic.checkInactiveSubscriptions(1000);
 
         // check if subscription is still present
-        assertTrue(persistentTopic.getSubscriptions().containsKey("sub1"));
-        sub = (PersistentSubscription) persistentTopic.getSubscription("sub1");
+        PersistentTopic finalPersistentTopic1 = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic1.getSubscriptions().containsKey("sub1"));
+        sub = persistentTopic.getSubscription("sub1");
         assertNotNull(sub);
     }
 

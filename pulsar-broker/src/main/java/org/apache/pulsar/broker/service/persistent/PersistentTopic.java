@@ -3247,6 +3247,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
+    public void checkInactiveSubscriptions(long expirationTimeMillis) {
+        if (expirationTimeMillis > 0) {
+            subscriptions.forEach((subName, sub) -> {
+                if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
+                        || sub.isReplicated()
+                        || isCompactionSubscription(subName)) {
+                    return;
+                }
+                if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                    sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                            + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
+                }
+            });
+        }
+    }
+
     @Override
     public void checkBackloggedCursors() {
         subscriptions.forEach((subName, subscription) -> {
