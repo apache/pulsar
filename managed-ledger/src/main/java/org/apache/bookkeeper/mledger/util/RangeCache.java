@@ -85,8 +85,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
         static <K, V> IdentityWrapper<K, V> create(K key, V value) {
             IdentityWrapper<K, V> identityWrapper = RECYCLER.get();
-            identityWrapper.key = key;
-            identityWrapper.value = value;
+            synchronized (identityWrapper) {
+                identityWrapper.key = key;
+                identityWrapper.value = value;
+            }
             return identityWrapper;
         }
 
@@ -94,7 +96,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             return key;
         }
 
-        V getValue() {
+        synchronized V getValue(K key) {
+            if (this.key != key) {
+                return null;
+            }
             return value;
         }
 
@@ -216,11 +221,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         if (valueWrapper == null) {
             return null;
         } else {
-            if (valueWrapper.getKey() != key) {
+            Value value = valueWrapper.getValue(key);
+            if (value == null) {
                 // the wrapper has been recycled and contains another key
                 return null;
             }
-            Value value = valueWrapper.getValue();
             try {
                 value.retain();
             } catch (IllegalReferenceCountException e) {
@@ -293,17 +298,17 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                                           boolean skipInvalid, Predicate<Value> removeCondition) {
         Key key = entry.getKey();
         IdentityWrapper<Key, Value> identityWrapper = entry.getValue();
-        if (identityWrapper.getKey() != key) {
+        Value value = identityWrapper.getValue(key);
+        if (value == null) {
             // the wrapper has already been recycled and contains another key
             if (!skipInvalid) {
                 // log and remove the entry without releasing the value
                 log.info("Key {} does not match the entry's value wrapper's key {}, removing entry by key without "
-                                + "releasing the value", key, identityWrapper.getKey());
+                        + "releasing the value", key, identityWrapper.getKey());
                 entries.remove(key);
             }
             return RemoveEntryResult.CONTINUE_LOOP;
         }
-        Value value = identityWrapper.getValue();
         try {
             // add extra retain to avoid value being released while we are removing it
             value.retain();
