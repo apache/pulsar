@@ -30,11 +30,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class RangeCacheTest {
 
+    @Data
     class RefString extends AbstractReferenceCounted implements RangeCache.ValueWithKeyValidation<Integer> {
         String s;
         Integer matchingKey;
@@ -288,15 +291,21 @@ public class RangeCacheTest {
     @Test
     public void testPutWhileClearIsCalledConcurrently() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
-        int numberOfThreads = 4;
+        int numberOfThreads = 8;
         @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(numberOfThreads);
         for (int i = 0; i < numberOfThreads; i++) {
             executor.scheduleWithFixedDelay(cache::clear, 0, 1, TimeUnit.MILLISECONDS);
         }
-        for (int i = 0; i < 100000; i++) {
+        for (int i = 0; i < 200000; i++) {
             cache.put(i, new RefString(String.valueOf(i)));
         }
+        executor.shutdown();
+        // ensure that no clear operation got into endless loop
+        Awaitility.await().untilAsserted(() -> assertTrue(executor.isTerminated()));
+        // ensure that clear can be called and all entries are removed
+        cache.clear();
+        assertEquals(cache.getNumberOfEntries(), 0);
     }
 
     @Test
@@ -306,5 +315,27 @@ public class RangeCacheTest {
         assertEquals(s0.refCnt(), 1);
         assertTrue(cache.put(0, s0));
         assertFalse(cache.put(0, s0));
+    }
+
+    @Test
+    public void testRemoveEntryWithInvalidRefCount() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
+        RefString value = new RefString("1");
+        cache.put(1, value);
+        // release the value to make the reference count invalid
+        value.release();
+        cache.clear();
+        assertEquals(cache.getNumberOfEntries(), 0);
+    }
+
+    @Test
+    public void testRemoveEntryWithInvalidMatchingKey() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
+        RefString value = new RefString("1");
+        cache.put(1, value);
+        // change the matching key to make it invalid
+        value.setMatchingKey(123);
+        cache.clear();
+        assertEquals(cache.getNumberOfEntries(), 0);
     }
 }
