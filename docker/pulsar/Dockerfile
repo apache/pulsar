@@ -39,7 +39,7 @@ COPY scripts/* /pulsar/bin/
 # container when gid=0 is prohibited. In that case, the container must be run with uid 10000 with
 # any group id != 0 (for example 10001).
 # The file permissions are preserved when copying files from this builder image to the target image.
-RUN for SUBDIRECTORY in conf data download logs instances/deps; do \
+RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage; do \
      mkdir -p /pulsar/$SUBDIRECTORY; \
      chmod -R ug+rwx /pulsar/$SUBDIRECTORY; \
      chown -R 10000:0 /pulsar/$SUBDIRECTORY; \
@@ -47,28 +47,6 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps; do \
 
 RUN chmod -R g+rx /pulsar/bin
 RUN chmod -R o+rx /pulsar
-
-## Create 2nd stage to build the Python dependencies
-## Since it needs to have GCC available, we're doing it in a different layer
-FROM alpine:3.19 AS python-deps
-
-RUN apk add --no-cache \
-       bash \
-       python3-dev \
-       g++ \
-       musl-dev \
-       libffi-dev \
-       py3-pip \
-       py3-grpcio \
-       py3-yaml
-
-RUN pip3 install --break-system-packages \
-        kazoo
-
-ARG PULSAR_CLIENT_PYTHON_VERSION
-RUN pip3 install --break-system-packages \
-    pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}
-
 
 ###  Create one stage to include JVM distribution
 FROM alpine AS jvm
@@ -96,9 +74,39 @@ RUN apk add --no-cache \
             bash \
             python3 \
             py3-pip \
+            py3-grpcio \
+            py3-yaml \
             gcompat \
             ca-certificates \
-            procps
+            procps \
+            curl
+
+# Upgrade all packages to get latest versions with security fixes
+RUN apk upgrade --no-cache
+
+# Python dependencies
+
+# The grpcio@1.59.3 is installed by apk, and Pulsar-client@3.4.0 requires grpcio>=1.60.0, which causes the grocio to be reinstalled by pip.
+# If pip cannot find the grpcio wheel that the doesn't match the OS, the grpcio will be compiled locally.
+# Once https://github.com/apache/pulsar-client-python/pull/211 is released, keep only the pulsar-client[all] and kazoo dependencies, and remove comments.
+ARG PULSAR_CLIENT_PYTHON_VERSION
+RUN echo -e "\
+#pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}\n\
+pulsar-client==${PULSAR_CLIENT_PYTHON_VERSION}\n\
+# Zookeeper\n\
+kazoo\n\
+# functions\n\
+protobuf>=3.6.1,<=3.20.3\n\
+grpcio>=1.59.3\n\
+apache-bookkeeper-client>=4.16.1\n\
+prometheus_client\n\
+ratelimit\n\
+# avro\n\
+fastavro>=1.9.2\n\
+" > /requirements.txt
+
+RUN pip3 install --break-system-packages --no-cache-dir --only-binary grpcio -r /requirements.txt
+RUN rm /requirements.txt
 
 # Install GLibc compatibility library
 COPY --from=glibc /root/packages /root/packages
@@ -109,9 +117,6 @@ ENV JAVA_HOME=/opt/jvm
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
-
-# Copy Python depedencies from the other stage
-COPY --from=python-deps /usr/lib/python3.11/site-packages /usr/lib/python3.11/site-packages
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 

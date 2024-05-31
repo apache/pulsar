@@ -120,6 +120,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        if (conf.getBatchReceivePolicy() != null) {
+            conf.setReceiverQueueSize(
+                    Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
+        }
         CompletableFuture<Void> applyDLQConfig;
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
@@ -132,9 +136,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
                 CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
+                        client.getPartitionedTopicMetadata(oldRetryLetterTopic, true);
                 CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+                        client.getPartitionedTopicMetadata(oldDeadLetterTopic, true);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()

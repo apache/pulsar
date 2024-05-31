@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -88,6 +89,7 @@ import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -132,6 +134,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -270,14 +273,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     protected final TransactionBuffer transactionBuffer;
-
-    // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     @Getter
-    private volatile long lastDataMessagePublishedTimestamp = 0;
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
+            (oldPosition, newPosition) -> updateMaxReadPositionMovedForwardTimestamp();
+
+    // Record the last time max read position is moved forward, unless it's a marker message.
+    @Getter
+    private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -407,12 +414,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), true);
         if (ledger instanceof ShadowManagedLedgerImpl) {
             shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
         }
+        additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
     }
 
     @Override
@@ -715,6 +723,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private void updateMaxReadPositionMovedForwardTimestamp() {
+        lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+    }
+
     @Override
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
@@ -723,12 +735,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
-        if (!publishContext.isMarkerMessage()) {
-            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
-        }
-
         // in order to sync the max position when cursor read entries
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(),
+                publishContext.isMarkerMessage());
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
@@ -1933,7 +1942,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())) {
+                if (!isCompactionSubscription(sub.getName())
+                        && (additionalSystemCursorNames.isEmpty()
+                            || !additionalSystemCursorNames.contains(sub.getName()))) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
@@ -2190,10 +2201,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    public boolean isDeduplicationEnabled() {
-        return messageDeduplication.isEnabled();
-    }
-
     @Override
     public int getNumberOfConsumers() {
         int count = 0;
@@ -2257,8 +2264,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         replicators.forEach((region, replicator) -> replicator.updateRates());
 
-        nsStats.producerCount += producers.size();
-        bundleStats.producerCount += producers.size();
+        final MutableInt producerCount = new MutableInt();
         topicStatsStream.startObject(topic);
 
         // start publisher stats
@@ -2272,14 +2278,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if (producer.isRemote()) {
                 topicStatsHelper.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
-            }
-
-            // Populate consumer specific stats here
-            if (hydratePublishers) {
-                StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
+            } else {
+                // Exclude producers for replication from "publishers" and "producerCount"
+                producerCount.increment();
+                if (hydratePublishers) {
+                    StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
+                }
             }
         });
         topicStatsStream.endList();
+
+        nsStats.producerCount += producerCount.intValue();
+        bundleStats.producerCount += producerCount.intValue();
+
         // if publish-rate increases (eg: 0 to 1K) then pick max publish-rate and if publish-rate decreases then keep
         // average rate.
         lastUpdatedAvgPublishRateInMsg = topicStatsHelper.aggMsgRateIn > lastUpdatedAvgPublishRateInMsg
@@ -2447,7 +2458,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Remaining dest stats.
         topicStatsHelper.averageMsgSize = topicStatsHelper.aggMsgRateIn == 0.0 ? 0.0
                 : (topicStatsHelper.aggMsgThroughputIn / topicStatsHelper.aggMsgRateIn);
-        topicStatsStream.writePair("producerCount", producers.size());
+        topicStatsStream.writePair("producerCount", producerCount.intValue());
         topicStatsStream.writePair("averageMsgSize", topicStatsHelper.averageMsgSize);
         topicStatsStream.writePair("msgRateIn", topicStatsHelper.aggMsgRateIn);
         topicStatsStream.writePair("msgRateOut", topicStatsHelper.aggMsgRateOut);
@@ -2535,8 +2546,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
-            }
-            if (!getStatsOptions.isExcludePublishers()){
+            } else if (!getStatsOptions.isExcludePublishers()) {
+                // Exclude producers for replication from "publishers"
                 stats.addPublisher(publisherStats);
             }
         });
@@ -3763,18 +3774,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Position> getLastDispatchablePosition() {
-        PositionImpl maxReadPosition = getMaxReadPosition();
-        // If `maxReadPosition` is not equal to `LastPosition`. It means that there are uncommitted transactions.
-        // so return `maxRedPosition` directly.
-        if (maxReadPosition.compareTo((PositionImpl) getLastPosition()) != 0) {
-            return CompletableFuture.completedFuture(maxReadPosition);
-        } else {
-            return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
-                MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
-                // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
-                return !Markers.isServerOnlyMarker(md);
-            }, maxReadPosition);
-        }
+        return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
+            MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
+            if (Markers.isServerOnlyMarker(md)) {
+                return false;
+            } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
+                // Filter-out transaction aborted messages.
+                TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
+                return !isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+            }
+            return true;
+        }, getMaxReadPosition());
     }
 
     @Override
@@ -4293,6 +4304,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return ledger.isMigrated();
     }
 
+    public boolean isDeduplicationEnabled() {
+        return getHierarchyTopicPolicies().getDeduplicationEnabled().get();
+    }
+
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID, String subName) {
         return this.subscriptions.get(subName).getTransactionInPendingAckStats(txnID);
     }
@@ -4327,4 +4342,5 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         return false;
     }
+
 }

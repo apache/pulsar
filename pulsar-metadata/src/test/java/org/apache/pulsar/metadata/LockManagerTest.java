@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
@@ -350,6 +351,36 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             } else {
                 fail("unexpected behaviour");
             }
+        });
+    }
+
+    @Test(dataProvider = "impl")
+    public void lockDeletedAndReacquired(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        MetadataCache<String> cache = store.getMetadataCache(String.class);
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        String key = newKey();
+        ResourceLock<String> lock = lockManager.acquireLock(key, "lock").join();
+        assertEquals(lock.getValue(), "lock");
+        var res = cache.get(key).join();
+        assertTrue(res.isPresent());
+        assertEquals(res.get(), "lock");
+
+        store.delete(key, Optional.empty()).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            Optional<GetResult> val = store.get(key).join();
+            assertTrue(val.isPresent());
+            assertFalse(lock.getLockExpiredFuture().isDone());
         });
     }
 }

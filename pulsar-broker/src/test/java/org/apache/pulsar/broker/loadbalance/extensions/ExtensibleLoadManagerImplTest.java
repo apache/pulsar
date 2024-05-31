@@ -739,7 +739,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
     @Test(timeOut = 30 * 1000)
     public void testSplitBundleAdminAPI() throws Exception {
-        String namespace = defaultTestNamespace;
+        final String namespace = "public/testSplitBundleAdminAPI";
+        admin.namespaces().createNamespace(namespace, 1);
         Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-split");
         TopicName topicName = topicAndBundle.getLeft();
         admin.topics().createPartitionedTopic(topicName.toString(), 10);
@@ -793,6 +794,30 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         } catch (PulsarAdminException ex) {
             assertTrue(ex.getMessage().contains("Invalid bundle range"));
         }
+
+
+        // delete and retry
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    admin.namespaces().deleteNamespace(namespace);
+                });
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true, null);
+
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                    String midBundle = String.format("0x%08x", mid);
+                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                    assertEquals(splitCount.get(), 2);
+                });
     }
 
     @Test(timeOut = 30 * 1000)
@@ -1579,13 +1604,15 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 .getFullBundle(slaMonitorNamespacePulsar2);
 
 
-        Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnits();
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar1 = primaryLoadManager.getOwnedServiceUnitsAsync()
+                .get(5, TimeUnit.SECONDS);
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar1);
         // heartbeat namespace bundle will own by pulsar1
         assertTrue(ownedServiceUnitsByPulsar1.contains(bundle1));
         assertTrue(ownedServiceUnitsByPulsar1.contains(bundle2));
         assertTrue(ownedServiceUnitsByPulsar1.contains(slaBundle1));
-        Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnits();
+        Set<NamespaceBundle> ownedServiceUnitsByPulsar2 = secondaryLoadManager.getOwnedServiceUnitsAsync()
+                .get(5, TimeUnit.SECONDS);
         log.info("Owned service units: {}", ownedServiceUnitsByPulsar2);
         assertTrue(ownedServiceUnitsByPulsar2.contains(bundle3));
         assertTrue(ownedServiceUnitsByPulsar2.contains(bundle4));
@@ -1621,7 +1648,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             ExtensibleLoadManagerImpl extensibleLoadManager,
             NamespaceBundle bundle) throws PulsarAdminException {
         Awaitility.await().untilAsserted(() -> {
-            Set<NamespaceBundle> ownedBundles = extensibleLoadManager.getOwnedServiceUnits();
+            Set<NamespaceBundle> ownedBundles = extensibleLoadManager.getOwnedServiceUnitsAsync()
+                    .get(5, TimeUnit.SECONDS);
             assertTrue(ownedBundles.contains(bundle));
         });
         Map<String, NamespaceOwnershipStatus> ownedNamespaces =
@@ -1634,9 +1662,11 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testGetOwnedServiceUnitsWhenLoadManagerNotStart() {
+    public void testGetOwnedServiceUnitsWhenLoadManagerNotStart()
+            throws Exception {
         ExtensibleLoadManagerImpl loadManager = new ExtensibleLoadManagerImpl();
-        Set<NamespaceBundle> ownedServiceUnits = loadManager.getOwnedServiceUnits();
+        Set<NamespaceBundle> ownedServiceUnits = loadManager.getOwnedServiceUnitsAsync()
+                .get(5, TimeUnit.SECONDS);
         assertNotNull(ownedServiceUnits);
         assertTrue(ownedServiceUnits.isEmpty());
     }
@@ -1651,7 +1681,11 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         NamespaceEphemeralData namespaceEphemeralData = primaryLoadManager.tryAcquiringOwnership(bundle).get();
         assertTrue(Set.of(pulsar1.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl())
                 .contains(namespaceEphemeralData.getNativeUrl()));
-        admin.namespaces().deleteNamespace(namespace, true);
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    admin.namespaces().deleteNamespace(namespace, true);
+                });
     }
 
     @Test(timeOut = 30 * 1000)

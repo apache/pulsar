@@ -197,7 +197,8 @@ public class EntryFilterProvider implements AutoCloseable {
                         + " does not implement entry filter interface");
             }
             EntryFilter pi = (EntryFilter) filter;
-            return new EntryFilterWithClassLoader(pi, ncl);
+            // the classloader is shared with the broker, the instance doesn't own it
+            return new EntryFilterWithClassLoader(pi, ncl, false);
         } catch (Throwable e) {
             if (e instanceof IOException) {
                 throw (IOException) e;

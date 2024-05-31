@@ -498,7 +498,9 @@ public class LocalBookkeeperEnsemble {
         LOG.debug("Local ZK/BK stopping ...");
         for (LifecycleComponent bookie : bookieComponents) {
             try {
-                bookie.close();
+                if (bookie != null) {
+                    bookie.close();
+                }
             } catch (Exception e) {
                 LOG.warn("failed to shutdown bookie", e);
             }

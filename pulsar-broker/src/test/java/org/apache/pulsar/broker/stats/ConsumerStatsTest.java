@@ -195,7 +195,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @Test
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForActiveConsumerAndSubscription";
+        final String topicName = "persistent://public/default/testUpdateStatsForActiveConsumerAndSubscription";
         pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -409,7 +409,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         EntryFilter filter = new EntryFilterProducerTest();
         EntryFilterWithClassLoader
                 loader = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter,
-                narClassLoader);
+                narClassLoader, false);
         Pair<String, List<EntryFilter>> entryFilters = Pair.of("filter", List.of(loader));
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
