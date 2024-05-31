@@ -347,7 +347,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             lastMutableBucket.resetLastMutableBucketRange();
 
             if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
-                asyncMergeBucketSnapshot();
+                asyncTrimImmutableBuckets().thenCompose(__ -> asyncMergeBucketSnapshot());
             }
         }
 
@@ -411,11 +411,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot() {
-        // Trim immutable buckets before merge
-        return asyncTrimImmutableBuckets().thenCompose(__ -> asyncMergeBucketSnapshot0());
-    }
-
-    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot0() {
         List<ImmutableBucket> immutableBucketList = immutableBuckets.asMapOfRanges().values().stream().toList();
         // If the number of buckets is less than or equal to the maximum number of buckets, no need to merge.
         if (maxNumBuckets <= 0 || immutableBucketList.size() <= maxNumBuckets) {
@@ -759,7 +754,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
      *
      * @return
      */
-    private CompletableFuture<Void> asyncTrimImmutableBuckets() {
+    private synchronized CompletableFuture<Void> asyncTrimImmutableBuckets() {
         // If there are no ledger ids, return immediately
         NavigableSet<Long> ledgerIds =
                 dispatcher.getCursor().getManagedLedger().getLedgerIds().getNow(Collections.emptyNavigableSet());
@@ -813,7 +808,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
      * @return
      */
     @NotNull
-    private synchronized Map<Range<Long>, ImmutableBucket> getToBeTrimmedBuckets(NavigableSet<Long> ledgerIds) {
+    private Map<Range<Long>, ImmutableBucket> getToBeTrimmedBuckets(NavigableSet<Long> ledgerIds) {
         // If there are no ledger ids, return immediately
         if (ledgerIds.isEmpty()) {
             return Collections.emptyMap();
