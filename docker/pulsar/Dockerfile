@@ -61,11 +61,13 @@ RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress 
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+# Enable snappy-java to use system lib
+RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
+
 ## Create one stage to include snappy-java native lib
 # Fix the issue when using snappy-java in x86 arch alpine
 # See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
 # We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
-# If you need snappy, add -Dorg.xerial.snappy.use.systemlib=true to the PULSAR_EXTRA_OPTS
 FROM alpine AS snappy-java
 
 ARG SNAPPY_VERSION
