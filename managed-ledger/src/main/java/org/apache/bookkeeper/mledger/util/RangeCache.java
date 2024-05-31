@@ -103,6 +103,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         }
 
         void recycle() {
+            key = null;
             value = null;
             recyclerHandle.recycle(this);
         }
