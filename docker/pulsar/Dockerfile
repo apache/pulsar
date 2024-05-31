@@ -48,6 +48,9 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage;
 RUN chmod -R g+rx /pulsar/bin
 RUN chmod -R o+rx /pulsar
 
+# Enable snappy-java to use system lib
+RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
+
 ###  Create one stage to include JVM distribution
 FROM alpine AS jvm
 
@@ -60,9 +63,6 @@ RUN apk add --no-cache amazon-corretto-21 binutils
 RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
-
-# Enable snappy-java to use system lib
-RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ## Create one stage to include snappy-java native lib
 # Fix the issue when using snappy-java in x86 arch alpine
