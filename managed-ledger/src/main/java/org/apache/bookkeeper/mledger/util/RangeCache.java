@@ -305,6 +305,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                     log.info("Key {} does not match the entry's value wrapper's key {}, removed entry by key without "
                             + "releasing the value", key, entryWrapper.getKey());
                     counters.entryRemoved(removed.getSize());
+                    return RemoveEntryResult.ENTRY_REMOVED;
                 }
             }
             return RemoveEntryResult.CONTINUE_LOOP;
@@ -319,6 +320,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 if (entries.remove(key, entryWrapper)) {
                     log.info("Value was already released for key {}, removed entry without releasing the value", key);
                     counters.entryRemoved(entryWrapper.getSize());
+                    return RemoveEntryResult.ENTRY_REMOVED;
                 }
             }
             return RemoveEntryResult.CONTINUE_LOOP;
@@ -347,7 +349,6 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                     } else {
                         log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
                                 value.refCnt(), key);
-                        return RemoveEntryResult.CONTINUE_LOOP;
                     }
                 }
             } else if (skipInvalid && value.refCnt() > 1 && entries.remove(key, entryWrapper)) {
