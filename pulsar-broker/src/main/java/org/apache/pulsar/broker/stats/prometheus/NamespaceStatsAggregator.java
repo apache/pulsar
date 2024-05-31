@@ -361,12 +361,15 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
         long userOutBytes = brokerStats.bytesOutCounter - brokerStats.bytesOutInternalCounter;
-        writeMetric(stream, "pulsar_broker_out_bytes_total", userOutBytes, cluster, "subscription_scope", "user");
-        writeMetric(stream, "pulsar_broker_out_bytes_total", brokerStats.bytesOutInternalCounter,
-                cluster, "subscription_scope", "system");
+        writeMetric(stream, "pulsar_broker_out_bytes_total",
+                userOutBytes, cluster, "scope", "user");
+        writeMetric(stream, "pulsar_broker_out_bytes_total",
+                brokerStats.bytesOutInternalCounter, cluster, "scope", "system");
         long userTopicInBytes = brokerStats.bytesInCounter - brokerStats.systemTopicBytesInCounter;
-        writeMetric(stream, "pulsar_broker_in_bytes_total", userTopicInBytes, cluster, "system_topic", "false");
-        writeMetric(stream, "pulsar_broker_in_bytes_total", brokerStats.systemTopicBytesInCounter, cluster, "system_topic", "true");
+        writeMetric(stream, "pulsar_broker_in_bytes_total",
+                userTopicInBytes, cluster, "scope", "user");
+        writeMetric(stream, "pulsar_broker_in_bytes_total",
+                brokerStats.systemTopicBytesInCounter, cluster, "scope", "system");
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,

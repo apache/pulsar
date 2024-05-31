@@ -82,7 +82,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -269,7 +268,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         double systemOutBytes = 0.0;
         double userOutBytes = 0.0;
-        switch (bytesOutTotal.get(0).tags.get("subscription_scope").toString()) {
+        switch (bytesOutTotal.get(0).tags.get("scope").toString()) {
             case "system":
                 systemOutBytes = bytesOutTotal.get(0).value;
                 userOutBytes = bytesOutTotal.get(1).value;
@@ -280,11 +279,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         double systemInBytes = 0.0;
         double userInBytes = 0.0;
-        switch (bytesInTotal.get(0).tags.get("system_topic").toString()) {
-            case "true":
+        switch (bytesInTotal.get(0).tags.get("scope").toString()) {
+            case "system":
                 systemInBytes = bytesInTotal.get(0).value;
                 userInBytes = bytesInTotal.get(1).value;
-            case "false":
+            case "user":
                 systemInBytes = bytesInTotal.get(1).value;
                 userInBytes = bytesInTotal.get(0).value;
         }

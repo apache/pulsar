@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
-
 import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Arrays;
