@@ -255,8 +255,9 @@ public class BinaryProtoLookupService implements LookupService {
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
-                partitionFuture.completeExceptionally(new PulsarClientException.NotSupportedException("The broker"
-                        + " version is too old to support getting partitions without auto-creation"));
+                partitionFuture.completeExceptionally(new PulsarClientException.NotSupportedException("The feature of"
+                        + " getting partitions without auto-creation is not supported from the broker,"
+                        + " please upgrade the broker to the latest version."));
                 return;
             }
             long requestId = client.newRequestId();
