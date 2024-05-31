@@ -411,7 +411,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot() {
+        // Trim immutable buckets before merge
+        return asyncTrimImmutableBuckets().thenCompose(__ -> asyncMergeBucketSnapshot0());
+    }
+
+    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot0() {
         List<ImmutableBucket> immutableBucketList = immutableBuckets.asMapOfRanges().values().stream().toList();
+        // If the number of buckets is less than or equal to the maximum number of buckets, no need to merge.
+        if (maxNumBuckets <= 0 || immutableBucketList.size() <= maxNumBuckets) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         List<ImmutableBucket> toBeMergeImmutableBuckets = selectMergedBuckets(immutableBucketList, MAX_MERGE_NUM);
 
         if (toBeMergeImmutableBuckets.isEmpty()) {
@@ -749,16 +759,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
      *
      * @return
      */
-    public CompletableFuture<Void> internalTrimBuckets() {
-        // If another trim process is running, return immediately
-        if (!isTrimProcessRunning.compareAndSet(false, true)) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        // Set isTrimProcessRunning to false when complete
-        CompletableFuture<Void> ret = new CompletableFuture<>();
-        ret.whenComplete((__, ex) -> isTrimProcessRunning.set(false));
-
+    private CompletableFuture<Void> asyncTrimImmutableBuckets() {
         // If there are no ledger ids, return immediately
         NavigableSet<Long> ledgerIds =
                 dispatcher.getCursor().getManagedLedger().getLedgerIds().getNow(Collections.emptyNavigableSet());
@@ -767,14 +768,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = getToBeTrimmedBuckets(ledgerIds);
         // If there are no buckets to be deleted, return immediately
         if (toBeDeletedBucketMap.isEmpty()) {
-            ret.complete(null);
-            return ret;
+            return CompletableFuture.completedFuture(null);
         }
 
-        // Remove the buckets from `immutableBuckets` first.
-        synchronized (this) {
-            toBeDeletedBucketMap.forEach((range, bucket) -> immutableBuckets.remove(range));
-        }
+        // Remove the buckets from `immutableBuckets` first
+        toBeDeletedBucketMap.forEach((range, bucket) -> immutableBuckets.remove(range));
 
         // Delete the buckets asynchronously
         List<CompletableFuture<Void>> futures = toBeDeletedBucketMap.entrySet().stream()
@@ -800,14 +798,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 })
                 .toList();
 
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenComplete((__, t) -> {
-            if (t != null) {
-                log.warn("[{}] Failed to delete bucket snapshot", dispatcher.getName(), t);
-                ret.completeExceptionally(t);
-            } else {
-                ret.complete(null);
-            }
-        });
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .whenComplete((__, t) -> {
+                    if (t != null) {
+                        log.warn("[{}] Failed to delete bucket snapshot", dispatcher.getName(), t);
+                    }
+                });
     }
 
     /**
