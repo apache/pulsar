@@ -75,7 +75,9 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
+    @Deprecated
     private final WebExecutorStats executorStats;
+    private final WebExecutorThreadPoolStats webExecutorThreadPoolStats;
     private final WebExecutorThreadPool webServiceExecutor;
 
     private final ServerConnector httpConnector;
@@ -101,6 +103,8 @@ public class WebService implements AutoCloseable {
                 "pulsar-web",
                 config.getHttpServerThreadPoolQueueSize());
         this.executorStats = WebExecutorStats.getStats(webServiceExecutor);
+        this.webExecutorThreadPoolStats =
+                new WebExecutorThreadPoolStats(pulsar.getOpenTelemetry().getMeter(), webServiceExecutor);
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
@@ -376,6 +380,7 @@ public class WebService implements AutoCloseable {
                 jettyStatisticsCollector = null;
             }
             webServiceExecutor.join();
+            webExecutorThreadPoolStats.close();
             this.executorStats.close();
             log.info("Web service closed");
         } catch (Exception e) {
