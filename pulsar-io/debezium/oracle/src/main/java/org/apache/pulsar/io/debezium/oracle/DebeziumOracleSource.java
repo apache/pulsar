@@ -20,7 +20,6 @@ package org.apache.pulsar.io.debezium.oracle;
 
 import java.util.Map;
 import org.apache.kafka.connect.runtime.TaskConfig;
-import org.apache.pulsar.io.debezium.DebeziumSource;
 
 
 /**
