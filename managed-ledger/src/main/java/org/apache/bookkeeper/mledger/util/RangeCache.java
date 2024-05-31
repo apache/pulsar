@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -106,17 +105,6 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         void recycle() {
             value = null;
             recyclerHandle.recycle(this);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            // only match exact identity of the value
-            return this == o;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(key);
         }
     }
 
