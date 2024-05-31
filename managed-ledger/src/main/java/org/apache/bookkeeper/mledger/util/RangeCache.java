@@ -32,21 +32,26 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.util.RangeCache.ValueWithKeyValidation;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Special type of cache where get() and delete() operations can be done over a range of keys.
- * The implementation avoids locks and synchronization and relies on ConcurrentSkipListMap for storing the entries.
- * Since there is no locks, there is a need to have a way to ensure that a single entry in the cache is removed
- * exactly once. Removing an entry multiple times would result in the entries of the cache getting released too
- * while they could still be in use.
+ * The implementation avoids locks and synchronization by relying on ConcurrentSkipListMap for storing the entries.
+ * Since there are no locks, it's necessary to ensure that a single entry in the cache is removed exactly once.
+ * Removing an entry multiple times could result in the entries of the cache being released multiple times,
+ * even while they are still in use. This is prevented by using a custom wrapper around the value to store in the map
+ * that ensures that the value is removed from the map only if the exact same instance is present in the map.
+ * There's also a check that ensures that the value matches the key. This is used to detect races without impacting
+ * consistency.
  *
  * @param <Key>
  *            Cache key. Needs to be Comparable
  * @param <Value>
  *            Cache value
  */
+@Slf4j
 public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyValidation<Key>> {
     public interface ValueWithKeyValidation<T> extends ReferenceCounted {
         boolean matchesKey(T key);
@@ -268,7 +273,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         RemovalCounters counters = RemovalCounters.create();
         Map<Key, IdentityWrapper<Key, Value>> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Key, IdentityWrapper<Key, Value>> entry : subMap.entrySet()) {
-            removeEntry(entry, counters);
+            removeEntry(entry, counters, true);
         }
         return handleRemovalResult(counters);
     }
@@ -279,16 +284,23 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         BREAK_LOOP;
     }
 
-    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Key, Value>> entry, RemovalCounters counters) {
-        return removeEntry(entry, counters, (x) -> true);
+    private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Key, Value>> entry, RemovalCounters counters,
+                                          boolean skipInvalid) {
+        return removeEntry(entry, counters, skipInvalid, x -> true);
     }
 
     private RemoveEntryResult removeEntry(Map.Entry<Key, IdentityWrapper<Key, Value>> entry, RemovalCounters counters,
-                                          Predicate<Value> removeCondition) {
+                                          boolean skipInvalid, Predicate<Value> removeCondition) {
         Key key = entry.getKey();
         IdentityWrapper<Key, Value> identityWrapper = entry.getValue();
         if (identityWrapper.getKey() != key) {
-            // the wrapper has been recycled and contains another key
+            // the wrapper has already been recycled and contains another key
+            if (!skipInvalid) {
+                // log and remove the entry without releasing the value
+                log.info("Key {} does not match the entry's value wrapper's key {}, removing entry by key without "
+                                + "releasing the value", key, identityWrapper.getKey());
+                entries.remove(key);
+            }
             return RemoveEntryResult.CONTINUE_LOOP;
         }
         Value value = identityWrapper.getValue();
@@ -297,16 +309,49 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             value.retain();
         } catch (IllegalReferenceCountException e) {
             // Value was already released
+            if (!skipInvalid) {
+                // remove the specific entry without releasing the value
+                log.info("Value was already released for key {}, removing entry without releasing the value", key);
+                entries.remove(key, identityWrapper);
+            }
             return RemoveEntryResult.CONTINUE_LOOP;
         }
         try {
             if (!removeCondition.test(value)) {
                 return RemoveEntryResult.BREAK_LOOP;
             }
-            // check that the value hasn't been recycled in between
-            // there should be at least 2 references since this method adds one and the cache should have one
-            // it is valid that the value contains references even after the key has been removed from the cache
-            if (value.refCnt() > 1 && value.matchesKey(key) && entries.remove(key, identityWrapper)) {
+            if (!skipInvalid) {
+                // remove the specific entry
+                boolean entryRemoved = entries.remove(key, identityWrapper);
+                if (entryRemoved) {
+                    boolean matchesKey = value.matchesKey(key);
+                    if (matchesKey) {
+                        counters.entryRemoved(weighter.getSize(value));
+                        // check that the value hasn't been recycled in between
+                        // there should be at least 2 references since this method adds one and the cache should have
+                        // one reference. it is valid that the value contains references even after the key has been
+                        // removed from the cache
+                        if (value.refCnt() > 1) {
+                            identityWrapper.recycle();
+                            // remove the cache reference
+                            value.release();
+                        } else {
+                            log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
+                                    value.refCnt(), key);
+                            return RemoveEntryResult.CONTINUE_LOOP;
+                        }
+                    } else {
+                        // we don't know the size (weight) of the value
+                        counters.entryRemoved(0);
+                        log.info("Value {} does not match the key {}, removed entry without releasing the value", value,
+                                key);
+                        return RemoveEntryResult.CONTINUE_LOOP;
+                    }
+                }
+            } else if (skipInvalid && value.refCnt() > 1 && value.matchesKey(key)
+                    && entries.remove(key, identityWrapper)) {
+                // when skipInvalid is true, we don't remove the entry if it doesn't match matches the key
+                // or the refCnt is invalid
                 identityWrapper.recycle();
                 counters.entryRemoved(weighter.getSize(value));
                 // remove the cache reference
@@ -334,12 +379,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     public Pair<Integer, Long> evictLeastAccessedEntries(long minSize) {
         checkArgument(minSize > 0);
         RemovalCounters counters = RemovalCounters.create();
-        while (counters.removedSize < minSize) {
+        while (counters.removedSize < minSize && !Thread.currentThread().isInterrupted()) {
             Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters);
+            removeEntry(entry, counters, false);
         }
         return handleRemovalResult(counters);
     }
@@ -351,12 +396,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     */
    public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
        RemovalCounters counters = RemovalCounters.create();
-       while (true) {
+       while (!Thread.currentThread().isInterrupted()) {
            Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
            if (entry == null) {
                break;
            }
-           if (removeEntry(entry, counters, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
+           if (removeEntry(entry, counters, false, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
                    == RemoveEntryResult.BREAK_LOOP) {
                break;
            }
@@ -382,12 +427,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      */
     public Pair<Integer, Long> clear() {
         RemovalCounters counters = RemovalCounters.create();
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             Map.Entry<Key, IdentityWrapper<Key, Value>> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters);
+            removeEntry(entry, counters, false);
         }
         return handleRemovalResult(counters);
     }
@@ -421,5 +466,4 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             return 1;
         }
     }
-
 }
