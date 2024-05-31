@@ -310,6 +310,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             }
             return RemoveEntryResult.CONTINUE_LOOP;
         }
+        if (!value.matchesKey(key)) {
+            // this is unexpected since the IdentityWrapper.getValue(key) already checked that the value matches the key
+            log.warn("Unexpected race condition. Value {} does not match the key {}. Removing entry.", value, key);
+        }
         try {
             if (!removeCondition.test(value)) {
                 return RemoveEntryResult.BREAK_LOOP;
@@ -318,36 +322,26 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 // remove the specific entry
                 boolean entryRemoved = entries.remove(key, identityWrapper);
                 if (entryRemoved) {
-                    boolean matchesKey = value.matchesKey(key);
-                    if (matchesKey) {
-                        counters.entryRemoved(weighter.getSize(value));
-                        // check that the value hasn't been recycled in between
-                        // there should be at least 2 references since this method adds one and the cache should have
-                        // one reference. it is valid that the value contains references even after the key has been
-                        // removed from the cache
-                        if (value.refCnt() > 1) {
-                            identityWrapper.recycle();
-                            // remove the cache reference
-                            value.release();
-                        } else {
-                            log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
-                                    value.refCnt(), key);
-                            return RemoveEntryResult.CONTINUE_LOOP;
-                        }
+                    counters.entryRemoved(weighter.getSize(value));
+                    // check that the value hasn't been recycled in between
+                    // there should be at least 2 references since this method adds one and the cache should have
+                    // one reference. it is valid that the value contains references even after the key has been
+                    // removed from the cache
+                    if (value.refCnt() > 1) {
+                        identityWrapper.recycle();
+                        // remove the cache reference
+                        value.release();
                     } else {
-                        // we don't know the size (weight) of the value
-                        counters.entryRemoved(0);
-                        log.info("Value {} does not match the key {}, removed entry without releasing the value", value,
-                                key);
+                        log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
+                                value.refCnt(), key);
                         return RemoveEntryResult.CONTINUE_LOOP;
                     }
                 }
-            } else if (skipInvalid && value.refCnt() > 1 && value.matchesKey(key)
-                    && entries.remove(key, identityWrapper)) {
+            } else if (skipInvalid && value.refCnt() > 1 && entries.remove(key, identityWrapper)) {
                 // when skipInvalid is true, we don't remove the entry if it doesn't match matches the key
                 // or the refCnt is invalid
-                identityWrapper.recycle();
                 counters.entryRemoved(weighter.getSize(value));
+                identityWrapper.recycle();
                 // remove the cache reference
                 value.release();
             }
