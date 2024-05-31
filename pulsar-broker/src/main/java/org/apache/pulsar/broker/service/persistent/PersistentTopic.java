@@ -3235,6 +3235,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
     public void checkInactiveSubscriptions(long expirationTimeMillis) {
         if (expirationTimeMillis > 0) {
             subscriptions.forEach((subName, sub) -> {
