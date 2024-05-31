@@ -61,17 +61,19 @@ RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress 
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+# Enable snappy-java to use system lib
+RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
+
 ## Create one stage to include snappy-java native lib
 # Fix the issue when using snappy-java in x86 arch alpine
 # See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
 # We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
 FROM alpine AS snappy-java
 
-RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash
+ARG SNAPPY_VERSION
+RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
 ENV JAVA_HOME=/usr
-RUN git clone https://github.com/xerial/snappy-java.git
-RUN cd snappy-java && git checkout v1.1.10.5 && make clean-native native
-
+RUN curl -Ls https://github.com/xerial/snappy-java/archive/refs/tags/v$SNAPPY_VERSION.tar.gz | tar zxf - && cd snappy-java-$SNAPPY_VERSION && make clean-native native
 FROM apachepulsar/glibc-base:2.38 as glibc
 
 ## Create final stage from Alpine image
