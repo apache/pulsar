@@ -34,7 +34,8 @@ public class WebExecutorThreadPoolStats implements AutoCloseable {
     public static final String USAGE_COUNTER = "pulsar.web.executor.thread.usage";
     private final ObservableLongUpDownCounter usageCounter;
 
-    public static final AttributeKey<String> LIMIT_TYPE_KEY = AttributeKey.stringKey("pulsar.limit.type");
+    public static final AttributeKey<String> LIMIT_TYPE_KEY =
+            AttributeKey.stringKey("pulsar.web.executor.thread.limit.type");
     @VisibleForTesting
     enum LimitType {
         MAX,
@@ -43,7 +44,7 @@ public class WebExecutorThreadPoolStats implements AutoCloseable {
     }
 
     public static final AttributeKey<String> USAGE_TYPE_KEY =
-            AttributeKey.stringKey("pulsar.web.executor.thread.usage");
+            AttributeKey.stringKey("pulsar.web.executor.thread.usage.type");
     @VisibleForTesting
     enum UsageType {
         ACTIVE,
