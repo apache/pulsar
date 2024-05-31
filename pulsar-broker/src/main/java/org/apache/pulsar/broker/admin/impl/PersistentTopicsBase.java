@@ -449,7 +449,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     // update remote cluster
                     return namespaceResources().getPoliciesAsync(namespaceName)
-                            .thenCompose(CompletableFuture::completedFuture)
                             .thenCompose(policies -> {
                                 if (policies.isEmpty()) {
                                     return CompletableFuture.completedFuture(null);
@@ -462,35 +461,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     replicationClusters = new HashSet<>();
                                 }
 
-                                CompletableFuture<Void> checkShadowTopics = Optional.ofNullable(topicPolicies)
-                                        .map(TopicPolicies::getShadowTopics)
-                                        .filter(shadowTopics -> !shadowTopics.isEmpty())
-                                        .map(shadowTopics -> {
-                                            List<CompletableFuture<Void>> futures = shadowTopics.stream()
-                                                    .map(shadowTopic -> getPartitionedTopicMetadataAsync(
-                                                            TopicName.get(shadowTopic), false, false)
-                                                            .thenCompose(metadata -> {
-                                                                if (metadata.partitions < expectPartitions) {
-                                                                    return CompletableFuture.<Void>failedFuture(
-                                                                            new RestException(400, String.format(
-                                                                                    "The shadow topic %s has fewer "
-                                                                                    + "partitions than the current "
-                                                                                    + "topic. Currently, it only "
-                                                                                    + "contains %d partitions. Please"
-                                                                                    + " expand the partitions of the "
-                                                                                    + "shadow topic %s first.",
-                                                                                    shadowTopic, metadata.partitions,
-                                                                                    shadowTopic
-                                                                            ))
-                                                                    );
-                                                                }
-                                                                return CompletableFuture.completedFuture(null);
-                                                            }))
-                                                    .collect(Collectors.toList());
-                                            return FutureUtil.waitForAll(futures);
-                                        })
-                                        .orElse(CompletableFuture.completedFuture(null));
-
+                                CompletableFuture<Void> checkShadowTopics = checkShadowTopicsPartitions(topicPolicies,
+                                        expectPartitions);
 
                                 // Do check replicated clusters.
                                 if (replicationClusters.isEmpty()) {
@@ -526,6 +498,35 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    private CompletableFuture<Void> checkShadowTopicsPartitions(TopicPolicies topicPolicies, int expectPartitions) {
+        return Optional.ofNullable(topicPolicies)
+                .map(TopicPolicies::getShadowTopics)
+                .filter(shadowTopics -> !shadowTopics.isEmpty())
+                .map(shadowTopics -> {
+                    List<CompletableFuture<Void>> futures = shadowTopics.stream()
+                            .map(shadowTopic -> getPartitionedTopicMetadataAsync(
+                                    TopicName.get(shadowTopic), false, false)
+                                    .thenCompose(metadata -> {
+                                        if (metadata.partitions < expectPartitions) {
+                                            return CompletableFuture.<Void>failedFuture(
+                                                    new RestException(400, String.format(
+                                                            "The shadow topic %s has fewer partitions than the "
+                                                                    + "current topic. Currently, it only contains %d "
+                                                            + "partitions. Please expand the partitions of the shadow"
+                                                            + " topic %s first.",
+                                                            shadowTopic, metadata.partitions,
+                                                            shadowTopic
+                                                    ))
+                                            );
+                                        }
+                                        return CompletableFuture.completedFuture(null);
+                                    }))
+                            .collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures);
+                })
+                .orElse(CompletableFuture.completedFuture(null));
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
@@ -5392,15 +5393,9 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Cannot specify empty shadow topics, please use remove command instead."));
         }
-        try {
-            shadowTopics.forEach(shadowTopic -> {
-                if (TopicName.get(shadowTopic).isPartitioned()) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Couldn't set a partition of a topic as the shadow topic.");
-                }
-            });
-        } catch (RestException e) {
-            return FutureUtil.failedFuture(e);
+        if (shadowTopics.stream().map(TopicName::get).anyMatch(TopicName::isPartitioned)) {
+            return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Couldn't set a partition of a topic as the shadow topic."));
         }
 
         return validatePoliciesReadOnlyAccessAsync()
