@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.StampedLock;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.util.RangeCache.ValueWithKeyValidation;
 import org.apache.commons.lang3.tuple.Pair;
@@ -75,6 +76,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 return new EntryWrapper(recyclerHandle);
             }
         };
+        private final StampedLock lock = new StampedLock();
         private K key;
         private V value;
         long size;
@@ -85,27 +87,50 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
         static <K, V> EntryWrapper<K, V> create(K key, V value, long size) {
             EntryWrapper<K, V> entryWrapper = RECYCLER.get();
-            synchronized (entryWrapper) {
-                entryWrapper.key = key;
-                entryWrapper.value = value;
-                entryWrapper.size = size;
-            }
+            long stamp = entryWrapper.lock.writeLock();
+            entryWrapper.key = key;
+            entryWrapper.value = value;
+            entryWrapper.size = size;
+            entryWrapper.lock.unlockWrite(stamp);
             return entryWrapper;
         }
 
-        synchronized K getKey() {
-            return key;
+        K getKey() {
+            long stamp = lock.tryOptimisticRead();
+            K localKey = key;
+            if (!lock.validate(stamp)) {
+                stamp = lock.readLock();
+                localKey = key;
+                lock.unlockRead(stamp);
+            }
+            return localKey;
         }
 
-        synchronized V getValue(K key) {
-            if (this.key != key) {
+        V getValue(K key) {
+            long stamp = lock.tryOptimisticRead();
+            K localKey = this.key;
+            V localValue = this.value;
+            if (!lock.validate(stamp)) {
+                stamp = lock.readLock();
+                localKey = this.key;
+                localValue = this.value;
+                lock.unlockRead(stamp);
+            }
+            if (localKey != key) {
                 return null;
             }
-            return value;
+            return localValue;
         }
 
-        synchronized long getSize() {
-            return size;
+        long getSize() {
+            long stamp = lock.tryOptimisticRead();
+            long localSize = size;
+            if (!lock.validate(stamp)) {
+                stamp = lock.readLock();
+                localSize = size;
+                lock.unlockRead(stamp);
+            }
+            return localSize;
         }
 
         void recycle() {
