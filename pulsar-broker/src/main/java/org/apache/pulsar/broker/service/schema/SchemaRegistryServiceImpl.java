@@ -30,6 +30,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +68,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaStorage schemaStorage;
     private final Clock clock;
     private final SchemaRegistryStats stats;
+    private static final String COMPLEMENT_SCHEMA_ENABLE = "complementSchemaEnabled";
+    private static final String COMPLEMENT_SCHEMA_VERSION = "complementSchemaVersion";
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
@@ -188,65 +191,78 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                               SchemaCompatibilityStrategy strategy) {
         MutableLong start = new MutableLong(0);
         CompletableFuture<SchemaVersion> promise = new CompletableFuture<>();
-        schemaStorage.put(schemaId,
-            schemasFuture -> schemasFuture
-                .thenCompose(schemaFutureList -> trimDeletedSchemaAndGetList(schemaId,
-                        convertToSchemaAndMetadata(schemaId, schemaFutureList)))
-                .thenCompose(schemaAndMetadataList -> getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
-                    .thenCompose(schemaVersion -> {
-                        if (schemaVersion != null) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Schema is already exists", schemaId);
-                            }
-                            promise.complete(schemaVersion);
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
-                        if (schemaAndMetadataList.size() != 0) {
-                            if (isTransitiveStrategy(strategy)) {
-                                checkCompatibilityFuture =
-                                        checkCompatibilityWithAll(schemaId, schema, strategy, schemaAndMetadataList);
-                            } else {
-                                checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
-                            }
-                        } else {
-                            checkCompatibilityFuture.complete(null);
-                        }
-                        return checkCompatibilityFuture.thenCompose(v -> {
-                            byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                            SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                                    .setType(Functions.convertFromDomainType(schema.getType()))
-                                    .setSchema(ByteString.copyFrom(schema.getData()))
-                                    .setSchemaId(schemaId)
-                                    .setUser(schema.getUser())
-                                    .setDeleted(false)
-                                    .setTimestamp(clock.millis())
-                                    .addAllProps(toPairs(schema.getProps()))
-                                    .build();
+        if (schema.getProps().containsKey(COMPLEMENT_SCHEMA_ENABLE)
+                && schema.getProps().containsKey(COMPLEMENT_SCHEMA_VERSION)) {
+            ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
+            bbVersion.putLong(Long.parseLong(schema.getProps().get(COMPLEMENT_SCHEMA_VERSION)));
+            SchemaVersion schemaVersion = versionFromBytes(bbVersion.array());
+            tryComplementTheLostSchema(schemaId, schemaVersion, schema, promise);
+        } else {
+            schemaStorage.put(schemaId,
+                    schemasFuture -> schemasFuture
+                            .thenCompose(schemaFutureList -> trimDeletedSchemaAndGetList(schemaId,
+                                    convertToSchemaAndMetadata(schemaId, schemaFutureList)))
+                            .thenCompose(schemaAndMetadataList ->
+                                    getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
+                                    .thenCompose(schemaVersion -> {
+                                        if (schemaVersion != null) {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}] Schema is already exists", schemaId);
+                                            }
+                                            promise.complete(schemaVersion);
+                                            return CompletableFuture.completedFuture(null);
+                                        }
+                                        CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
+                                        if (schemaAndMetadataList.size() != 0) {
+                                            if (isTransitiveStrategy(strategy)) {
+                                                checkCompatibilityFuture =
+                                                        checkCompatibilityWithAll(schemaId, schema, strategy,
+                                                                schemaAndMetadataList);
+                                            } else {
+                                                checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId,
+                                                        schema, strategy);
+                                            }
+                                        } else {
+                                            checkCompatibilityFuture.complete(null);
+                                        }
+                                        return checkCompatibilityFuture.thenCompose(v -> {
+                                            byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                                            SchemaRegistryFormat.SchemaInfo info =
+                                                    SchemaRegistryFormat.SchemaInfo.newBuilder()
+                                                    .setType(Functions.convertFromDomainType(schema.getType()))
+                                                    .setSchema(ByteString.copyFrom(schema.getData()))
+                                                    .setSchemaId(schemaId)
+                                                    .setUser(schema.getUser())
+                                                    .setDeleted(false)
+                                                    .setTimestamp(clock.millis())
+                                                    .addAllProps(toPairs(schema.getProps()))
+                                                    .build();
 
-                            start.setValue(this.clock.millis());
-                            return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
-                        });
-                }))).whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("[{}] Put schema failed", schemaId, ex);
+                                            start.setValue(this.clock.millis());
+                                            return CompletableFuture.completedFuture(Pair.of(info.toByteArray(),
+                                                    context));
+                                        });
+                                    }))).whenComplete((v, ex) -> {
+                if (ex != null) {
+                    log.error("[{}] Put schema failed", schemaId, ex);
+                    if (start.getValue() != 0) {
+                        this.stats.recordPutFailed(schemaId);
+                    }
+                    promise.completeExceptionally(ex);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Put schema finished", schemaId);
+                    }
+                    // The schema storage will return null schema version if no schema is persisted to the storage
+                    if (v != null) {
+                        promise.complete(v);
                         if (start.getValue() != 0) {
-                            this.stats.recordPutFailed(schemaId);
-                        }
-                        promise.completeExceptionally(ex);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Put schema finished", schemaId);
-                        }
-                        // The schema storage will return null schema version if no schema is persisted to the storage
-                        if (v != null) {
-                            promise.complete(v);
-                            if (start.getValue() != 0) {
-                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start.getValue());
-                            }
+                            this.stats.recordPutLatency(schemaId, this.clock.millis() - start.getValue());
                         }
                     }
+                }
             });
+        }
         return promise;
     }
 
@@ -445,6 +461,26 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return completableFuture;
     }
 
+    private void tryComplementTheLostSchema(String schemaId, SchemaVersion schemaVersion,
+                                                              SchemaData schema,
+                                                              CompletableFuture<SchemaVersion> promise) {
+        schemaStorage
+                .tryComplementTheLostSchemaLedger(schemaId, schemaVersion, schema)
+                .whenComplete((v, t) -> {
+                    if (t != null) {
+                        log.error("[{}] Complete lost schema({}) failed", schemaId,
+                                ((LongSchemaVersion) schemaVersion).getVersion());
+                        promise.completeExceptionally(t);
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Complete lost schema({}) finished", schemaId,
+                                    ((LongSchemaVersion) schemaVersion).getVersion());
+                        }
+                        promise.complete(schemaVersion);
+                    }
+                });
+    }
+
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
         if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
@@ -561,13 +597,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                 });
                 trimDeletedSchemaAndGetList(list);
-                // clean up the broken schema from zk
-                deleteSchemaStorage(schemaId, true).handle((sv, th) -> {
-                    log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", rc.getMessage(),
-                            schemaId, (th == null ? "successful" : "failed, " + th.getCause().getMessage()));
-                    schemaResult.complete(list);
-                    return null;
-                });
+                schemaResult.complete(list);
                 return null;
             }
             // trim the deleted schema and return the result if schema is retrieved successfully
