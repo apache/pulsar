@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * <p>As the first pass caches the entire message(not just offset) for each key into a map,
  * this compaction could be memory intensive if the message payload is large.
  */
-public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
+public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
     private static final Logger log = LoggerFactory.getLogger(StrategicTwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final int MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS = 20 * 1000;
