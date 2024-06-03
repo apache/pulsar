@@ -2161,8 +2161,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             if (sourceTopicName.isPartitioned()) {
                                 shadowPartitionTopic += "-partition-" + sourceTopicName.getPartitionIndex();
                             }
-                            return new ShadowReplicator(shadowPartitionTopic, PersistentTopic.this, cursor, brokerService,
-                                    (PulsarClientImpl) replicationClient);
+                            return new ShadowReplicator(shadowPartitionTopic, PersistentTopic.this, cursor,
+                                    brokerService, (PulsarClientImpl) replicationClient);
                         } catch (PulsarServerException e) {
                             log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
                         }
