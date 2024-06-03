@@ -204,7 +204,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> topicsPattern(Pattern topicsPattern) {
         checkArgument(conf.getTopicsPattern() == null && !topicsPattern.pattern().isEmpty(),
                 "Pattern has already been set or is empty.");
-        conf.setTopicsPattern(topicsPattern);
+        conf.setTopicsPattern(com.google.re2j.Pattern.compile(topicsPattern.pattern()));
         return this;
     }
 
