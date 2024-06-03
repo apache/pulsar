@@ -193,9 +193,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         }
 
         cacheManager.removeEntryCache(ml1.getName());
-        assertTrue(cacheManager.getSize() > 0);
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 20);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
+        assertEquals(0, cacheManager.getSize());
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 20);
     }
 

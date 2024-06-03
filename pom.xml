@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.3.0-SNAPSHOT</version>
+  <version>3.4.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -96,13 +96,14 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-05-13T09:56:12Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
     <docker.platforms></docker.platforms>
+    <docker.skip.push>true</docker.skip.push>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -130,6 +131,8 @@ flexible messaging model and an intuitive client API.</description>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
+    <docker.image>pulsar</docker.image>
+    <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <shadePluginPhase>package</shadePluginPhase>
@@ -190,7 +193,7 @@ flexible messaging model and an intuitive client API.</description>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.5.5</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
@@ -200,7 +203,7 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.oracle.version>2.5.4.Final</debezium.oracle.version>
-    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
+    <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <!-- Override version that brings CVE-2022-3143 with debezium -->
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
@@ -250,7 +253,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.5</jetcd.version>
-    <oxia.version>0.2.0</oxia.version>
+    <oxia.version>0.3.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>

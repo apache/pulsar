@@ -24,6 +24,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.util.RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+import static org.apache.pulsar.client.util.RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
@@ -1468,13 +1470,11 @@ public class BrokerService implements Closeable {
                 }
 
                 boolean isTlsEnabled = data.isBrokerClientTlsEnabled() || conf.isBrokerClientTlsEnabled();
-                if (isTlsEnabled && StringUtils.isEmpty(data.getServiceUrlTls())) {
-                    throw new IllegalArgumentException("serviceUrlTls is empty, brokerClientTlsEnabled: "
+                final String adminApiUrl = isTlsEnabled ? data.getServiceUrlTls() : data.getServiceUrl();
+                if (StringUtils.isEmpty(adminApiUrl)) {
+                    throw new IllegalArgumentException("The adminApiUrl is empty, brokerClientTlsEnabled: "
                             + isTlsEnabled);
-                } else if (StringUtils.isEmpty(data.getServiceUrl())) {
-                    throw new IllegalArgumentException("serviceUrl is empty, brokerClientTlsEnabled: " + isTlsEnabled);
                 }
-                String adminApiUrl = isTlsEnabled ? data.getServiceUrlTls() : data.getServiceUrl();
                 builder.serviceHttpUrl(adminApiUrl);
                 if (data.isBrokerClientTlsEnabled()) {
                     configAdminTlsSettings(builder,
@@ -1986,6 +1986,7 @@ public class BrokerService implements Closeable {
                             .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
                 }
             }
+            managedLedgerConfig.setTriggerOffloadOnTopicLoad(serviceConfig.isTriggerOffloadOnTopicLoad());
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
                     serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
@@ -2806,6 +2807,11 @@ public class BrokerService implements Closeable {
             pulsar.getWebService().updateHttpRequestsFailOnUnknownPropertiesEnabled((boolean) enabled);
         });
 
+        // add listener to notify web service httpRequestsFailOnUnknownPropertiesEnabled changed.
+        registerConfigurationListener("configurationMetadataSyncEventTopic", enabled -> {
+            pulsar.initConfigMetadataSynchronizerIfNeeded();
+        });
+
         // add more listeners here
 
         // (3) create dynamic-config if not exist.
@@ -3490,6 +3496,10 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
+        if (topicName.getPartitionedTopicName().endsWith(DLQ_GROUP_TOPIC_SUFFIX)
+                || topicName.getPartitionedTopicName().endsWith(RETRY_GROUP_TOPIC_SUFFIX)) {
+            return false;
+        }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
             return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.getTopicType());

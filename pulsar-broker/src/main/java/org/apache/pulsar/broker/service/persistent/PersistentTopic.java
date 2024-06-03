@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -133,6 +134,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -271,14 +273,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     protected final TransactionBuffer transactionBuffer;
-
-    // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     @Getter
-    private volatile long lastDataMessagePublishedTimestamp = 0;
+    private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
+            (oldPosition, newPosition) -> updateMaxReadPositionMovedForwardTimestamp();
+
+    // Record the last time max read position is moved forward, unless it's a marker message.
+    @Getter
+    private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
     @Getter
     private final ExecutorService orderedExecutor;
 
     private volatile CloseFutures closeFutures;
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
@@ -408,12 +414,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(), true);
         if (ledger instanceof ShadowManagedLedgerImpl) {
             shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
         }
+        additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
     }
 
     @Override
@@ -716,6 +723,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private void updateMaxReadPositionMovedForwardTimestamp() {
+        lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+    }
+
     @Override
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
@@ -724,12 +735,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
-        if (!publishContext.isMarkerMessage()) {
-            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
-        }
-
         // in order to sync the max position when cursor read entries
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry(),
+                publishContext.isMarkerMessage());
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
@@ -1934,7 +1942,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         int messageTtlInSeconds = topicPolicies.getMessageTTLInSeconds().get();
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())) {
+                if (!isCompactionSubscription(sub.getName())
+                        && (additionalSystemCursorNames.isEmpty()
+                            || !additionalSystemCursorNames.contains(sub.getName()))) {
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
@@ -3217,23 +3227,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
                     .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
-            if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
-                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
-                            || sub.isReplicated()
-                            || isCompactionSubscription(subName)) {
-                        return;
-                    }
-                    if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
-                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
-                    }
-                });
-            }
+            checkInactiveSubscriptions(expirationTimeMillis);
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
             }
+        }
+    }
+
+    @VisibleForTesting
+    public void checkInactiveSubscriptions(long expirationTimeMillis) {
+        if (expirationTimeMillis > 0) {
+            subscriptions.forEach((subName, sub) -> {
+                if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
+                        || sub.isReplicated()
+                        || isCompactionSubscription(subName)) {
+                    return;
+                }
+                if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                    sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                            + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
+                }
+            });
         }
     }
 

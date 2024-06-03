@@ -191,6 +191,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // Disable collecting topic stats during this test, as it deadlocks on access to map BrokerService.topics.
         pulsar2.getOpenTelemetryTopicStats().close();
+        pulsar2.getOpenTelemetryConsumerStats().close();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         var lookupRequestSemaphoreField = BrokerService.class.getDeclaredField("lookupRequestSemaphore");
@@ -930,7 +931,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // Verify the request is works after merge the requests.
         List<CompletableFuture<PartitionedTopicMetadata>> futures = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName)));
+            futures.add(lookupService.getPartitionedTopicMetadata(TopicName.get(tpName), false));
         }
         for (CompletableFuture<PartitionedTopicMetadata> future : futures) {
             assertEquals(future.join().partitions, topicPartitions);

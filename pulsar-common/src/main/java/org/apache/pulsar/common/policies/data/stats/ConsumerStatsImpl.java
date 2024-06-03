@@ -30,6 +30,9 @@ import org.apache.pulsar.common.util.DateFormatter;
  */
 @Data
 public class ConsumerStatsImpl implements ConsumerStats {
+    /** the app id. */
+    public String appId;
+
     /** Total rate of messages delivered to the consumer (msg/s). */
     public double msgRateOut;
 

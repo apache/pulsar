@@ -56,8 +56,9 @@ public class ManagedCursorIndividualDeletedMessagesTest {
 
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         doReturn(ledgersInfo).when(ledger).getLedgersInfo();
+        doReturn(config).when(ledger).getConfig();
 
-        ManagedCursorImpl cursor = spy(new ManagedCursorImpl(bookkeeper, config, ledger, "test-cursor"));
+        ManagedCursorImpl cursor = spy(new ManagedCursorImpl(bookkeeper, ledger, "test-cursor"));
         LongPairRangeSet<PositionImpl> deletedMessages = cursor.getIndividuallyDeletedMessagesSet();
 
         Method recoverMethod = ManagedCursorImpl.class.getDeclaredMethod("recoverIndividualDeletedMessages",

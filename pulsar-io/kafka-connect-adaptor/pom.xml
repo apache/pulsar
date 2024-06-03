@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
@@ -44,6 +44,12 @@
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-utils</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
