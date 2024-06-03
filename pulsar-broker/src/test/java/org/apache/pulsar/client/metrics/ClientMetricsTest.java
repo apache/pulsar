@@ -369,12 +369,15 @@ public class ClientMetricsTest extends ProducerConsumerBase {
                 .build();
         var metrics = collectMetrics();
 
-        assertCounterValue(metrics, "pulsar.client.consumer.available_permits.count", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.remaining", recvQueueSize/2, nsAttrs);
 
         Message<String> msg1 = consumer.receive();
         metrics = collectMetrics();
         consumer.acknowledge(msg1);
-        assertCounterValue(metrics, "pulsar.client.consumer.available_permits.count", 1, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 1, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.remaining", recvQueueSize/2-1, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.limit", recvQueueSize/2, nsAttrs);
 
         // clear the queue
         while (true) {
@@ -384,7 +387,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
             }
         }
         metrics = collectMetrics();
-        assertCounterValue(metrics, "pulsar.client.consumer.available_permits.count", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 0, nsAttrs);
 
         client.close();
     }

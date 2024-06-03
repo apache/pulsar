@@ -25,14 +25,22 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.opentelemetry.extension.incubator.metrics.ExtendedLongUpDownCounterBuilder;
+import java.util.function.Consumer;
+import lombok.Getter;
 
-public class UpDownCounter {
+public class UpDownCounter implements AutoCloseable{
 
-    private final LongUpDownCounter counter;
+    private LongUpDownCounter counter;
+    private ObservableLongUpDownCounter observableCounter;
+
+    @Getter
     private final Attributes attributes;
 
-    UpDownCounter(Meter meter, String name, Unit unit, String description, String topic, Attributes attributes) {
+    UpDownCounter(Meter meter, String name, Unit unit, String description, String topic, Attributes attributes,
+                  Consumer<ObservableLongMeasurement> callback) {
         LongUpDownCounterBuilder builder = meter.upDownCounterBuilder(name)
                 .setDescription(description)
                 .setUnit(unit.toString());
@@ -46,7 +54,11 @@ public class UpDownCounter {
             attributes = getTopicAttributes(topic, attributes);
         }
 
-        this.counter = builder.build();
+        if (callback != null) {
+            observableCounter = builder.buildWithCallback(callback);
+        } else {
+            this.counter = builder.build();
+        }
         this.attributes = attributes;
     }
 
@@ -64,5 +76,12 @@ public class UpDownCounter {
 
     public void subtract(long diff) {
         add(-diff);
+    }
+
+    @Override
+    public void close(){
+        if (observableCounter != null) {
+            observableCounter.close();
+        }
     }
 }
