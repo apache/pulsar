@@ -378,7 +378,7 @@ The Apache Software License, Version 2.0
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
  * AirCompressor
-    - io.airlift-aircompressor-0.20.jar
+    - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
