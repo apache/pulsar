@@ -48,6 +48,9 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage;
 RUN chmod -R g+rx /pulsar/bin
 RUN chmod -R o+rx /pulsar
 
+# Enable snappy-java to use system lib
+RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
+
 ###  Create one stage to include JVM distribution
 FROM alpine AS jvm
 
@@ -61,7 +64,16 @@ RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress 
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+## Create one stage to include snappy-java native lib
+# Fix the issue when using snappy-java in x86 arch alpine
+# See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
+# We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
+FROM alpine AS snappy-java
 
+ARG SNAPPY_VERSION
+RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
+ENV JAVA_HOME=/usr
+RUN curl -Ls https://github.com/xerial/snappy-java/archive/refs/tags/v$SNAPPY_VERSION.tar.gz | tar zxf - && cd snappy-java-$SNAPPY_VERSION && make clean-native native
 FROM apachepulsar/glibc-base:2.38 as glibc
 
 ## Create final stage from Alpine image
@@ -81,9 +93,8 @@ RUN apk add --no-cache \
             procps \
             curl
 
-# Fix CVE-2024-2511 by upgrading to OpenSSL 3.1.4-r6
-# We can remove once new Alpine image is released
-RUN apk upgrade --no-cache libssl3 libcrypto3
+# Upgrade all packages to get latest versions with security fixes
+RUN apk upgrade --no-cache
 
 # Python dependencies
 
@@ -115,6 +126,8 @@ RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
 
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
+
+COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs

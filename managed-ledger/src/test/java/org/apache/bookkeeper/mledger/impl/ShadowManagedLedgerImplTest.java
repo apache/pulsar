@@ -51,7 +51,7 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         return (ShadowManagedLedgerImpl) shadowML;
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void testShadowWrites() throws Exception {
         ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", new ManagedLedgerConfig()
                 .setMaxEntriesPerLedger(2)
@@ -76,16 +76,13 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         //Add new data to source ML
         Position newPos = sourceML.addEntry(data);
 
-        // The state should not be the same.
-        log.info("Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
-        assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
-
         //Add new data to source ML, and a new ledger rolled
-        newPos = sourceML.addEntry(data);
-        assertEquals(sourceML.ledgers.size(), 4);
-        Awaitility.await().untilAsserted(()->assertEquals(shadowML.ledgers.size(), 4));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(sourceML.ledgers.size(), 4);
+            assertEquals(shadowML.ledgers.size(), 4);
+            assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+        });
         log.info("Source.LCE={},Shadow.LCE={}", sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
-        Awaitility.await().untilAsserted(()->assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry));
 
         {// test write entry with ledgerId < currentLedger
             CompletableFuture<Position> future = new CompletableFuture<>();
@@ -146,10 +143,10 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
             }, fakePos);
             //This write will be queued unit new ledger is rolled in source.
 
-            newPos = sourceML.addEntry(data); // new ledger rolled.
-            newPos = sourceML.addEntry(data);
+            sourceML.addEntry(data); // new ledger rolled.
+            sourceML.addEntry(data);
             Awaitility.await().untilAsserted(() -> {
-                assertEquals(shadowML.ledgers.size(), 6);
+                assertEquals(shadowML.ledgers.size(), 5);
                 assertEquals(shadowML.currentLedgerEntries, 0);
             });
             assertEquals(future.get(), fakePos);

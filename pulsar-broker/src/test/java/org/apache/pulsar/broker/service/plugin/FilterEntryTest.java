@@ -239,9 +239,9 @@ public class FilterEntryTest extends BrokerTestBase {
         hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
         field.set(dispatcher, List.of(loader1, loader2));
         hasFilterField.set(dispatcher, true);
 
@@ -371,9 +371,9 @@ public class FilterEntryTest extends BrokerTestBase {
             hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilter2Test();
-            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -463,10 +463,10 @@ public class FilterEntryTest extends BrokerTestBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 

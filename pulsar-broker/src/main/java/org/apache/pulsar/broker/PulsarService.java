@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.BrokersBase.getHeartbeatTopicName;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
@@ -72,6 +73,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
@@ -414,6 +416,41 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private boolean isManagedLedgerNotFoundException(Throwable e) {
+        Throwable realCause = e.getCause();
+        return realCause instanceof ManagedLedgerException.MetadataNotFoundException
+                || realCause instanceof MetadataStoreException.NotFoundException;
+    }
+
+    private void deleteHeartbeatResource() {
+        if (this.brokerService != null) {
+            LOG.info("forcefully delete heartbeat topic when close broker");
+
+            String heartbeatTopicNameV1 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), false);
+            String heartbeatTopicNameV2 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), true);
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV1, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV1, e);
+                }
+            }
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV2, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV2, e);
+                }
+            }
+
+            LOG.info("finish forcefully delete heartbeat topic when close broker");
+        }
+    }
+
     @Override
     public void close() throws PulsarServerException {
         try {
@@ -444,6 +481,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public CompletableFuture<Void> closeAsync() {
         mutex.lock();
         try {
+            // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
+            // Pulsar clients that could send lookup requests that affect unloading.
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
             if (closeFuture != null) {
                 return closeFuture;
             }
@@ -451,7 +494,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (brokerService != null) {
                 brokerService.unloadNamespaceBundlesGracefully();
             }
+            // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
+
+            if (brokerId != null) {
+                // forcefully delete heartbeat topic when close broker
+                deleteHeartbeatResource();
+            }
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
@@ -512,11 +561,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
-            // close protocol handler before closing broker service
-            if (protocolHandlers != null) {
-                protocolHandlers.close();
-                protocolHandlers = null;
-            }
 
             // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
             cancelLoadBalancerTasks();
@@ -825,7 +869,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
-                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this);
 
             OffloadPoliciesImpl defaultOffloadPolicies =
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());

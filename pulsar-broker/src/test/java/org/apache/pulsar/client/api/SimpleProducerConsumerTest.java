@@ -121,6 +121,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,25 +148,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void rest() throws Exception {
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+    public void cleanupAfterMethod() throws Exception {
+        try {
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    deleteNamespaceWithRetry(namespace, true);
+                }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
+
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
+
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+            super.producerBaseSetup();
+        } catch (Exception | AssertionError e) {
+            log.warn("Failed to clean up state. Restarting broker.", e);
+            log.warn("Thread dump:\n{}", ThreadDumpUtil.buildThreadDiagnosticString());
+            cleanup();
+            setup();
         }
-
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
-
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-
-        super.producerBaseSetup();
     }
 
     @DataProvider
