@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api.utils;
 
+import io.github.pixee.security.ObjectInputFilters;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -60,6 +61,7 @@ public class JavaSerDe implements SerDe<Object> {
         Object obj = null;
         try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
              ObjectInputStream ois = new ObjectInputStream(bis)) {
+            ObjectInputFilters.enableObjectFilterIfUnprotected(ois);
             obj = ois.readObject();
         } catch (Exception ex) {
             log.info("Exception during deserialization", ex);
