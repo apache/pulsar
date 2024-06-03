@@ -458,7 +458,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 TopicPolicies topicPolicies =
                                         pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
                                 if (topicPolicies != null && topicPolicies.getReplicationClusters() != null) {
-                                    replicationClusters = new HashSet<>();
+                                    replicationClusters = new HashSet<>(topicPolicies.getReplicationClusters());
                                 }
 
                                 CompletableFuture<Void> checkShadowTopics = checkShadowTopicsPartitions(topicPolicies,
