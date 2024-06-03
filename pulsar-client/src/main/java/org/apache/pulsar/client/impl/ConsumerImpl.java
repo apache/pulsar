@@ -432,7 +432,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             messagePermitRemainingGauge.getAttributes());
                 });
         messagePermitLimitGauge = ip.newUpDownCounter("pulsar.client.consumer.permit.limit",
-                Unit.Messages, "The number of consumer permit remaining", topic, attrs, measurement->{
+                Unit.Messages, "The number of consumer permit remaining", topic, attrs, measurement-> {
                     measurement.record(getCurrentReceiverQueueSize() / 2 , messagePermitLimitGauge.getAttributes());
                 });
 
