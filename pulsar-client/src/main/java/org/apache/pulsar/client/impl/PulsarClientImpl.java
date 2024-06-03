@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.re2j.Pattern;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -577,6 +578,7 @@ public class PulsarClientImpl implements PulsarClient {
         Mode subscriptionMode = convertRegexSubscriptionMode(conf.getRegexSubscriptionMode());
         TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
+        Pattern pattern = Pattern.compile(conf.getTopicsPattern().pattern());
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null)
@@ -592,10 +594,10 @@ public class PulsarClientImpl implements PulsarClient {
 
                 List<String> topicsList = getTopicsResult.getTopics();
                 if (!getTopicsResult.isFiltered()) {
-                   topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), conf.getTopicsPattern());
+                   topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), pattern);
                 }
                 conf.getTopicNames().addAll(topicsList);
-                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(pattern,
                         getTopicsResult.getTopicsHash(),
                         PulsarClientImpl.this,
                         conf,
