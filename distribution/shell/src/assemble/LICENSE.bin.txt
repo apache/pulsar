@@ -417,6 +417,7 @@ The Apache Software License, Version 2.0
   * Apache Avro
     - avro-1.11.3.jar
     - avro-protobuf-1.11.3.jar
+ * RE2j -- com.google.re2j-re2j-1.7.jar
 
 BSD 3-clause "New" or "Revised" License
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
