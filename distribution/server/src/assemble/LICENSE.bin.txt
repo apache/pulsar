@@ -522,26 +522,26 @@ The Apache Software License, Version 2.0
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
     - org.roaringbitmap-shims-0.9.44.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.37.0.jar
-    - io.opentelemetry-opentelemetry-api-incubator-1.37.0-alpha.jar
-    - io.opentelemetry-opentelemetry-context-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-prometheus-1.37.0-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.37.0.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.2.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.2-alpha.jar
+    - io.opentelemetry-opentelemetry-api-1.38.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.38.0-alpha.jar
+    - io.opentelemetry-opentelemetry-context-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.38.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.38.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.3.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.3-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.25.0-alpha.jar
 
 BSD 3-clause "New" or "Revised" License

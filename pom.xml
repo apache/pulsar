@@ -259,9 +259,9 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.37.0</opentelemetry.version>
+    <opentelemetry.version>1.38.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>1.33.2</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.version>1.33.3</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
     <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
