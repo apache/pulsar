@@ -564,8 +564,15 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
                                                                long leastSigBits) {
+
+        if (mostSigBits < 0 || mostSigBits > Integer.MAX_VALUE) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("mostSigBits out of bounds"));
+        }
+
+        int partitionIdx = (int) mostSigBits;
+
         return validateTopicOwnershipAsync(
-                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits), authoritative)
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
                 .thenCompose(__ -> validateSuperUserAccessAsync())
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
