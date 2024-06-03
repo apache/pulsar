@@ -297,10 +297,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             log.error("Error when trying to create load shedding strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
+                    conf.getLoadBalancerLoadSheddingStrategy(), e);
         }
-        log.error("create load shedding strategy failed. using OverloadShedder instead.");
-        return new OverloadShedder();
+        log.error("create load shedding strategy failed. using ThresholdShedder by default.");
+        return new ThresholdShedder();
     }
 
     /**
