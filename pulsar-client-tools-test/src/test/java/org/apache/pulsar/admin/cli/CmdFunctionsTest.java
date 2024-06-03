@@ -165,7 +165,8 @@ public class CmdFunctionsTest {
             "--className", DummyFunction.class.getName(),
             "--dead-letter-topic", "test-dead-letter-topic",
             "--custom-runtime-options", "custom-runtime-options",
-            "--user-config", "{\"key\": [\"value1\", \"value2\"]}"
+            "--user-config", "{\"key\": [\"value1\", \"value2\"]}",
+            "--runtime-flags", "--add-opens java.base/java.lang=ALL-UNNAMED"
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -175,6 +176,7 @@ public class CmdFunctionsTest {
         assertEquals(Boolean.FALSE, creater.getAutoAck());
         assertEquals("test-dead-letter-topic", creater.getDeadLetterTopic());
         assertEquals("custom-runtime-options", creater.getCustomRuntimeOptions());
+        assertEquals("--add-opens java.base/java.lang=ALL-UNNAMED", creater.getRuntimeFlags());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 

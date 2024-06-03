@@ -164,15 +164,33 @@ public class SimpleLoadManagerImplTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
 
-        admin1.close();
-        admin2.close();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
 
-        pulsar2.close();
-        pulsar1.close();
+        if (pulsar2 != null) {
+            pulsar2.close();
+            pulsar2 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
 
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {

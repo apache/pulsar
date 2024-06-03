@@ -308,7 +308,6 @@ public class PersistentSubscription extends AbstractSubscription {
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
-            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -338,11 +337,14 @@ public class PersistentSubscription extends AbstractSubscription {
                     if (!isResetCursor) {
                         try {
                             topic.getManagedLedger().deleteCursor(cursor.getName());
+                            topic.getManagedLedger().removeWaitingCursor(cursor);
                         } catch (InterruptedException | ManagedLedgerException e) {
                             log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                         }
                     }
                 });
+            } else {
+                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 

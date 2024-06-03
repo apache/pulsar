@@ -870,4 +870,12 @@ public interface ManagedCursor {
     default boolean isCursorDataFullyPersistable() {
         return true;
     }
+
+    /**
+     * Called by the system to trigger periodic rollover in absence of activity.
+     */
+    default boolean periodicRollover() {
+        return false;
+    }
+
 }

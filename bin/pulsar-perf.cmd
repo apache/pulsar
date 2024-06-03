@@ -72,67 +72,7 @@ set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.log.immediateFlush=%PULSAR_LOG_IMMEDIATE_FLUSH%"
 
-set "COMMAND=%1"
-
-for /f "tokens=1,* delims= " %%a in ("%*") do set "_args=%%b"
-
-if "%COMMAND%" == "produce" (
-  call :execCmdWithConfigFile org.apache.pulsar.testclient.PerformanceProducer
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "consume" (
-  call :execCmdWithConfigFile org.apache.pulsar.testclient.PerformanceConsumer
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "transaction" (
-  call :execCmdWithConfigFile org.apache.pulsar.testclient.PerformanceTransaction
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "read" (
-  call :execCmdWithConfigFile org.apache.pulsar.testclient.PerformanceReader
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "monitor-brokers" (
-  call :execCmd org.apache.pulsar.testclient.BrokerMonitor
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "simulation-client" (
-  call :execCmd org.apache.pulsar.testclient.LoadSimulationClient
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "simulation-controller" (
-  call :execCmd org.apache.pulsar.testclient.LoadSimulationController
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "websocket-producer" (
-  call :execCmd org.apache.pulsar.proxy.socket.client.PerformanceClient
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "managed-ledger" (
-  call :execCmd org.apache.pulsar.testclient.ManagedLedgerWriter
-  exit /B %ERROR_CODE%
-)
-if "%COMMAND%" == "gen-doc" (
-  call :execCmd  org.apache.pulsar.testclient.CmdGenerateDocumentation
-  exit /B %ERROR_CODE%
-)
-
-call :usage
-exit /B %ERROR_CODE%
-
-:execCmdWithConfigFile
-"%JAVACMD%" %OPTS% %1 --conf-file "%PULSAR_PERFTEST_CONF%" %_args%
-if ERRORLEVEL 1 (
-  call :error
-)
-goto :eof
-
-:execCmd
-"%JAVACMD%" %OPTS% %1 %_args%
-if ERRORLEVEL 1 (
-  call :error
-)
-goto :eof
+"%JAVACMD%" %OPTS% org.apache.pulsar.testclient.PulsarPerfTestTool "%PULSAR_PERFTEST_CONF%" %*
 
 
 
@@ -142,25 +82,3 @@ goto :eof
 
 
 
-
-:usage
-echo Usage: pulsar-perf COMMAND
-echo where command is one of:
-echo     produce                 Run a producer
-echo     consume                 Run a consumer
-echo     transaction             Run a transaction repeatedly
-echo     read                    Run a topic reader
-echo     websocket-producer      Run a websocket producer
-echo     managed-ledger          Write directly on managed-ledgers
-echo     monitor-brokers         Continuously receive broker data and/or load reports
-echo     simulation-client       Run a simulation server acting as a Pulsar client
-echo     simulation-controller   Run a simulation controller to give commands to servers
-echo     gen-doc                 Generate documentation automatically.
-echo     help                    This help message
-echo or command is the full name of a class with a defined main() method.
-echo Environment variables:
-echo     PULSAR_LOG_CONF               Log4j configuration file (default %PULSAR_HOME%\logs)
-echo     PULSAR_CLIENT_CONF            Configuration file for client (default: %PULSAR_HOME%\conf\client.conf)
-echo     PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
-echo     PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
-goto error

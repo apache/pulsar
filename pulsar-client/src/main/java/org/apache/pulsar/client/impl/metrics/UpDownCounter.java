@@ -22,12 +22,12 @@ package org.apache.pulsar.client.impl.metrics;
 import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getDefaultAggregationLabels;
 import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getTopicAttributes;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.incubator.metrics.ExtendedLongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
 import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.opentelemetry.extension.incubator.metrics.ExtendedLongUpDownCounterBuilder;
 import java.util.function.Consumer;
 import lombok.Getter;
 

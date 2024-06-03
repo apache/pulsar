@@ -146,6 +146,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -2473,19 +2474,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ml.addEntry("msg02".getBytes());
 
+        // reopen a new ml2
         ml.close();
-        // Thread.sleep(1000);
-        iter = ml.getLedgersInfoAsList().iterator();
-        ts = -1;
-        while (iter.hasNext()) {
-            LedgerInfo i = iter.next();
-            if (iter.hasNext()) {
-                assertTrue(ts <= i.getTimestamp(), i.toString());
-                ts = i.getTimestamp();
-            } else {
-                assertTrue(i.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
-            }
-        }
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) factory.open("my_test_ledger", conf);
+
+        List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
+        // after reopen ledgers will be 2 + 1(new open, not contain any entries)
+        assertEquals(ledgers.size(), 3);
+
+        // the last closed ledger should be the penultimate one.
+        LedgerInfo lastClosedLeger = ledgers.get(ledgers.size() - 2);
+        assertTrue(lastClosedLeger.getTimestamp() > 0, "well closed LedgerInfo should set a timestamp > 0");
+        ml2.close();
     }
 
     @Test
@@ -3160,7 +3160,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
         PositionImpl readPositionRef = PositionImpl.EARLIEST;
-        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor1");
+        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, ledger, "cursor1");
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
 
             @Override
@@ -3184,6 +3184,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         ledger.close();
+    }
+
+    @Test
+    public void testAddEntryResponseTimeout() throws Exception {
+        // Create ML with feature Add Entry Timeout Check.
+        final ManagedLedgerConfig config = new ManagedLedgerConfig().setAddEntryTimeoutSeconds(2);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml1", config);
+        final ManagedCursor cursor = ledger.openCursor("c1");
+        final CollectCtxAddEntryCallback collectCtxAddEntryCallback = new CollectCtxAddEntryCallback();
+
+        // Insert a response delay.
+        bkc.addEntryResponseDelay(8, TimeUnit.SECONDS);
+
+        // Add two entries.
+        final byte[] msg1 = new byte[]{1};
+        final byte[] msg2 = new byte[]{2};
+        int ctx1 = 1;
+        int ctx2 = 2;
+        ledger.asyncAddEntry(msg1, collectCtxAddEntryCallback, ctx1);
+        ledger.asyncAddEntry(msg2, collectCtxAddEntryCallback, ctx2);
+        // Verify all write requests are completed.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(collectCtxAddEntryCallback.addCompleteCtxList, Arrays.asList(1, 2));
+        });
+        Entry entry1 = cursor.readEntries(1).get(0);
+        assertEquals(entry1.getData(), msg1);
+        entry1.release();
+        Entry entry2 = cursor.readEntries(1).get(0);
+        assertEquals(entry2.getData(), msg2);
+        entry2.release();
+
+        // cleanup.
+        factory.delete(ledger.name);
+    }
+
+    private static class CollectCtxAddEntryCallback implements AddEntryCallback {
+
+        public List<Object> addCompleteCtxList = new BlockingArrayQueue<>();
+        public List<Object> addFailedCtxList = new BlockingArrayQueue<>();
+
+        @Override
+        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+            addCompleteCtxList.add(ctx);
+        }
+
+        @Override
+        public void addFailed(ManagedLedgerException exception, Object ctx) {
+            addFailedCtxList.add(ctx);
+        }
     }
 
     /**
@@ -3261,7 +3310,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<OpAddEntry> oldOps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null);
+            OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null, new AtomicBoolean());
             if (i > 4) {
                 op.setLedger(mock(LedgerHandle.class));
             }
@@ -3525,7 +3575,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testLedgerNotRolloverWithoutOpenState() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);

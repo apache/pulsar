@@ -51,7 +51,10 @@ import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
@@ -164,7 +167,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Get permissions on a topic.",
             notes = "Retrieve the effective permissions for a topic."
                     + " These permissions are defined by the permissions set at the"
-                    + "namespace level combined (union) with any eventual specific permission set on the topic.")
+                    + "namespace level combined (union) with any eventual specific permission set on the topic."
+                    + "Returns a nested map structure which Swagger does not fully support for display. "
+                    + "Structure: Map<String, Set<AuthAction>>. Please refer to this structure for details.",
+            response = AuthAction.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -197,6 +203,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
     @ApiOperation(value = "Grant a new permission to a role on a single topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -234,6 +241,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "level, but rather at the namespace level,"
                     + " this operation will return an error (HTTP status code 412).")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -265,6 +273,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Create a partitioned topic.",
             notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -307,6 +316,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Create a non-partitioned topic.",
             notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
@@ -346,7 +356,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
-    @ApiOperation(value = "Get offload policies on a topic.")
+    @ApiOperation(value = "Get offload policies on a topic.", response = OffloadPoliciesImpl.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"), })
@@ -372,7 +382,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
     @ApiOperation(value = "Set offload policies on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -397,7 +409,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
     @ApiOperation(value = "Delete offload policies on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void removeOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -444,7 +458,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Set max unacked messages per consumer config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setMaxUnackedMessagesOnConsumer(
             @Suspended final AsyncResponse asyncResponse,
@@ -470,7 +486,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Delete max unacked messages per consumer config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteMaxUnackedMessagesOnConsumer(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -520,7 +538,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
     @ApiOperation(value = "Set deduplicationSnapshotInterval config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setDeduplicationSnapshotInterval(
             @Suspended final AsyncResponse asyncResponse,
@@ -546,7 +566,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/deduplicationSnapshotInterval")
     @ApiOperation(value = "Delete deduplicationSnapshotInterval config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteDeduplicationSnapshotInterval(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -593,7 +615,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
     @ApiOperation(value = "Set inactive topic policies on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -618,7 +642,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
     @ApiOperation(value = "Delete inactive topic policies on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -666,7 +692,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Set max unacked messages per subscription config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setMaxUnackedMessagesOnSubscription(
             @Suspended final AsyncResponse asyncResponse,
@@ -694,7 +722,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
     @ApiOperation(value = "Delete max unacked messages per subscription config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -742,7 +772,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Set delayed delivery messages config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void setDelayedDeliveryPolicies(
             @Suspended final AsyncResponse asyncResponse,
@@ -771,7 +803,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Set delayed delivery messages config on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"), })
     public void deleteDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -854,6 +888,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/createMissedPartitions")
     @ApiOperation(value = "Create missed partitions of an existing partitioned topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message =
                     "Don't have permission to administrate resources on this tenant"),
@@ -961,6 +996,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/properties")
     @ApiOperation(value = "Update the properties on the given topic.")
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Operation successful"),
         @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
         @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
             + "subscriber is not authorized to access this operation"),
@@ -997,6 +1033,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/properties")
     @ApiOperation(value = "Remove the key in properties on the given topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1033,6 +1070,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Delete a partitioned topic.",
             notes = "It will also delete all the partitions of the topic if it exists.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1073,6 +1111,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
@@ -1107,6 +1146,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "subscription or producer connected to the it. "
                     + "Force delete ignores connected clients and deletes topic by explicitly closing them.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1382,6 +1422,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + " there are any active consumers attached to it. "
                     + "Force delete ignores connected consumers and deletes subscription by explicitly closing them.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1434,6 +1475,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Skip all messages on a topic subscription.",
             notes = "Completely clears the backlog on the subscription.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1469,6 +1511,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}")
     @ApiOperation(value = "Skipping messages on a topic subscription.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1505,6 +1548,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages/{expireTimeInSeconds}")
     @ApiOperation(value = "Expiry messages on a topic subscription.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1542,6 +1586,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages")
     @ApiOperation(value = "Expiry messages on a topic subscription.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1581,6 +1626,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/all_subscription/expireMessages/{expireTimeInSeconds}")
     @ApiOperation(value = "Expiry messages on all subscriptions of topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1617,6 +1663,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Create a subscription on the topic.",
             notes = "Creates a subscription on the topic at the specified message id")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 400, message = "Create subscription on non persistent topic is not supported"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1672,6 +1719,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).",
             notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1722,6 +1770,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
     @ApiOperation(value = "Replace all the properties on the given subscription")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1757,7 +1806,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
-    @ApiOperation(value = "Return all the properties on the given subscription")
+    @ApiOperation(value = "Return all the properties on the given subscription",
+            response = String.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1795,6 +1845,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analyzeBacklog")
     @ApiOperation(value = "Analyse a subscription, by scanning all the unprocessed messages")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1841,6 +1892,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Reset subscription to message position closest to given position.",
             notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1879,6 +1931,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
     @ApiResponses(value = {
+            @ApiResponse(
+                    code = 200,
+                    message = "Successfully retrieved the message. The response is a binary byte stream "
+                            + "containing the message data. Clients need to parse this binary stream based"
+                            + " on the message metadata provided in the response headers.",
+                    response = byte[].class
+            ),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -1921,6 +1980,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value =
             "Examine a specific message on a topic by position relative to the earliest or the latest message.")
     @ApiResponses(value = {
+            @ApiResponse(
+                    code = 200,
+                    message = "Successfully retrieved the message. The response is a binary byte stream "
+                            + "containing the message data. Clients need to parse this binary stream based"
+                            + " on the message metadata provided in the response headers.",
+                    response = byte[].class
+            ),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic, the message position does not exist"),
@@ -1946,8 +2012,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES)
-            .thenCompose(__ -> internalExamineMessageAsync(initialPosition, messagePosition, authoritative))
+        internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
@@ -1963,6 +2028,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/ledger/{ledgerId}/entry/{entryId}")
     @ApiOperation(value = "Get message by its messageId.")
     @ApiResponses(value = {
+            @ApiResponse(
+                    code = 200,
+                    message = "Successfully retrieved the message. The response is a binary byte stream "
+                            + "containing the message data. Clients need to parse this binary stream based"
+                            + " on the message metadata provided in the response headers.",
+                    response = byte[].class
+            ),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -2003,7 +2075,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/messageid/{timestamp}")
-    @ApiOperation(value = "Get message ID published at or just after this absolute timestamp (in ms).")
+    @ApiOperation(value = "Get message ID published at or just after this absolute timestamp (in ms).",
+            response = MessageIdAdv.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -2133,7 +2206,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
     @ApiOperation(value = "Set a backlog quota for a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 405,
@@ -2150,7 +2225,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "backlog quota policies for the specified topic") BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+            .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -2162,7 +2238,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
     @ApiOperation(value = "Remove a backlog quota policy from a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2175,7 +2253,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+            .thenCompose(__ -> preValidation(authoritative))
             .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null, isGlobal))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -2224,7 +2303,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/replication")
     @ApiOperation(value = "Set the replication clusters for a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 405,
@@ -2238,7 +2319,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -2250,7 +2332,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/replication")
     @ApiOperation(value = "Remove the replication clusters from a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2261,7 +2345,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveReplicationClusters())
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -2308,7 +2393,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
     @ApiOperation(value = "Set message TTL in seconds for a topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message =
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message =
             "Not authenticate to perform the request or policy is read only"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
@@ -2338,6 +2425,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
     @ApiOperation(value = "Remove message TTL in seconds for a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 403,
                     message = "Not authenticate to perform the request or policy is read only"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
@@ -2392,7 +2480,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
     @ApiOperation(value = "Set deduplication enabled on a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry")})
@@ -2420,7 +2510,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
     @ApiOperation(value = "Remove deduplication configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2473,7 +2565,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/retention")
     @ApiOperation(value = "Set retention configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2511,7 +2605,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/retention")
     @ApiOperation(value = "Remove retention configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2544,7 +2640,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
     @ApiOperation(value = "Set dispatcher pause on ack state persistent configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2575,7 +2673,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/dispatcherPauseOnAckStatePersistent")
     @ApiOperation(value = "Remove dispatcher pause on ack state persistent configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2661,7 +2761,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/persistence")
     @ApiOperation(value = "Set configuration of persistence policies for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2701,7 +2803,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/persistence")
     @ApiOperation(value = "Remove configuration of persistence policies for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2760,7 +2864,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
     @ApiOperation(value = "Set maxSubscriptionsPerTopic config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2793,7 +2899,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxSubscriptionsPerTopic")
     @ApiOperation(value = "Remove maxSubscriptionsPerTopic config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2850,7 +2958,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicatorDispatchRate config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2883,7 +2993,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/replicatorDispatchRate")
     @ApiOperation(value = "Remove replicatorDispatchRate config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2940,7 +3052,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxProducers")
     @ApiOperation(value = "Set maxProducers config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -2975,7 +3089,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxProducers")
     @ApiOperation(value = "Remove maxProducers config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -3034,7 +3150,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
     @ApiOperation(value = "Set maxConsumers config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -3069,7 +3187,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
     @ApiOperation(value = "Remove maxConsumers config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -3129,7 +3249,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxMessageSize")
     @ApiOperation(value = "Set maxMessageSize config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -3166,7 +3288,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxMessageSize")
     @ApiOperation(value = "Remove maxMessageSize config for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -3201,6 +3325,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Terminate a topic. A topic that is terminated will not accept any more "
             + "messages to be published and will let consumer to drain existing messages in backlog")
     @ApiResponses(value = {
+            @ApiResponse(
+                    code = 200,
+                    message = "Operation terminated successfully. The response includes the 'lastMessageId',"
+                            + " which is the identifier of the last message processed.",
+                    response = MessageIdAdv.class
+            ),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -3238,6 +3368,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Terminate all partitioned topic. A topic that is terminated will not accept any more "
             + "messages to be published and will let consumer to drain existing messages in backlog")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -3264,6 +3395,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/compaction")
     @ApiOperation(value = "Trigger a compaction operation on a topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -3296,7 +3428,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/compaction")
-    @ApiOperation(value = "Get the status of a compaction operation for a topic.")
+    @ApiOperation(value = "Get the status of a compaction operation for a topic.",
+            response = LongRunningProcessStatus.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -3334,6 +3467,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/offload")
     @ApiOperation(value = "Offload a prefix of a topic to long term storage")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 400, message = "Message ID is null"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -3371,7 +3505,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/offload")
-    @ApiOperation(value = "Offload a prefix of a topic to long term storage")
+    @ApiOperation(value = "Offload a prefix of a topic to long term storage", response = OffloadProcessStatus.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -3404,7 +3538,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/lastMessageId")
-    @ApiOperation(value = "Return the last commit message id of topic")
+    @ApiOperation(value = "Return the last commit message id of topic", response = MessageIdAdv.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -3437,6 +3571,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/trim")
     @ApiOperation(value = " Trim a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
                     + "subscriber is not authorized to access this operation"),
@@ -3473,7 +3608,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
-    @ApiOperation(value = "Get dispatch rate configuration for specified topic.")
+    @ApiOperation(value = "Get dispatch rate configuration for specified topic.", response = DispatchRateImpl.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
@@ -3501,7 +3636,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Set message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3539,7 +3676,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/dispatchRate")
     @ApiOperation(value = "Remove message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3602,7 +3741,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Set subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3642,7 +3783,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Remove subscription message dispatch rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3674,7 +3817,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
-    @ApiOperation(value = "Get message dispatch rate configuration for specified subscription.")
+    @ApiOperation(value = "Get message dispatch rate configuration for specified subscription.",
+            response = DispatchRate.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
@@ -3704,7 +3848,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
     @ApiOperation(value = "Set message dispatch rate configuration for specified subscription.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3745,7 +3891,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
     @ApiOperation(value = "Remove message dispatch rate configuration for specified subscription.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3806,7 +3954,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Set compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3844,7 +3994,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/compactionThreshold")
     @ApiOperation(value = "Remove compaction threshold configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3907,7 +4059,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Set max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -3946,7 +4100,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
     @ApiOperation(value = "Remove max consumers per subscription configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4007,7 +4163,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Set message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4046,7 +4204,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Remove message publish rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4113,7 +4273,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
     @ApiOperation(value = "Set is enable sub types for specified topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4152,7 +4314,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptionTypesEnabled")
     @ApiOperation(value = "Remove subscription types enabled for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -4210,7 +4374,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Set subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4250,7 +4416,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscribeRate")
     @ApiOperation(value = "Remove subscribe rate configuration for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4289,6 +4457,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             notes = "The truncate operation will move all cursors to the end of the topic "
                     + "and delete all inactive ledgers.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -4324,6 +4493,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/replicatedSubscriptionStatus")
     @ApiOperation(value = "Enable or disable a replicated subscription on a topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or "
                     + "subscriber is not authorized to access this operation"),
@@ -4406,8 +4576,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__-> internalGetSchemaCompatibilityStrategy(applied))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -4420,6 +4590,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
     @ApiOperation(value = "Set schema compatibility strategy on a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
@@ -4437,8 +4608,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Strategy used to check the compatibility of new schema")
                     SchemaCompatibilityStrategy strategy) {
         validateTopicName(tenant, namespace, encodedTopic);
-
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(strategy))
                 .thenRun(() -> {
                     log.info(
@@ -4460,6 +4631,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
     @ApiOperation(value = "Remove schema compatibility strategy on a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
@@ -4477,8 +4649,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Strategy used to check the compatibility of new schema")
                     SchemaCompatibilityStrategy strategy) {
         validateTopicName(tenant, namespace, encodedTopic);
-
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetSchemaCompatibilityStrategy(null))
                 .thenRun(() -> {
                     log.info(
@@ -4498,7 +4670,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/schemaValidationEnforced")
-    @ApiOperation(value = "Get schema validation enforced flag for topic.")
+    @ApiOperation(value = "Get schema validation enforced flag for topic.", response = Boolean.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public void getSchemaValidationEnforced(@Suspended AsyncResponse asyncResponse,
@@ -4526,7 +4698,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/schemaValidationEnforced")
     @ApiOperation(value = "Set schema validation enforced flag on topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
             @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid")})
     public void setSchemaValidationEnforced(@Suspended AsyncResponse asyncResponse,
@@ -4553,7 +4727,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
-    @ApiOperation(value = "Get entry filters for a topic.")
+    @ApiOperation(value = "Get entry filters for a topic.", response = EntryFilters.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public void getEntryFilters(@Suspended AsyncResponse asyncResponse,
@@ -4569,7 +4743,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                         + "broker. For internal use.")
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalGetEntryFilters(applied, isGlobal))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -4581,7 +4756,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
     @ApiOperation(value = "Set entry filters for specified topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4597,7 +4774,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @ApiParam(value = "Entry filters for the specified topic")
                                         EntryFilters entryFilters) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetEntryFilters(entryFilters, isGlobal))
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -4609,7 +4787,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/entryFilters")
     @ApiOperation(value = "Remove entry filters for specified topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
@@ -4623,7 +4803,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             + "call to this broker. For internal use.")
                                     @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
                 .thenRun(() -> {
                     log.info(
@@ -4643,7 +4824,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
-    @ApiOperation(value = "Get the shadow topic list for a topic")
+    @ApiOperation(value = "Get the shadow topic list for a topic",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
@@ -4656,9 +4838,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
-                .thenCompose(__ -> validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC,
-                        PolicyOperation.READ))
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
                 .thenAccept(op -> asyncResponse.resume(op.map(TopicPolicies::getShadowTopics).orElse(null)))
                 .exceptionally(ex -> {
@@ -4670,7 +4851,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
     @ApiOperation(value = "Set shadow topic list for a topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry"),
@@ -4685,7 +4868,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of shadow topics", required = true) List<String> shadowTopics) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetShadowTopic(shadowTopics))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -4697,7 +4881,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/shadowTopics")
     @ApiOperation(value = "Delete shadow topics for a topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry"),
@@ -4711,7 +4897,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalDeleteShadowTopics())
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -4723,7 +4910,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
     @ApiOperation(value = "Override namespace's allowAutoSubscriptionCreation setting for a topic")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry"),
@@ -4750,7 +4939,8 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
-    @ApiOperation(value = "Get autoSubscriptionCreation info in a topic")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a topic",
+            response = AutoSubscriptionCreationOverrideImpl.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
@@ -4777,7 +4967,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/autoSubscriptionCreation")
     @ApiOperation(value = "Remove autoSubscriptionCreation ina a topic.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405,
                     message = "Topic level policy is disabled, please enable the topic level policy and retry"),
