@@ -19,17 +19,75 @@
 package org.apache.pulsar.utils.auth.tokens;
 
 import static org.testng.Assert.assertTrue;
+
 import com.beust.jcommander.Parameter;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Date;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * TokensCliUtils Tests.
  */
 public class TokensCliUtilsTest {
+
+    @DataProvider(name = "desiredExpireTime")
+    public Object[][] desiredExpireTime() {
+        return new Object[][] {
+                {"600", 600}, //10m
+                {"5m", 300},
+                {"1h", 3600},
+                {"1d", 86400},
+                {"1w", 604800},
+                {"1y", 31536000}
+        };
+    }
+
+    @Test(dataProvider = "desiredExpireTime")
+    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime, int expireAsSec) throws Exception {
+        PrintStream oldStream = System.out;
+        try {
+            //Arrange
+            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(baoStream));
+
+            String[] command = {"create", "--secret-key",
+                    "data:;base64,u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY=",
+                    "--subject", "test",
+                    "--expiry-time", expireTime,
+            };
+
+            TokensCliUtils.main(command);
+            String token = baoStream.toString();
+
+            Instant start = (new Date().toInstant().plus(expireAsSec - 5, ChronoUnit.SECONDS));
+            Instant stop = (new Date().toInstant().plus(expireAsSec + 5, ChronoUnit.SECONDS));
+
+            //Act
+            Claims jwt = Jwts.parserBuilder()
+                    .setSigningKey(Decoders.BASE64.decode("u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY="))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            //Assert
+            //Checks if the token expires within +-5 sec.
+            assertTrue(( ! jwt.getExpiration().toInstant().isBefore( start ) ) && ( jwt.getExpiration().toInstant().isBefore( stop ) ));
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            System.setOut(oldStream);
+        }
+    }
 
     /**
      * Test tokens generate docs.

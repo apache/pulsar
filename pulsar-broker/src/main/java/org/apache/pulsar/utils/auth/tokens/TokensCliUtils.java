@@ -43,7 +43,7 @@ import java.util.Optional;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.converters.TimeUnitToMillisConverter;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 
 public class TokensCliUtils {
@@ -119,7 +119,7 @@ public class TokensCliUtils {
                 "--expiry-time"},
                 description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
                         + " (m=minutes) Default: no expiration",
-                    converter = TimeUnitToSecondsConverter.class)
+                converter = TimeUnitToMillisConverter.class)
         private Long expiryTime = null;
 
         @Parameter(names = {"-sk",
