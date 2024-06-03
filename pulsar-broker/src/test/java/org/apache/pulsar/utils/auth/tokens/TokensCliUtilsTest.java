@@ -33,9 +33,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
-import io.swagger.annotations.ExampleProperty;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;

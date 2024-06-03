@@ -37,7 +37,6 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
