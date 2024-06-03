@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.topics;
 
 import com.google.common.collect.Lists;
+import com.google.re2j.Pattern;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
