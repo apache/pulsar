@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.apache.pulsar.metadata.api.MetadataStoreConfig.DEFAULT_SESSION_TIMEOUT_MS;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -29,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
@@ -119,7 +122,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = createMetadataStore(conf);
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
             store.registerListener(this::handleUpdates);
-            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                    .get(DEFAULT_SESSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                     .orElseGet(BookiesRackConfiguration::new);
             for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
@@ -134,6 +138,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             watchAvailableBookies();
         } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+        } catch (TimeoutException e) {
+            throw new MetadataStoreException.TimeoutException(
+                    BOOKIE_INFO_ROOT_PATH + " timeout after " + DEFAULT_SESSION_TIMEOUT_MS);
         }
     }
 
@@ -146,11 +153,16 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
                 registrationClient.watchWritableBookies(versioned -> {
                     try {
-                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                                .get(DEFAULT_SESSION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                                 .orElseGet(BookiesRackConfiguration::new);
                         updateRacksWithHost(racksWithHost);
                     } catch (InterruptedException | ExecutionException e) {
                         LOG.error("Failed to update rack info. ", e);
+                    } catch (TimeoutException e) {
+                        LOG.error("Timedout to get metadata in {}ms", DEFAULT_SESSION_TIMEOUT_MS);
+                        throw new MetadataStoreException.TimeoutException(
+                                BOOKIE_INFO_ROOT_PATH + " timeout after " + DEFAULT_SESSION_TIMEOUT_MS);
                     }
                 });
             } catch (NoSuchFieldException | IllegalAccessException e) {

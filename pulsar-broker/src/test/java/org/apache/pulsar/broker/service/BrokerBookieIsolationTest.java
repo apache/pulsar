@@ -19,12 +19,21 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,9 +56,12 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -70,6 +82,8 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -857,6 +871,70 @@ public class BrokerBookieIsolationTest {
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
 
+    }
+
+    /**
+     * It validates that bk-client creation can be retried when it sees timeout exception during fetching metadata and
+     * try to get successful result.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testBkClientTimeOutFailureRetry() throws Exception {
+        final String tenant1 = "tenant1";
+        final String cluster = "use";
+        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
+        final String brokerBookkeeperClientIsolationGroups = "default-group";
+        final String tenantNamespaceIsolationGroups = "tenant1-isolation";
+
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        ZooKeeper zkClient = bkEnsemble.getZkClient();
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(), bookies[3].getBookieId());
+
+        setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        admin.clusters().createCluster(cluster, clusterData);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
+        admin.tenants().createTenant(tenant1, tenantInfo);
+        admin.namespaces().createNamespace(ns1);
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+        ManagedLedgerClientFactory mlFactory = spy(
+                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory());
+        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
+        doThrow(new MetadataStoreException.TimeoutException("timeout")).when(bookkeeperProvider).create(any(), any(),
+                any(), any(), any(), any());
+        EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class, Collections.emptyMap());
+        ServiceConfiguration conf = null;
+        MetadataStoreExtended metadataStore = null;
+        EventLoopGroup eventLoopGroup = null;
+        Optional<Class> ofNullable = null;
+        Map<String, Object> properties = Collections.emptyMap();
+        StatsLogger statsLogger = null;
+        int retryCount = 3;
+        BookKeeper bkClient = mlFactory.createBookKeeperClient(bookkeeperProvider, ensemblePlacementPolicyConfig, conf,
+                metadataStore, eventLoopGroup, ofNullable, properties, statsLogger, retryCount);
+        // verify number of client creation retry
+        verify(mlFactory, atLeast(3)).createBookKeeperClient(any(), any(), any(), any(), any(), any(), any(), any(),
+                anyInt());
+        // verify returned bk-client as a default bk-client
+        assertEquals(bkClient, mlFactory.getBookKeeperClient());
     }
 
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,

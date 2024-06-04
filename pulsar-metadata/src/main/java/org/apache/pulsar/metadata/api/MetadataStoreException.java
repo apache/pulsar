@@ -156,6 +156,23 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    /**
+     * Metadata operation timed out.
+     */
+    public static class TimeoutException extends RuntimeException {
+        public TimeoutException(String msg, Throwable t) {
+            super(msg, t);
+        }
+
+        public TimeoutException(Throwable t) {
+            super(t);
+        }
+
+        public TimeoutException(String msg) {
+            super(msg);
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;

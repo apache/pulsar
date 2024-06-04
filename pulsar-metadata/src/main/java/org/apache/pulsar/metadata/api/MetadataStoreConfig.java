@@ -32,12 +32,13 @@ public class MetadataStoreConfig {
     public static final String METADATA_STORE = "metadata-store";
     public static final String STATE_METADATA_STORE = "state-metadata-store";
     public static final String CONFIGURATION_METADATA_STORE = "configuration-metadata-store";
+    public static final int DEFAULT_SESSION_TIMEOUT_MS = 30_000;
 
     /**
      * The (implementation specific) session timeout, in milliseconds.
      */
     @Builder.Default
-    private final int sessionTimeoutMillis = 30_000;
+    private final int sessionTimeoutMillis = DEFAULT_SESSION_TIMEOUT_MS;
 
     /**
      * Whether we should allow the metadata client to operate in read-only mode, when the backend store is not writable.

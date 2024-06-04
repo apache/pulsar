@@ -38,6 +38,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,16 +98,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             // find or create bk-client in cache for a specific ensemblePlacementPolicy
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
-                    try {
-                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
-                    } catch (Exception e) {
-                        log.error("Failed to initialize bk-client for policy {}, properties {}",
-                                ensemblePlacementPolicyConfig.getPolicyClass(),
-                                ensemblePlacementPolicyConfig.getProperties(), e);
-                    }
-                    return this.defaultBkClient;
+                    return createBookKeeperClient(bookkeeperProvider, ensemblePlacementPolicyConfig, conf,
+                            metadataStore, eventLoopGroup,
+                            Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                            ensemblePlacementPolicyConfig.getProperties(), statsLogger, 3 /* retries */);
                 });
             }
             return bkClient != null ? bkClient : defaultBkClient;
@@ -120,6 +115,33 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             defaultBkClient.close();
             throw e;
         }
+    }
+
+    @VisibleForTesting
+    public BookKeeper createBookKeeperClient(BookKeeperClientFactory bookkeeperProvider,
+            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig, ServiceConfiguration conf,
+            MetadataStoreExtended metadataStore, EventLoopGroup eventLoopGroup, Optional<Class> ofNullable,
+            Map<String, Object> properties, StatsLogger statsLogger, int retryCount) {
+        if (retryCount == 0) {
+            log.info("Reached to max retries of bk-client creation, using default bk-client for {}-{}",
+                    ensemblePlacementPolicyConfig.getPolicyClass(), ensemblePlacementPolicyConfig.getProperties());
+            return this.defaultBkClient;
+        }
+        try {
+            return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
+                    Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                    ensemblePlacementPolicyConfig.getProperties(), statsLogger);
+        } catch (MetadataStoreException.TimeoutException e) {
+            log.error("Bk-client init failed due to timeout for policy {}, properties {}, retrying {}",
+                    ensemblePlacementPolicyConfig.getPolicyClass(), ensemblePlacementPolicyConfig.getProperties(),
+                    retryCount, e);
+            return createBookKeeperClient(bookkeeperProvider, ensemblePlacementPolicyConfig, conf, metadataStore,
+                    eventLoopGroup, ofNullable, properties, statsLogger, retryCount - 1);
+        } catch (Exception e) {
+            log.error("Failed to initialize bk-client for policy {}, properties {}",
+                    ensemblePlacementPolicyConfig.getPolicyClass(), ensemblePlacementPolicyConfig.getProperties(), e);
+        }
+        return this.defaultBkClient;
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
