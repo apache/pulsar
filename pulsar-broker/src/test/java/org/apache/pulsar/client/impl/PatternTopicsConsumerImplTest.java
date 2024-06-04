@@ -595,7 +595,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
         Awaitility.await().untilAsserted(() -> {
-            assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+            assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
