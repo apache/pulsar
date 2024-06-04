@@ -54,6 +54,7 @@ import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -89,7 +90,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName) {
-        this.executor = new ScheduledThreadPoolExecutor(1,
+        this(MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+    }
+
+    protected AbstractMetadataStore(MetadataStoreConfig conf) {
+        this.metadataStoreName = conf.getMetadataStoreName();
+        this.executor = new ScheduledThreadPoolExecutor(conf.getProcessingThreads(),
                 new DefaultThreadFactory(
                         StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
         registerListener(this);
@@ -136,7 +142,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     }
                 });
 
-        this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
     }
 

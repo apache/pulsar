@@ -35,13 +35,11 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import lombok.AllArgsConstructor;
-import lombok.Cleanup;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
@@ -59,6 +57,11 @@ import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import lombok.AllArgsConstructor;
+import lombok.Cleanup;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class MetadataCacheTest extends BaseMetadataStoreTest {
@@ -597,4 +600,43 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(res.getValue().b, 2);
         assertEquals(res.getValue().path, key1);
     }
+
+    /**
+    * It validates that metadata-store blocking of one of the callback thread doesn't cause deadlock in the system.
+    * @throws Exception
+    */
+   @Test
+   public void testMetadataStoreCallBackDeadLock() throws Exception {
+       @Cleanup
+       MetadataStore store = MetadataStoreFactory.create(zks.getConnectionString(),
+               MetadataStoreConfig.builder().processingThreads(2).build());
+
+       MetadataCache<Map<String, String>> objCache = store.getMetadataCache(new TypeReference<Map<String, String>>() {
+       });
+
+       String key1 = newKey();
+       String key2 = newKey();
+
+       CountDownLatch key1CallbackLatch = new CountDownLatch(1);
+       CountDownLatch finalLatch = new CountDownLatch(1);
+       Executor exec = Executors.newFixedThreadPool(1);
+       objCache.get(key2).thenApply(value -> {
+           try {
+               exec.execute(() -> {
+                   try {
+                       objCache.get(key1).get();
+                       key1CallbackLatch.countDown();
+                   }catch (Exception e) {
+                       new RuntimeException(e);
+                   }
+               });
+               key1CallbackLatch.await();
+               finalLatch.countDown();
+           } catch (InterruptedException e1) {
+               throw new RuntimeException(e1);
+           }
+           return null;
+       });
+       finalLatch.await();
+   }
 }

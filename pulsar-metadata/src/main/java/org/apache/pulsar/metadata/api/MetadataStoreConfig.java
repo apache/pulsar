@@ -92,4 +92,10 @@ public class MetadataStoreConfig {
      * separate clusters.
      */
     private MetadataEventSynchronizer synchronizer;
+
+    /**
+     * Number of metadata store callback processing threads.
+     */
+    @Builder.Default
+    private final int processingThreads = 1;
 }
