@@ -272,17 +272,18 @@ The Apache Software License, Version 2.0
     - grpc-protobuf-1.55.3.jar
     - grpc-protobuf-lite-1.55.3.jar
     - grpc-stub-1.55.3.jar
+    - grpc-util-1.60.0.jar
   * JEtcd
-    - jetcd-api-0.7.5.jar
-    - jetcd-common-0.7.5.jar
-    - jetcd-core-0.7.5.jar
-    - jetcd-grpc-0.7.5.jar
+    - jetcd-api-0.7.7.jar
+    - jetcd-common-0.7.7.jar
+    - jetcd-core-0.7.7.jar
+    - jetcd-grpc-0.7.7.jar
   * Vertx
-    - vertx-core-4.3.8.jar
-    - vertx-grpc-4.3.5.jar
+    - vertx-core-4.5.8.jar
+    - vertx-grpc-4.5.8.jar
  * Joda Time
     - joda-time-2.10.10.jar
-    - failsafe-2.4.4.jar
+    - failsafe-3.3.2.jar
   * Jetty
     - http2-client-9.4.54.v20240208.jar
     - http2-common-9.4.54.v20240208.jar
@@ -307,7 +308,7 @@ The Apache Software License, Version 2.0
   * Bytecode
     - bytecode-1.2.jar
   * Airlift
-    - aircompressor-0.20.jar
+    - aircompressor-0.27.jar
     - bootstrap-213.jar
     - concurrent-213.jar
     - configuration-213.jar

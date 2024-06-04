@@ -150,7 +150,7 @@ flexible messaging model and an intuitive client API.</description>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.3.8</vertx.version>
+    <vertx.version>4.5.8</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
@@ -248,13 +248,14 @@ flexible messaging model and an intuitive client API.</description>
     <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.7.5</jetcd.version>
+    <jetcd.version>0.7.7</jetcd.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
+    <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -378,6 +379,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>dev.failsafe</groupId>
+        <artifactId>failsafe</artifactId>
+        <version>${failsafe.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
@@ -498,6 +505,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>vertx-web</artifactId>
         <version>${vertx.version}</version>
       </dependency>
+      <dependency>
+          <groupId>io.vertx</groupId>
+          <artifactId>vertx-grpc</artifactId>
+          <version>${vertx.version}</version>
+      </dependency>
 
       <dependency>
          <groupId>org.apache.curator</groupId>
@@ -594,6 +606,13 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>freebuilder</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-util</artifactId>
+        <!-- This is only used for JEtcd so far. Once we upgrade Grpc to >= 1.60, we can remove the special version pin -->
+        <version>1.60.0</version>
       </dependency>
 
       <dependency>
