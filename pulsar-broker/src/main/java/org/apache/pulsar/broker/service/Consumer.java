@@ -1222,16 +1222,13 @@ public class Consumer {
             if (oldValue != null) {
                 return oldValue;
             }
-            var subscription = getSubscription();
             var topicName = TopicName.get(subscription.getTopic().getName());
 
             var builder = Attributes.builder()
-                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumerName())
-                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumerId())
-                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_CONNECTED_SINCE,
-                            getConnectedSince().getEpochSecond())
+                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumerName)
+                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumerId)
                     .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscription.getName())
-                    .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, subType().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, subType.toString())
                     .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                     .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
                     .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
@@ -1239,20 +1236,6 @@ public class Consumer {
             if (topicName.isPartitioned()) {
                 builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
             }
-            var clientAddress = getClientAddressAndPort();
-            if (clientAddress != null) {
-                builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, clientAddress);
-            }
-            var clientVersion = getClientVersion();
-            if (clientVersion != null) {
-                builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, clientVersion);
-            }
-            var metadataList = getMetadata()
-                    .entrySet()
-                    .stream()
-                    .map(e -> String.format("%s:%s", e.getKey(), e.getValue()))
-                    .toList();
-            builder.put(OpenTelemetryAttributes.PULSAR_CONSUMER_METADATA, metadataList);
             return builder.build();
         });
     }
