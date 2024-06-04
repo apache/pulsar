@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import dev.failsafe.Failsafe;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -46,7 +47,6 @@ import com.google.gson.Gson;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
 
 @Slf4j
 public class PulsarIOSinkRunner extends PulsarIOTestRunner {
