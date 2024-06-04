@@ -57,12 +57,14 @@ public class ExceptionHandler {
                         ByteBuffer.wrap(errorBytes),
                         true);
             } else {
+                log.warn("Failed to intercept request", ex);
                 ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
-                        ex.getMessage());
+                        "Failed to intercept request");
             }
         } else {
+            log.warn("Failed to intercept request", ex);
             ((HttpServletResponse) response).sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
-                    ex.getMessage());
+                    "server error");
         }
     }
 }
