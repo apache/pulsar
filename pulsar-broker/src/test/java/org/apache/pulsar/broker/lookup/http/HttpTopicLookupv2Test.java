@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.lookup.NamespaceData;
 import org.apache.pulsar.broker.lookup.RedirectData;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -149,8 +150,8 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(true);
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(false);
+        CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
+        future.complete(TopicExistsInfo.notExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
@@ -260,8 +261,8 @@ public class HttpTopicLookupv2Test {
         policies3Future.complete(Optional.of(policies3));
         doReturn(policies3Future).when(namespaceResources).getPoliciesAsync(namespaceName2);
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(false);
+        CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
+        future.complete(TopicExistsInfo.notExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
                 "invalid-localCluster", false, null, null);
@@ -294,8 +295,8 @@ public class HttpTopicLookupv2Test {
         doReturn(uri).when(uriInfo).getRequestUri();
         config.setAuthorizationEnabled(true);
         NamespaceService namespaceService = pulsar.getNamespaceService();
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(false);
+        CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
+        future.complete(TopicExistsInfo.notExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
 
         // Get the current semaphore first

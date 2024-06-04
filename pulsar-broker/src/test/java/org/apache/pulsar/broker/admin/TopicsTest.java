@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -357,7 +358,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture future = new CompletableFuture();
         future.completeExceptionally(new BrokerServiceException("Fake Exception"));
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(true);
+        existFuture.complete(TopicExistsInfo.nonPartitionedExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
@@ -378,7 +379,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         NamespaceService nameSpaceService = mock(NamespaceService.class);
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(false);
+        existFuture.complete(TopicExistsInfo.notExists());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
