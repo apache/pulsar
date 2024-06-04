@@ -291,11 +291,10 @@ public class TokensCliUtils {
             }
 
             // Validate the token
-            @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
                     .build()
-                    .parse(token);
+                    .parseClaimsJws(token);
 
             System.out.println(jwt.getBody());
             return 0;
