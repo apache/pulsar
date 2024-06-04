@@ -265,6 +265,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
     <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
+    <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -382,6 +383,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <version>${mockito.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>dev.failsafe</groupId>
+        <artifactId>failsafe</artifactId>
+        <version>${failsafe.version}</version>
       </dependency>
 
       <dependency>
