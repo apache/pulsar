@@ -2471,6 +2471,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double loadBalancerBandwithOutResourceWeight = 1.0;
 
+    /**
+     * Get the load balancer bandwidth in resource weight.
+     * To be compatible with the old configuration, we still support the old configuration.
+     * If a configuration is not the default configuration, use that configuration.
+     * If both the new and the old are configured different from the default value, use the new one.
+     * @return
+     */
+    public double getLoadBalancerBandwidthInResourceWeight() {
+        if (loadBalancerBandwidthInResourceWeight != 1.0) {
+            return loadBalancerBandwidthInResourceWeight;
+        } else if (loadBalancerBandwithInResourceWeight != 1.0) {
+            return loadBalancerBandwithInResourceWeight;
+        } else {
+            return 1.0;
+        }
+    }
+
+    public double getLoadBalancerBandwidthOutResourceWeight() {
+        if (loadBalancerBandwidthOutResourceWeight != 1.0) {
+            return loadBalancerBandwidthOutResourceWeight;
+        } else if (loadBalancerBandwithOutResourceWeight != 1.0) {
+            return loadBalancerBandwithOutResourceWeight;
+        } else {
+            return 1.0;
+        }
+    }
+
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
