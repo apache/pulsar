@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -85,7 +86,7 @@ public class BrokerMonitor extends CmdBase {
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
     private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %" };
 
-    private Map<String, Object> loadData;
+    private Map<String, LoadManagerReport> loadData;
 
     private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
 
@@ -146,9 +147,9 @@ public class BrokerMonitor extends CmdBase {
             double totalLongTermMessageRate = 0;
             double maxMaxUsage = 0;
             int i = 1;
-            for (final Map.Entry<String, Object> entry : loadData.entrySet()) {
+            for (final Map.Entry<String, LoadManagerReport> entry : loadData.entrySet()) {
                 final String broker = entry.getKey();
-                final Object data = entry.getValue();
+                final LoadManagerReport data = entry.getValue();
                 rows[i] = new Object[GLOBAL_HEADER.length];
                 rows[i][0] = broker;
                 int numBundles;
