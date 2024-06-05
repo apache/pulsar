@@ -50,58 +50,58 @@ public class PatternMultiTopicsConsumerImplTest {
 
     }
 
-//    @Test
-//    public void testChangedUnfilteredResponse() {
-//        PatternMultiTopicsConsumerImpl.updateSubscriptions(
-//                Pattern.compile("tenant/my-ns/name-.*"),
-//                mockTopicsHashSetter,
-//                new GetTopicsResult(Arrays.asList(
-//                        "persistent://tenant/my-ns/name-1",
-//                        "persistent://tenant/my-ns/name-2",
-//                        "persistent://tenant/my-ns/non-matching"),
-//                        null, false, true),
-//                mockListener,
-//                Collections.emptyList());
-//        verify(mockListener).onTopicsAdded(Sets.newHashSet(
-//                "persistent://tenant/my-ns/name-1",
-//                "persistent://tenant/my-ns/name-2"));
-//        verify(mockListener).onTopicsRemoved(Collections.emptySet());
-//        verify(mockTopicsHashSetter).accept(null);
-//    }
+    @Test
+    public void testChangedUnfilteredResponse() {
+        PatternMultiTopicsConsumerImpl.updateSubscriptions(
+                Pattern.compile("tenant/my-ns/name-.*"),
+                mockTopicsHashSetter,
+                new GetTopicsResult(Arrays.asList(
+                        "persistent://tenant/my-ns/name-1",
+                        "persistent://tenant/my-ns/name-2",
+                        "persistent://tenant/my-ns/non-matching"),
+                        null, false, true),
+                mockListener,
+                Collections.emptyList());
+        verify(mockListener).onTopicsAdded(Sets.newHashSet(
+                "persistent://tenant/my-ns/name-1",
+                "persistent://tenant/my-ns/name-2"));
+        verify(mockListener).onTopicsRemoved(Collections.emptySet());
+        verify(mockTopicsHashSetter).accept(null);
+    }
 
-//    @Test
-//    public void testChangedFilteredResponse() {
-//        PatternMultiTopicsConsumerImpl.updateSubscriptions(
-//                Pattern.compile("tenant/my-ns/name-.*"),
-//                mockTopicsHashSetter,
-//                new GetTopicsResult(Arrays.asList(
-//                        "persistent://tenant/my-ns/name-0",
-//                        "persistent://tenant/my-ns/name-1",
-//                        "persistent://tenant/my-ns/name-2"),
-//                        "TOPICS_HASH", true, true),
-//                mockListener,
-//                Arrays.asList("persistent://tenant/my-ns/name-0"));
-//        verify(mockListener).onTopicsAdded(Sets.newHashSet(
-//                "persistent://tenant/my-ns/name-1",
-//                "persistent://tenant/my-ns/name-2"));
-//        verify(mockListener).onTopicsRemoved(Collections.emptySet());
-//        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
-//    }
+    @Test
+    public void testChangedFilteredResponse() {
+        PatternMultiTopicsConsumerImpl.updateSubscriptions(
+                Pattern.compile("tenant/my-ns/name-.*"),
+                mockTopicsHashSetter,
+                new GetTopicsResult(Arrays.asList(
+                        "persistent://tenant/my-ns/name-0",
+                        "persistent://tenant/my-ns/name-1",
+                        "persistent://tenant/my-ns/name-2"),
+                        "TOPICS_HASH", true, true),
+                mockListener,
+                Arrays.asList("persistent://tenant/my-ns/name-0"));
+        verify(mockListener).onTopicsAdded(Sets.newHashSet(
+                "persistent://tenant/my-ns/name-1",
+                "persistent://tenant/my-ns/name-2"));
+        verify(mockListener).onTopicsRemoved(Collections.emptySet());
+        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
+    }
 
-//    @Test
-//    public void testUnchangedResponse() {
-//        PatternMultiTopicsConsumerImpl.updateSubscriptions(
-//                Pattern.compile("tenant/my-ns/name-.*"),
-//                mockTopicsHashSetter,
-//                new GetTopicsResult(Arrays.asList(
-//                        "persistent://tenant/my-ns/name-0",
-//                        "persistent://tenant/my-ns/name-1",
-//                        "persistent://tenant/my-ns/name-2"),
-//                        "TOPICS_HASH", true, false),
-//                mockListener,
-//                Arrays.asList("persistent://tenant/my-ns/name-0"));
-//        verify(mockListener, never()).onTopicsAdded(any());
-//        verify(mockListener, never()).onTopicsRemoved(any());
-//        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
-//    }
+    @Test
+    public void testUnchangedResponse() {
+        PatternMultiTopicsConsumerImpl.updateSubscriptions(
+                Pattern.compile("tenant/my-ns/name-.*"),
+                mockTopicsHashSetter,
+                new GetTopicsResult(Arrays.asList(
+                        "persistent://tenant/my-ns/name-0",
+                        "persistent://tenant/my-ns/name-1",
+                        "persistent://tenant/my-ns/name-2"),
+                        "TOPICS_HASH", true, false),
+                mockListener,
+                Arrays.asList("persistent://tenant/my-ns/name-0"));
+        verify(mockListener, never()).onTopicsAdded(any());
+        verify(mockListener, never()).onTopicsRemoved(any());
+        verify(mockTopicsHashSetter).accept("TOPICS_HASH");
+    }
 }
