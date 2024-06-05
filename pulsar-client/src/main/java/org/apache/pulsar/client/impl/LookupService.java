@@ -124,4 +124,5 @@ public interface LookupService extends AutoCloseable {
      */
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                String topicPattern, String topicsHash);
+
 }

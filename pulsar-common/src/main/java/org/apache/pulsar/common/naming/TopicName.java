@@ -102,6 +102,10 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    public static String getPartitionPattern(String topic) {
+        return "^" + get(topic).getPartitionedTopicName().toString() + "-partition-[0-9]+$";
+    }
+
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
     private TopicName(String completeTopicName) {
         try {
