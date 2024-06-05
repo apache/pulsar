@@ -56,9 +56,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     @Override
     public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                                                 EventLoopGroup eventLoopGroup,
-                                                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                                Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
                                                 Map<String, Object> properties) {
-        return create(conf, store, eventLoopGroup, ensemblePlacementPolicyClass, properties,
+        return create(conf, store, eventLoopGroup, policyClass, properties,
                 NullStatsLogger.INSTANCE);
     }
 
