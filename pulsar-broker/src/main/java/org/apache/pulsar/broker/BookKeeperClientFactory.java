@@ -34,12 +34,12 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public interface BookKeeperClientFactory {
     CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                                          EventLoopGroup eventLoopGroup,
-                                         Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                         Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
                                          Map<String, Object> ensemblePlacementPolicyProperties);
 
     CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                                          EventLoopGroup eventLoopGroup,
-                                         Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                         Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
                                          Map<String, Object> ensemblePlacementPolicyProperties,
                                          StatsLogger statsLogger);
 
