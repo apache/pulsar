@@ -376,6 +376,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             byte[] value = db.get(optionCache, toBytes(path));
             if (value == null) {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -408,6 +411,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (RocksIterator iterator = db.newIterator(optionDontCache)) {
                 Set<String> result = new HashSet<>();
                 String firstKey = path.equals("/") ? path : path + "/";
@@ -450,6 +456,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             byte[] value = db.get(optionDontCache, toBytes(path));
             if (log.isDebugEnabled()) {
                 if (value != null) {
@@ -472,6 +481,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
@@ -508,6 +520,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
