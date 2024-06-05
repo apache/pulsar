@@ -247,8 +247,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -276,8 +275,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
@@ -288,8 +286,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
@@ -352,8 +349,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
         log.info("Deleting path: {} (v. {})", path, expectedVersion);
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -404,8 +400,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public CompletableFuture<Void> deleteRecursive(String path) {
         log.info("Deleting recursively path: {}", path);
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         return getChildren(path)
                 .thenCompose(children -> FutureUtil.waitForAll(
@@ -425,8 +420,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -506,8 +500,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    private boolean isClosed() {
+    protected boolean isClosed() {
         return isClosed.get();
+    }
+
+    protected static <T> CompletableFuture<T> alreadyClosedFailedFuture() {
+        return FutureUtil.failedFuture(
+                new MetadataStoreException.AlreadyClosedException());
     }
 
     @Override
