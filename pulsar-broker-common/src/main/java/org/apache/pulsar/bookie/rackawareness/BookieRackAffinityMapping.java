@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
@@ -122,23 +123,26 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
         store.registerListener(this::handleUpdates);
-        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
-                .thenAccept(racksWithHost -> {
-                    for (var bookieMapping : racksWithHost.values()) {
-                        for (String address : bookieMapping.keySet()) {
-                            bookieAddressListLastTime.add(BookieId.parse(address));
-                        }
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
-                                    bookieAddressListLastTime);
-                        }
-                    }
-                    updateRacksWithHost(racksWithHost);
-                }).exceptionally(ex -> {
-                    LOG.error("Failed to update rack info. ", ex);
-                    return null;
-                });
+
+        try {
+            var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                    .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
+                    .get();
+
+            for (var bookieMapping : racksWithHost.values()) {
+                for (String address : bookieMapping.keySet()) {
+                    bookieAddressListLastTime.add(BookieId.parse(address));
+                }
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
+                            bookieAddressListLastTime);
+                }
+            }
+            updateRacksWithHost(racksWithHost);
+        } catch (ExecutionException | InterruptedException e) {
+            LOG.error("Failed to update rack info. ", e);
+            throw new RuntimeException(e);
+        }
 
         watchAvailableBookies();
     }
