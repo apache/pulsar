@@ -190,22 +190,19 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         final int epoch = recheckPatternEpoch.incrementAndGet();
         return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
             .thenCompose(getTopicsResult -> {
-                // If "recheckTopicsChange" has been called more than one times, only make the last one take
-                // affects. Use "synchronized (recheckPatternTaskBackoff)" instead of
+                // If "recheckTopicsChange" has been called more than one times, only make the last one take affects.
+                // Use "synchronized (recheckPatternTaskBackoff)" instead of
                 // `synchronized(PatternMultiTopicsConsumerImpl.this)` to avoid locking in a wider range.
                 synchronized (recheckPatternTaskBackoff) {
                     if (recheckPatternEpoch.get() > epoch) {
                         return CompletableFuture.completedFuture(null);
                     }
                     if (log.isDebugEnabled()) {
-                        log.debug(
-                                "Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
-                                namespaceName, getTopicsResult.getTopics().size(),
-                                getTopicsResult.getTopicsHash(),
+                        log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                                namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
                                 getTopicsResult.isFiltered());
                         getTopicsResult.getTopics().forEach(topicName ->
-                                log.debug("Get topics under namespace {}, topic: {}", namespaceName,
-                                        topicName));
+                                log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
                     }
 
                     final List<String> oldTopics = new ArrayList<>(getPartitions());
