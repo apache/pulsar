@@ -1073,12 +1073,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             configurationData.setReceiverQueueSize(receiverQueueSize);
 
             CompletableFuture<List<Integer>> partitionsFuture;
-            if (!createIfDoesNotExist) {
-                partitionsFuture = getExistsPartitions(topic);
-            } else {
+            if (createIfDoesNotExist) {
                 partitionsFuture = CompletableFuture.completedFuture(IntStream.range(0, numPartitions)
                         .mapToObj(i -> Integer.valueOf(i))
                         .collect(Collectors.toList()));
+            } else {
+                partitionsFuture = getExistsPartitions(topic);
             }
             subscribeAllPartitionsFuture = partitionsFuture.thenCompose(partitions -> {
                 log.info("===> partitions: {}", partitions);
