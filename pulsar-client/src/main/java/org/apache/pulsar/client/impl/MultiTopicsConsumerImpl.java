@@ -938,7 +938,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
      * @param topicName topic name without the partition suffix.
      */
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
-        log.info("===> topicName: {}", topicName);
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {
             return FutureUtil.failedFuture(
@@ -1013,8 +1012,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
         String fullTopicName = topicNameInstance.toString();
-        if (consumers.containsKey(fullTopicName)
-                || partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+        if (consumers.containsKey(fullTopicName)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
+        }
+        if (!topicNameInstance.isPartitioned()
+                && partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
@@ -1047,7 +1050,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                             String topicName,
                                             int numPartitions,
                                             boolean createIfDoesNotExist) {
-        log.info("===> doSubscribeTopicPartitions {}: {}", numPartitions, topicName);
         if (log.isDebugEnabled()) {
             log.debug("Subscribe to topic {} metadata.partitions: {}", topicName, numPartitions);
         }
@@ -1073,15 +1075,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             configurationData.setReceiverQueueSize(receiverQueueSize);
 
             CompletableFuture<List<Integer>> partitionsFuture;
-            if (createIfDoesNotExist) {
+            if (createIfDoesNotExist || !TopicName.get(topicName).isPersistent()) {
                 partitionsFuture = CompletableFuture.completedFuture(IntStream.range(0, numPartitions)
                         .mapToObj(i -> Integer.valueOf(i))
                         .collect(Collectors.toList()));
             } else {
-                partitionsFuture = getExistsPartitions(topic);
+                partitionsFuture = getExistsPartitions(topicName.toString());
             }
             subscribeAllPartitionsFuture = partitionsFuture.thenCompose(partitions -> {
-                log.info("===> partitions: {}", partitions);
                 if (partitions.isEmpty()) {
                     partitionedTopics.remove(topicName, numPartitions);
                     return CompletableFuture.completedFuture(null);
@@ -1101,7 +1102,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         }
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                     }
-                    log.info("===> consumers: {}", consumers.keySet());
                     subscribeList.add(subFuture);
                 }
                 return FutureUtil.waitForAll(subscribeList);
@@ -1158,7 +1158,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return;
             })
             .exceptionally(ex -> {
-                handleSubscribeOneTopicError(topicName, ex, subscribeResult);
+                log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName,
+                        ex.getMessage());
+                subscribeResult.completeExceptionally(ex);
                 return null;
             });
     }
@@ -1549,11 +1551,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private CompletableFuture<List<Integer>> getExistsPartitions(String topic) {
         TopicName topicName = TopicName.get(topic);
         if (!topicName.isPersistent()) {
-            return FutureUtil.failedFuture(new IllegalArgumentException("The API LookupService.getExistsPartitions does"
-                    + " not support non-persistent topic yet."));
+            return FutureUtil.failedFuture(new IllegalArgumentException("The method getExistsPartitions"
+                    + " does not support non-persistent topic yet."));
         }
         return client.getLookup().getTopicsUnderNamespace(topicName.getNamespaceObject(),
-                topicName.isPersistent() ? CommandGetTopicsOfNamespace.Mode.PERSISTENT : CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT,
+                CommandGetTopicsOfNamespace.Mode.PERSISTENT,
                 "^" + topicName.getPartitionedTopicName() + "$",
                 null).thenApply(getTopicsResult -> {
             if (getTopicsResult.getNonPartitionedOrPartitionTopics() == null

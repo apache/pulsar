@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,9 +69,10 @@ public class TopicGCTest extends ProducerConsumerBase {
     @EqualsAndHashCode.Include
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        this.conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        this.conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        this.conf.setBrokerDeleteInactiveTopicsFrequencySeconds(10);
+        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.setBrokerDeleteInactiveTopicsMode(
+                InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(10);
     }
 
     private enum SubscribeTopicType {
@@ -195,7 +197,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         for (int i = 0; i < 2; i++) {
             Message<String> msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg, "Expected at least received 2 messages.");
-            log.info("===> received msg[{}]: {}", i, msg.getValue());
+            log.info("received msg[{}]: {}", i, msg.getValue());
             TopicMessageId messageId = (TopicMessageId) msg.getMessageId();
             if (messageId.getOwnerTopic().equals(partition1)) {
                 consumer1.acknowledgeAsync(msg);
@@ -225,12 +227,12 @@ public class TopicGCTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 180 * 1000)
-    public void testAfterAllPartDeleted() throws Exception {
+    public void testPhasePartDeletion() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String topicPattern = "persistent://public/default/tp.*";
         final String partition0 = topic + "-partition-0";
         final String partition1 = topic + "-partition-1";
-        final String partition2 = topic + "-partition-1";
+        final String partition2 = topic + "-partition-2";
         final String subscription = "s1";
         admin.topics().createPartitionedTopic(topic, 3);
         // Create consumer.
@@ -247,7 +249,7 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 3);
             assertTrue(consumers.containsKey(partition0));
             assertTrue(consumers.containsKey(partition1));
@@ -262,7 +264,7 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 2);
             assertTrue(consumers.containsKey(partition1));
             assertTrue(consumers.containsKey(partition2));
@@ -276,12 +278,12 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 1);
             assertTrue(consumers.containsKey(partition2));
         });
         // Delete partitions the third time.
-        admin.topics().delete(partition1, true);
+        admin.topics().delete(partition2, true);
         // Check subscriptions.
         Awaitility.await().untilAsserted(() -> {
             ConcurrentHashMap<String, ConsumerImpl<?>> consumers
@@ -334,7 +336,7 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 2);
             assertEquals(consumers.size(), 2);
             assertTrue(consumers.containsKey(partition0));
             assertTrue(consumers.containsKey(partition1));
@@ -349,7 +351,7 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 3);
             assertEquals(consumers.size(), 3);
             assertTrue(consumers.containsKey(partition0));
             assertTrue(consumers.containsKey(partition1));
@@ -365,7 +367,7 @@ public class TopicGCTest extends ProducerConsumerBase {
             ConcurrentHashMap<String, Integer> partitionedTopics
                     = WhiteboxImpl.getInternalState(c1, "partitionedTopics");
             assertEquals(partitionedTopics.size(), 1);
-            assertTrue(partitionedTopics.containsKey(topic));
+            assertEquals(partitionedTopics.get(topic), 4);
             assertEquals(consumers.size(), 4);
             assertTrue(consumers.containsKey(partition0));
             assertTrue(consumers.containsKey(partition1));
