@@ -70,7 +70,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
 
-    public static MetadataStore createMetadataStore(Configuration conf) throws MetadataException {
+    static MetadataStore getMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
         Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
         if (storeProperty != null) {
@@ -116,25 +116,32 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         super.setConf(conf);
         MetadataStore store;
         try {
-            store = createMetadataStore(conf);
-            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            store.registerListener(this::handleUpdates);
-            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
-                    .orElseGet(BookiesRackConfiguration::new);
-            for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
-                for (String address : bookieMapping.keySet()) {
-                    bookieAddressListLastTime.add(BookieId.parse(address));
-                }
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
-                            bookieAddressListLastTime);
-                }
-            }
-            updateRacksWithHost(racksWithHost);
-            watchAvailableBookies();
-        } catch (InterruptedException | ExecutionException | MetadataException e) {
+            store = getMetadataStore(conf);
+        } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
+
+        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+        store.registerListener(this::handleUpdates);
+        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
+                .thenAccept(racksWithHost -> {
+                    for (var bookieMapping : racksWithHost.values()) {
+                        for (String address : bookieMapping.keySet()) {
+                            bookieAddressListLastTime.add(BookieId.parse(address));
+                        }
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
+                                    bookieAddressListLastTime);
+                        }
+                    }
+                    updateRacksWithHost(racksWithHost);
+                }).exceptionally(ex -> {
+                    LOG.error("Failed to update rack info. ", ex);
+                    return null;
+                });
+
+        watchAvailableBookies();
     }
 
     private void watchAvailableBookies() {
@@ -145,13 +152,13 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 field.setAccessible(true);
                 RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
                 registrationClient.watchWritableBookies(versioned -> {
-                    try {
-                        racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
-                                .orElseGet(BookiesRackConfiguration::new);
-                        updateRacksWithHost(racksWithHost);
-                    } catch (InterruptedException | ExecutionException e) {
-                        LOG.error("Failed to update rack info. ", e);
-                    }
+                    bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                            .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
+                            .thenAccept(this::updateRacksWithHost)
+                            .exceptionally(ex -> {
+                                LOG.error("Failed to update rack info. ", ex);
+                                return null;
+                            });
                 });
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 LOG.error("Failed watch available bookies.", e);
