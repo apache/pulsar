@@ -39,8 +39,10 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     public ExtensibleLoadManagerImplWithAdvertisedListenersTest() {
         super("public/test");
     }
-    protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
-        super.initConfig(conf);
+
+    @Override
+    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
+        super.updateConfig(conf);
         int privatePulsarPort = nextLockedFreePort();
         int publicPulsarPort = nextLockedFreePort();
         conf.setInternalListenerName("internal");
