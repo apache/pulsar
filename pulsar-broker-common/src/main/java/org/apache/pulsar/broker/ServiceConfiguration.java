@@ -1346,6 +1346,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The position that replication task start at, it can be set to earliest or latest (default).")
+    private String replicationStartAt = "latest";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max memory size for broker handling messages sending from producers.\n\n"
