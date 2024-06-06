@@ -329,9 +329,8 @@ public class GetPartitionMetadataTest {
 
         PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
         for (PulsarClientImpl client : clientArray) {
-            // Define topic.
+            // Case-1: normal topic.
             final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-            final TopicName topicName = TopicName.get(topicNameStr);
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
             assertEquals(response.partitions, 3);
@@ -342,25 +341,41 @@ public class GetPartitionMetadataTest {
             // The API "getPartitionedTopicMetadata" only creates the partitioned metadata, it will not create the
             // partitions.
             verifyPartitionsNeverCreated(topicNameStr);
+
+            // Case-2: topic with suffix "-partition-1".
+            final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
+                    topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata responseWithSuffix =
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+            assertEquals(responseWithSuffix.partitions, 0);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopicsWithSuffix =
+                    admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopicsWithSuffix.contains(topicNameStrWithSuffix));
+
             // Verify: lookup semaphore has been releases.
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
             });
             // Cleanup.
             admin1.topics().deletePartitionedTopic(topicNameStr, false);
+            try {
+                admin1.topics().delete(topicNameStrWithSuffix, false);
+            } catch (Exception ex) {}
         }
 
     }
 
     @Test(dataProvider = "clients")
     public void testAutoCreateNonPartitionedTopic(boolean isUsingHttpLookup, TopicDomain topicDomain) throws Exception {
-        modifyTopicAutoCreation(true, TopicType.NON_PARTITIONED, 1);
+        modifyTopicAutoCreation(true, TopicType.NON_PARTITIONED, 3);
 
         int lookupPermitsBefore = getLookupRequestPermits();
 
         PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
         for (PulsarClientImpl client : clientArray) {
-            // Define topic.
+            // Case 1: normal topic.
             final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
@@ -369,6 +384,19 @@ public class GetPartitionMetadataTest {
             List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
             assertFalse(partitionedTopics.contains(topicNameStr));
             verifyPartitionsNeverCreated(topicNameStr);
+
+            // Case-2: topic with suffix "-partition-1".
+            final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
+                    topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata responseWithSuffix =
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+            assertEquals(responseWithSuffix.partitions, 0);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopicsWithSuffix =
+                    admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopicsWithSuffix.contains(topicNameStrWithSuffix));
+
             // Verify: lookup semaphore has been releases.
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
@@ -376,6 +404,9 @@ public class GetPartitionMetadataTest {
             // Cleanup.
             try {
                 admin1.topics().delete(topicNameStr, false);
+            } catch (Exception ex) {}
+            try {
+                admin1.topics().delete(topicNameStrWithSuffix, false);
             } catch (Exception ex) {}
         }
     }
