@@ -73,7 +73,10 @@ public class TopicLookupBase extends PulsarWebResource {
                     return pulsar().getNamespaceService().checkTopicExists(topicName, true).thenCompose(info -> {
                         boolean exists = info.isExists();
                         info.recycle();
-                        return CompletableFuture.completedFuture(exists);
+                        if (exists) {
+                            return CompletableFuture.completedFuture(true);
+                        }
+                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName);
                     });
                 })
                 .thenCompose(exist -> {
