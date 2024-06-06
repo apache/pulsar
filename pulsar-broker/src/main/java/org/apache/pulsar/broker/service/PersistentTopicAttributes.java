@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import io.opentelemetry.api.common.Attributes;
 import lombok.Getter;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 @Getter
@@ -36,8 +36,8 @@ public class PersistentTopicAttributes extends TopicAttributes {
     private final Attributes transactionCommittedAttributes;
     private final Attributes transactionAbortedAttributes;
 
-    public PersistentTopicAttributes(PersistentTopic topic) {
-        super(topic);
+    public PersistentTopicAttributes(TopicName topicName) {
+        super(topicName);
 
         timeBasedQuotaAttributes = Attributes.builder()
                 .putAll(commonAttributes)

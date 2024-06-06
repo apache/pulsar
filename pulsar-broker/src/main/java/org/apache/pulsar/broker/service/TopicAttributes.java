@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import io.opentelemetry.api.common.Attributes;
+import java.util.Objects;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
@@ -28,8 +29,8 @@ public class TopicAttributes {
 
     protected final Attributes commonAttributes;
 
-    public TopicAttributes(Topic topic) {
-        var topicName = TopicName.get(topic.getName());
+    public TopicAttributes(TopicName topicName) {
+        Objects.requireNonNull(topicName);
         var builder = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())

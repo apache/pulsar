@@ -1282,6 +1282,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return topicAttributes;
         }
         return TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
-                old -> old != null ? old : new TopicAttributes(NonPersistentTopic.this));
+                old -> old != null ? old : new TopicAttributes(TopicName.get(topic)));
     }
 }
