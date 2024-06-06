@@ -2481,11 +2481,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public double getLoadBalancerBandwidthInResourceWeight() {
         if (loadBalancerBandwidthInResourceWeight != 1.0) {
             return loadBalancerBandwidthInResourceWeight;
-        } else if (loadBalancerBandwithInResourceWeight != 1.0) {
-            return loadBalancerBandwithInResourceWeight;
-        } else {
-            return 1.0;
         }
+        if (loadBalancerBandwithInResourceWeight != 1.0) {
+            return loadBalancerBandwithInResourceWeight;
+        }
+        return 1.0;
     }
 
     public double getLoadBalancerBandwidthOutResourceWeight() {
