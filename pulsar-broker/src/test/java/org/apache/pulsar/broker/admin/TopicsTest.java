@@ -380,7 +380,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         NamespaceService nameSpaceService = mock(NamespaceService.class);
         CompletableFuture existFuture = new CompletableFuture();
         existFuture.complete(TopicExistsInfo.notExists());
+        CompletableFuture existBooleanFuture = new CompletableFuture();
+        existBooleanFuture.complete(false);
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any(), anyBoolean());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();

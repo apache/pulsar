@@ -1416,7 +1416,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic,
                                                     boolean assumedNonPartitionedNonPersistentTopicAlwaysExists) {
         return pulsar.getBrokerService()
-            .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
+            .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
             .thenCompose(metadata -> {
                 if (metadata.partitions > 0) {
                     return CompletableFuture.completedFuture(TopicExistsInfo.partitionedExists(metadata.partitions));
