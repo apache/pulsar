@@ -161,7 +161,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testEntryLookup() throws Exception {
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
             = buildCompactedLedger(bk, 500);
@@ -217,7 +217,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,

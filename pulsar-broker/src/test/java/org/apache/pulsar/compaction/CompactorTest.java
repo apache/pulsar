@@ -93,7 +93,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
         compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
@@ -336,7 +336,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
