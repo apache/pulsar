@@ -754,14 +754,6 @@ public class PulsarClientImpl implements PulsarClient {
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        urlLookupMap.entrySet().forEach(e -> {
-            try {
-                e.getValue().close();
-            } catch (Exception ex) {
-                log.error("Error closing lookup service {}", e.getKey(), ex);
-            }
-        });
-
         producers.forEach(p -> futures.add(p.closeAsync().handle((__, t) -> {
             if (t != null) {
                 log.error("Error closing producer {}", p, t);
