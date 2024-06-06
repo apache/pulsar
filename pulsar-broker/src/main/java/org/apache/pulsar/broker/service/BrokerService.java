@@ -3206,7 +3206,7 @@ public class BrokerService implements Closeable {
                         // Allow auto create non-partitioned topic.
                         boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
                                 .isDefaultTopicTypePartitioned(topicName, policies);
-                        if (!autoCreatePartitionedTopic) {
+                        if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
                             return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
                         }
 
