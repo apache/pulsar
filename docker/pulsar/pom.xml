@@ -52,7 +52,7 @@
       <id>git-commit-id-no-git</id>
       <activation>
         <file>
-          <missing>${basedir}/../../.git/index</missing>
+          <missing>${basedir}/../../.git</missing>
         </file>
       </activation>
       <properties>

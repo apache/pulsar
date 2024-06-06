@@ -389,16 +389,16 @@ The Apache Software License, Version 2.0
     - log4j-slf4j2-impl-2.23.1.jar
     - log4j-web-2.23.1.jar
  * OpenTelemetry
-    - opentelemetry-api-1.37.0.jar
-    - opentelemetry-api-incubator-1.37.0-alpha.jar
-    - opentelemetry-context-1.37.0.jar
+    - opentelemetry-api-1.38.0.jar
+    - opentelemetry-api-incubator-1.38.0-alpha.jar
+    - opentelemetry-context-1.38.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.17.0.jar
     - cpu-affinity-4.17.0.jar
     - circe-checksum-4.17.0.jar
   * AirCompressor
-     - aircompressor-0.20.jar
+     - aircompressor-0.27.jar
  * AsyncHttpClient
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
@@ -417,6 +417,7 @@ The Apache Software License, Version 2.0
   * Apache Avro
     - avro-1.11.3.jar
     - avro-protobuf-1.11.3.jar
+ * RE2j -- re2j-1.7.jar
 
 BSD 3-clause "New" or "Revised" License
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
@@ -474,10 +475,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.78.jar
-    - bcprov-ext-jdk18on-1.78.jar
-    - bcprov-jdk18on-1.78.jar
-    - bcutil-jdk18on-1.78.jar
+    - bcpkix-jdk18on-1.78.1.jar
+    - bcprov-jdk18on-1.78.1.jar
+    - bcutil-jdk18on-1.78.1.jar
 
 ------------------------
 

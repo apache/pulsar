@@ -110,7 +110,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null
-        );
+        ).join();
     }
 
     @Override

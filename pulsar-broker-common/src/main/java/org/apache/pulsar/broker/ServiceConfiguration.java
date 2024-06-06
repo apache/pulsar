@@ -2512,7 +2512,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Memory Resource Usage Weight. Deprecated: Memory is no longer used as a load balancing item.",
             deprecated = true
     )
-    private double loadBalancerMemoryResourceWeight = 1.0;
+    private double loadBalancerMemoryResourceWeight = 0;
 
     @FieldContext(
             dynamic = true,

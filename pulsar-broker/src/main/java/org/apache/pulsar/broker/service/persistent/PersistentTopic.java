@@ -58,6 +58,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Value;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsOnMetadataServerException;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -2829,6 +2831,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }).exceptionally(e -> {
                                     log.error("[{}] Failed to get ledger metadata for the schema ledger {}",
                                             topic, ledgerId, e);
+                                    if ((e.getCause() instanceof BKNoSuchLedgerExistsOnMetadataServerException)
+                                            || (e.getCause() instanceof BKNoSuchLedgerExistsException)) {
+                                        completableFuture.complete(null);
+                                        return null;
+                                    }
                                     completableFuture.completeExceptionally(e);
                                     return null;
                                 });
