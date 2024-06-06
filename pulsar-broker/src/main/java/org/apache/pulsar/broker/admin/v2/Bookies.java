@@ -168,19 +168,19 @@ public class Bookies extends AdminResource {
                     BookiesRackConfiguration brc = optionalBookiesRackConfiguration
                             .orElseGet(BookiesRackConfiguration::new);
 
-                if (deleteAll) {
-                    brc.clear();
-                } else {
-                    for (String bookieAddress : bookieAddresses) {
-                        if (!brc.bookieExists(bookieAddress)) {
-                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                    "Bookie rack placement configuration not found: " + bookieAddress));
+                    if (deleteAll) {
+                        brc.clear();
+                    } else {
+                        for (String bookieAddress : bookieAddresses) {
+                            if (!brc.bookieExists(bookieAddress)) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                        "Bookie rack placement configuration not found: " + bookieAddress));
+                            }
+                        }
+                        for (String bookieAddress : bookieAddresses) {
+                            brc.removeBookie(bookieAddress);
                         }
                     }
-                    for (String bookieAddress : bookieAddresses) {
-                        brc.removeBookie(bookieAddress);
-                    }
-                }
 
                     return brc;
                 }).thenAccept(__ -> {
