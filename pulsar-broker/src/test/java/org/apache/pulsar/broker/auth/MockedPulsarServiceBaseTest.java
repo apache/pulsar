@@ -237,9 +237,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void doInitConf() throws Exception {
         this.conf.setBrokerShutdownTimeoutMs(0L);
         this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        this.conf.setBrokerServicePort(Optional.of(0));
+        if (!conf.getBrokerServicePort().isPresent()) {
+            this.conf.setBrokerServicePort(Optional.of(0));
+        }
+
         this.conf.setAdvertisedAddress("localhost");
-        this.conf.setWebServicePort(Optional.of(0));
+        if (!conf.getWebServicePort().isPresent()) {
+            this.conf.setWebServicePort(Optional.of(0));
+        }
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
     }
