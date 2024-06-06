@@ -759,7 +759,31 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         verify(lookup, times(2)).getBroker(topicName);
     }
 
+    protected static LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
+        LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
+        var lookup = spy(svc);
+        FieldUtils.writeDeclaredField(client, "lookup", lookup, true);
+        return lookup;
+    }
 
+    protected static void checkOwnershipState(String broker, NamespaceBundle bundle,
+                                              ExtensibleLoadManager primaryLoadManager,
+                                              ExtensibleLoadManager secondaryLoadManager, PulsarService pulsar1)
+            throws ExecutionException, InterruptedException {
+        var targetLoadManager = secondaryLoadManager;
+        var otherLoadManager = primaryLoadManager;
+        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+            targetLoadManager = primaryLoadManager;
+            otherLoadManager = secondaryLoadManager;
+        }
+        assertTrue(targetLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+    }
+
+    protected void checkOwnershipState(String broker, NamespaceBundle bundle)
+            throws ExecutionException, InterruptedException {
+        checkOwnershipState(broker, bundle, primaryLoadManager, secondaryLoadManager, pulsar1);
+    }
 
     @Test(timeOut = 30 * 1000)
     public void testSplitBundleAdminAPI() throws Exception {
@@ -1765,6 +1789,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             return "Mock-broker-filter";
         }
 
+    }
+
+    protected static PulsarClient pulsarClient(String url, int intervalInSecs) throws PulsarClientException {
+        return
+                PulsarClient.builder()
+                        .serviceUrl(url)
+                        .statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
 }
