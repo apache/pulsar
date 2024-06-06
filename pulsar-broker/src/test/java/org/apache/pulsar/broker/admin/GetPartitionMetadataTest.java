@@ -346,13 +346,15 @@ public class GetPartitionMetadataTest {
             final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
                     topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
             // Verify: the result of get partitioned topic metadata.
-            PartitionedTopicMetadata responseWithSuffix =
+            PartitionedTopicMetadata response2 =
                     client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
-            assertEquals(responseWithSuffix.partitions, 0);
+            assertEquals(response2.partitions, 0);
             // Verify: the behavior of topic creation.
-            List<String> partitionedTopicsWithSuffix =
+            List<String> partitionedTopics2 =
                     admin1.topics().getPartitionedTopicList("public/default");
-            assertFalse(partitionedTopicsWithSuffix.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(
+                    TopicName.get(topicNameStrWithSuffix).getPartitionedTopicName()));
 
             // Verify: lookup semaphore has been releases.
             Awaitility.await().untilAsserted(() -> {
@@ -389,13 +391,15 @@ public class GetPartitionMetadataTest {
             final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
                     topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
             // Verify: the result of get partitioned topic metadata.
-            PartitionedTopicMetadata responseWithSuffix =
+            PartitionedTopicMetadata response2 =
                     client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
-            assertEquals(responseWithSuffix.partitions, 0);
+            assertEquals(response2.partitions, 0);
             // Verify: the behavior of topic creation.
-            List<String> partitionedTopicsWithSuffix =
+            List<String> partitionedTopics2 =
                     admin1.topics().getPartitionedTopicList("public/default");
-            assertFalse(partitionedTopicsWithSuffix.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(
+                    TopicName.get(topicNameStrWithSuffix).getPartitionedTopicName()));
 
             // Verify: lookup semaphore has been releases.
             Awaitility.await().untilAsserted(() -> {
