@@ -299,6 +299,7 @@ public class Commands {
         connected.setProtocolVersion(versionToAdvertise);
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
+        connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         return cmd;
     }
 
