@@ -41,33 +41,33 @@ public class PersistentTopicAttributes extends TopicAttributes {
 
         timeBasedQuotaAttributes = Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
+                .putAll(OpenTelemetryAttributes.BacklogQuotaType.TIME.attributes)
                 .build();
         sizeBasedQuotaAttributes = Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
+                .putAll(OpenTelemetryAttributes.BacklogQuotaType.SIZE.attributes)
                 .build();
 
         transactionActiveAttributes =  Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
+                .putAll(OpenTelemetryAttributes.TransactionStatus.ACTIVE.attributes)
                 .build();
         transactionCommittedAttributes =  Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
+                .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
                 .build();
         transactionAbortedAttributes =  Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
+                .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
                 .build();
 
         compactionSuccessAttributes = Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
+                .putAll(OpenTelemetryAttributes.CompactionStatus.SUCCESS.attributes)
                 .build();
         compactionFailureAttributes = Attributes.builder()
                 .putAll(commonAttributes)
-                .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
+                .putAll(OpenTelemetryAttributes.CompactionStatus.FAILURE.attributes)
                 .build();
     }
 }
