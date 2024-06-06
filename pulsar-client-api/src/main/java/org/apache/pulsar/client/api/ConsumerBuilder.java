@@ -291,6 +291,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The listener thread pool is exclusively owned by current consumer
      * that are using a "listener" model to get messages. For a given internal consumer,
      * the listener will always be invoked from the same thread, to ensure ordering.
+     *
+     * <p> The user need to shut down the thread pool after closing the consumer to avoid leaks.
      * @param listenerThreadsProvider the threads provider of the consumer message listener
      * @return the consumer builder instance
      */
