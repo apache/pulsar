@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.ThreadPoolProvider;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -81,7 +82,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
-    protected final ExecutorProvider executorProvider;
+    protected final ThreadPoolProvider executorProvider;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     protected UnAckedMessageTracker unAckedMessageTracker;
@@ -138,8 +139,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
-        this.executorProvider = executorProvider;
-        this.externalPinnedExecutor = executorProvider.getExecutor();
+        this.executorProvider = conf.getListenerExecutorProvider() != null
+                ? conf.getListenerExecutorProvider() : executorProvider;
+        this.externalPinnedExecutor = this.executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();

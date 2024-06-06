@@ -30,10 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.ThreadPoolProvider;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
-public class ExecutorProvider {
+public class ExecutorProvider implements ThreadPoolProvider {
     private final int numThreads;
     private final List<Pair<ExecutorService, ExtendedThreadFactory>> executors;
     private final AtomicInteger currentThread = new AtomicInteger(0);

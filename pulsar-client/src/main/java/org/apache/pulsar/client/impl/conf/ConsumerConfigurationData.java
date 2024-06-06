@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.ThreadPoolProvider;
 
 @Data
 @NoArgsConstructor
@@ -90,6 +91,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
+    @JsonIgnore
+    private ThreadPoolProvider listenerExecutorProvider;
     @JsonIgnore
     private MessageListener<T> messageListener;
 
