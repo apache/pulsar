@@ -27,7 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -50,6 +52,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
+import org.apache.pulsar.common.policies.data.ExtBookieInfo;
 import org.apache.pulsar.common.policies.data.RawBookieInfo;
 
 @Path("/bookies")
@@ -131,26 +134,66 @@ public class Bookies extends AdminResource {
     })
     public void deleteBookieRackInfo(@Suspended final AsyncResponse asyncResponse,
                                      @PathParam("bookie") String bookieAddress) throws Exception {
+        internalDeleteBookiesRackInfo(asyncResponse, List.of(bookieAddress), false);
+    }
+
+    @DELETE
+    @Path("/racks-info")
+    @ApiOperation(
+            value = "Removed the rack placement information for a batch of bookies in the cluster",
+            notes = "If the 'deleteAll' parameter is set to true, it will remove the rack placement "
+                    + "information for all bookies in the cluster, ignoring the 'bookieAddresses' parameter"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")
+    })
+    public void batchDeleteBookiesRackInfo(@Suspended final AsyncResponse asyncResponse,
+                                           @ApiParam(value = "List of bookie addresses")
+                                           @QueryParam("bookieAddresses") List<String> bookieAddresses,
+                                           @ApiParam(value = "Whether to delete all bookies rack info",
+                                                   defaultValue = "false")
+                                           @QueryParam("deleteAll") @DefaultValue("false")
+                                           boolean deleteAll) throws Exception {
+        internalDeleteBookiesRackInfo(asyncResponse, bookieAddresses, deleteAll);
+    }
+
+    private void internalDeleteBookiesRackInfo(final AsyncResponse asyncResponse,
+                                               List<String> bookieAddresses,
+                                               boolean deleteAll) throws Exception {
         validateSuperUserAccess();
 
         getPulsarResources().getBookieResources()
                 .update(optionalBookiesRackConfiguration -> {
                     BookiesRackConfiguration brc = optionalBookiesRackConfiguration
-                            .orElseGet(() -> new BookiesRackConfiguration());
+                            .orElseGet(BookiesRackConfiguration::new);
 
-                    if (!brc.removeBookie(bookieAddress)) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                "Bookie rack placement configuration not found: " + bookieAddress));
+                if (deleteAll) {
+                    brc.clear();
+                } else {
+                    for (String bookieAddress : bookieAddresses) {
+                        if (!brc.bookieExists(bookieAddress)) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                    "Bookie rack placement configuration not found: " + bookieAddress));
+                        }
                     }
+                    for (String bookieAddress : bookieAddresses) {
+                        brc.removeBookie(bookieAddress);
+                    }
+                }
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Removed {} from rack mapping info", bookieAddress);
-            asyncResponse.resume(Response.noContent().build());
-        }).exceptionally(ex -> {
-            asyncResponse.resume(ex);
-            return null;
-        });
+                    if (deleteAll) {
+                        log.info("Removed all bookies rack mapping info");
+                    } else {
+                        log.info("Removed {} from rack mapping info", bookieAddresses);
+                    }
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 
     @POST
@@ -168,24 +211,51 @@ public class Bookies extends AdminResource {
                                      @QueryParam("group") String group,
                                      @ApiParam(value = "The bookie info", required = true)
                                      BookieInfo bookieInfo) throws Exception {
+        internalBatchUpdateBookiesRackInfo(asyncResponse, List.of(
+                ExtBookieInfo.builder()
+                        .address(bookieAddress)
+                        .group(group)
+                        .rack(bookieInfo.getRack())
+                        .hostname(bookieInfo.getHostname())
+                        .build())
+        );
+    }
+
+    @POST
+    @Path("/racks-info")
+    @ApiOperation(value = "Updates the rack placement information for a batch of bookies in the cluster")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission")}
+    )
+    public void batchUpdateBookiesRackInfo(@Suspended final AsyncResponse asyncResponse,
+                                           @ApiParam(value = "List of bookie info", required = true)
+                                           List<ExtBookieInfo> extBookieInfos) throws Exception {
+        internalBatchUpdateBookiesRackInfo(asyncResponse, extBookieInfos);
+    }
+
+    private void internalBatchUpdateBookiesRackInfo(final AsyncResponse asyncResponse,
+                                                    List<ExtBookieInfo> extBookieInfos) throws Exception {
         validateSuperUserAccess();
 
-        if (group == null) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Bookie 'group' parameters is missing");
-        }
-
-        // validate rack name
-        int separatorCnt = StringUtils.countMatches(
-            StringUtils.strip(bookieInfo.getRack(), PATH_SEPARATOR), PATH_SEPARATOR);
         boolean isRackEnabled = pulsar().getConfiguration().isBookkeeperClientRackawarePolicyEnabled();
         boolean isRegionEnabled = pulsar().getConfiguration().isBookkeeperClientRegionawarePolicyEnabled();
-        if (isRackEnabled && ((isRegionEnabled && separatorCnt != 1) || (!isRegionEnabled && separatorCnt != 0))) {
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Bookie 'rack' parameter is invalid, "
-                + "When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain "
-                + "slash (`/`) except for the beginning and end of the rack name string. "
-                + "When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
-                + "one slash (`/`) except for the beginning and end of the rack name string."));
-            return;
+        for (ExtBookieInfo extBookieInfo : extBookieInfos) {
+            if (extBookieInfo.getGroup() == null) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Bookie 'group' parameters is missing");
+            }
+
+            // validate rack name
+            int separatorCnt = StringUtils.countMatches(
+                    StringUtils.strip(extBookieInfo.getRack(), PATH_SEPARATOR), PATH_SEPARATOR);
+            if (isRackEnabled && ((isRegionEnabled && separatorCnt != 1) || (!isRegionEnabled && separatorCnt != 0))) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Bookie 'rack' parameter is "
+                        + "invalid, When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed "
+                        + "to contain slash (`/`) except for the beginning and end of the rack name string. "
+                        + "When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
+                        + "one slash (`/`) except for the beginning and end of the rack name string."));
+                return;
+            }
         }
 
         getPulsarResources().getBookieResources()
@@ -193,15 +263,23 @@ public class Bookies extends AdminResource {
                     BookiesRackConfiguration brc = optionalBookiesRackConfiguration
                             .orElseGet(() -> new BookiesRackConfiguration());
 
-                    brc.updateBookie(group, bookieAddress, bookieInfo);
+                    for (ExtBookieInfo extBookieInfo : extBookieInfos) {
+                        brc.updateBookie(extBookieInfo.getGroup(), extBookieInfo.getAddress(),
+                                BookieInfo.builder()
+                                        .rack(extBookieInfo.getRack())
+                                        .hostname(extBookieInfo.getHostname())
+                                        .build());
+                    }
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Updated rack mapping info for {}", bookieAddress);
-            asyncResponse.resume(Response.noContent().build());
-        }).exceptionally(ex -> {
-            asyncResponse.resume(ex);
-            return null;
-        });
+                    String addresses = extBookieInfos.stream()
+                            .map(ExtBookieInfo::getAddress).collect(Collectors.joining(", "));
+                    log.info("Updated rack mapping info for {}", addresses);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 }
