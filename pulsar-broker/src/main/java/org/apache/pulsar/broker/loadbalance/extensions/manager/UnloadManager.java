@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Histogram;
 import java.util.Map;
@@ -201,9 +202,8 @@ public class UnloadManager implements StateChangeListener {
                 }
             }
             case Init -> {
-                if (data.force()) {
-                    complete(serviceUnit, t);
-                }
+                checkArgument(data == null, "Init state must be associated with null data");
+                complete(serviceUnit, t);
             }
             case Owned -> complete(serviceUnit, t);
             case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
