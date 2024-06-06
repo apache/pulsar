@@ -31,9 +31,19 @@ public class TopicExistsInfo {
         }
     };
 
-    private static TopicExistsInfo nonPartitionedExists = newInstance(true, TopicType.NON_PARTITIONED, null);
+    private static TopicExistsInfo nonPartitionedExists = new TopicExistsInfo(null);
+    static {
+        nonPartitionedExists.exists = true;
+        nonPartitionedExists.topicType = TopicType.NON_PARTITIONED;
+        nonPartitionedExists.partitions = null;
+    }
 
-    private static TopicExistsInfo notExists = newInstance(false, TopicType.NON_PARTITIONED, null);
+    private static TopicExistsInfo notExists = new TopicExistsInfo(null);
+    static {
+        notExists.exists = false;
+        notExists.topicType = TopicType.NON_PARTITIONED;
+        notExists.partitions = null;
+    }
 
     public static TopicExistsInfo partitionedExists(Integer partitions){
         return newInstance(true, TopicType.PARTITIONED, partitions);
@@ -84,7 +94,7 @@ public class TopicExistsInfo {
     }
 
     public void recycle(){
-        if (this == notExists || this == nonPartitionedExists) {
+        if (this == notExists || this == nonPartitionedExists || this.handle == null) {
             return;
         }
         this.exists = false;
