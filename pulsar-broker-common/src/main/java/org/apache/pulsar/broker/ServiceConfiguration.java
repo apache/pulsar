@@ -2491,11 +2491,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public double getLoadBalancerBandwidthOutResourceWeight() {
         if (loadBalancerBandwidthOutResourceWeight != 1.0) {
             return loadBalancerBandwidthOutResourceWeight;
-        } else if (loadBalancerBandwithOutResourceWeight != 1.0) {
-            return loadBalancerBandwithOutResourceWeight;
-        } else {
-            return 1.0;
         }
+        if (loadBalancerBandwithOutResourceWeight != 1.0) {
+            return loadBalancerBandwithOutResourceWeight;
+        }
+        return 1.0;
     }
 
     @FieldContext(
