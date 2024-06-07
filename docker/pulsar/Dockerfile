@@ -92,7 +92,7 @@ RUN apk add --no-cache \
             ca-certificates \
             procps \
             curl \
-            bind-utils
+            bind-tools
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
