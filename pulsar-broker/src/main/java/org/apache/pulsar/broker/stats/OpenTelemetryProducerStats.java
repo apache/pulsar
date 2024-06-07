@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.stats;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Producer;
@@ -71,7 +73,9 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .map(Topic::getProducers)
-                        .flatMap(p -> p.values().stream()).forEach(this::recordMetricsForProducer),
+                        .map(Map::values)
+                        .flatMap(Collection::stream)
+                        .forEach(this::recordMetricsForProducer),
                 messageInCounter,
                 bytesInCounter,
                 messageDropCounter);
