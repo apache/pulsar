@@ -20,10 +20,10 @@ package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Map;
-import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.stats.Rate;
 
 /**
  * Statistics about a publisher.
@@ -34,10 +34,6 @@ public class PublisherStatsImpl implements PublisherStats {
     private int count;
 
     public ProducerAccessMode accessMode;
-
-    private final LongAdder msgInCounter = new LongAdder();
-    private final LongAdder bytesInCounter = new LongAdder();
-    private final LongAdder chunkedMessageCounter = new LongAdder();
 
     /** Total rate of messages published by this publisher (msg/s). */
     public double msgRateIn;
@@ -69,6 +65,8 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Metadata (key/value strings) associated with this publisher. */
     public Map<String, String> metadata;
 
+    @JsonIgnore
+    private final Rate msgIn = new Rate();
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
             throw new IllegalArgumentException("stats can't be null");
@@ -113,20 +111,25 @@ public class PublisherStatsImpl implements PublisherStats {
         this.clientVersion = clientVersion;
     }
 
-    @Override
+    public void calculateRates() {
+        msgIn.calculateRate();
+
+        msgRateIn = msgIn.getRate();
+        msgThroughputIn = msgIn.getValueRate();
+        averageMsgSize = msgIn.getAverageValue();
+        chunkedMessageRate = msgChunkIn.getRate();
+    }
+
     public void recordMsgIn(long messageCount, long byteCount) {
-        msgInCounter.add(messageCount);
-        bytesInCounter.add(byteCount);
+        msgIn.recordMultipleEvents(messageCount, byteCount);
     }
 
-    @Override
     public long getMsgInCounter() {
-        return msgInCounter.sum();
+        return msgIn.getTotalCount();
     }
 
-    @Override
     public long getBytesInCounter() {
-        return bytesInCounter.sum();
+        return msgIn.getTotalValue();
     }
 
     @Override
