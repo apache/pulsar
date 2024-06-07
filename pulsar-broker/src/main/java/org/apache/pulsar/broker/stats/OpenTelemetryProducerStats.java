@@ -93,8 +93,6 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
                 .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producer.getProducerName())
                 .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, producer.getProducerId())
                 .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, producer.getAccessMode().toString())
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_CONNECTED_SINCE,
-                        producer.getConnectedSince().getEpochSecond())
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
@@ -102,21 +100,6 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
         if (topicName.isPartitioned()) {
             builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
         }
-
-        var clientAddress = producer.getClientAddressAndPort();
-        if (clientAddress != null) {
-            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, clientAddress);
-        }
-        var clientVersion = producer.getClientVersion();
-        if (clientVersion != null) {
-            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, clientVersion);
-        }
-        var metadataList = producer.getMetadata()
-                .entrySet()
-                .stream()
-                .map(e -> String.format("%s:%s", e.getKey(), e.getValue()))
-                .toList();
-        builder.put(OpenTelemetryAttributes.PULSAR_PRODUCER_METADATA, metadataList);
         var attributes = builder.build();
 
         var stats = producer.getStats();
