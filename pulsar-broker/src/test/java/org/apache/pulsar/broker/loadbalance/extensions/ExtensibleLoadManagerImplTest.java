@@ -109,6 +109,7 @@ import org.apache.pulsar.broker.namespace.NamespaceBundleSplitListener;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -390,6 +391,19 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
             throws Exception {
+        testTransferClientReconnectionWithoutLookup(topicDomain, subscriptionType, defaultTestNamespace, admin,
+                lookupUrl.toString(), pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+    }
+
+    @Test(enabled = false)
+    public static void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain,
+                                                                   SubscriptionType subscriptionType,
+                                                                   String defaultTestNamespace,
+                                                                   PulsarAdmin admin, String brokerServiceUrl,
+                                                                   PulsarService pulsar1, PulsarService pulsar2,
+                                                                   ExtensibleLoadManager primaryLoadManager,
+                                                                   ExtensibleLoadManager secondaryLoadManager)
+            throws Exception {
         var id = String.format("test-tx-client-reconnect-%s-%s", subscriptionType, UUID.randomUUID());
         var topic = String.format("%s://%s/%s", topicDomain.toString(), defaultTestNamespace, id);
         var topicName = TopicName.get(topic);
@@ -399,7 +413,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         var consumers = new ArrayList<Consumer<String>>();
         try {
             var lookups = new ArrayList<LookupService>();
-
+            var pulsarClient = pulsarClient(brokerServiceUrl, 0);
+            clients.add(pulsarClient);
             @Cleanup
             var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
             lookups.add(spyLookupService(pulsarClient));
@@ -407,7 +422,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
 
             for (int i = 0; i < consumerCount; i++) {
-                var client = newPulsarClient(lookupUrl.toString(), 0);
+                var client = pulsarClient(brokerServiceUrl, 0);
                 clients.add(client);
                 var consumer = client.newConsumer(Schema.STRING).
                         subscriptionName(id).
@@ -434,7 +449,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 dstBrokerUrl = pulsar1.getBrokerId();
                 dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
             }
-            checkOwnershipState(broker, bundle);
+            checkOwnershipState(broker, bundle, primaryLoadManager, secondaryLoadManager, pulsar1);
 
             var messageCountBeforeUnloading = 100;
             var messageCountAfterUnloading = 100;
@@ -528,6 +543,17 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
+        testUnloadClientReconnectionWithLookup(topicDomain, subscriptionType, defaultTestNamespace, admin,
+                lookupUrl.toString(), pulsar1);
+    }
+
+    @Test(enabled = false)
+    public static void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
+                                                              SubscriptionType subscriptionType,
+                                                              String defaultTestNamespace,
+                                                              PulsarAdmin admin,
+                                                              String brokerServiceUrl,
+                                                              PulsarService pulsar1) throws Exception {
         var id = String.format("test-unload-%s-client-reconnect-%s-%s",
                 topicDomain, subscriptionType, UUID.randomUUID());
         var topic = String.format("%s://%s/%s", topicDomain, defaultTestNamespace, id);
@@ -536,6 +562,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         var consumers = new ArrayList<Consumer<String>>();
         try {
             @Cleanup
+            var pulsarClient = pulsarClient(brokerServiceUrl, 0);
             var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
             var consumerCount = subscriptionType == SubscriptionType.Exclusive ? 1 : 3;
@@ -600,13 +627,16 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
     }
 
-    private LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
+    private static LookupService spyLookupService(PulsarClient client) throws IllegalAccessException {
         LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
         var lookup = spy(svc);
         FieldUtils.writeDeclaredField(client, "lookup", lookup, true);
         return lookup;
     }
-    private void checkOwnershipState(String broker, NamespaceBundle bundle)
+
+    protected static void checkOwnershipState(String broker, NamespaceBundle bundle,
+                                              ExtensibleLoadManager primaryLoadManager,
+                                              ExtensibleLoadManager secondaryLoadManager, PulsarService pulsar1)
             throws ExecutionException, InterruptedException {
         var targetLoadManager = secondaryLoadManager;
         var otherLoadManager = primaryLoadManager;
@@ -616,6 +646,11 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
         assertTrue(targetLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
         assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+    }
+
+    protected void checkOwnershipState(String broker, NamespaceBundle bundle)
+            throws ExecutionException, InterruptedException {
+        checkOwnershipState(broker, bundle, primaryLoadManager, secondaryLoadManager, pulsar1);
     }
 
     @Test(timeOut = 30 * 1000)
@@ -1574,6 +1609,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             return "Mock-broker-filter";
         }
 
+    }
+
+    protected static PulsarClient pulsarClient(String url, int intervalInSecs) throws PulsarClientException {
+        return
+                PulsarClient.builder()
+                        .serviceUrl(url)
+                        .statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
 }
