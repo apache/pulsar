@@ -420,18 +420,22 @@ public class PulsarStandalone implements AutoCloseable {
         try {
             if (fnWorkerService != null) {
                 fnWorkerService.stop();
+                fnWorkerService = null;
             }
 
             if (broker != null) {
                 broker.close();
+                broker = null;
             }
 
             if (bkCluster != null) {
                 bkCluster.close();
+                bkCluster = null;
             }
 
             if (bkEnsemble != null) {
                 bkEnsemble.stop();
+                bkEnsemble = null;
             }
         } catch (Exception e) {
             log.error("Shutdown failed: {}", e.getMessage(), e);
@@ -496,5 +500,11 @@ public class PulsarStandalone implements AutoCloseable {
         ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 
+    public String getBrokerServiceUrl() {
+        return broker.getBrokerServiceUrl();
+    }
 
+    public String getWebServiceUrl() {
+        return broker.getWebServiceAddress();
+    }
 }
