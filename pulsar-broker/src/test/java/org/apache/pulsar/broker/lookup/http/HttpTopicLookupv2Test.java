@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.lookup.http;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -153,6 +154,11 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.notExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class), anyBoolean());
+        CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
+        booleanFuture.complete(false);
+        doReturn(booleanFuture).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class),
+                anyBoolean());
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic_not_exist", false, null, null);

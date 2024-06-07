@@ -361,6 +361,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         existFuture.complete(TopicExistsInfo.nonPartitionedExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        doReturn(existFuture).when(nameSpaceService).checkTopicExists(any(), anyBoolean());
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
         doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any(), anyBoolean());
@@ -374,7 +375,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Can't find owner of given topic.");
+        Assert.assertTrue(responseCaptor.getValue().getMessage().contains(topicName + " not found"));
     }
 
     @Test
