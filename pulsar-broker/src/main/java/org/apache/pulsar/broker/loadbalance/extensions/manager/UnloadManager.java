@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
@@ -119,9 +120,8 @@ public class UnloadManager implements StateChangeListener {
                 }
             }
             case Init -> {
-                if (data.force()) {
-                    complete(serviceUnit, t);
-                }
+                checkArgument(data == null, "Init state must be associated with null data");
+                complete(serviceUnit, t);
             }
             case Owned -> complete(serviceUnit, t);
             default -> {
