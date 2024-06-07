@@ -123,6 +123,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersio
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.PersistentTopicAttributes;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -290,6 +291,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
+
+    private volatile PersistentTopicAttributes persistentTopicAttributes = null;
+    private static final AtomicReferenceFieldUpdater<PersistentTopic, PersistentTopicAttributes>
+            PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    PersistentTopic.class, PersistentTopicAttributes.class, "persistentTopicAttributes");
 
     private volatile TimeBasedBacklogQuotaCheckResult timeBasedBacklogQuotaCheckResult;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, TimeBasedBacklogQuotaCheckResult>
@@ -4355,4 +4361,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return false;
     }
 
+    @Override
+    public PersistentTopicAttributes getTopicAttributes() {
+        if (persistentTopicAttributes != null) {
+            return persistentTopicAttributes;
+        }
+        return PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic)));
+    }
 }
