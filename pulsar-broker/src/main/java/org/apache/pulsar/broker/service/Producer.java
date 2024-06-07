@@ -27,6 +27,7 @@ import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.opentelemetry.api.common.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +93,10 @@ public class Producer {
     private final CompletableFuture<Void> closeFuture;
 
     private final PublisherStatsImpl stats;
+    private volatile Attributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<Producer, Attributes> ATTRIBUTES_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(Producer.class, Attributes.class, "attributes");
+
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
@@ -881,5 +888,29 @@ public class Producer {
      */
     public void decrementThrottleCount() {
         cnx.decrementThrottleCount();
+    }
+
+    public Attributes getOpenTelemetryAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this, old -> {
+            if (old != null) {
+                return old;
+            }
+            var topicName = TopicName.get(topic.getName());
+            var builder = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, producerId)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, accessMode.name().toLowerCase())
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+            if (topicName.isPartitioned()) {
+                builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+            }
+            return builder.build();
+        });
     }
 }

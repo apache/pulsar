@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Collection;
@@ -27,9 +26,7 @@ import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryProducerStats implements AutoCloseable {
 
@@ -87,22 +84,9 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
     }
 
     private void recordMetricsForProducer(Producer producer) {
-        var topicName = TopicName.get(producer.getTopic().getName());
-
-        var builder = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producer.getProducerName())
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, producer.getProducerId())
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, producer.getAccessMode().toString())
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
-                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
-        if (topicName.isPartitioned()) {
-            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
-        }
-        var attributes = builder.build();
-
+        var attributes = producer.getOpenTelemetryAttributes();
         var stats = producer.getStats();
+
         messageInCounter.record(stats.getMsgInCounter(), attributes);
         bytesInCounter.record(stats.getBytesInCounter(), attributes);
 

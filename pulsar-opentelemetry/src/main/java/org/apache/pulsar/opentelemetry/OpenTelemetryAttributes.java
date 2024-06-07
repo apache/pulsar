@@ -19,7 +19,6 @@
 package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
-
 import java.util.List;
 
 /**
