@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -27,6 +29,7 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.common.Attributes;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Optional;
@@ -50,6 +53,8 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -65,6 +70,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -103,6 +109,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
     @Test(timeOut = 90000 /* 1.5mn */)
@@ -357,9 +369,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             AtomicBoolean failed = new AtomicBoolean(false);
+            @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                     .subscribe();
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            var producerName = BrokerTestUtil.newUniqueName("testProducerRateLimit");
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).producerName(producerName).create();
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 10;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
@@ -392,7 +407,19 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // but as message should be dropped at broker: broker should not receive the message
             assertNotEquals(messageSet.size(), totalProduceMessages);
 
-            producer.close();
+            // Verify the corresponding metric is updated
+            var attributes = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, 0)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, "shared")
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "non-persistent")
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                    .build();
+            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryProducerStats.MESSAGE_DROP_COUNTER, attributes,
+                    value -> assertThat(value).isPositive());
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
