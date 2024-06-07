@@ -31,8 +31,8 @@ public class ExtensibleLoadManagerImplWithTransactionCoordinatorTest extends Ext
     }
 
     @Override
-    protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
-        conf = super.initConfig(conf);
+    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
+        conf = super.updateConfig(conf);
         conf.setTransactionCoordinatorEnabled(true);
         return conf;
     }
