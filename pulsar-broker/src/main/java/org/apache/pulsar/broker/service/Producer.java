@@ -749,9 +749,6 @@ public class Producer {
             ((NonPersistentPublisherStatsImpl) stats).msgDropRate = msgDrop.getValueRate();
         }
     }
-
-    public void updateRates(int numOfMessages, long msgSizeInBytes) {
-        msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {
