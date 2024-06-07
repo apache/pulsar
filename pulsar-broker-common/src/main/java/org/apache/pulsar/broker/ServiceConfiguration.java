@@ -2444,16 +2444,59 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithIn Resource Usage Weight"
+            doc = "BandwidthIn Resource Usage Weight"
     )
-    private double loadBalancerBandwithInResourceWeight = 1.0;
+    private double loadBalancerBandwidthInResourceWeight = 1.0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithOut Resource Usage Weight"
+            doc = "BandwidthOut Resource Usage Weight"
+    )
+    private double loadBalancerBandwidthOutResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthIn Resource Usage Weight, Deprecated: Use loadBalancerBandwidthInResourceWeight"
+    )
+    private double loadBalancerBandwithInResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthOut Resource Usage Weight, Deprecated: Use loadBalancerBandwidthOutResourceWeight"
     )
     private double loadBalancerBandwithOutResourceWeight = 1.0;
+
+    /**
+     * Get the load balancer bandwidth in resource weight.
+     * To be compatible with the old configuration, we still support the old configuration.
+     * If a configuration is not the default configuration, use that configuration.
+     * If both the new and the old are configured different from the default value, use the new one.
+     * @return
+     */
+    public double getLoadBalancerBandwidthInResourceWeight() {
+        if (loadBalancerBandwidthInResourceWeight != 1.0) {
+            return loadBalancerBandwidthInResourceWeight;
+        }
+        if (loadBalancerBandwithInResourceWeight != 1.0) {
+            return loadBalancerBandwithInResourceWeight;
+        }
+        return 1.0;
+    }
+
+    public double getLoadBalancerBandwidthOutResourceWeight() {
+        if (loadBalancerBandwidthOutResourceWeight != 1.0) {
+            return loadBalancerBandwidthOutResourceWeight;
+        }
+        if (loadBalancerBandwithOutResourceWeight != 1.0) {
+            return loadBalancerBandwithOutResourceWeight;
+        }
+        return 1.0;
+    }
 
     @FieldContext(
             dynamic = true,

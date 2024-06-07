@@ -41,8 +41,8 @@ public class BrokerLoadDataTest {
         conf.setLoadBalancerCPUResourceWeight(0.5);
         conf.setLoadBalancerMemoryResourceWeight(0.5);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.5);
-        conf.setLoadBalancerBandwithInResourceWeight(0.5);
-        conf.setLoadBalancerBandwithOutResourceWeight(0.5);
+        conf.setLoadBalancerBandwidthInResourceWeight(0.5);
+        conf.setLoadBalancerBandwidthOutResourceWeight(0.5);
         conf.setLoadBalancerHistoryResourcePercentage(0.75);
 
         BrokerLoadData data = new BrokerLoadData();
@@ -108,9 +108,9 @@ public class BrokerLoadDataTest {
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
         assertEquals(data.getReportedAt(), 0l);
         assertEquals(data.toString(conf), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
-                + "bandwithIn= 3.00%, bandwithOut= 4.00%, "
+                + "bandwidthIn= 3.00%, bandwidthOut= 4.00%, "
                 + "cpuWeight= 0.500000, memoryWeight= 0.500000, directMemoryWeight= 0.500000, "
-                + "bandwithInResourceWeight= 0.500000, bandwithOutResourceWeight= 0.500000, "
+                + "bandwidthInResourceWeight= 0.500000, bandwidthOutResourceWeight= 0.500000, "
                 + "msgThroughputIn= 5.00, msgThroughputOut= 6.00, "
                 + "msgRateIn= 7.00, msgRateOut= 8.00, bundleCount= 9, "
                 + "maxResourceUsage= 300.00%, weightedMaxEMA= 187.50%, msgThroughputEMA= 5.00, "
@@ -126,8 +126,8 @@ public class BrokerLoadDataTest {
         conf.setLoadBalancerCPUResourceWeight(0.5);
         conf.setLoadBalancerMemoryResourceWeight(0.5);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.5);
-        conf.setLoadBalancerBandwithInResourceWeight(0.5);
-        conf.setLoadBalancerBandwithOutResourceWeight(0.5);
+        conf.setLoadBalancerBandwidthInResourceWeight(0.5);
+        conf.setLoadBalancerBandwidthOutResourceWeight(0.5);
         conf.setLoadBalancerHistoryResourcePercentage(0.75);
 
         BrokerLoadData data = new BrokerLoadData();
