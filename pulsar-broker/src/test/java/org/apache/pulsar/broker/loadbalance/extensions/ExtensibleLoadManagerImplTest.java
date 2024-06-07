@@ -1292,6 +1292,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test
     public void testGetMetrics() throws Exception {
         {
+            ServiceConfiguration conf = getDefaultConf();
+            conf.setLoadBalancerMemoryResourceWeight(1);
             var brokerLoadDataReporter = mock(BrokerLoadDataReporter.class);
             FieldUtils.writeDeclaredField(primaryLoadManager, "brokerLoadDataReporter", brokerLoadDataReporter, true);
             BrokerLoadData loadData = new BrokerLoadData();
