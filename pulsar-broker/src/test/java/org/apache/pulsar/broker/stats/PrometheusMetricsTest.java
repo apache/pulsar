@@ -316,7 +316,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("topic_load_failed_total");
+        cm = (List<Metric>) metrics.get("topic_load_failed");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
