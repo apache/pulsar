@@ -57,6 +57,7 @@ public class NonPersistentPublisherStatsImpl extends PublisherStatsImpl implemen
         msgDrop.recordEvent(numMessages);
     }
 
+    @JsonIgnore
     public long getMsgDropCount() {
         return msgDrop.getTotalCount();
     }

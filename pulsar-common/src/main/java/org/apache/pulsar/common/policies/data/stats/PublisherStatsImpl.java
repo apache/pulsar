@@ -128,10 +128,12 @@ public class PublisherStatsImpl implements PublisherStats {
         msgIn.recordMultipleEvents(messageCount, byteCount);
     }
 
+    @JsonIgnore
     public long getMsgInCounter() {
         return msgIn.getTotalCount();
     }
 
+    @JsonIgnore
     public long getBytesInCounter() {
         return msgIn.getTotalValue();
     }
@@ -140,6 +142,7 @@ public class PublisherStatsImpl implements PublisherStats {
         msgChunkIn.recordEvent();
     }
 
+    @JsonIgnore
     public long getChunkedMsgInCounter() {
         return msgChunkIn.getTotalCount();
     }
