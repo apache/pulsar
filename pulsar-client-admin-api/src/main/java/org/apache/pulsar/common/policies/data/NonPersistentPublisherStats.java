@@ -27,7 +27,4 @@ public interface NonPersistentPublisherStats extends PublisherStats {
      * messages per connection.
      **/
     double getMsgDropRate();
-
-    void recordMsgDrop(long numMessages);
-    long getMsgDropCount();
 }
