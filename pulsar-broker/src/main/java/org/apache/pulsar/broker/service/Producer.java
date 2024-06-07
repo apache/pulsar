@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.CaseFormat;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -871,7 +872,8 @@ public class Producer {
             var builder = Attributes.builder()
                     .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
                     .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, producerId)
-                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, accessMode.name().toLowerCase())
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE,
+                            CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, accessMode.name()))
                     .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                     .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
                     .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
