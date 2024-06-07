@@ -270,6 +270,10 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.notExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class), anyBoolean());
+        CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
+        booleanFuture.complete(false);
+        doReturn(future).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class), anyBoolean());
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
                 "invalid-localCluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());
