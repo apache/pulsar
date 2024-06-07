@@ -20,23 +20,24 @@ package org.apache.pulsar.broker.stats;
 
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
-import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 
 public class OpenTelemetryProducerStats implements AutoCloseable {
 
     // Replaces pulsar_producer_msg_rate_in
     public static final String MESSAGE_IN_COUNTER = "pulsar.broker.producer.message.incoming.count";
-    // Replaces pulsar_producer_msg_throughput_in
-    public static final String BYTES_IN_COUNTER = "pulsar.broker.consumer.message.incoming.size";
-    public static final String MESSAGE_DROP_COUNTER = "pulsar.broker.producer.message.drop.count";
     private final ObservableLongMeasurement messageInCounter;
+
+    // Replaces pulsar_producer_msg_throughput_in
+    public static final String BYTES_IN_COUNTER = "pulsar.broker.producer.message.incoming.size";
     private final ObservableLongMeasurement bytesInCounter;
+
+    // Replaces pulsar_consumer_msg_ack_rate
+    public static final String MESSAGE_DROP_COUNTER = "pulsar.broker.producer.message.drop.count";
     private final ObservableLongMeasurement messageDropCounter;
 
     private final BatchCallback batchCallback;
@@ -66,12 +67,10 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
                         .getTopics()
                         .values()
                         .stream()
-                        .map(topicFuture -> topicFuture.getNow(Optional.empty()))
+                        .filter(future -> future.isDone() && !future.isCompletedExceptionally())
+                        .map(CompletableFuture::join)
                         .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .map(Topic::getProducers)
-                        .map(Map::values)
-                        .flatMap(Collection::stream)
+                        .flatMap(topic -> topic.get().getProducers().values().stream())
                         .forEach(this::recordMetricsForProducer),
                 messageInCounter,
                 bytesInCounter,
