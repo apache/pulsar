@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -62,6 +63,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicAttributes;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -116,6 +118,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return new TopicStats();
         }
     };
+
+    private volatile TopicAttributes topicAttributes = null;
+    private static final AtomicReferenceFieldUpdater<NonPersistentTopic, TopicAttributes>
+            TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    NonPersistentTopic.class, TopicAttributes.class, "topicAttributes");
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -1267,5 +1274,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
         return -1;
+    }
+
+    @Override
+    public TopicAttributes getTopicAttributes() {
+        if (topicAttributes != null) {
+            return topicAttributes;
+        }
+        return TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new TopicAttributes(TopicName.get(topic)));
     }
 }
