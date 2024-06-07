@@ -388,7 +388,7 @@ The Apache Software License, Version 2.0
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
  * AirCompressor
-    - io.airlift-aircompressor-0.20.jar
+    - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
@@ -447,6 +447,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-rls-1.56.0.jar
     - io.grpc-grpc-servlet-1.56.0.jar
     - io.grpc-grpc-servlet-jakarta-1.56.0.jar
+    - io.grpc-grpc-util-1.60.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
@@ -455,7 +456,7 @@ The Apache Software License, Version 2.0
     - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
-    - net.jodah-failsafe-2.4.4.jar
+    - dev.failsafe-failsafe-3.3.2.jar
   * Byte Buddy
     - net.bytebuddy-byte-buddy-1.14.12.jar
   * zt-zip
@@ -481,8 +482,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.streamnative.oxia-oxia-client-api-0.2.0.jar
-    - io.streamnative.oxia-oxia-client-0.2.0.jar
+    - io.streamnative.oxia-oxia-client-api-0.3.0.jar
+    - io.streamnative.oxia-oxia-client-0.3.0.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
@@ -492,12 +493,12 @@ The Apache Software License, Version 2.0
   * JCTools - Java Concurrency Tools for the JVM
     - org.jctools-jctools-core-2.1.2.jar
   * Vertx
-    - io.vertx-vertx-auth-common-4.3.8.jar
-    - io.vertx-vertx-bridge-common-4.3.8.jar
-    - io.vertx-vertx-core-4.3.8.jar
-    - io.vertx-vertx-web-4.3.8.jar
-    - io.vertx-vertx-web-common-4.3.8.jar
-    - io.vertx-vertx-grpc-4.3.5.jar
+    - io.vertx-vertx-auth-common-4.5.8.jar
+    - io.vertx-vertx-bridge-common-4.5.8.jar
+    - io.vertx-vertx-core-4.5.8.jar
+    - io.vertx-vertx-web-4.5.8.jar
+    - io.vertx-vertx-web-common-4.5.8.jar
+    - io.vertx-vertx-grpc-4.5.8.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.9.2.jar
     - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
@@ -510,10 +511,10 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.10.1.jar
     - com.google.re2j-re2j-1.7.jar
   * Jetcd
-    - io.etcd-jetcd-api-0.7.5.jar
-    - io.etcd-jetcd-common-0.7.5.jar
-    - io.etcd-jetcd-core-0.7.5.jar
-    - io.etcd-jetcd-grpc-0.7.5.jar
+    - io.etcd-jetcd-api-0.7.7.jar
+    - io.etcd-jetcd-common-0.7.7.jar
+    - io.etcd-jetcd-core-0.7.7.jar
+    - io.etcd-jetcd-grpc-0.7.7.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
@@ -522,26 +523,26 @@ The Apache Software License, Version 2.0
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
     - org.roaringbitmap-shims-0.9.44.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.37.0.jar
-    - io.opentelemetry-opentelemetry-api-incubator-1.37.0-alpha.jar
-    - io.opentelemetry-opentelemetry-context-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-exporter-prometheus-1.37.0-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.37.0.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.37.0.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.2.jar
-    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.2-alpha.jar
-    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.2-alpha.jar
+    - io.opentelemetry-opentelemetry-api-1.38.0.jar
+    - io.opentelemetry-opentelemetry-api-incubator-1.38.0-alpha.jar
+    - io.opentelemetry-opentelemetry-context-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-exporter-prometheus-1.38.0-alpha.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.38.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.38.0.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-1.33.3.jar
+    - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-semconv-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-resources-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.3-alpha.jar
+    - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.3-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.25.0-alpha.jar
 
 BSD 3-clause "New" or "Revised" License
@@ -617,10 +618,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.78.jar
-    - org.bouncycastle-bcprov-ext-jdk18on-1.78.jar
-    - org.bouncycastle-bcprov-jdk18on-1.78.jar
-    - org.bouncycastle-bcutil-jdk18on-1.78.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcprov-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcutil-jdk18on-1.78.1.jar
 
 ------------------------
 

@@ -329,56 +329,56 @@ fi
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-broker.log"}
-    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
+    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF "$@"
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.server.Main --conf $PULSAR_BOOKKEEPER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.server.Main --conf $PULSAR_BOOKKEEPER_CONF "$@"
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_ZK_CONF $@
+    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_ZK_CONF "$@"
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_GLOBAL_ZK_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_GLOBAL_ZK_CONF "$@"
 elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_CONFIGURATION_STORE_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_CONFIGURATION_STORE_CONF "$@"
 elif [ $COMMAND == "proxy" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-proxy.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.proxy.server.ProxyServiceStarter --config $PULSAR_PROXY_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.proxy.server.ProxyServiceStarter --config $PULSAR_PROXY_CONF "$@"
 elif [ $COMMAND == "websocket" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-websocket.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.websocket.service.WebSocketServiceStarter $PULSAR_WEBSOCKET_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.websocket.service.WebSocketServiceStarter $PULSAR_WEBSOCKET_CONF "$@"
 elif [ $COMMAND == "functions-worker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-functions-worker.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF "$@"
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE -Dpulsar.config.file=$PULSAR_STANDALONE_CONF org.apache.pulsar.PulsarStandaloneStarter $@
+    exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE -Dpulsar.config.file=$PULSAR_STANDALONE_CONF org.apache.pulsar.PulsarStandaloneStarter "$@"
 elif [ ${COMMAND} == "autorecovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-autorecovery.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.replication.AutoRecoveryMain --conf $PULSAR_BOOKKEEPER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.replication.AutoRecoveryMain --conf $PULSAR_BOOKKEEPER_CONF "$@"
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup "$@"
 elif [ $COMMAND == "delete-cluster-metadata" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataTeardown $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataTeardown "$@"
 elif [ $COMMAND == "initialize-transaction-coordinator-metadata" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup "$@"
 elif [ $COMMAND == "initialize-namespace" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.PulsarInitialNamespaceSetup $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarInitialNamespaceSetup "$@"
 elif [ $COMMAND == "zookeeper-shell" ]; then
-    exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
+    exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain "$@"
 elif [ $COMMAND == "broker-tool" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.broker.tools.BrokerTool $@
+    exec $JAVA $OPTS org.apache.pulsar.broker.tools.BrokerTool "$@"
 elif [ $COMMAND == "compact-topic" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
+    exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF "$@"
 elif [ $COMMAND == "tokens" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
+    exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils "$@"
 elif [ $COMMAND == "version" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.PulsarVersionStarter $@
+    exec $JAVA $OPTS org.apache.pulsar.PulsarVersionStarter "$@"
 elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else

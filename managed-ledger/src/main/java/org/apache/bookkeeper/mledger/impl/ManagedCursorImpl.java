@@ -475,9 +475,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
-
                 updateCursorLedgerStat(info, stat);
-                lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Recover cursor last active to [{}]", ledger.getName(), name, lastActive);

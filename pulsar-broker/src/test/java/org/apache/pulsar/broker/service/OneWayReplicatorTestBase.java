@@ -196,9 +196,16 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void waitChangeEventsInit(String namespace) {
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false)
-                .join().get();
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService()
+                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false);
+        if (future == null) {
+            return;
+        }
+        Optional<Topic> optional = future.join();
+        if (!optional.isPresent()) {
+            return;
+        }
+        PersistentTopic topic = (PersistentTopic) optional.get();
         Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
             TopicStatsImpl topicStats = topic.getStats(true, false, false);
             topicStats.getSubscriptions().entrySet().forEach(entry -> {

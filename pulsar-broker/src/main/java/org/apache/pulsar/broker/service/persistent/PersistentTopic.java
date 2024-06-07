@@ -58,6 +58,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Value;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsOnMetadataServerException;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -2829,6 +2831,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }).exceptionally(e -> {
                                     log.error("[{}] Failed to get ledger metadata for the schema ledger {}",
                                             topic, ledgerId, e);
+                                    if ((e.getCause() instanceof BKNoSuchLedgerExistsOnMetadataServerException)
+                                            || (e.getCause() instanceof BKNoSuchLedgerExistsException)) {
+                                        completableFuture.complete(null);
+                                        return null;
+                                    }
                                     completableFuture.completeExceptionally(e);
                                     return null;
                                 });
@@ -3227,23 +3234,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
                     .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
-            if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
-                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
-                            || sub.isReplicated()
-                            || isCompactionSubscription(subName)) {
-                        return;
-                    }
-                    if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
-                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
-                    }
-                });
-            }
+            checkInactiveSubscriptions(expirationTimeMillis);
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
             }
+        }
+    }
+
+    @VisibleForTesting
+    public void checkInactiveSubscriptions(long expirationTimeMillis) {
+        if (expirationTimeMillis > 0) {
+            subscriptions.forEach((subName, sub) -> {
+                if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
+                        || sub.isReplicated()
+                        || isCompactionSubscription(subName)) {
+                    return;
+                }
+                if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                    sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                            + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
+                }
+            });
         }
     }
 
