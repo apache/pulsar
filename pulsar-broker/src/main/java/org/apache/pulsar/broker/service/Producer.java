@@ -59,7 +59,6 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsI
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.slf4j.Logger;
@@ -77,9 +76,6 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
-    // it records msg-drop rate only for non-persistent topic
-    @Deprecated
-    private final Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -125,7 +121,6 @@ public class Producer {
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
-        this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
         this.isShadowTopic =
                 topic instanceof PersistentTopic && ((PersistentTopic) topic).getShadowSourceTopic().isPresent();
 
@@ -343,8 +338,8 @@ public class Producer {
     }
 
     public void recordMessageDrop(int batchSize) {
-        if (this.isNonPersistentTopic) {
-            msgDrop.recordEvent(batchSize);
+        if (stats instanceof NonPersistentPublisherStatsImpl nonPersistentPublisherStats) {
+            nonPersistentPublisherStats.recordMsgDrop(batchSize);
         }
     }
 
@@ -742,11 +737,6 @@ public class Producer {
         if (stats.getMsgChunkIn().getCount() > 0 && topic instanceof PersistentTopic persistentTopic) {
             persistentTopic.msgChunkPublished = true;
         }
-        if (this.isNonPersistentTopic) {
-            msgDrop.calculateRate();
-            ((NonPersistentPublisherStatsImpl) stats).msgDropRate = msgDrop.getValueRate();
-        }
-    }
     }
 
     public boolean isRemote() {

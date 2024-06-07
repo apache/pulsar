@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
-import java.util.concurrent.atomic.LongAdder;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
+import org.apache.pulsar.common.stats.Rate;
 
 /**
  * Non-persistent publisher statistics.
@@ -36,7 +37,8 @@ public class NonPersistentPublisherStatsImpl extends PublisherStatsImpl implemen
     @Getter
     public double msgDropRate;
 
-    private final LongAdder msgDropCount = new LongAdder();
+    @JsonIgnore
+    private final Rate msgDrop = new Rate();
 
     public NonPersistentPublisherStatsImpl add(NonPersistentPublisherStatsImpl stats) {
         Objects.requireNonNull(stats);
@@ -45,13 +47,17 @@ public class NonPersistentPublisherStatsImpl extends PublisherStatsImpl implemen
         return this;
     }
 
-    @Override
-    public void recordMsgDrop(long numMessages) {
-        msgDropCount.add(numMessages);
+    public void calculateRates() {
+        super.calculateRates();
+        msgDrop.calculateRate();
+        msgDropRate = msgDrop.getRate();
     }
 
-    @Override
+    public void recordMsgDrop(long numMessages) {
+        msgDrop.recordEvent(numMessages);
+    }
+
     public long getMsgDropCount() {
-        return msgDropCount.sum();
+        return msgDrop.getTotalCount();
     }
 }
