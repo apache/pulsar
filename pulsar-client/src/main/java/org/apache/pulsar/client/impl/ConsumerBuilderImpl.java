@@ -32,6 +32,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -104,6 +105,24 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         }
     }
 
+    private CompletableFuture<Boolean> topicExists(String topic) {
+        CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
+        client.getPartitionedTopicMetadata(topic, false).thenAccept(metadata -> {
+            existsFuture.complete(true);
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                existsFuture.complete(false);
+            } else {
+                existsFuture.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return existsFuture;
+    }
+
     @Override
     public CompletableFuture<Consumer<T>> subscribeAsync() {
         if (conf.getTopicNames().isEmpty() && conf.getTopicsPattern() == null) {
@@ -135,20 +154,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldRetryLetterTopic, true);
-                CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldDeadLetterTopic, true);
+                CompletableFuture<Boolean> retryLetterTopicMetadata = topicExists(oldRetryLetterTopic);
+                CompletableFuture<Boolean> deadLetterTopicMetadata = topicExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
                                     + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
                             String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
                                     + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-                            if (retryLetterTopicMetadata.join().partitions > 0) {
+                            if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }
-                            if (deadLetterTopicMetadata.join().partitions > 0) {
+                            if (deadLetterTopicMetadata.join()) {
                                 deadLetterTopic = oldDeadLetterTopic;
                             }
                             if (deadLetterPolicy == null) {
