@@ -77,8 +77,6 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
-    @Deprecated
-    private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
     @Deprecated
     private final Rate msgDrop;
@@ -126,7 +124,6 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
         this.isShadowTopic =
@@ -553,8 +550,7 @@ public class Producer {
                     ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
-                producer.chunkedMessageRate.recordEvent();
-                producer.stats.recordChunkedMsgIn(1);
+                producer.stats.recordChunkedMsgIn();
             }
             producer.publishOperationCompleted();
             if (producer.brokerInterceptor != null) {
@@ -743,6 +739,8 @@ public class Producer {
 
     public void updateRates() {
         stats.calculateRates();
+        if (stats.getMsgChunkIn().getCount() > 0 && topic instanceof PersistentTopic persistentTopic) {
+            persistentTopic.msgChunkPublished = true;
         }
         if (this.isNonPersistentTopic) {
             msgDrop.calculateRate();

@@ -67,6 +67,9 @@ public class PublisherStatsImpl implements PublisherStats {
 
     @JsonIgnore
     private final Rate msgIn = new Rate();
+    @JsonIgnore
+    private final Rate msgChunkIn = new Rate();
+
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
             throw new IllegalArgumentException("stats can't be null");
@@ -113,6 +116,7 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public void calculateRates() {
         msgIn.calculateRate();
+        msgChunkIn.calculateRate();
 
         msgRateIn = msgIn.getRate();
         msgThroughputIn = msgIn.getValueRate();
@@ -132,13 +136,11 @@ public class PublisherStatsImpl implements PublisherStats {
         return msgIn.getTotalValue();
     }
 
-    @Override
-    public void recordChunkedMsgIn(long messageCount) {
-        chunkedMessageCounter.add(messageCount);
+    public void recordChunkedMsgIn() {
+        msgChunkIn.recordEvent();
     }
 
-    @Override
-    public long getChunkedMsgIn() {
-        return chunkedMessageCounter.sum();
+    public long getChunkedMsgInCounter() {
+        return msgChunkIn.getTotalCount();
     }
 }
