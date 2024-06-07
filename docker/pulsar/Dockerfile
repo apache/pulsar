@@ -81,7 +81,7 @@ FROM apachepulsar/glibc-base:2.38 as glibc
 FROM alpine:3.19.1
 ENV LANG C.UTF-8
 
-# Install some utilities
+# Install some utilities, some are required by Pulsar scripts
 RUN apk add --no-cache \
             bash \
             python3 \
@@ -91,7 +91,8 @@ RUN apk add --no-cache \
             gcompat \
             ca-certificates \
             procps \
-            curl
+            curl \
+            bind-utils
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
