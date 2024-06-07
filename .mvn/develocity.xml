@@ -27,7 +27,6 @@
   <server>
     <url>https://ge.apache.org</url>
     <allowUntrusted>false</allowUntrusted>
-    <accessKey>#{env['GRADLE_ENTERPRISE_ACCESS_KEY'].substring(env['GRADLE_ENTERPRISE_ACCESS_KEY'].indexOf('=') + 1)}</accessKey>
   </server>
   <buildScan>
     <capture>
