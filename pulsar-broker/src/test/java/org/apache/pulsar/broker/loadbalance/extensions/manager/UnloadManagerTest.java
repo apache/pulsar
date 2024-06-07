@@ -127,11 +127,7 @@ public class UnloadManagerTest {
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
         // Success with Init state.
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, null, srcBroker, false, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequestMap.size(), 1);
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, null, srcBroker, true, VERSION_ID_INIT), null);
+        manager.handleEvent(bundle, null, null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
