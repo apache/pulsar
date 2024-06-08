@@ -97,3 +97,5 @@ test-reports/
 
 # Gradle Enterprise
 .mvn/.gradle-enterprise/
+# Gradle Develocity
+.mvn/.develocity/
