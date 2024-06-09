@@ -180,6 +180,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, "entriesAddedCounter");
     @SuppressWarnings("unused")
     private volatile long entriesAddedCounter = 0;
+    /**
+     * After writing a new entry, {@link #entriesAddedCounter} and {@link #lastConfirmedEntry} will be changed. To
+     * improve performance, changes to these two variables are not included in the lock block, which will cause us to be
+     * unable to determine whether the two variables match.
+     *
+     * This field can help to verify that {@link #entriesAddedCounter} and {@link #lastConfirmedEntry} match.
+     * Value will be -1 if {@link #entriesAddedCounter} or {@link #lastConfirmedEntry} is changing, else equals to
+     * {@link #entriesAddedCounter}.
+     *
+     * We can use this field this way:
+     * <pre>{@code
+     *   long counterBefore = entriesAddedCounterState;
+     *   long lac = lastConfirmedEntry;
+     *   long counterAfter = entriesAddedCounterState;
+     *   // if "counterBefore" and counterAfter" both large than -1 and "counterBefore" equals with "counterAfter", it
+     *   // means "counterAfter"/"counterBefore" matches "lac".
+     * }</pre>
+     **/
+    volatile long entriesAddedCounterState = entriesAddedCounter;
 
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> NUMBER_OF_ENTRIES_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "numberOfEntries");
@@ -351,7 +370,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.executor = bookKeeper.getMainWorkerPool().chooseThread(name);
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
-        ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
+        setEntriesAddedCounter(0);
         STATE_UPDATER.set(this, State.None);
         this.ledgersStat = null;
         this.mbean = new ManagedLedgerMBeanImpl(this);
@@ -3771,16 +3790,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     Pair<PositionImpl, Long> getLastPositionAndCounter() {
         PositionImpl pos;
-        long count;
+        long countBefore;
+        long countAfter;
 
         do {
+            countBefore = entriesAddedCounterState;
             pos = lastConfirmedEntry;
-            count = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
+            countAfter = entriesAddedCounterState;
 
             // Ensure no entry was written while reading the two values
-        } while (pos.compareTo(lastConfirmedEntry) != 0);
+        } while (countBefore < 0 || countAfter < 0 || countBefore != countAfter
+                || pos.compareTo(lastConfirmedEntry) != 0);
 
-        return Pair.of(pos, count);
+        return Pair.of(pos, countAfter);
     }
 
     /**
@@ -4333,6 +4355,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @VisibleForTesting
     public void setEntriesAddedCounter(long count) {
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, count);
+        entriesAddedCounterState = entriesAddedCounter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
