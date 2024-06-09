@@ -851,16 +851,17 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        PositionImpl startPosition = ledger.getNextValidPosition(markDeletePosition);
+        PositionImpl currentMarkDeletePosition = markDeletePosition;
+        PositionImpl startPosition = ledger.getNextValidPosition(currentMarkDeletePosition);
         PositionImpl endPosition = ledger.getLastPosition();
         if (startPosition.compareTo(endPosition) <= 0) {
             long numOfEntries = getNumberOfEntries(Range.closed(startPosition, endPosition));
             if (numOfEntries >= n) {
                 long deletedMessages = 0;
                 if (deletedEntries == IndividualDeletedEntries.Exclude) {
-                    deletedMessages = getNumIndividualDeletedEntriesToSkip(n);
+                    deletedMessages = getNumIndividualDeletedEntriesToSkip(n, currentMarkDeletePosition);
                 }
-                PositionImpl positionAfterN = ledger.getPositionAfterN(markDeletePosition, n + deletedMessages,
+                PositionImpl positionAfterN = ledger.getPositionAfterN(currentMarkDeletePosition, n + deletedMessages,
                         PositionBound.startExcluded);
                 ledger.asyncReadEntry(positionAfterN, callback, ctx);
             } else {
@@ -1747,11 +1748,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             final SkipEntriesCallback callback, Object ctx) {
         log.info("[{}] Skipping {} entries on cursor {}", ledger.getName(), numEntriesToSkip, name);
         long numDeletedMessages = 0;
+        PositionImpl currentMarkDeletePosition = markDeletePosition;
         if (deletedEntries == IndividualDeletedEntries.Exclude) {
-            numDeletedMessages = getNumIndividualDeletedEntriesToSkip(numEntriesToSkip);
+            numDeletedMessages = getNumIndividualDeletedEntriesToSkip(numEntriesToSkip, currentMarkDeletePosition);
         }
 
-        asyncMarkDelete(ledger.getPositionAfterN(markDeletePosition, numEntriesToSkip + numDeletedMessages,
+        asyncMarkDelete(ledger.getPositionAfterN(currentMarkDeletePosition, numEntriesToSkip + numDeletedMessages,
                 PositionBound.startExcluded), new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
@@ -1788,10 +1790,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    long getNumIndividualDeletedEntriesToSkip(long numEntries) {
+    long getNumIndividualDeletedEntriesToSkip(long numEntries, PositionImpl currentMarkDeletePosition) {
         lock.readLock().lock();
         try {
-            InvidualDeletedMessagesHandlingState state = new InvidualDeletedMessagesHandlingState(markDeletePosition);
+            InvidualDeletedMessagesHandlingState state =
+                    new InvidualDeletedMessagesHandlingState(currentMarkDeletePosition);
             individualDeletedMessages.forEach((r) -> {
                 try {
                     state.endPosition = r.lowerEndpoint();
@@ -1808,7 +1811,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
-                                    ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
+                                    ledger.getName(), currentMarkDeletePosition, r.lowerEndpoint(), name);
                         }
                     }
                     return true;
