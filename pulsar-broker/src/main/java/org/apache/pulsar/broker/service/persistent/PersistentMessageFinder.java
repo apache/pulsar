@@ -25,6 +25,10 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
@@ -60,7 +64,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
-
+            Pair<Position, Position> range = getFindPositionRange((ManagedLedgerImpl) cursor.getManagedLedger());
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -71,7 +75,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, this, callback, true);
+            }, range.getLeft(), range.getRight(), this, callback, true);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
@@ -81,6 +85,29 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
                     Optional.empty(), null);
         }
+    }
+
+    private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
+        PositionImpl start = null;
+        PositionImpl end = null;
+
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
+            if (!info.hasTimestamp()) {
+                return Pair.of(null, null);
+            }
+            long closeTimestamp = info.getTimestamp();
+            if (closeTimestamp == 0) {
+                return Pair.of(start, null);
+            }
+            if (closeTimestamp <= timestamp) {
+                start = PositionImpl.get(info.getLedgerId(), 0);
+            } else {
+                // If the close timestamp is greater than the timestamp
+                end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
+                break;
+            }
+        }
+        return Pair.of(start, end);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentMessageFinder.class);
