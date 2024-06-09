@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,6 +47,8 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -2095,42 +2098,140 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
 
-        // Filer out and skip unnecessary read entry
-        if (opReadEntry.skipCondition != null) {
-            long firstValidEntry = -1L;
-            long lastValidEntry = -1L;
-            long entryId = firstEntry;
-            for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
-                    if (firstValidEntry != -1L) {
-                        break;
-                    }
-                } else {
-                    if (firstValidEntry == -1L) {
-                        firstValidEntry = entryId;
-                    }
-
-                    lastValidEntry = entryId;
-                }
+        Predicate<PositionImpl> skipCondition = opReadEntry.skipCondition;
+        if (skipCondition == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
+                        lastEntry);
             }
+            asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+            return;
+        }
 
-            // If all messages in [firstEntry...lastEntry] are filter out,
-            // then manual call internalReadEntriesComplete to advance read position.
-            if (firstValidEntry == -1L) {
-                opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx,
-                        PositionImpl.get(ledger.getId(), lastEntry));
+        // Skip entries that don't match the predicate
+        SortedSet<Long> entryIds = new TreeSet<>();
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            PositionImpl position = new PositionImpl(ledger.getId(), entryId);
+            if (skipCondition.test(position)) {
+                continue;
+            }
+            entryIds.add(entryId);
+        }
+
+        PositionImpl lastReadPosition = PositionImpl.get(ledger.getId(), lastEntry);
+        if (entryIds.isEmpty()) {
+            // Move `readPosition` of `cursor`.
+            opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, lastReadPosition);
+            return;
+        }
+
+        List<Pair<Long, Long>> ranges = toRanges(entryIds);
+        ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry, lastReadPosition);
+        for (Pair<Long, Long> pair : ranges) {
+            long start = pair.getLeft();
+            long end = pair.getRight();
+            asyncReadEntry(ledger, start, end, opReadEntry.cursor.isCacheReadEntry(), callback, opReadEntry.ctx);
+        }
+    }
+
+    @VisibleForTesting
+    public static List<Pair<Long, Long>> toRanges(SortedSet<Long> entryIds) {
+        List<Pair<Long, Long>> ranges = new ArrayList<>();
+        long start = entryIds.first();
+        long end = start;
+        for (long entryId : entryIds) {
+            if (entryId - end > 1) {
+                ranges.add(Pair.of(start, end));
+                start = entryId;
+                end = start;
+            } else {
+                end = entryId;
+            }
+        }
+        ranges.add(Pair.of(start, end));
+        return ranges;
+    }
+
+    @VisibleForTesting
+    public static class BatchReadEntriesCallback implements ReadEntriesCallback {
+        private final SortedSet<Long> entryIds;
+        private final List<Entry> entries;
+        private final OpReadEntry callback;
+        private volatile boolean completed = false;
+        private final PositionImpl lastReadPosition;
+
+        @VisibleForTesting
+        public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback,
+                                        PositionImpl lastReadPosition) {
+            this.entryIds = entryIdSet;
+            this.entries = new ArrayList<>(entryIdSet.size());
+            this.callback = callback;
+            this.lastReadPosition = lastReadPosition;
+        }
+
+        @Override
+        public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
+            if (completed) {
                 return;
             }
-
-            firstEntry = firstValidEntry;
-            lastEntry = lastValidEntry;
+            entries.addAll(entries0);
+            if (entries.size() < entryIds.size()) {
+                return;
+            }
+            completed = true;
+            // Make sure the entries are in the correct order
+            entries.sort(Comparator.comparingLong(Entry::getEntryId));
+            // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered, so we need to pass
+            // the `lastReadPosition([5])` to make sure the cursor read position is correct.
+            callback.internalReadEntriesComplete(entries, ctx, lastReadPosition);
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
-                    lastEntry);
+        @Override
+        public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (completed) {
+                return;
+            }
+            completed = true;
+            // If there are entries been read success, try to let the read operation success as possible.
+            List<Entry> entries = filterEntries();
+            if (!entries.isEmpty()) {
+                // Move the read position of the cursor to the next position of the last read entry,
+                // or we will deliver the same entry to the consumer more than once.
+                Entry entry = entries.get(entries.size() - 1);
+                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                PositionImpl nextReadPosition = callback.cursor.getNextAvailablePosition(position);
+                callback.updateReadPosition(nextReadPosition);
+            }
+            callback.internalReadEntriesFailed(entries, exception, ctx);
         }
-        asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+
+        /**
+         * Filter the entries that have been read success.
+         * <p>
+         * If we want to read [1, 2, 3, 4, 5], but only read [1, 2, 4, 5] successfully, [3] is read failed,
+         * only return [1,2] to the caller, to make sure the read operation success as possible
+         * and keep the ordering guarantee.
+         *
+         * @return filtered entries
+         */
+        private List<Entry> filterEntries() {
+            if (entries.isEmpty()) {
+                return Collections.emptyList();
+            }
+            List<Entry> entries = new ArrayList<>();
+            for (long entryId : entryIds) {
+                if (this.entries.isEmpty()) {
+                    break;
+                }
+                Entry entry = this.entries.remove(0);
+                if (entry.getEntryId() == entryId) {
+                    entries.add(entry);
+                } else {
+                    break;
+                }
+            }
+            return entries;
+        }
     }
 
     protected void asyncReadEntry(ReadHandle ledger, PositionImpl position, ReadEntryCallback callback, Object ctx) {
@@ -2145,6 +2246,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             entryCache.asyncReadEntry(ledger, position, readCallback, readOpCount);
         } else {
             entryCache.asyncReadEntry(ledger, position, callback, ctx);
+        }
+    }
+
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, boolean shouldCacheEntries,
+                               ReadEntriesCallback callback, Object ctx) {
+        if (config.getReadEntryTimeoutSeconds() > 0) {
+            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
+            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
+            long createdTime = System.nanoTime();
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
+                    callback, readOpCount, createdTime, ctx);
+            lastReadCallback = readCallback;
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntries, readCallback, readOpCount);
+        } else {
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, shouldCacheEntries, callback, ctx);
         }
     }
 
