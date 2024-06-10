@@ -99,11 +99,8 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
-        if (!isMarkerMessage) {
-            updateLastDispatchablePosition(position);
-            if (maxReadPositionCallBack != null) {
-                maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
-            }
+        if (!isMarkerMessage && maxReadPositionCallBack != null) {
+            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
         }
     }
 
@@ -150,12 +147,5 @@ public class TransactionBufferDisable implements TransactionBuffer {
     @Override
     public long getCommittedTxnCount() {
         return 0;
-    }
-
-    // ThreadSafe
-    private void updateLastDispatchablePosition(Position position) {
-        if (topic instanceof PersistentTopic t) {
-            t.updateLastDispatchablePosition(position);
-        }
     }
 }
