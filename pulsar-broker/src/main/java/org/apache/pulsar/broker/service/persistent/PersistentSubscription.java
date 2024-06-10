@@ -368,6 +368,14 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions,
+                                                           AckType ackType, Map<String, Long> properties) {
+        return CompletableFuture.runAsync(() -> {
+                acknowledgeMessage(positions, ackType, properties);
+                }, topic.getBrokerService().getTopicOrderedExecutor().chooseThread(cursor.getName()));
+    }
+
+    @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
