@@ -232,6 +232,7 @@ public class BKCluster implements AutoCloseable {
         }
 
         if (clusterConf.clearOldData && dataDir.exists()) {
+            log.info("Wiping Bookie data directory at {}", dataDir.getAbsolutePath());
             cleanDirectory(dataDir);
         }
 
