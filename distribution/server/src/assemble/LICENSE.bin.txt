@@ -516,7 +516,7 @@ The Apache Software License, Version 2.0
     - io.etcd-jetcd-core-0.7.7.jar
     - io.etcd-jetcd-grpc-0.7.7.jar
   * IPAddress
-    - com.github.seancfoley-ipaddress-5.3.3.jar
+    - com.github.seancfoley-ipaddress-5.5.0.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
