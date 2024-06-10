@@ -251,7 +251,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetcd.version>0.7.7</jetcd.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
-    <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
