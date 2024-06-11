@@ -1419,10 +1419,12 @@ public class NamespaceService implements AutoCloseable {
             .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
             .thenCompose(metadata -> {
                 if (metadata.partitions > 0) {
-                    return CompletableFuture.completedFuture(TopicExistsInfo.partitionedExists(metadata.partitions));
+                    return CompletableFuture.completedFuture(
+                            TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
                 }
                 return checkNonPartitionedTopicExists(topic, assumedNonPartitionedNonPersistentTopicAlwaysExists)
-                    .thenApply(b -> b ? TopicExistsInfo.nonPartitionedExists() : TopicExistsInfo.notExists());
+                    .thenApply(b -> b ? TopicExistsInfo.newNonPartitionedTopicExists()
+                            : TopicExistsInfo.newTopicNotExists());
             });
     }
 

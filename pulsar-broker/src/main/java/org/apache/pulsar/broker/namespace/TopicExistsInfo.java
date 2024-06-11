@@ -31,61 +31,29 @@ public class TopicExistsInfo {
         }
     };
 
-    private static TopicExistsInfo nonPartitionedExists = new TopicExistsInfo(null);
-    static {
-        nonPartitionedExists.exists = true;
-        nonPartitionedExists.topicType = TopicType.NON_PARTITIONED;
-        nonPartitionedExists.partitions = null;
+    private static TopicExistsInfo nonPartitionedExists = new TopicExistsInfo(true, 0);
+
+    private static TopicExistsInfo notExists = new TopicExistsInfo(false, 0);
+
+    public static TopicExistsInfo newPartitionedTopicExists(Integer partitions){
+        TopicExistsInfo info = RECYCLER.get();
+        info.exists = true;
+        info.partitions = partitions.intValue();
+        return info;
     }
 
-    private static TopicExistsInfo notExists = new TopicExistsInfo(null);
-    static {
-        notExists.exists = false;
-        notExists.topicType = TopicType.NON_PARTITIONED;
-        notExists.partitions = null;
-    }
-
-    public static TopicExistsInfo partitionedExists(Integer partitions){
-        return newInstance(true, TopicType.PARTITIONED, partitions);
-    }
-
-    public static TopicExistsInfo nonPartitionedExists(){
+    public static TopicExistsInfo newNonPartitionedTopicExists(){
         return nonPartitionedExists;
     }
 
-    public static TopicExistsInfo notExists(){
+    public static TopicExistsInfo newTopicNotExists(){
         return notExists;
-    }
-
-    private static TopicExistsInfo newInstance(boolean exists, TopicType topicType, Integer partitions){
-        TopicExistsInfo info = RECYCLER.get();
-        info.exists = exists;
-        info.topicType = topicType;
-        if (topicType == null) {
-            throw new IllegalArgumentException("The param topicType can not be null when creating a TopicExistsInfo"
-                    + " obj.");
-        }
-        if (topicType.equals(TopicType.PARTITIONED)) {
-            if (partitions == null || partitions.intValue() < 1) {
-                throw new IllegalArgumentException("The param partitions can not be null or less than 1 when creating"
-                        + " a partitioned TopicExistsInfo obj.");
-            }
-            info.partitions = partitions.intValue();
-        } else {
-            if (partitions != null) {
-                throw new IllegalArgumentException("The param partitions must be null when creating a non-partitioned"
-                        + " TopicExistsInfo obj.");
-            }
-        }
-        return info;
     }
 
     private final Recycler.Handle<TopicExistsInfo> handle;
 
     @Getter
-    private TopicType topicType;
-    @Getter
-    private Integer partitions;
+    private int partitions;
     @Getter
     private boolean exists;
 
@@ -93,13 +61,22 @@ public class TopicExistsInfo {
         this.handle = handle;
     }
 
-    public void recycle(){
+    private TopicExistsInfo(boolean exists, int partitions) {
+        this.handle = null;
+        this.partitions = partitions;
+        this.exists = exists;
+    }
+
+    public void recycle() {
         if (this == notExists || this == nonPartitionedExists || this.handle == null) {
             return;
         }
         this.exists = false;
-        this.topicType = null;
-        this.partitions = null;
+        this.partitions = 0;
         this.handle.recycle(this);
+    }
+
+    public TopicType getTopicType() {
+        return this.partitions > 0 ? TopicType.PARTITIONED : TopicType.NON_PARTITIONED;
     }
 }

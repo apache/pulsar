@@ -358,7 +358,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture future = new CompletableFuture();
         future.completeExceptionally(new BrokerServiceException("Fake Exception"));
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(TopicExistsInfo.nonPartitionedExists());
+        existFuture.complete(TopicExistsInfo.newNonPartitionedTopicExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any(), anyBoolean());
@@ -383,7 +383,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         NamespaceService nameSpaceService = mock(NamespaceService.class);
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(TopicExistsInfo.notExists());
+        existFuture.complete(TopicExistsInfo.newTopicNotExists());
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
