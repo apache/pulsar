@@ -268,22 +268,22 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         double systemOutBytes = 0.0;
         double userOutBytes = 0.0;
-        switch (bytesOutTotal.get(0).tags.get("scope").toString()) {
-            case "system":
+        switch (bytesOutTotal.get(0).tags.get("system_subscription").toString()) {
+            case "true":
                 systemOutBytes = bytesOutTotal.get(0).value;
                 userOutBytes = bytesOutTotal.get(1).value;
-            case "user":
+            case "false":
                 systemOutBytes = bytesOutTotal.get(1).value;
                 userOutBytes = bytesOutTotal.get(0).value;
         }
 
         double systemInBytes = 0.0;
         double userInBytes = 0.0;
-        switch (bytesInTotal.get(0).tags.get("scope").toString()) {
-            case "system":
+        switch (bytesInTotal.get(0).tags.get("system_topic").toString()) {
+            case "true":
                 systemInBytes = bytesInTotal.get(0).value;
                 userInBytes = bytesInTotal.get(1).value;
-            case "user":
+            case "false":
                 systemInBytes = bytesInTotal.get(1).value;
                 userInBytes = bytesInTotal.get(0).value;
         }
