@@ -53,7 +53,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ThreadPoolProvider;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.TopicConsumerBuilder;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -301,9 +301,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> listenerThreadsProvider(ThreadPoolProvider listenerThreadsProvider) {
-        checkArgument(listenerThreadsProvider != null, "listenerThreadsProvider needs to be not null");
-        conf.setListenerExecutorProvider(listenerThreadsProvider);
+    public ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor) {
+        checkArgument(messageListenerExecutor != null, "messageListenerExecutor needs to be not null");
+        conf.setMessageListenerExecutor(messageListenerExecutor);
         return this;
     }
 

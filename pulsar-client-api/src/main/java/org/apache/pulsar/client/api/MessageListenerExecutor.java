@@ -22,15 +22,19 @@ import java.io.Serializable;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Provider for thread pools.
+ * Interface for providing an executor service to execute message listeners.
  */
-public interface ThreadPoolProvider extends Serializable {
+public interface MessageListenerExecutor extends Serializable {
 
     ExecutorService getExecutor();
 
-    ExecutorService getExecutor(Object object);
-
-    ExecutorService getExecutor(byte[] bytes);
+    /**
+     * Execute the runnable with the given shard key. The runnable will be executed by same thread of the same shard key.
+     *
+     * @param shardKey the shard key
+     * @param runnable the runnable to execute
+     */
+    void execute(byte[] shardKey, Runnable runnable);
 
     /**
      * Shutdown the provider and all thread resources of it.

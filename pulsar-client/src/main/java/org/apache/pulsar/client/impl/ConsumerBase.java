@@ -54,7 +54,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ThreadPoolProvider;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -82,7 +82,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
-    protected final ThreadPoolProvider executorProvider;
+    protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     protected UnAckedMessageTracker unAckedMessageTracker;
@@ -139,9 +139,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
-        this.executorProvider = conf.getListenerExecutorProvider() != null
-                ? conf.getListenerExecutorProvider() : executorProvider;
-        this.externalPinnedExecutor = this.executorProvider.getExecutor();
+        this.messageListenerExecutor = conf.getMessageListenerExecutor() != null
+                ? conf.getMessageListenerExecutor() : executorProvider;
+        this.externalPinnedExecutor = this.messageListenerExecutor.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
@@ -1130,8 +1130,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         final Message<T> finalMsg = msg;
                         MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                            executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
-                                    callMessageListener(finalMsg));
+                            messageListenerExecutor.execute(peekMessageKey(msg), () -> callMessageListener(finalMsg));
                         } else {
                             getExternalExecutor(msg).execute(() -> {
                                 callMessageListener(finalMsg);

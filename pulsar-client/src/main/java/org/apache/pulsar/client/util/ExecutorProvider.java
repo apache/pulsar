@@ -30,11 +30,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.ThreadPoolProvider;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
-public class ExecutorProvider implements ThreadPoolProvider {
+public class ExecutorProvider implements MessageListenerExecutor {
     private final int numThreads;
     private final List<Pair<ExecutorService, ExtendedThreadFactory>> executors;
     private final AtomicInteger currentThread = new AtomicInteger(0);
@@ -82,6 +83,12 @@ public class ExecutorProvider implements ThreadPoolProvider {
 
     public ExecutorService getExecutor() {
         return executors.get((currentThread.getAndIncrement() & Integer.MAX_VALUE) % numThreads).getKey();
+    }
+
+    @Override
+    public void execute(byte[] shardKey, Runnable runnable) {
+        int keyHash = Murmur3_32Hash.getInstance().makeHash(shardKey);
+        getExecutorInternal(keyHash).execute(runnable);
     }
 
     public ExecutorService getExecutor(Object object) {

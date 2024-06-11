@@ -284,7 +284,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
 
     /**
-     * Set the {@link ThreadPoolProvider} to be used for message listeners of <b>current consumer</b>.
+     * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
      * <i>(default: use executor from PulsarClient,
      * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
      *
@@ -293,10 +293,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the listener will always be invoked from the same thread, to ensure ordering.
      *
      * <p> The user need to shut down the thread pool after closing the consumer to avoid leaks.
-     * @param listenerThreadsProvider the threads provider of the consumer message listener
+     * @param messageListenerExecutor the executor of the consumer message listener
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> listenerThreadsProvider(ThreadPoolProvider listenerThreadsProvider);
+    ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor);
 
     /**
      * Sets a {@link CryptoKeyReader}.
