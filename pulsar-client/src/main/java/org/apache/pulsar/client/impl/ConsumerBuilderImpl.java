@@ -104,13 +104,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         }
     }
 
-    private CompletableFuture<Boolean> topicExists(String topic) {
+    private CompletableFuture<Boolean> checkDlqAlreadyExists(String topic) {
         CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
         client.getPartitionedTopicMetadata(topic, false).thenAccept(metadata -> {
             TopicName topicName = TopicName.get(topic);
             if (topicName.isPersistent()) {
+                // Either partitioned or non-partitioned, it exists.
                 existsFuture.complete(true);
             } else {
+                // If it is a non-persistent topic, return true only it is a partitioned topic.
                 existsFuture.complete(metadata != null && metadata.partitions > 0);
             }
         }).exceptionally(ex -> {
@@ -158,8 +160,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<Boolean> retryLetterTopicMetadata = topicExists(oldRetryLetterTopic);
-                CompletableFuture<Boolean> deadLetterTopicMetadata = topicExists(oldDeadLetterTopic);
+                CompletableFuture<Boolean> retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
+                CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
