@@ -29,7 +29,8 @@ public interface MessageListenerExecutor extends Serializable {
     ExecutorService getExecutor();
 
     /**
-     * Execute the runnable with the given shard key. The runnable will be executed by same thread of the same shard key.
+     * Execute the runnable with the given shard key.
+     * The runnable will be executed by same thread of the same shard key.
      *
      * @param shardKey the shard key
      * @param runnable the runnable to execute

@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
