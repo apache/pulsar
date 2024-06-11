@@ -267,6 +267,12 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Exception is expected.
         }
+
+        // case5: local name with special characters e.g. a:b:c
+        String topicName = "persistent://tenant/namespace/a:b:c";
+        String persistentNamingEncoding = "tenant/namespace/persistent/a%3Ab%3Ac";
+        assertEquals(TopicName.get(topicName).getPersistenceNamingEncoding(), persistentNamingEncoding);
+        assertEquals(TopicName.fromPersistenceNamingEncoding(persistentNamingEncoding), topicName);
     }
 
 
