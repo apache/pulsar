@@ -451,7 +451,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
                         localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                 percentChange(lastData.getNumBundles(), localData.getNumBundles()),
-                100.0 * (Math.abs(getMaxResourceUsageWithWeight(lastData, conf) - getMaxResourceUsageWithWeight(localData, conf))));
+                100.0 * Math.abs(getMaxResourceUsageWithWeight(lastData, conf)
+                        - getMaxResourceUsageWithWeight(localData, conf))
+        );
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
                             + "time since last report written is {} seconds", maxChange,
