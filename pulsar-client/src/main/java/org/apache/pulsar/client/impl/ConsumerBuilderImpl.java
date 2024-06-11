@@ -107,7 +107,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private CompletableFuture<Boolean> topicExists(String topic) {
         CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
         client.getPartitionedTopicMetadata(topic, false).thenAccept(metadata -> {
-            existsFuture.complete(true);
+            TopicName topicName = TopicName.get(topic);
+            if (topicName.isPersistent()) {
+                existsFuture.complete(true);
+            } else {
+                existsFuture.complete(metadata != null && metadata.partitions > 0);
+            }
         }).exceptionally(ex -> {
             Throwable actEx = FutureUtil.unwrapCompletionException(ex);
             if (actEx instanceof PulsarClientException.NotFoundException
