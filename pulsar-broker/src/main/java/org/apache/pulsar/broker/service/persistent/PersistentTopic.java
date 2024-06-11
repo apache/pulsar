@@ -559,9 +559,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     futures.add(removeReplicator(remoteCluster));
                     continue;
                 }
-                if (localCluster.equals(remoteCluster)) {
-                    log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
-                }
             }
         }
         return FutureUtil.waitForAll(futures);
