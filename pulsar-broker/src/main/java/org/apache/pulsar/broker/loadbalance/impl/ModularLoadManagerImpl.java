@@ -298,9 +298,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         } catch (Exception e) {
             log.error("Error when trying to create load shedding strategy: {}",
                     conf.getLoadBalancerLoadSheddingStrategy(), e);
+            throw e;
         }
-        log.error("create load shedding strategy failed. using ThresholdShedder by default.");
-        return new ThresholdShedder();
     }
 
     /**
