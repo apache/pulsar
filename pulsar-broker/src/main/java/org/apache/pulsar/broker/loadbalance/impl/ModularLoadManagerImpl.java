@@ -425,6 +425,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return 100 * Math.abs((oldValue - newValue) / oldValue);
     }
 
+    private double getMaxResourceUsageWithWeight(LocalBrokerData localBrokerData, ServiceConfiguration conf) {
+        return localBrokerData.getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
+    }
+
     // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
         final long updateMaxIntervalMillis = TimeUnit.MINUTES
@@ -437,14 +445,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // Always update after surpassing the maximum interval.
             return true;
         }
-        final double maxChange = Math
-                .max(100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
-                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
-                                localData.getMsgRateIn() + localData.getMsgRateOut()),
-                                Math.max(
-                                        percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
-                                                localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
-                                        percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
+        final double maxChange = LocalBrokerData.max(
+                percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
+                        localData.getMsgRateIn() + localData.getMsgRateOut()),
+                percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
+                        localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
+                percentChange(lastData.getNumBundles(), localData.getNumBundles()),
+                100.0 * (Math.abs(getMaxResourceUsageWithWeight(lastData, conf) - getMaxResourceUsageWithWeight(localData, conf))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
                             + "time since last report written is {} seconds", maxChange,
@@ -932,7 +939,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-            final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
+            final double maxUsage = getMaxResourceUsageWithWeight(
+                    loadData.getBrokerData().get(broker.get()).getLocalData(), conf);
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
