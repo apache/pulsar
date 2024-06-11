@@ -35,6 +35,8 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.common.naming.TopicName;
@@ -63,11 +65,11 @@ public class ManagedLedgerOfflineBacklog {
     }
 
     // need a better way than to duplicate the functionality below from ML
-    private long getNumberOfEntries(Range<PositionImpl> range,
+    private long getNumberOfEntries(Range<Position> range,
             NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) {
-        PositionImpl fromPosition = range.lowerEndpoint();
+        Position fromPosition = range.lowerEndpoint();
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
-        PositionImpl toPosition = range.upperEndpoint();
+        Position toPosition = range.upperEndpoint();
         boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
 
         if (fromPosition.getLedgerId() == toPosition.getLedgerId()) {
@@ -228,7 +230,8 @@ public class ManagedLedgerOfflineBacklog {
                 ConcurrentOpenHashMap.<String, Long>newBuilder().build();
 
         final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
-        final PositionImpl lastLedgerPosition = new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+        final Position lastLedgerPosition =
+                PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Last ledger position {}", managedLedgerName, lastLedgerPosition);
         }
@@ -312,14 +315,16 @@ public class ManagedLedgerOfflineBacklog {
                                                     lh.getId());
                                             return;
                                         }
-                                        final PositionImpl lastAckedMessagePosition = new PositionImpl(positionInfo);
+                                        final Position lastAckedMessagePosition =
+                                                PositionFactory.create(positionInfo.getLedgerId(),
+                                                        positionInfo.getEntryId());
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Cursor {} MD {} read last ledger position {}",
                                                     managedLedgerName, cursorName, lastAckedMessagePosition,
                                                     lastLedgerPosition);
                                         }
                                         // calculate cursor backlog
-                                        Range<PositionImpl> range = Range.openClosed(lastAckedMessagePosition,
+                                        Range<Position> range = Range.openClosed(lastAckedMessagePosition,
                                                 lastLedgerPosition);
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Calculating backlog for cursor {} using range {}",
@@ -351,9 +356,9 @@ public class ManagedLedgerOfflineBacklog {
                                         bk.asyncOpenLedgerNoRecovery(cursorLedgerId, digestType, password,
                                                 cursorLedgerOpenCb, null);
                                     } else {
-                                        PositionImpl lastAckedMessagePosition = new PositionImpl(
+                                        Position lastAckedMessagePosition = PositionFactory.create(
                                                 info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
-                                        Range<PositionImpl> range = Range.openClosed(lastAckedMessagePosition,
+                                        Range<Position> range = Range.openClosed(lastAckedMessagePosition,
                                                 lastLedgerPosition);
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Calculating backlog for cursor {} using range {}",
@@ -406,7 +411,7 @@ public class ManagedLedgerOfflineBacklog {
                 if (log.isDebugEnabled()) {
                     log.debug("Cursor {} Ledger {} Trying to obtain MD from BkAdmin", cursorName, ledgerId);
                 }
-                PositionImpl lastAckedMessagePosition = tryGetMDPosition(bk, ledgerId, cursorName);
+                Position lastAckedMessagePosition = tryGetMDPosition(bk, ledgerId, cursorName);
                 if (lastAckedMessagePosition == null) {
                     log.warn("[{}] Cursor {} read from ledger {}. Unable to determine cursor position",
                             managedLedgerName, cursorName, ledgerId);
@@ -416,7 +421,7 @@ public class ManagedLedgerOfflineBacklog {
                                 cursorName, ledgerId, lastAckedMessagePosition);
                     }
                     // calculate cursor backlog
-                    Range<PositionImpl> range = Range.openClosed(lastAckedMessagePosition, lastLedgerPosition);
+                    Range<Position> range = Range.openClosed(lastAckedMessagePosition, lastLedgerPosition);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Calculating backlog for cursor {} using range {}", managedLedgerName,
                                 cursorName, range);
@@ -429,10 +434,10 @@ public class ManagedLedgerOfflineBacklog {
         }
     }
 
-    private PositionImpl tryGetMDPosition(BookKeeper bookKeeper, long ledgerId, String cursorName) {
+    private Position tryGetMDPosition(BookKeeper bookKeeper, long ledgerId, String cursorName) {
         BookKeeperAdmin bookKeeperAdmin = null;
         long lastEntry = LedgerHandle.INVALID_ENTRY_ID;
-        PositionImpl lastAckedMessagePosition = null;
+        Position lastAckedMessagePosition = null;
         try {
             bookKeeperAdmin = new BookKeeperAdmin(bookKeeper);
             for (LedgerEntry ledgerEntry : bookKeeperAdmin.readEntries(ledgerId, 0, lastEntry)) {
@@ -441,7 +446,8 @@ public class ManagedLedgerOfflineBacklog {
                     log.debug(" Read entry {} from ledger {} for cursor {}", lastEntry, ledgerId, cursorName);
                 }
                 MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(ledgerEntry.getEntry());
-                lastAckedMessagePosition = new PositionImpl(positionInfo);
+                lastAckedMessagePosition =
+                        PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
                 if (log.isDebugEnabled()) {
                     log.debug("Cursor {} read position {}", cursorName, lastAckedMessagePosition);
                 }

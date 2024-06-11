@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -92,7 +92,7 @@ public interface Dispatcher {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
-    void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions);
 
     void addUnAckedMessages(int unAckMessages);
 

@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -244,16 +244,16 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
-        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+        Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, use topic-leve policies, 1 second delay + 3 second interval
         Awaitility.await()
-                .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum - 1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         assertEquals(position, markDeletedPosition);
 
         //remove topic-level policies, namespace-level should be used, interval becomes 5 seconds
@@ -261,10 +261,10 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("msg").send();
         //zk update time + 5 second interval time
         Awaitility.await()
-                .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertEquals(msgNum, markDeletedPosition.getEntryId());
         assertEquals(position, markDeletedPosition);
 
@@ -275,17 +275,17 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("msg").send();
         //ensure that the time exceeds the scheduling interval of ns and topic, but no snapshot is generated
         Thread.sleep(3000);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         // broker-level interval is 7 seconds, so 3 seconds will not take a snapshot
         assertNotEquals(msgNum + 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition);
         // wait for scheduler
         Awaitility.await()
-                .until(() -> ((PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+                .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum + 1);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertEquals(msgNum + 1, markDeletedPosition.getEntryId());
         assertEquals(position, markDeletedPosition);
     }
@@ -347,13 +347,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
-        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        Position position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
 
         Thread.sleep(2000);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         if (enabledSnapshot) {
             assertEquals(position, markDeletedPosition);
         } else {
@@ -362,14 +362,14 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         }
 
         producer.newMessage().value("msg").send();
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertNotEquals(msgNum, markDeletedPosition.getEntryId());
         assertNotNull(position);
 
         Thread.sleep(2000);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         if (enabledSnapshot) {
             assertEquals(msgNum, markDeletedPosition.getEntryId());
             assertEquals(position, markDeletedPosition);
@@ -424,27 +424,27 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
-        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+        Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
         //The first time, 1 second delay + 1 second interval
-        Awaitility.await().until(()-> ((PositionImpl) persistentTopic
+        Awaitility.await().until(()-> (persistentTopic
                 .getMessageDeduplication().getManagedCursor().getMarkDeletedPosition()).getEntryId() == msgNum -1);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         assertEquals(position, markDeletedPosition);
         //remove namespace-level policies, broker-level should be used
         admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
         Thread.sleep(2000);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertNotEquals(msgNum - 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition.getEntryId());
         //3 seconds total
         Thread.sleep(1000);
-        markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
-        position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
+        markDeletedPosition = managedCursor.getMarkDeletedPosition();
+        position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger().getLastConfirmedEntry();
         assertEquals(msgNum - 1, markDeletedPosition.getEntryId());
         assertEquals(position, markDeletedPosition);
 
@@ -475,14 +475,14 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
 
         long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
-        PositionImpl position = (PositionImpl) persistentTopic.getMessageDeduplication().getManagedCursor()
+        Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
-        Awaitility.await().until(()-> ((PositionImpl) persistentTopic
+        Awaitility.await().until(()-> (persistentTopic
                 .getMessageDeduplication().getManagedCursor().getMarkDeletedPosition()).getEntryId() == -1);
 
         // take snapshot is disabled, so markDeletedPosition should not change

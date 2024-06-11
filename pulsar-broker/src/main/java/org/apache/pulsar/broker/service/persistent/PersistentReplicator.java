@@ -45,7 +45,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -576,11 +575,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             terminate();
             return;
         }
-        if (ctx instanceof PositionImpl) {
-            PositionImpl deletedEntry = (PositionImpl) ctx;
-            if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+        if (ctx instanceof Position) {
+            Position deletedEntry = (Position) ctx;
+            if (deletedEntry.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 brokerService.getPulsar().getExecutor().schedule(
-                        () -> cursor.asyncDelete(deletedEntry, (PersistentReplicator) this, deletedEntry), 10,
+                        () -> cursor.asyncDelete(deletedEntry, this, deletedEntry), 10,
                         TimeUnit.SECONDS);
             }
         }

@@ -18,33 +18,45 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 import org.apache.bookkeeper.mledger.Position;
 
-public class PositionImplRecyclable extends PositionImpl implements Position {
+public final class ImmutablePositionImpl implements Position {
+    private final long ledgerId;
+    private final long entryId;
 
-    private final Handle<PositionImplRecyclable> recyclerHandle;
-
-    private static final Recycler<PositionImplRecyclable> RECYCLER = new Recycler<PositionImplRecyclable>() {
-        @Override
-        protected PositionImplRecyclable newObject(Recycler.Handle<PositionImplRecyclable> recyclerHandle) {
-            return new PositionImplRecyclable(recyclerHandle);
-        }
-    };
-
-    private PositionImplRecyclable(Handle<PositionImplRecyclable> recyclerHandle) {
-        super(PositionImpl.EARLIEST);
-        this.recyclerHandle = recyclerHandle;
+    public ImmutablePositionImpl(long ledgerId, long entryId) {
+        this.ledgerId = ledgerId;
+        this.entryId = entryId;
     }
 
-    public static PositionImplRecyclable create() {
-        return RECYCLER.get();
+    public ImmutablePositionImpl(Position other) {
+        this.ledgerId = other.getLedgerId();
+        this.entryId = other.getEntryId();
     }
 
-    public void recycle() {
-        ackSet = null;
-        recyclerHandle.recycle(this);
+    public long getLedgerId() {
+        return ledgerId;
     }
 
+    public long getEntryId() {
+        return entryId;
+    }
+
+    /**
+     * String representation of virtual cursor - LedgerId:EntryId.
+     */
+    @Override
+    public String toString() {
+        return ledgerId + ":" + entryId;
+    }
+
+    @Override
+    public int hashCode() {
+        return hashCodeForPosition();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Position && compareTo((Position) obj) == 0;
+    }
 }
