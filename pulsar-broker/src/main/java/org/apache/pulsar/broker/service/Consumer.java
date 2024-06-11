@@ -25,6 +25,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
+import io.opentelemetry.api.common.Attributes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -35,6 +36,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -69,6 +71,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,6 +161,10 @@ public class Consumer {
     @Getter
     private final Instant connectedSince = Instant.now();
 
+    private volatile Attributes openTelemetryAttributes;
+    private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
@@ -231,6 +238,8 @@ public class Consumer {
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
 
         this.schemaType = schemaType;
+
+        OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER.set(this, null);
     }
 
     @VisibleForTesting
@@ -263,6 +272,7 @@ public class Consumer {
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
         this.schemaType = null;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
+        OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER.set(this, null);
     }
 
     public SubType subType() {
@@ -1203,4 +1213,30 @@ public class Consumer {
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
+
+    public Attributes getOpenTelemetryAttributes() {
+        if (openTelemetryAttributes != null) {
+            return openTelemetryAttributes;
+        }
+        return OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this, oldValue -> {
+            if (oldValue != null) {
+                return oldValue;
+            }
+            var topicName = TopicName.get(subscription.getTopic().getName());
+
+            var builder = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumerName)
+                    .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumerId)
+                    .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscription.getName())
+                    .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, subType.toString())
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+            if (topicName.isPartitioned()) {
+                builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+            }
+            return builder.build();
+        });
+    }
 }

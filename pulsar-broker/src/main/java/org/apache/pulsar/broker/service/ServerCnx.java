@@ -29,10 +29,10 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMig
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
-import static org.apache.pulsar.common.protocol.Commands.newCloseConsumer;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.re2j.Pattern;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -59,7 +59,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -71,6 +70,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -82,6 +82,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -149,6 +150,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -3186,15 +3188,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         closeProducer(producer.getProducerId(), producer.getEpoch(), assignedBrokerLookupData);
     }
 
+    private LookupData getLookupData(BrokerLookupData lookupData) {
+        LookupOptions.LookupOptionsBuilder builder = LookupOptions.builder();
+        if (StringUtils.isNotBlank((listenerName))) {
+            builder.advertisedListenerName(listenerName);
+        }
+        try {
+            return lookupData.toLookupResult(builder.build()).getLookupData();
+        } catch (PulsarServerException e) {
+            log.error("Failed to get lookup data", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     private void closeProducer(long producerId, long epoch, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            if (assignedBrokerLookupData.isPresent()) {
-                writeAndFlush(Commands.newCloseProducer(producerId, -1L,
-                        assignedBrokerLookupData.get().pulsarServiceUrl(),
-                        assignedBrokerLookupData.get().pulsarServiceUrlTls()));
-            } else {
-                writeAndFlush(Commands.newCloseProducer(producerId, -1L));
-            }
+            assignedBrokerLookupData.ifPresentOrElse(lookup -> {
+                        LookupData lookupData = getLookupData(lookup);
+                        writeAndFlush(Commands.newCloseProducer(producerId, -1L,
+                                lookupData.getBrokerUrl(),
+                                lookupData.getBrokerUrlTls()));
+                    },
+                    () -> writeAndFlush(Commands.newCloseProducer(producerId, -1L)));
 
             // The client does not necessarily know that the producer is closed, but the connection is still
             // active, and there could be messages in flight already. We want to ignore these messages for a time
@@ -3220,9 +3235,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void closeConsumer(long consumerId, Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(newCloseConsumer(consumerId, -1L,
-                    assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrl).orElse(null),
-                    assignedBrokerLookupData.map(BrokerLookupData::pulsarServiceUrlTls).orElse(null)));
+            assignedBrokerLookupData.ifPresentOrElse(lookup -> {
+                        LookupData lookupData = getLookupData(lookup);
+                        writeAndFlush(Commands.newCloseConsumer(consumerId, -1L,
+                                lookupData.getBrokerUrl(),
+                                lookupData.getBrokerUrlTls()));
+                    },
+                    () -> writeAndFlush(Commands.newCloseConsumer(consumerId, -1L, null, null)));
         } else {
             close();
         }

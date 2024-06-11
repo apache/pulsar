@@ -57,6 +57,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Value;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsOnMetadataServerException;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -120,6 +122,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersio
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.PersistentTopicAttributes;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -286,6 +289,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
+
+    private volatile PersistentTopicAttributes persistentTopicAttributes = null;
+    private static final AtomicReferenceFieldUpdater<PersistentTopic, PersistentTopicAttributes>
+            PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    PersistentTopic.class, PersistentTopicAttributes.class, "persistentTopicAttributes");
 
     private volatile TimeBasedBacklogQuotaCheckResult timeBasedBacklogQuotaCheckResult;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, TimeBasedBacklogQuotaCheckResult>
@@ -2836,6 +2844,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }).exceptionally(e -> {
                                     log.error("[{}] Failed to get ledger metadata for the schema ledger {}",
                                             topic, ledgerId, e);
+                                    if ((e.getCause() instanceof BKNoSuchLedgerExistsOnMetadataServerException)
+                                            || (e.getCause() instanceof BKNoSuchLedgerExistsException)) {
+                                        completableFuture.complete(null);
+                                        return null;
+                                    }
                                     completableFuture.completeExceptionally(e);
                                     return null;
                                 });
@@ -3234,23 +3247,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
                     .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
-            if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
-                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
-                            || sub.isReplicated()
-                            || isCompactionSubscription(subName)) {
-                        return;
-                    }
-                    if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
-                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
-                    }
-                });
-            }
+            checkInactiveSubscriptions(expirationTimeMillis);
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
             }
+        }
+    }
+
+    @VisibleForTesting
+    public void checkInactiveSubscriptions(long expirationTimeMillis) {
+        if (expirationTimeMillis > 0) {
+            subscriptions.forEach((subName, sub) -> {
+                if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
+                        || sub.isReplicated()
+                        || isCompactionSubscription(subName)) {
+                    return;
+                }
+                if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                    sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                            + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
+                }
+            });
         }
     }
 
@@ -4348,5 +4366,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
         return false;
+    }
+
+    @Override
+    public PersistentTopicAttributes getTopicAttributes() {
+        if (persistentTopicAttributes != null) {
+            return persistentTopicAttributes;
+        }
+        return PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic)));
     }
 }

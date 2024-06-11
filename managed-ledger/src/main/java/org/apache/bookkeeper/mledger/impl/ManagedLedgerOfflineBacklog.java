@@ -140,7 +140,7 @@ public class ManagedLedgerOfflineBacklog {
             final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) throws Exception {
         String managedLedgerName = topicName.getPersistenceNamingEncoding();
         MetaStore store = factory.getMetaStore();
-        BookKeeper bk = factory.getBookKeeper();
+
         final CountDownLatch mlMetaCounter = new CountDownLatch(1);
 
         store.getManagedLedgerInfo(managedLedgerName, false /* createIfMissing */,
@@ -180,12 +180,16 @@ public class ManagedLedgerOfflineBacklog {
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Opening ledger {}", managedLedgerName, id);
                             }
-                            try {
-                                bk.asyncOpenLedgerNoRecovery(id, digestType, password, opencb, null);
-                            } catch (Exception e) {
-                                log.warn("[{}] Failed to open ledger {}: {}", managedLedgerName, id, e);
-                                mlMetaCounter.countDown();
-                            }
+
+                            factory.getBookKeeper()
+                                    .thenAccept(bk -> {
+                                        bk.asyncOpenLedgerNoRecovery(id, digestType, password, opencb, null);
+                                    }).exceptionally(ex -> {
+                                        log.warn("[{}] Failed to open ledger {}: {}", managedLedgerName, id, ex);
+                                        opencb.openComplete(-1, null, null);
+                                        mlMetaCounter.countDown();
+                                        return null;
+                                    });
                         } else {
                             log.warn("[{}] Ledger list empty", managedLedgerName);
                             mlMetaCounter.countDown();
@@ -217,7 +221,7 @@ public class ManagedLedgerOfflineBacklog {
         }
         String managedLedgerName = topicName.getPersistenceNamingEncoding();
         MetaStore store = factory.getMetaStore();
-        BookKeeper bk = factory.getBookKeeper();
+        BookKeeper bk = factory.getBookKeeper().get();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = -1;
         ConcurrentOpenHashMap<String, Long> ledgerRetryMap =

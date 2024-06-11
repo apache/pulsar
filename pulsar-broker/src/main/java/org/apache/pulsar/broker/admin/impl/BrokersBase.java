@@ -219,7 +219,7 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value =
             "Delete dynamic ServiceConfiguration into metadata only."
                     + " This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration delete successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -240,7 +240,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration/values")
-    @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
+    @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config",
+            response = String.class, responseContainer = "Map")
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
@@ -258,7 +259,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration")
-    @ApiOperation(value = "Get all updatable dynamic configurations's name")
+    @ApiOperation(value = "Get all updatable dynamic configurations's name",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
@@ -273,7 +275,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration/runtime")
-    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.",
+            response = String.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
@@ -330,7 +333,7 @@ public class BrokersBase extends AdminResource {
     @Path("/backlog-quota-check")
     @ApiOperation(value = "An REST endpoint to trigger backlogQuotaCheck")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 204, message = "Everything is OK"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
@@ -368,15 +371,15 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    @ApiParam(value = "Topic Version")
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
+                            @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion) {
         validateSuperUserAccessAsync()
                 .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> internalRunHealthCheck(topicVersion))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
-                    asyncResponse.resume("ok");
+                    asyncResponse.resume(Response.ok("ok").build());
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -404,13 +407,17 @@ public class BrokersBase extends AdminResource {
         }
     }
 
+    public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
+        NamespaceName namespaceName = isV2
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
+                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
+        return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+    }
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
         String brokerId = pulsar().getBrokerId();
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar().getConfiguration());
-        final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        final String topicName =
+                getHeartbeatTopicName(brokerId, pulsar().getConfiguration(), (topicVersion == TopicVersion.V2));
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
@@ -541,7 +548,7 @@ public class BrokersBase extends AdminResource {
     @Path("/version")
     @ApiOperation(value = "Get version of current broker")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 200, message = "The Pulsar version", response = String.class),
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
         return PulsarVersion.getVersion();

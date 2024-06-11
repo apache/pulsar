@@ -853,14 +853,24 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils
                 .isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getPy()).exists()) {
+            String filename = functionConfig.getPy();
+            if (filename.contains("..")) {
+                throw new IllegalArgumentException("Invalid filename: " + filename);
+            }
+
+            if (!new File(filename).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
         }
         if (!isEmpty(functionConfig.getGo()) && !org.apache.pulsar.common.functions.Utils
                 .isFunctionPackageUrlSupported(functionConfig.getGo())
                 && functionConfig.getGo().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getGo()).exists()) {
+            String filename = functionConfig.getGo();
+            if (filename.contains("..")) {
+                throw new IllegalArgumentException("Invalid filename: " + filename);
+            }
+
+            if (!new File(filename).exists()) {
                 throw new IllegalArgumentException("The supplied go file does not exist");
             }
         }

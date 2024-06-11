@@ -122,6 +122,7 @@
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.google.re2j:re2j</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
                   <include>io.netty.incubator:*</include>

@@ -16,36 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.utils;
+package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertEquals;
-import java.io.Serializable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import org.testng.annotations.Test;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-/**
- * Unit test of {@link JavaSerDe}.
- */
-public class JavaSerDeTest {
-
-    @Data
-    @AllArgsConstructor
-    private static class TestObject implements Serializable {
-
-        private int intField;
-        private String stringField;
-
-    }
-
-    @Test
-    public void testSerDe() {
-        TestObject to = new TestObject(1234, "test-serde-java-object");
-
-        byte[] data = JavaSerDe.of().serialize(to);
-        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
-
-        assertEquals(to, deserializeTo);
-    }
-
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public enum TransactionIsolationLevel {
+    // Consumer can only consume all transactional messages which have been committed.
+    READ_COMMITTED,
+    // Consumer can consume all messages, even transactional messages which have been aborted.
+    READ_UNCOMMITTED;
 }
