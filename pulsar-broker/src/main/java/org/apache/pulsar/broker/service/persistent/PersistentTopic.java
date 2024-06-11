@@ -270,6 +270,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private volatile CloseFutures closeFutures;
 
+    // The last position that can be dispatched to consumers
+    private volatile Position lastDispatchablePosition;
+
     /***
      * We use 2 futures to prevent a new closing if there is an in-progress deletion or closing.  We make Pulsar return
      * the in-progress one when it is called the second time.
@@ -3459,18 +3462,57 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Position> getLastDispatchablePosition() {
-        return ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
-            MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
-            // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
-            if (Markers.isServerOnlyMarker(md)) {
-                return false;
-            } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
-                // Filter-out transaction aborted messages.
-                TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
-                return !isTxnAborted(txnID, (PositionImpl) entry.getPosition());
-            }
-            return true;
-        }, getMaxReadPosition());
+        if (lastDispatchablePosition != null) {
+            return CompletableFuture.completedFuture(lastDispatchablePosition);
+        }
+        return ManagedLedgerImplUtils
+                .asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
+                    MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
+                    if (Markers.isServerOnlyMarker(md)) {
+                        return false;
+                    } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
+                        // Filter-out transaction aborted messages.
+                        TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
+                        return !isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+                    }
+                    return true;
+                }, getMaxReadPosition())
+                .thenApply(position -> {
+                    // Update lastDispatchablePosition to the given position
+                    updateLastDispatchablePosition(position);
+                    return position;
+                });
+    }
+
+    /**
+     * Update lastDispatchablePosition if the given position is greater than the lastDispatchablePosition.
+     *
+     * @param position
+     */
+    public synchronized void updateLastDispatchablePosition(Position position) {
+        // Update lastDispatchablePosition to null if the position is null, fallback to
+        // ManagedLedgerImplUtils#asyncGetLastValidPosition
+        if (position == null) {
+            lastDispatchablePosition = null;
+            return;
+        }
+
+        PositionImpl position0 = (PositionImpl) position;
+        // If the position is greater than the maxReadPosition, ignore
+        if (position0.compareTo(getMaxReadPosition()) > 0) {
+            return;
+        }
+        // If the lastDispatchablePosition is null, set it to the position
+        if (lastDispatchablePosition == null) {
+            lastDispatchablePosition = position;
+            return;
+        }
+        // If the position is greater than the lastDispatchablePosition, update it
+        PositionImpl lastDispatchablePosition0 = (PositionImpl) lastDispatchablePosition;
+        if (position0.compareTo(lastDispatchablePosition0) > 0) {
+            lastDispatchablePosition = position;
+        }
     }
 
     @Override

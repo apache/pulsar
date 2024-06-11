@@ -293,6 +293,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    // ThreadSafe
+    private void updateLastDispatchablePosition(Position position) {
+        topic.updateLastDispatchablePosition(position);
+    }
+
     @Override
     public CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId) {
         return null;
@@ -455,6 +460,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             updateMaxReadPosition((PositionImpl) topic.getManagedLedger().getLastConfirmedEntry(), false);
         }
+        // Update the last dispatchable position to null if there is a TXN finished.
+        updateLastDispatchablePosition(null);
     }
 
     /**
@@ -518,6 +525,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     updateMaxReadPosition(position, isMarkerMessage);
                 }
             }
+        }
+        // If the message is a normal message, update the last dispatchable position.
+        if (!isMarkerMessage) {
+            updateLastDispatchablePosition(position);
         }
     }
 
