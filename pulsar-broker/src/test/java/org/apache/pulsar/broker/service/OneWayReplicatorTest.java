@@ -58,7 +58,10 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -808,5 +811,72 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().deletePartitionedTopic(topicName, false);
             admin2.topics().deletePartitionedTopic(topicName, false);
         });
+    }
+
+    private String getTheLatestMessage(String topic, PulsarClient client, PulsarAdmin admin) throws Exception {
+        String dummySubscription = "s_" + UUID.randomUUID().toString().replace("-", "");
+        admin.topics().createSubscription(topic, dummySubscription, MessageId.earliest);
+        Consumer<String> c = client.newConsumer(Schema.STRING).topic(topic).subscriptionName(dummySubscription)
+                .subscribe();
+        String lastMsgValue = null;
+        while (true) {
+            Message<String> msg = c.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            lastMsgValue = msg.getValue();
+        }
+        c.unsubscribe();
+        return lastMsgValue;
+    }
+
+    @Test
+    public void testReloadWithTopicLevelGeoReplication() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        verifyReplicationWorks(topicName);
+
+        /**
+         * Verify:
+         * 1. Inject an error to make the replicator is not able to work.
+         * 2. Send one message, since the replicator does not work anymore, this message will not be replicated.
+         * 3. Unload topic, the replicator will be re-created.
+         * 4. Verify: the message can be replicated to the remote cluster.
+         */
+        // Step 1: Inject an error to make the replicator is not able to work.
+        Replicator replicator = broker1.getTopic(topicName, false).join().get().getReplicators().get(cluster2);
+        replicator.terminate();
+
+        // Step 2: Send one message, since the replicator does not work anymore, this message will not be replicated.
+        String msg = UUID.randomUUID().toString();
+        Producer p1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        p1.send(msg);
+        p1.close();
+        // The result of "peek message" will be the messages generated, so it is not the same as the message just sent.
+        Thread.sleep(3000);
+        assertNotEquals(getTheLatestMessage(topicName, client2, admin2), msg);
+        assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 1);
+
+        // Step 3: Unload topic, the replicator will be re-created.
+        admin1.topics().unload(topicName);
+
+        // Step 4. Verify: the message can be replicated to the remote cluster.
+        Awaitility.await().untilAsserted(() -> {
+            log.info("replication backlog: {}",
+                    admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog());
+            assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 0);
+            assertEquals(getTheLatestMessage(topicName, client2, admin2), msg);
+        });
+
+        // Cleanup.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(broker1.getTopic(topicName, false).join().get().getReplicators().size(), 0);
+        });
+        admin1.topics().delete(topicName, false);
+        admin2.topics().delete(topicName, false);
     }
 }
