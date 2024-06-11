@@ -127,4 +127,37 @@ public interface OpenTelemetryAttributes {
         TIME;
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
     }
+
+    // Managed Ledger Attributes
+    AttributeKey<String> ML_POOL_ARENA_TYPE = AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");
+    enum PoolArenaType {
+        SMALL,
+        NORMAL,
+        HUGE;
+        public final Attributes attributes = Attributes.of(ML_POOL_ARENA_TYPE, name().toLowerCase());
+    }
+
+    AttributeKey<String> ML_POOL_CHUNK_ALLOCATION_TYPE =
+            AttributeKey.stringKey("pulsar.managed_ledger.pool.chunk.allocation.type");
+    enum PoolChunkAllocationType {
+        ALLOCATED,
+        USED;
+        public final Attributes attributes = Attributes.of(ML_POOL_CHUNK_ALLOCATION_TYPE, name().toLowerCase());
+    }
+
+    AttributeKey<String> ML_CACHE_ENTRY_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.cache.entry.status");
+    enum CacheEntryStatus {
+        ACTIVE,
+        EVICTED,
+        INSERTED;
+        public final Attributes attributes = Attributes.of(ML_CACHE_ENTRY_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> ML_CACHE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.managed_ledger.cache.operation.status");
+    enum CacheOperationStatus {
+        HIT,
+        MISS;
+        public final Attributes attributes = Attributes.of(ML_CACHE_OPERATION_STATUS, name().toLowerCase());
+    }
 }

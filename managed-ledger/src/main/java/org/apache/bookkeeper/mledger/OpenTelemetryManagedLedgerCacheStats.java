@@ -19,50 +19,18 @@
 package org.apache.bookkeeper.mledger;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PooledByteBufAllocatorStats;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.opentelemetry.Constants;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.CacheEntryStatus;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.CacheOperationStatus;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PoolArenaType;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PoolChunkAllocationType;
 
 public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
-
-    public static final AttributeKey<String> POOL_ARENA_TYPE =
-            AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");
-    public enum PoolArenaType {
-        SMALL,
-        NORMAL,
-        HUGE;
-        public final Attributes attributes = Attributes.of(POOL_ARENA_TYPE, name().toLowerCase());
-    }
-
-    public static final AttributeKey<String> POOL_CHUNK_ALLOCATION_TYPE =
-            AttributeKey.stringKey("pulsar.managed_ledger.pool.chunk.allocation.type");
-    public enum PoolChunkAllocationType {
-        ALLOCATED,
-        USED;
-        public final Attributes attributes = Attributes.of(POOL_CHUNK_ALLOCATION_TYPE, name().toLowerCase());
-    }
-
-    public static final AttributeKey<String> CACHE_ENTRY_STATUS =
-            AttributeKey.stringKey("pulsar.managed_ledger.entry.status");
-    public enum CacheEntryStatus {
-        ACTIVE,
-        EVICTED,
-        INSERTED;
-        public final Attributes attributes = Attributes.of(CACHE_ENTRY_STATUS, name().toLowerCase());
-    }
-
-    public static final AttributeKey<String> CACHE_OPERATION_STATUS =
-            AttributeKey.stringKey("pulsar.managed_ledger.cache.operation.status");
-    public enum CacheOperationStatus {
-        HIT,
-        MISS;
-        public final Attributes attributes = Attributes.of(CACHE_OPERATION_STATUS, name().toLowerCase());
-    }
 
     // Replaces pulsar_ml_count
     public static final String MANAGED_LEDGER_COUNTER = "pulsar.broker.managed_ledger.count";
