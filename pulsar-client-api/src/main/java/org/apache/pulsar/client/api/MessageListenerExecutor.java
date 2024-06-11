@@ -19,31 +19,20 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
-import java.util.concurrent.ExecutorService;
 
 /**
  * Interface for providing an executor service to execute message listeners.
  */
 public interface MessageListenerExecutor extends Serializable {
 
-    ExecutorService getExecutor();
-
     /**
-     * Execute the runnable with the given shard key.
-     * The runnable will be executed by same thread of the same shard key.
+     * select a thread by subscriptionType and message to execute the runnable!
+     * For Key_Shared subscription: message with same key will be executed by same thread.
+     * For Exclusive or Failover subscription: message of same {@link Message#getTopicName()}
+     * will be executed by same thread.
      *
-     * @param shardKey the shard key
-     * @param runnable the runnable to execute
+     * @param message          the message
+     * @param runnable         the runnable to execute
      */
-    void execute(byte[] shardKey, Runnable runnable);
-
-    /**
-     * Shutdown the provider and all thread resources of it.
-     */
-    void shutdownNow();
-
-    /**
-     * Check if the provider is shutdown.
-     */
-    boolean isShutdown();
+    void execute(Message<?> message, Runnable runnable);
 }

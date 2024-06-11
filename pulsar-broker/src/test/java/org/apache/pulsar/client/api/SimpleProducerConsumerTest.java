@@ -100,6 +100,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.DefaultMessageListenerExecutor;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -110,7 +111,6 @@ import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
-import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -4963,7 +4963,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 });
 
         if (enableMessageListenerExecutorIsolation) {
-            consumerBuilder.messageListenerExecutor(new ExecutorProvider(1, subscriptionName + "-listener"));
+            consumerBuilder.messageListenerExecutor(new DefaultMessageListenerExecutor(1, subscriptionName + "-listener-executor-"));
         }
 
         Consumer<Long> consumer = consumerBuilder.subscribe();

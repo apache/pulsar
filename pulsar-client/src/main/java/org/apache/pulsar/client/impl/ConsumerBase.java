@@ -82,6 +82,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
+    protected final ExecutorProvider executorProvider;
     protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
@@ -139,9 +140,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
-        this.messageListenerExecutor = conf.getMessageListenerExecutor() != null
-                ? conf.getMessageListenerExecutor() : executorProvider;
-        this.externalPinnedExecutor = this.messageListenerExecutor.getExecutor();
+        this.executorProvider = executorProvider;
+        this.messageListenerExecutor = conf.getMessageListenerExecutor() == null
+                ? (conf.getSubscriptionType() == SubscriptionType.Key_Shared
+                   ? new DefaultKeySharedMessageListenerExecutor(executorProvider)
+                   : new DefaultMessageListenerExecutor(executorProvider))
+                : conf.getMessageListenerExecutor();
+        this.externalPinnedExecutor = executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
@@ -1129,13 +1134,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         // internal pinned executor thread while the message processing happens
                         final Message<T> finalMsg = msg;
                         MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
-                        if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                            messageListenerExecutor.execute(peekMessageKey(msg), () -> callMessageListener(finalMsg));
-                        } else {
-                            getExternalExecutor(msg).execute(() -> {
-                                callMessageListener(finalMsg);
-                            });
-                        }
+                        messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
