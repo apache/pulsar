@@ -292,14 +292,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
-        try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            log.error("Error when trying to create load shedding strategy: {}",
-                    conf.getLoadBalancerLoadSheddingStrategy(), e);
-            throw e;
-        }
+        return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
+                Thread.currentThread().getContextClassLoader());
     }
 
     /**
