@@ -24,10 +24,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
@@ -138,15 +135,7 @@ public class HttpLookupService implements LookupService {
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
-                List<String> result = new ArrayList<>();
-                // do not keep partition part of topic name
-                Arrays.asList(topics).forEach(topic -> {
-                    String filtered = TopicName.get(topic).getPartitionedTopicName();
-                    if (!result.contains(filtered)) {
-                        result.add(filtered);
-                    }
-                });
-                future.complete(new GetTopicsResult(result, topicsHash, false, true));
+                future.complete(new GetTopicsResult(topics));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());

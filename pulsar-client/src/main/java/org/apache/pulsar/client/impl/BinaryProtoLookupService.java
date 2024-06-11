@@ -22,8 +22,6 @@ import static java.lang.String.format;
 import io.netty.buffer.ByteBuf;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -339,17 +337,7 @@ public class BinaryProtoLookupService implements LookupService {
                         log.debug("[namespace: {}] Success get topics list in request: {}",
                                 namespace, requestId);
                     }
-                    // do not keep partition part of topic name
-                    List<String> result = new ArrayList<>();
-                    r.getTopics().forEach(topic -> {
-                        String filtered = TopicName.get(topic).getPartitionedTopicName();
-                        if (!result.contains(filtered)) {
-                            result.add(filtered);
-                        }
-                    });
-
-                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
-                            r.isFiltered(), r.isChanged()));
+                    getTopicsResultFuture.complete(r);
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
