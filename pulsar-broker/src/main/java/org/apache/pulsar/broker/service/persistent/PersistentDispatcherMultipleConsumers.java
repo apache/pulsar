@@ -299,6 +299,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
+        if (cursor.isClosed()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
+            }
+            return;
+        }
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
@@ -891,10 +897,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-
         ReadType readType = (ReadType) ctx;
-        long waitTimeMillis = readFailureBackoff.next();
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+        } else {
+            havePendingReplayRead = false;
+            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
+                PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
+                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
+        }
+        if (shouldRewindBeforeReadingOrReplaying) {
+            shouldRewindBeforeReadingOrReplaying = false;
+            cursor.rewind();
+        }
+        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
+        // Do not keep reading more entries if the cursor is already closed.
+        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+            log.warn("[{}] Cursor was already closed when reading entries", name);
+            return;
+        }
+
+        long waitTimeMillis = readFailureBackoff.next();
         if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
@@ -917,23 +942,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
             }
         }
-
-        if (shouldRewindBeforeReadingOrReplaying) {
-            shouldRewindBeforeReadingOrReplaying = false;
-            cursor.rewind();
-        }
-
-        if (readType == ReadType.Normal) {
-            havePendingRead = false;
-        } else {
-            havePendingReplayRead = false;
-            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
-                PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
-                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
-        }
-
-        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
