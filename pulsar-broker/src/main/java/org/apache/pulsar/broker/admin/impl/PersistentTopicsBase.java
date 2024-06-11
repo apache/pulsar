@@ -724,7 +724,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalCheckNonPartitionedTopicExists(TopicName topicName) {
-        return pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName, false)
+        return pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
                 .thenAccept(exist -> {
                     if (!exist) {
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));

@@ -154,11 +154,9 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class), anyBoolean());
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
-        doReturn(booleanFuture).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class),
-                anyBoolean());
+        doReturn(booleanFuture).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic_not_exist", false, null, null);
@@ -270,10 +268,9 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
         doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class), anyBoolean());
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
-        doReturn(future).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class), anyBoolean());
+        doReturn(future).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
                 "invalid-localCluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());

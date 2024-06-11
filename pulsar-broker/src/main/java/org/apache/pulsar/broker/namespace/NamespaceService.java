@@ -1403,18 +1403,10 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
-        return checkTopicExists(topic, false);
-    }
-
     /***
      * Check topic exists( partitioned or non-partitioned ).
-     * @param assumedNonPartitionedNonPersistentTopicAlwaysExists Currently, it's hard to check the
-     *        non-persistent-non-partitioned topic, because it only exists in the broker, it doesn't have metadata.
-     *        If the topic is non-persistent and non-partitioned, we'll return the true flag.
      */
-    public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic,
-                                                    boolean assumedNonPartitionedNonPersistentTopicAlwaysExists) {
+    public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
         return pulsar.getBrokerService()
             .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
             .thenCompose(metadata -> {
@@ -1422,7 +1414,7 @@ public class NamespaceService implements AutoCloseable {
                     return CompletableFuture.completedFuture(
                             TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
                 }
-                return checkNonPartitionedTopicExists(topic, assumedNonPartitionedNonPersistentTopicAlwaysExists)
+                return checkNonPartitionedTopicExists(topic)
                     .thenApply(b -> b ? TopicExistsInfo.newNonPartitionedTopicExists()
                             : TopicExistsInfo.newTopicNotExists());
             });
@@ -1430,20 +1422,12 @@ public class NamespaceService implements AutoCloseable {
 
     /***
      * Check non-partitioned topic exists.
-     * @param assumedNonPartitionedNonPersistentTopicAlwaysExists Currently, it's hard to check the
-     *        non-persistent-non-partitioned topic, because it only exists in the broker, it doesn't have metadata.
-     *        If the topic is non-persistent and non-partitioned, we'll return the true flag.
      */
-    public CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topic,
-                                                     boolean assumedNonPartitionedNonPersistentTopicAlwaysExists) {
+    public CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topic) {
         if (topic.isPersistent()) {
             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
-            if (assumedNonPartitionedNonPersistentTopicAlwaysExists) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return checkNonPersistentNonPartitionedTopicExists(topic.toString());
-            }
+            return checkNonPersistentNonPartitionedTopicExists(topic.toString());
         }
     }
 

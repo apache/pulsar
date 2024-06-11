@@ -361,10 +361,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         existFuture.complete(TopicExistsInfo.newNonPartitionedTopicExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
-        doReturn(existFuture).when(nameSpaceService).checkTopicExists(any(), anyBoolean());
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
-        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any(), anyBoolean());
+        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
@@ -387,7 +386,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
-        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any(), anyBoolean());
+        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
