@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
@@ -4882,18 +4883,23 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testConsumerMessageListenerIsolation() throws Exception {
+    public void testConsumerMessageListenerExecutorIsolation() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         List<CompletableFuture<Long>> maxConsumeDelayWithDisableIsolationFutures = new ArrayList<>();
         int loops = 10;
+        long sleepTimeMs = 1000;
         for (int i = 0; i < loops; i++) {
+            // The first consumer will consume messages with 1s delay,
+            // and the others will consume messages without delay.
+            // The maxConsumeDelayWithDisableIsolation of all consumers
+            // should be greater than sleepTimeMs cause by disable MessageListenerExecutor.
             CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
                     "persistent://my-property/my-ns/testConsumerMessageListenerDisableIsolation-" + i,
                     "my-sub-testConsumerMessageListenerDisableIsolation-" + i,
-                    i==0 ? Duration.ofMillis(0): Duration.ofMillis(1000),
+                    i==0 ? Duration.ofMillis(sleepTimeMs): Duration.ofMillis(0),
                     false,
                     executor);
             maxConsumeDelayWithDisableIsolationFutures.add(maxConsumeDelayFuture);
@@ -4901,28 +4907,34 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         List<CompletableFuture<Long>> maxConsumeDelayWhitEnableIsolationFutures = new ArrayList<>();
         for (int i = 0; i < loops; i++) {
+            // The first consumer will consume messages with 1s delay,
+            // and the others will consume messages without delay.
+            // The maxConsumeDelayWhitEnableIsolation of the first consumer
+            // should be greater than sleepTimeMs, and the others should be
+            // less than sleepTimeMs, cause by enable MessageListenerExecutor.
             CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
                     "persistent://my-property/my-ns/testConsumerMessageListenerEnableIsolation-" + i,
                     "my-sub-testConsumerMessageListenerEnableIsolation-" + i,
-                    i==0 ? Duration.ofMillis(0): Duration.ofMillis(1000),
+                    i==0 ? Duration.ofMillis(sleepTimeMs): Duration.ofMillis(0),
                     true,
                     executor);
             maxConsumeDelayWhitEnableIsolationFutures.add(maxConsumeDelayFuture);
         }
 
+        // Wait for all futures to complete
         CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWithDisableIsolationFutures).join();
         CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWhitEnableIsolationFutures).join();
 
         for (int i = 0; i < loops; i++) {
             long maxConsumeDelayWithDisableIsolation = maxConsumeDelayWithDisableIsolationFutures.get(i).join();
             long maxConsumeDelayWhitEnableIsolation = maxConsumeDelayWhitEnableIsolationFutures.get(i).join();
-            log.info("maxConsumeDelayWithDisableIsolation: {}s, maxConsumeDelayWhitEnableIsolation: {}s",
+            log.info("[{}]maxConsumeDelayWithDisableIsolation: {}s, maxConsumeDelayWhitEnableIsolation: {}s", i,
                     TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWithDisableIsolation), TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation));
-            assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWithDisableIsolation) > 10);
+            assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWithDisableIsolation) > sleepTimeMs);
             if (i == 0) {
-                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) < 10);
+                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) > sleepTimeMs);
             } else {
-                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) < 1);
+                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) < sleepTimeMs);
             }
         }
 
@@ -4945,7 +4957,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     c1.acknowledgeAsync(msg);
                     maxConsumeDelay.set(Math.max(maxConsumeDelay.get(), System.currentTimeMillis() - msg.getValue()));
                     if (consumeSleepTime.toMillis() > 0) {
-                        Thread.sleep(consumeSleepTime.toMillis());
+                        Uninterruptibles.sleepUninterruptibly(consumeSleepTime);
                     }
                     latch.countDown();
                 });
