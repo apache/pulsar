@@ -38,11 +38,15 @@ public class Rate {
     private long lastCalculatedTime = System.nanoTime();
 
     public void recordEvent() {
-        recordMultipleEvents(1, 0);
+        countAdder.increment();
+        totalCountAdder.increment();
     }
 
     public void recordEvent(long value) {
-        recordMultipleEvents(1, value);
+        valueAdder.add(value);
+        totalValueAdder.add(value);
+        countAdder.increment();
+        totalCountAdder.increment();
     }
 
     public void recordMultipleEvents(long totalCount, long totalValue) {
