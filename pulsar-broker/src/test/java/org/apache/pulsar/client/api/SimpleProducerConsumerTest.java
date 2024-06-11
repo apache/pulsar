@@ -48,6 +48,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -108,6 +109,7 @@ import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -4877,5 +4879,116 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } else {
             return 0;
         }
+    }
+
+    @Test
+    public void testConsumerMessageListenerIsolation() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+        List<CompletableFuture<Long>> maxConsumeDelayWithDisableIsolationFutures = new ArrayList<>();
+        int loops = 10;
+        for (int i = 0; i < loops; i++) {
+            CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
+                    "persistent://my-property/my-ns/testConsumerMessageListenerDisableIsolation-" + i,
+                    "my-sub-testConsumerMessageListenerDisableIsolation-" + i,
+                    i==0 ? Duration.ofMillis(0): Duration.ofMillis(1000),
+                    false,
+                    executor);
+            maxConsumeDelayWithDisableIsolationFutures.add(maxConsumeDelayFuture);
+        }
+
+        List<CompletableFuture<Long>> maxConsumeDelayWhitEnableIsolationFutures = new ArrayList<>();
+        for (int i = 0; i < loops; i++) {
+            CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
+                    "persistent://my-property/my-ns/testConsumerMessageListenerEnableIsolation-" + i,
+                    "my-sub-testConsumerMessageListenerEnableIsolation-" + i,
+                    i==0 ? Duration.ofMillis(0): Duration.ofMillis(1000),
+                    true,
+                    executor);
+            maxConsumeDelayWhitEnableIsolationFutures.add(maxConsumeDelayFuture);
+        }
+
+        CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWithDisableIsolationFutures).join();
+        CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWhitEnableIsolationFutures).join();
+
+        for (int i = 0; i < loops; i++) {
+            long maxConsumeDelayWithDisableIsolation = maxConsumeDelayWithDisableIsolationFutures.get(i).join();
+            long maxConsumeDelayWhitEnableIsolation = maxConsumeDelayWhitEnableIsolationFutures.get(i).join();
+            log.info("maxConsumeDelayWithDisableIsolation: {}s, maxConsumeDelayWhitEnableIsolation: {}s",
+                    TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWithDisableIsolation), TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation));
+            assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWithDisableIsolation) > 10);
+            if (i == 0) {
+                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) < 10);
+            } else {
+                assertTrue(TimeUnit.MILLISECONDS.toSeconds(maxConsumeDelayWhitEnableIsolation) < 1);
+            }
+        }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(String topic, String subscriptionName, Duration consumeSleepTime, boolean enableMessageListenerExecutorIsolation, ExecutorService executorService) throws Exception {
+        int numMessages = 100;
+        final CountDownLatch latch = new CountDownLatch(numMessages);
+
+        int numPartitions = 100;
+        TopicName nonIsolationTopicName = TopicName.get(topic);
+        admin.topics().createPartitionedTopic(nonIsolationTopicName.toString(), numPartitions);
+
+        AtomicLong maxConsumeDelay = new AtomicLong(-1);
+        ConsumerBuilder<Long> consumerBuilder = pulsarClient.newConsumer(Schema.INT64).topic(nonIsolationTopicName.toString())
+                .subscriptionName(subscriptionName).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    log.debug("Received message [{}] in the listener", msg.getValue());
+                    c1.acknowledgeAsync(msg);
+                    maxConsumeDelay.set(Math.max(maxConsumeDelay.get(), System.currentTimeMillis() - msg.getValue()));
+                    if (consumeSleepTime.toMillis() > 0) {
+                        Thread.sleep(consumeSleepTime.toMillis());
+                    }
+                    latch.countDown();
+                });
+
+        if (enableMessageListenerExecutorIsolation) {
+            consumerBuilder.messageListenerExecutor(new ExecutorProvider(1, subscriptionName + "-listener"));
+        }
+
+        Consumer<Long> consumer = consumerBuilder.subscribe();
+        ProducerBuilder<Long> producerBuilder = pulsarClient.newProducer(Schema.INT64)
+                .topic(nonIsolationTopicName.toString());
+
+        Producer<Long> producer = producerBuilder.create();
+        List<Future<MessageId>> futures = new ArrayList<>();
+
+        // Asynchronously produce messages
+        for (int i = 0; i < numMessages; i++) {
+            Future<MessageId> future = producer.sendAsync(System.currentTimeMillis());
+            futures.add(future);
+        }
+
+        log.info("Waiting for async publish to complete");
+        for (Future<MessageId> future : futures) {
+            future.get();
+        }
+
+        CompletableFuture<Long> maxDelayFuture = new CompletableFuture<>();
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                latch.await(numMessages, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, executorService).whenCompleteAsync((v, ex) -> {
+            maxDelayFuture.complete(maxConsumeDelay.get());
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        return maxDelayFuture;
     }
 }
