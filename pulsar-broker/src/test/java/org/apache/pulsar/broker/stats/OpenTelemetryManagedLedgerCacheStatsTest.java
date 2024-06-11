@@ -22,10 +22,10 @@ import io.opentelemetry.api.common.Attributes;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CacheEntryStatus;
-import org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CacheOperationStatus;
-import org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.PoolArenaType;
-import org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.PoolChunkAllocationType;
+import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CacheEntryStatus;
+import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CacheOperationStatus;
+import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.PoolArenaType;
+import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.PoolChunkAllocationType;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.awaitility.Awaitility;
@@ -34,14 +34,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_ENTRY_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_EVICTION_OPERATION_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_OPERATION_BYTES_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_OPERATION_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_POOL_ACTIVE_ALLOCATION_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_POOL_ACTIVE_ALLOCATION_SIZE_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.CACHE_SIZE_COUNTER;
-import static org.apache.pulsar.broker.stats.OpenTelemetryManagedLedgerCacheStats.MANAGED_LEDGER_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_ENTRY_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_EVICTION_OPERATION_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_OPERATION_BYTES_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_OPERATION_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_POOL_ACTIVE_ALLOCATION_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_POOL_ACTIVE_ALLOCATION_SIZE_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.CACHE_SIZE_COUNTER;
+import static org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats.MANAGED_LEDGER_COUNTER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class OpenTelemetryManagedLedgerCacheStatsTest extends BrokerTestBase {

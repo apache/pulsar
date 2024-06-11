@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.bookkeeper.mledger;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
@@ -25,7 +26,7 @@ import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PooledByteBufAllocatorStats;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.opentelemetry.Constants;
 
 public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
 
@@ -104,8 +105,8 @@ public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
 
     private final BatchCallback batchCallback;
 
-    public OpenTelemetryManagedLedgerCacheStats(PulsarService pulsar) {
-        var meter = pulsar.getOpenTelemetry().getMeter();
+    public OpenTelemetryManagedLedgerCacheStats(OpenTelemetry openTelemetry, ManagedLedgerFactoryImpl factory) {
+        var meter = openTelemetry.getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
 
         managedLedgerCounter = meter
                 .upDownCounterBuilder(MANAGED_LEDGER_COUNTER)
@@ -156,11 +157,7 @@ public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
                 .buildObserver();
 
 
-        batchCallback = meter.batchCallback(() -> {
-                    if (pulsar.getManagedLedgerFactory() instanceof ManagedLedgerFactoryImpl managedLedgerFactoryImpl) {
-                        recordMetrics(managedLedgerFactoryImpl);
-                    }
-                },
+        batchCallback = meter.batchCallback(() -> recordMetrics(factory),
                 managedLedgerCounter,
                 cacheEvictionOperationCounter,
                 cacheEntryCounter,

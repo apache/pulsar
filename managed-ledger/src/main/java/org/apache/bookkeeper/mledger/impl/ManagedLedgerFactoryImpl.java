@@ -85,6 +85,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -119,6 +120,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
+
+    private final OpenTelemetryManagedLedgerCacheStats openTelemetryCacheStats;
 
     //indicate whether shutdown() is called.
     private volatile boolean closed;
@@ -225,6 +228,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         closed = false;
 
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
+
+        openTelemetryCacheStats = new OpenTelemetryManagedLedgerCacheStats(openTelemetry, this);
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -617,6 +622,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     }));
                 }).thenAcceptAsync(__ -> {
                     //wait for tasks in scheduledExecutor executed.
+                    openTelemetryCacheStats.close();
                     scheduledExecutor.shutdownNow();
                     entryCacheManager.clear();
                 });
