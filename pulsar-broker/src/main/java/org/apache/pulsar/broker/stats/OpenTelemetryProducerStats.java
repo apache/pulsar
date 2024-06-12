@@ -36,7 +36,6 @@ public class OpenTelemetryProducerStats implements AutoCloseable {
     public static final String BYTES_IN_COUNTER = "pulsar.broker.producer.message.incoming.size";
     private final ObservableLongMeasurement bytesInCounter;
 
-    // Replaces pulsar_consumer_msg_ack_rate
     public static final String MESSAGE_DROP_COUNTER = "pulsar.broker.producer.message.drop.count";
     private final ObservableLongMeasurement messageDropCounter;
 
