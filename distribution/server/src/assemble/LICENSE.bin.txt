@@ -434,7 +434,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-auth-1.56.0.jar
     - io.grpc-grpc-context-1.56.0.jar
     - io.grpc-grpc-core-1.56.0.jar
-    - io.grpc-grpc-netty-1.56.0.jar
     - io.grpc-grpc-protobuf-1.56.0.jar
     - io.grpc-grpc-protobuf-lite-1.56.0.jar
     - io.grpc-grpc-stub-1.56.0.jar
@@ -498,7 +497,6 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-4.5.8.jar
     - io.vertx-vertx-web-4.5.8.jar
     - io.vertx-vertx-web-common-4.5.8.jar
-    - io.vertx-vertx-grpc-4.5.8.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.9.2.jar
     - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
