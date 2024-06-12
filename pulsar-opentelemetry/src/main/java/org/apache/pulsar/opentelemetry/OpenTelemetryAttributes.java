@@ -129,6 +129,10 @@ public interface OpenTelemetryAttributes {
     }
 
     // Managed Ledger Attributes
+
+    /**
+     * The type of the pool arena.
+     */
     AttributeKey<String> ML_POOL_ARENA_TYPE = AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");
     enum PoolArenaType {
         SMALL,
@@ -137,6 +141,9 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(ML_POOL_ARENA_TYPE, name().toLowerCase());
     }
 
+    /**
+     * The type of the pool chunk allocation.
+     */
     AttributeKey<String> ML_POOL_CHUNK_ALLOCATION_TYPE =
             AttributeKey.stringKey("pulsar.managed_ledger.pool.chunk.allocation.type");
     enum PoolChunkAllocationType {
@@ -145,6 +152,9 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(ML_POOL_CHUNK_ALLOCATION_TYPE, name().toLowerCase());
     }
 
+    /**
+     * The status of the cache entry.
+     */
     AttributeKey<String> ML_CACHE_ENTRY_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.cache.entry.status");
     enum CacheEntryStatus {
         ACTIVE,
@@ -153,6 +163,9 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(ML_CACHE_ENTRY_STATUS, name().toLowerCase());
     }
 
+    /**
+     * The result of the cache operation.
+     */
     AttributeKey<String> ML_CACHE_OPERATION_STATUS =
             AttributeKey.stringKey("pulsar.managed_ledger.cache.operation.status");
     enum CacheOperationStatus {
