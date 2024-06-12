@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import org.apache.pulsar.opentelemetry.Constants;
 
 public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
 
@@ -60,8 +61,8 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
 
     private final BatchCallback batchCallback;
 
-    public OpenTelemetryManagedLedgerStats(ManagedLedgerFactoryImpl factory, OpenTelemetry openTelemetry) {
-        var meter = openTelemetry.getMeter("pulsar.managed_ledger"); // TODO
+    public OpenTelemetryManagedLedgerStats(OpenTelemetry openTelemetry, ManagedLedgerFactoryImpl factory) {
+        var meter = openTelemetry.getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
 
         addEntryCounter = meter
                 .upDownCounterBuilder(ADD_ENTRY_COUNTER)
@@ -113,7 +114,7 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
 
         batchCallback = meter.batchCallback(() -> factory.getManagedLedgers()
                         .values()
-                        .forEach(this::recordMetricsForManagedLedger),
+                        .forEach(this::recordMetrics),
                 addEntryCounter,
                 bytesOutCounter,
                 bytesOutWithReplicasCounter,
@@ -129,7 +130,7 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    private void recordMetricsForManagedLedger(ManagedLedgerImpl ml) {
+    private void recordMetrics(ManagedLedgerImpl ml) {
         var stats = ml.getMbean();
         var ledgerAttributeSet = ml.getManagedLedgerAttributes();
         var attributes = ledgerAttributeSet.getAttributes();
