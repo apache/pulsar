@@ -585,6 +585,10 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>jose4j</artifactId>
             <groupId>org.bitbucket.b_c</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
