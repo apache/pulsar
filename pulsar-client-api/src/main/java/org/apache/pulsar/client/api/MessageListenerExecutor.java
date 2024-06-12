@@ -19,21 +19,12 @@
 package org.apache.pulsar.client.api;
 
 /**
- * Interface for providing an executor service to execute message listeners.
+ * Interface for providing service to execute message listeners.
  */
 public interface MessageListenerExecutor {
 
     /**
-     * select a thread by subscriptionType and message to execute the runnable!
-     * <p>Implementation requirements:
-     * <p>
-     * For Key_Shared subscription: need to consider order, for example,  message
-     * with same key should be executed by same thread.
-     * </p>
-     * <p>
-     * For Exclusive or Failover subscription: need to consider order, for example, message
-     * of same {@link Message#getTopicName()} should be executed by same thread.
-     * </p>
+     * select a thread by message to execute the runnable!
      *
      * @param message  the message
      * @param runnable the runnable to execute
