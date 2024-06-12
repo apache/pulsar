@@ -231,21 +231,21 @@ The Apache Software License, Version 2.0
     - commons-compress-1.26.0.jar
     - commons-lang3-3.11.jar
  * Netty
-    - netty-buffer-4.1.108.Final.jar
-    - netty-codec-4.1.108.Final.jar
-    - netty-codec-dns-4.1.108.Final.jar
-    - netty-codec-http-4.1.108.Final.jar
-    - netty-codec-haproxy-4.1.108.Final.jar
-    - netty-codec-socks-4.1.108.Final.jar
-    - netty-handler-proxy-4.1.108.Final.jar
-    - netty-common-4.1.108.Final.jar
-    - netty-handler-4.1.108.Final.jar
+    - netty-buffer-4.1.111.Final.jar
+    - netty-codec-4.1.111.Final.jar
+    - netty-codec-dns-4.1.111.Final.jar
+    - netty-codec-http-4.1.111.Final.jar
+    - netty-codec-haproxy-4.1.111.Final.jar
+    - netty-codec-socks-4.1.111.Final.jar
+    - netty-handler-proxy-4.1.111.Final.jar
+    - netty-common-4.1.111.Final.jar
+    - netty-handler-4.1.111.Final.jar
     - netty-reactive-streams-2.0.6.jar
-    - netty-resolver-4.1.108.Final.jar
-    - netty-resolver-dns-4.1.108.Final.jar
-    - netty-resolver-dns-classes-macos-4.1.108.Final.jar
-    - netty-resolver-dns-native-macos-4.1.108.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.108.Final-osx-x86_64.jar
+    - netty-resolver-4.1.111.Final.jar
+    - netty-resolver-dns-4.1.111.Final.jar
+    - netty-resolver-dns-classes-macos-4.1.111.Final.jar
+    - netty-resolver-dns-native-macos-4.1.111.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.111.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.65.Final.jar
     - netty-tcnative-boringssl-static-2.0.65.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.65.Final-linux-x86_64.jar
@@ -253,13 +253,12 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.65.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.65.Final-windows-x86_64.jar
     - netty-tcnative-classes-2.0.65.Final.jar
-    - netty-transport-4.1.108.Final.jar
-    - netty-transport-classes-epoll-4.1.108.Final.jar
-    - netty-transport-native-epoll-4.1.108.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.108.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.108.Final.jar
-    - netty-transport-native-unix-common-4.1.108.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.108.Final.jar
+    - netty-transport-4.1.111.Final.jar
+    - netty-transport-classes-epoll-4.1.111.Final.jar
+    - netty-transport-native-epoll-4.1.111.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.111.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.111.Final.jar
+    - netty-transport-native-unix-common-4.1.111.Final-linux-x86_64.jar
     - netty-incubator-transport-classes-io_uring-0.0.21.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-x86_64.jar
     - netty-incubator-transport-native-io_uring-0.0.21.Final-linux-aarch_64.jar
@@ -268,19 +267,13 @@ The Apache Software License, Version 2.0
     - grpc-context-1.55.3.jar
     - grpc-core-1.55.3.jar
     - grpc-grpclb-1.55.3.jar
-    - grpc-netty-1.55.3.jar
+    - grpc-netty-shaded-1.55.3.jar
     - grpc-protobuf-1.55.3.jar
     - grpc-protobuf-lite-1.55.3.jar
     - grpc-stub-1.55.3.jar
     - grpc-util-1.60.0.jar
-  * JEtcd
-    - jetcd-api-0.7.7.jar
-    - jetcd-common-0.7.7.jar
-    - jetcd-core-0.7.7.jar
-    - jetcd-grpc-0.7.7.jar
-  * Vertx
-    - vertx-core-4.5.8.jar
-    - vertx-grpc-4.5.8.jar
+  * JEtcd - shaded
+  * Vertx - shaded
  * Joda Time
     - joda-time-2.10.10.jar
     - failsafe-3.3.2.jar
