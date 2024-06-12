@@ -51,6 +51,23 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty-shaded</artifactId>
     </dependency>
+    <!-- add transient dependencies for jetcd libraries -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-grpclb</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-util</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
