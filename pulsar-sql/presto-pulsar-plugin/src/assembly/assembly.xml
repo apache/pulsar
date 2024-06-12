@@ -33,6 +33,9 @@
             <scope>runtime</scope>
             <excludes>
               <exclude>jakarta.ws.rs:jakarta.ws.rs-api</exclude>
+                <!-- prevent adding annotation libraries -->
+                <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
+                <exclude>com.google.android:annotations</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

@@ -101,13 +101,18 @@
       <exclusions>
         <exclusion>
           <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.google.protobuf</groupId>
           <artifactId>protobuf-java</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
     </dependency>
 
     <dependency>
@@ -220,7 +225,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <!-- this task is used for copy all python files together to provide a instance directory
            for running python instance -->
       <plugin>
