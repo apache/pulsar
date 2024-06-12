@@ -490,12 +490,6 @@
       <version>${project.version}</version>
       <classifier>shaded</classifier>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.etcd</groupId>
-          <artifactId>jetcd-core</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>

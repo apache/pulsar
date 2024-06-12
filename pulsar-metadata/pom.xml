@@ -126,12 +126,6 @@
       <artifactId>jetcd-core-shaded</artifactId>
       <version>${project.version}</version>
       <classifier>shaded</classifier>
-      <exclusions>
-        <exclusion>
-          <groupId>io.etcd</groupId>
-          <artifactId>jetcd-core</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>

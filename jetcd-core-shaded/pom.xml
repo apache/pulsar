@@ -41,6 +41,10 @@
           <groupId>io.grpc</groupId>
           <artifactId>grpc-netty</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -86,9 +90,24 @@
                   <shadedPattern>io.grpc.netty.shaded.io.netty</shadedPattern>
                 </relocation>
               </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/maven/${project.groupId}/${project.artifactId}/pom.xml</exclude>
+                  </excludes>
+                </filter>
+              </filters>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                  <resource>META-INF/maven/${project.groupId}/${project.artifactId}/pom.xml</resource>
+                  <file>${project.basedir}/dependency-reduced-pom.xml</file>
+                </transformer>
               </transformers>
               <!-- required for IntelliJ support -->
               <shadedArtifactAttached>true</shadedArtifactAttached>
