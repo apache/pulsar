@@ -23,6 +23,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.pulsar.opentelemetry.Constants;
 
 public class OpenTelemetryManagedCursorStats implements AutoCloseable {
 
@@ -55,8 +56,8 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
 
     private final BatchCallback batchCallback;
 
-    public OpenTelemetryManagedCursorStats(ManagedLedgerFactoryImpl factory, OpenTelemetry openTelemetry) {
-        var meter = openTelemetry.getMeter("pulsar.managed_ledger.cursor"); // TODO
+    public OpenTelemetryManagedCursorStats(OpenTelemetry openTelemetry, ManagedLedgerFactoryImpl factory) {
+        var meter = openTelemetry.getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
 
         persistOperationCounter = meter
                 .counterBuilder(PERSIST_OPERATION_COUNTER)
