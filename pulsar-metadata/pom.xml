@@ -126,6 +126,16 @@
       <artifactId>jetcd-core-shaded</artifactId>
       <version>${project.version}</version>
       <classifier>shaded</classifier>
+      <exclusions>
+        <exclusion>
+          <groupId>io.etcd</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.vertx</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -138,12 +148,12 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>io.etcd</groupId>
-          <artifactId>jetcd-core</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>io.grpc</groupId>
           <artifactId>grpc-netty</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.etcd</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
           <groupId>io.vertx</groupId>
