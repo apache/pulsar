@@ -490,16 +490,6 @@
       <version>${project.version}</version>
       <classifier>shaded</classifier>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.etcd</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.vertx</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -510,20 +500,6 @@
       <groupId>io.etcd</groupId>
       <artifactId>jetcd-test</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-netty</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.etcd</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.vertx</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>

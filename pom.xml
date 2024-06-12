@@ -1065,7 +1065,6 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-
       <dependency>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-test</artifactId>
@@ -1074,6 +1073,34 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>jetcd-core-shaded</artifactId>
+        <version>${project.version}</version>
+        <classifier>shaded</classifier>
+        <exclusions>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
