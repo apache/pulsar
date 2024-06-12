@@ -60,6 +60,9 @@
                 <exclude>io.airlift:launcher:tar.gz:bin:${airlift.version}</exclude>
                 <exclude>io.airlift:launcher:tar.gz:properties:${airlift.version}</exclude>
                 <exclude>*:tar.gz</exclude>
+                <!-- prevent adding annotation libraries -->
+                <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
+                <exclude>com.google.android:annotations</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>

@@ -109,10 +109,15 @@
     </dependency>
 
     <dependency>
-      <groupId>io.etcd</groupId>
-      <artifactId>jetcd-core</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>jetcd-core-shaded</artifactId>
+      <version>${project.version}</version>
+      <classifier>shaded</classifier>
     </dependency>
-
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>io.etcd</groupId>
