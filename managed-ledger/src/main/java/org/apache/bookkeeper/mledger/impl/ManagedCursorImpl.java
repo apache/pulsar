@@ -291,6 +291,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     protected final ManagedCursorMXBean mbean;
 
+    private volatile ManagedCursorAttributes managedCursorAttributes;
+    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, ManagedCursorAttributes> ATTRIBUTES_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, ManagedCursorAttributes.class,
+                    "managedCursorAttributes");
+
     @SuppressWarnings("checkstyle:javadoctype")
     public interface VoidCallback {
         void operationComplete();
@@ -3680,5 +3685,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
         return newNonDurableCursor;
+    }
+
+    @Override
+    public ManagedCursorAttributes getManagedCursorAttributes() {
+        if (managedCursorAttributes != null) {
+            return managedCursorAttributes;
+        }
+        return ATTRIBUTES_UPDATER.updateAndGet(this, old -> old != null ? old : new ManagedCursorAttributes(this));
     }
 }
