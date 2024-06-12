@@ -325,6 +325,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     final ConcurrentLinkedQueue<OpAddEntry> pendingAddEntries = new ConcurrentLinkedQueue<>();
 
+    private volatile ManagedLedgerAttributes managedLedgerAttributes;
+    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerAttributes>
+            ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    ManagedLedgerImpl.class, ManagedLedgerAttributes.class, "managedLedgerAttributes");
+
     /**
      * This variable is used for testing the tests.
      * ManagedLedgerTest#testManagedLedgerWithPlacementPolicyInCustomMetadata()
@@ -4571,5 +4576,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return theSlowestNonDurableReadPosition;
+    }
+
+    @Override
+    public ManagedLedgerAttributes getManagedLedgerAttributes() {
+        if (managedLedgerAttributes != null) {
+            return managedLedgerAttributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new ManagedLedgerAttributes(this));
     }
 }

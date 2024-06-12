@@ -211,8 +211,18 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getAddEntryBytesTotal() {
+        return addEntryOps.getTotalValue();
+    }
+
+    @Override
     public double getAddEntryWithReplicasBytesRate() {
         return addEntryWithReplicasOps.getValueRate();
+    }
+
+    @Override
+    public long getAddEntryWithReplicasBytesTotal() {
+        return addEntryWithReplicasOps.getTotalValue();
     }
 
     @Override
@@ -223,6 +233,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public double getReadEntriesBytesRate() {
         return readEntriesOps.getValueRate();
+    }
+
+    @Override
+    public long getReadEntriesBytesTotal() {
+        return readEntriesOps.getTotalValue();
     }
 
     @Override
@@ -261,8 +276,18 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getReadEntriesOpsCacheMissesTotal() {
+        return readEntriesOpsCacheMisses.getTotalCount();
+    }
+
+    @Override
     public double getMarkDeleteRate() {
         return markDeleteOps.getRate();
+    }
+
+    @Override
+    public long getMarkDeleteTotal() {
+        return markDeleteOps.getTotalCount();
     }
 
     @Override
