@@ -16,32 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.VisibleForTesting;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import lombok.Data;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ManagedCursorOperationStatus;
 
 @Data
 public class ManagedCursorAttributes {
-
-    public static final AttributeKey<String> PULSAR_MANAGED_CURSOR_NAME =
-            AttributeKey.stringKey("pulsar.managed_cursor.name");
-
-    public static final AttributeKey<String> PULSAR_MANAGED_CURSOR_OPERATION_STATUS =
-            AttributeKey.stringKey("pulsar.managed_cursor.operation.status");
-
-    @VisibleForTesting
-    public enum OperationStatus {
-        SUCCESS,
-        FAILURE;
-        public final Attributes attributes =
-                Attributes.of(PULSAR_MANAGED_CURSOR_OPERATION_STATUS, name().toLowerCase());
-    }
 
     private final Attributes attributes;
     private final Attributes attributesOperationSucceed;
@@ -51,13 +35,17 @@ public class ManagedCursorAttributes {
         var mlName = cursor.getManagedLedger().getName();
         var topicName = TopicName.get(TopicName.fromPersistenceNamingEncoding(mlName));
         attributes = Attributes.of(
-                PULSAR_MANAGED_CURSOR_NAME, cursor.getName(),
-                ManagedLedgerAttributes.PULSAR_MANAGER_LEDGER_NAME, mlName,
+                OpenTelemetryAttributes.ML_CURSOR_NAME, cursor.getName(),
+                OpenTelemetryAttributes.ML_LEDGER_NAME, mlName,
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace()
         );
-        attributesOperationSucceed =
-                Attributes.builder().putAll(attributes).putAll(OperationStatus.SUCCESS.attributes).build();
-        attributesOperationFailure =
-                Attributes.builder().putAll(attributes).putAll(OperationStatus.FAILURE.attributes).build();
+        attributesOperationSucceed = Attributes.builder()
+                .putAll(attributes)
+                .putAll(ManagedCursorOperationStatus.SUCCESS.attributes)
+                .build();
+        attributesOperationFailure = Attributes.builder()
+                .putAll(attributes)
+                .putAll(ManagedCursorOperationStatus.FAILURE.attributes)
+                .build();
     }
 }
