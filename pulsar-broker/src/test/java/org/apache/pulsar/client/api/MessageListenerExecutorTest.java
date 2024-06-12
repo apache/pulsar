@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class MessageListenerExecutorTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageListenerExecutorTest.class);
+
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
@@ -84,14 +85,11 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
             maxConsumeDelayWithDisableIsolationFutures.add(maxConsumeDelayFuture);
         }
 
-        // Wait for all futures to complete
-        CompletableFuture.allOf(maxConsumeDelayWithDisableIsolationFutures.toArray(new CompletableFuture[0])).join();
-        for (int i = 0; i < loops; i++) {
-            long maxConsumeDelayWithDisableIsolationMs = maxConsumeDelayWithDisableIsolationFutures.get(i).join();
-            log.info("[{}]maxConsumeDelayWithDisableIsolation: {}ms", i,
-                    maxConsumeDelayWithDisableIsolationMs);
-            assertTrue(maxConsumeDelayWithDisableIsolationMs > consumeSleepTimeMs);
-        }
+        // ensure all consumers consume messages delay more than consumeSleepTimeMs
+        boolean allDelayMoreThanConsumeSleepTimeMs = maxConsumeDelayWithDisableIsolationFutures.stream()
+                .map(CompletableFuture::join)
+                .allMatch(delay -> delay > consumeSleepTimeMs);
+        assertTrue(allDelayMoreThanConsumeSleepTimeMs);
 
         List<CompletableFuture<Long>> maxConsumeDelayWhitEnableIsolationFutures = new ArrayList<>();
         for (int i = 0; i < loops; i++) {
@@ -109,19 +107,12 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
             maxConsumeDelayWhitEnableIsolationFutures.add(maxConsumeDelayFuture);
         }
 
-        // Wait for all futures to complete
-        CompletableFuture.allOf(maxConsumeDelayWhitEnableIsolationFutures.toArray(new CompletableFuture[0])).join();
-
-        for (int i = 0; i < loops; i++) {
-            long maxConsumeDelayWhitEnableIsolationMs = maxConsumeDelayWhitEnableIsolationFutures.get(i).join();
-            log.info("[{}]maxConsumeDelayWhitEnableIsolation: {}ms", i,
-                    maxConsumeDelayWhitEnableIsolationMs);
-            if (i == 0) {
-                assertTrue(maxConsumeDelayWhitEnableIsolationMs > consumeSleepTimeMs);
-            } else {
-                assertTrue(maxConsumeDelayWhitEnableIsolationMs < consumeSleepTimeMs);
-            }
-        }
+        assertTrue(maxConsumeDelayWhitEnableIsolationFutures.get(0).join() > consumeSleepTimeMs);
+        boolean remainingAlmostNoDelay = maxConsumeDelayWhitEnableIsolationFutures.stream()
+                .skip(1)
+                .map(CompletableFuture::join)
+                .allMatch(delay -> delay < 1000);
+        assertTrue(remainingAlmostNoDelay);
 
         log.info("-- Exiting {} test --", methodName);
     }
