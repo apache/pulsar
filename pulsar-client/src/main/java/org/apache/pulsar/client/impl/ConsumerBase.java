@@ -143,8 +143,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.executorProvider = executorProvider;
         this.messageListenerExecutor = conf.getMessageListenerExecutor() == null
                 ? (conf.getSubscriptionType() == SubscriptionType.Key_Shared
-                   ? new DefaultKeySharedMessageListenerExecutor(executorProvider)
-                   : new DefaultMessageListenerExecutor(executorProvider))
+                   ? this::executeKeySharedMessageListener
+                   : this::executeMessageListener)
                 : conf.getMessageListenerExecutor();
         this.externalPinnedExecutor = executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
@@ -1147,6 +1147,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         });
     }
 
+    private void executeMessageListener(Message<?> message, Runnable runnable) {
+        getExternalExecutor(message).execute(runnable);
+    }
+
+    private void executeKeySharedMessageListener(Message<?> message, Runnable runnable) {
+        executorProvider.getExecutor(peekMessageKey(message)).execute(runnable);
+    }
+
     protected void callMessageListener(Message<T> msg) {
         try {
             if (log.isDebugEnabled()) {
@@ -1176,7 +1184,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
-    protected byte[] peekMessageKey(Message<T> msg) {
+    protected byte[] peekMessageKey(Message<?> msg) {
         byte[] key = NONE_KEY;
         if (msg.hasKey()) {
             key = msg.getKeyBytes();
@@ -1243,7 +1251,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
 
-    private ExecutorService getExternalExecutor(Message<T> msg) {
+    private ExecutorService getExternalExecutor(Message<?> msg) {
         ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl) ? ((TopicMessageImpl) msg).receivedByconsumer
                 : null;
         ExecutorService executor = receivedConsumer != null && receivedConsumer.externalPinnedExecutor != null

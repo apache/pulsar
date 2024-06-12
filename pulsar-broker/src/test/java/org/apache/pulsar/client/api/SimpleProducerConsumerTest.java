@@ -100,7 +100,6 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.DefaultMessageListenerExecutor;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -111,6 +110,7 @@ import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -4944,7 +4944,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(String topic, String subscriptionName, Duration consumeSleepTime, boolean enableMessageListenerExecutorIsolation, ExecutorService executorService) throws Exception {
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
-
         int numPartitions = 100;
         TopicName nonIsolationTopicName = TopicName.get(topic);
         admin.topics().createPartitionedTopic(nonIsolationTopicName.toString(), numPartitions);
@@ -4962,8 +4961,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     latch.countDown();
                 });
 
+        ExecutorService executor = Executors.newSingleThreadExecutor(new ExecutorProvider.ExtendedThreadFactory(subscriptionName + "listener-executor-",  true));
         if (enableMessageListenerExecutorIsolation) {
-            consumerBuilder.messageListenerExecutor(new DefaultMessageListenerExecutor(1, subscriptionName + "-listener-executor-"));
+            consumerBuilder.messageListenerExecutor((message, runnable) -> executor.execute(runnable));
         }
 
         Consumer<Long> consumer = consumerBuilder.subscribe();
@@ -4995,7 +4995,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }, executorService).whenCompleteAsync((v, ex) -> {
             maxDelayFuture.complete(maxConsumeDelay.get());
             try {
+                producer.close();
                 consumer.close();
+                executor.shutdownNow();
             } catch (PulsarClientException e) {
                 throw new RuntimeException(e);
             }

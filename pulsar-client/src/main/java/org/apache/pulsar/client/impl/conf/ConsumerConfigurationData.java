@@ -92,7 +92,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
-    private MessageListenerExecutor messageListenerExecutor;
+    private transient MessageListenerExecutor messageListenerExecutor;
     @JsonIgnore
     private MessageListener<T> messageListener;
 

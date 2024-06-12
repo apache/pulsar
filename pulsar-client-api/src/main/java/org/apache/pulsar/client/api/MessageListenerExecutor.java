@@ -18,21 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
-
 /**
  * Interface for providing an executor service to execute message listeners.
  */
-public interface MessageListenerExecutor extends Serializable {
+public interface MessageListenerExecutor {
 
     /**
      * select a thread by subscriptionType and message to execute the runnable!
-     * For Key_Shared subscription: message with same key will be executed by same thread.
-     * For Exclusive or Failover subscription: message of same {@link Message#getTopicName()}
-     * will be executed by same thread.
+     * <p>Implementation requirements:
+     * <p>
+     * For Key_Shared subscription: need to consider order, for example,  message
+     * with same key should be executed by same thread.
+     * </p>
+     * <p>
+     * For Exclusive or Failover subscription: need to consider order, for example, message
+     * of same {@link Message#getTopicName()} should be executed by same thread.
+     * </p>
      *
-     * @param message          the message
-     * @param runnable         the runnable to execute
+     * @param message  the message
+     * @param runnable the runnable to execute
      */
     void execute(Message<?> message, Runnable runnable);
 }
