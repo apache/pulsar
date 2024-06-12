@@ -51,7 +51,11 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty-shaded</artifactId>
     </dependency>
-    <!-- add transient dependencies for jetcd libraries -->
+    <!-- add transient dependencies for jetcd libraries, this is necessary for IntelliJ support -->
+    <dependency>
+      <groupId>dev.failsafe</groupId>
+      <artifactId>failsafe</artifactId>
+    </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>
