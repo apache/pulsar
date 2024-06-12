@@ -4922,8 +4922,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // Wait for all futures to complete
-        CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWithDisableIsolationFutures).join();
-        CompletableFuture.allOf((CompletableFuture<?>) maxConsumeDelayWhitEnableIsolationFutures).join();
+        CompletableFuture.allOf(maxConsumeDelayWithDisableIsolationFutures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(maxConsumeDelayWhitEnableIsolationFutures.toArray(new CompletableFuture[0])).join();
 
         for (int i = 0; i < loops; i++) {
             long maxConsumeDelayWithDisableIsolation = maxConsumeDelayWithDisableIsolationFutures.get(i).join();
