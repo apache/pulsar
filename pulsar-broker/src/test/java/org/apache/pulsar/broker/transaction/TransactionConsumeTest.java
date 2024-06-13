@@ -33,7 +33,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -323,7 +324,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, metadata,
                     Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
-            CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
+            CompletableFuture<Position> completableFuture = new CompletableFuture<>();
             topic.publishTxnMessage(txnID, headerAndPayload, new Topic.PublishContext() {
 
                 @Override
@@ -363,7 +364,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
                 @Override
                 public void completed(Exception e, long ledgerId, long entryId) {
-                    completableFuture.complete(PositionImpl.get(ledgerId, entryId));
+                    completableFuture.complete(PositionFactory.create(ledgerId, entryId));
                 }
             });
             positionList.add(new MessageIdData().setLedgerId(completableFuture.get()

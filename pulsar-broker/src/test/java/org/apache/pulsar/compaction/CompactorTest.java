@@ -47,7 +47,7 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -402,7 +402,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Position lastCompactedPosition = topicCompactionService.getLastCompactedPosition().get();
         Entry lastCompactedEntry = topicCompactionService.readLastCompactedEntry().get();
 
-        Assert.assertTrue(PositionImpl.get(lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
+        Assert.assertTrue(PositionFactory.create(lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
                 .compareTo(lastCompactedEntry.getLedgerId(), lastCompactedEntry.getEntryId()) >= 0);
 
         future.join();

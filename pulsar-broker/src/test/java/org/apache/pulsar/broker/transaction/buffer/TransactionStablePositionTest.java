@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -209,13 +209,13 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         // init maxReadPosition is PositionImpl.EARLIEST
         Position position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
 
         MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
 
         // send normal message can't change MaxReadPosition when state is None or Initializing
         position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
 
         // change to None state can recover
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
@@ -229,7 +229,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
         // change MaxReadPosition to normal message position
-        assertEquals(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+        assertEquals(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                 topicTransactionBuffer.getMaxReadPosition());
     }
 

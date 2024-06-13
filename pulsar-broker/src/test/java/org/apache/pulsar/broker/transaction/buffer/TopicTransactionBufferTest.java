@@ -24,12 +24,20 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -59,15 +67,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
 
@@ -234,7 +233,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         // 3. Send message and test the exception can be handled as expected.
         MessageIdImpl messageId = (MessageIdImpl) producer.newMessage().send();
         producer.newMessage().send();
-        Mockito.doReturn(new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()))
+        Mockito.doReturn(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()))
                 .when(transactionBuffer).getMaxReadPosition();
         try {
             consumer.getLastMessageIds();

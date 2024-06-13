@@ -148,7 +148,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.108.Final</netty.version>
+    <netty.version>4.1.111.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -302,6 +302,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.4.1</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.5.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
@@ -583,6 +584,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <artifactId>jose4j</artifactId>
             <groupId>org.bitbucket.b_c</groupId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1053,12 +1058,51 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-core</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
-
       <dependency>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-test</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>jetcd-core-shaded</artifactId>
+        <version>${project.version}</version>
+        <classifier>shaded</classifier>
+        <exclusions>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1151,6 +1195,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -2142,6 +2190,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>docker-maven-plugin</artifactId>
           <version>${docker-maven.version}</version>
         </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <extensions>
@@ -2387,6 +2440,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <module>pulsar-metadata</module>
+        <module>jetcd-core-shaded</module>
         <module>jclouds-shaded</module>
 
         <!-- package management releated modules (begin) -->
@@ -2452,7 +2506,7 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
-
+        <module>jetcd-core-shaded</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
