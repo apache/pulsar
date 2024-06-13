@@ -1617,32 +1617,63 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @Test(priority = 19)
     public void testActiveGetOwner() throws Exception {
 
-
-        // set the bundle owner is the broker
+        // case 1: the bundle owner is empty
         String broker = brokerId2;
         String bundle = "public/owned/0xfffffff0_0xffffffff";
+        overrideTableViews(bundle, null);
+        assertEquals(Optional.empty(), channel1.getOwnerAsync(bundle).get());
+
+        // case 2: the bundle ownership is transferring, and the dst broker is not the channel owner
+        overrideTableViews(bundle,
+                new ServiceUnitStateData(Releasing, broker, brokerId1, 1));
+        assertEquals(Optional.of(broker), channel1.getOwnerAsync(bundle).get());
+
+
+        // case 3: the bundle ownership is transferring, and the dst broker is the channel owner
+        overrideTableViews(bundle,
+                new ServiceUnitStateData(Assigning, brokerId1, brokerId2, 1));
+        assertTrue(!channel1.getOwnerAsync(bundle).isDone());
+
+        // case 4: the bundle ownership is found
         overrideTableViews(bundle,
                 new ServiceUnitStateData(Owned, broker, null, 1));
         var owner = channel1.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS).get();
         assertEquals(owner, broker);
 
-        // simulate the owner is inactive
+        // case 5: the owner lookup gets delayed
         var spyRegistry = spy(new BrokerRegistryImpl(pulsar));
-        doReturn(CompletableFuture.completedFuture(Optional.empty()))
-                .when(spyRegistry).lookupAsync(eq(broker));
         FieldUtils.writeDeclaredField(channel1,
                 "brokerRegistry", spyRegistry , true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1000, true);
+        var delayedFuture = new CompletableFuture();
+        doReturn(delayedFuture).when(spyRegistry).lookupAsync(eq(broker));
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();;
+            }
+            delayedFuture.complete(Optional.of(broker));
+        });
 
-
-        // verify getOwnerAsync times out because the owner is inactive now.
+        // verify the owner eventually returns in inFlightStateWaitingTimeInMillis.
         long start = System.currentTimeMillis();
+        assertEquals(broker, channel1.getOwnerAsync(bundle).get().get());
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue(elapsed < 1000);
+
+        // case 6: the owner is inactive
+        doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(spyRegistry).lookupAsync(eq(broker));
+
+        // verify getOwnerAsync times out
+        start = System.currentTimeMillis();
         var ex = expectThrows(ExecutionException.class, () -> channel1.getOwnerAsync(bundle).get());
         assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
-        // simulate ownership cleanup(no selected owner) by the leader channel
+        // case 7: the ownership cleanup(no new owner) by the leader channel
         doReturn(CompletableFuture.completedFuture(Optional.empty()))
                 .when(loadManager).selectAsync(any(), any());
         var leaderChannel = channel1;
@@ -1666,7 +1697,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilState(channel2, bundle, Init);
 
         assertTrue(System.currentTimeMillis() - start < 20_000);
-        // simulate ownership cleanup(brokerId1 selected owner) by the leader channel
+
+        // case 8: simulate ownership cleanup(brokerId1 as the new owner) by the leader channel
         overrideTableViews(bundle,
                 new ServiceUnitStateData(Owned, broker, null, 1));
         doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
@@ -1690,6 +1722,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         cleanTableViews();
 
     }
+
 
     private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
