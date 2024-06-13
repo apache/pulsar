@@ -155,7 +155,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         schema = Schema.JSON(ServiceUnitStateData.class);
         strategy = new ServiceUnitStateCompactionStrategy();
         strategy.checkBrokers(false);

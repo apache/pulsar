@@ -194,6 +194,7 @@ public class LocalBookkeeperEnsemble {
                 : createTempDirectory("zktest");
 
         if (this.clearOldData) {
+            LOG.info("Wiping Zookeeper data directory at {}", zkDataDir.getAbsolutePath());
             cleanDirectory(zkDataDir);
         }
 
@@ -291,6 +292,7 @@ public class LocalBookkeeperEnsemble {
                     : createTempDirectory("bk" + i + "test");
 
             if (this.clearOldData) {
+                LOG.info("Wiping Bookie data directory at {}", bkDataDir.getAbsolutePath());
                 cleanDirectory(bkDataDir);
             }
 

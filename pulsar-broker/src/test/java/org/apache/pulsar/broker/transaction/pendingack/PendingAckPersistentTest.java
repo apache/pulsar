@@ -47,7 +47,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -293,8 +293,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+                .until(() -> (managedCursor.getMarkDeletedPosition())
+                        .compareTo(managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
 
     @Test
@@ -458,8 +458,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
-                .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
+                .until(() -> (managedCursor.getMarkDeletedPosition())
+                        .compareTo(managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
     }
 
     @Test
@@ -575,8 +575,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         field3.setAccessible(true);
         field4.setAccessible(true);
 
-        ConcurrentSkipListMap<PositionImpl, PositionImpl> pendingAckLogIndex =
-                (ConcurrentSkipListMap<PositionImpl, PositionImpl>) field3.get(pendingAckStore);
+        ConcurrentSkipListMap<Position, Position> pendingAckLogIndex =
+                (ConcurrentSkipListMap<Position, Position>) field3.get(pendingAckStore);
         long maxIndexLag = (long) field4.get(pendingAckStore);
         Assert.assertEquals(pendingAckLogIndex.size(), 0);
         Assert.assertEquals(maxIndexLag, 5);
@@ -718,8 +718,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckHandleImpl oldPendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
         Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
         field2.setAccessible(true);
-        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> oldIndividualAckOfTransaction =
-                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(oldPendingAckHandle);
+        LinkedMap<TxnID, HashMap<Position, Position>> oldIndividualAckOfTransaction =
+                (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(oldPendingAckHandle);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(oldIndividualAckOfTransaction.size(), 0));
 
         PendingAckHandleImpl pendingAckHandle = new PendingAckHandleImpl(persistentSubscription);
@@ -739,8 +739,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         });
 
 
-        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
-                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
+        LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
+                (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(pendingAckHandle);
 
         assertFalse(individualAckOfTransaction.containsKey(transaction1.getTxnID()));
         assertFalse(individualAckOfTransaction.containsKey(transaction2.getTxnID()));
