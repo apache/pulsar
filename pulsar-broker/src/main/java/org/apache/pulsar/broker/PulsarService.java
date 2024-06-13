@@ -1896,6 +1896,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BrokerService(pulsar, ioEventLoopGroup);
     }
 
+    @VisibleForTesting
+    public void setTransactionExecutorProvider(TransactionBufferProvider transactionBufferProvider) {
+        this.transactionBufferProvider = transactionBufferProvider;
+    }
+
     private CompactionServiceFactory loadCompactionServiceFactory() {
         String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
         var compactionServiceFactory =
