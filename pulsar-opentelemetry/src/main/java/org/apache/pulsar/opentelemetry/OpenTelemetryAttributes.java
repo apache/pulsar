@@ -131,6 +131,21 @@ public interface OpenTelemetryAttributes {
     // Managed Ledger Attributes
 
     /**
+     * The name of the managed ledger.
+     */
+    AttributeKey<String> ML_NAME = AttributeKey.stringKey("pulsar.managed_ledger.name");
+
+    /**
+     * The status of the managed ledger operation.
+     */
+    AttributeKey<String> ML_OPERATION_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.operation.status");
+    enum ManagedLedgerOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(ML_OPERATION_STATUS, name().toLowerCase());
+    };
+
+    /**
      * The type of the pool arena.
      */
     AttributeKey<String> ML_POOL_ARENA_TYPE = AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");

@@ -24,12 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerAttributes;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -45,6 +45,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
@@ -126,11 +127,14 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
         // Validate OpenTelemetry metrics.
         var ledgers = managedLedgerFactory.getManagedLedgers();
-        var mlName = TopicName.get(topicName).getPersistenceNamingEncoding();
+        var topicNameObj = TopicName.get(topicName);
+        var mlName = topicNameObj.getPersistenceNamingEncoding();
         assertThat(ledgers).containsKey(mlName);
         var ml = ledgers.get(mlName);
-        var managedLedgerAttributes = new ManagedLedgerAttributes(ml);
-        var attribCommon = managedLedgerAttributes.getAttributes();
+        var attribCommon = Attributes.of(
+                OpenTelemetryAttributes.ML_NAME, mlName,
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace()
+        );
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
 
         Awaitility.await().untilAsserted(() -> {
@@ -160,8 +164,16 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
                     .subscribe();
             cons.receive(1, TimeUnit.SECONDS);
 
-            var attribSucceed = managedLedgerAttributes.getAttributesOperationSucceed();
-            var attribFailed = managedLedgerAttributes.getAttributesOperationFailure();
+            var attribSucceed = Attributes.of(
+                    OpenTelemetryAttributes.ML_NAME, mlName,
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace(),
+                    OpenTelemetryAttributes.ML_OPERATION_STATUS, "success"
+            );
+            var attribFailed = Attributes.of(
+                    OpenTelemetryAttributes.ML_NAME, mlName,
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace(),
+                    OpenTelemetryAttributes.ML_OPERATION_STATUS, "failure"
+            );
             var otelMetrics = metricReader.collectAllMetrics();
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_COUNTER, attribSucceed, 15);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_COUNTER, attribFailed, 0);
