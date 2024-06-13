@@ -45,7 +45,7 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -308,7 +308,7 @@ public class FilterEntryTest extends BrokerTestBase {
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl position = (PositionImpl) subscription.getCursor().getMarkDeletedPosition();
+            Position position = subscription.getCursor().getMarkDeletedPosition();
             assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
             assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
         });

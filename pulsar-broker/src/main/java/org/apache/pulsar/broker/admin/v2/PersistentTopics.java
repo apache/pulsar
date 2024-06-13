@@ -45,7 +45,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -1872,7 +1872,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             Optional<Position> positionImpl;
             if (position != null) {
-                positionImpl = Optional.of(new PositionImpl(position.getLedgerId(),
+                positionImpl = Optional.of(PositionFactory.create(position.getLedgerId(),
                         position.getEntryId()));
             } else {
                 positionImpl = Optional.empty();

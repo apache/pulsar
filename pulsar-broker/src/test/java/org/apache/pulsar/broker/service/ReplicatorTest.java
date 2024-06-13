@@ -61,7 +61,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -1626,7 +1626,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.openCursor("pulsar.repl.r2");
         final ManagedCursorImpl spyCursor = spy(cursor);
         managedLedger.getCursors().removeCursor(cursor.getName());
-        managedLedger.getCursors().add(spyCursor, PositionImpl.EARLIEST);
+        managedLedger.getCursors().add(spyCursor, PositionFactory.EARLIEST);
         AtomicBoolean isMakeAckFail = new AtomicBoolean(false);
         doAnswer(invocation -> {
             Position pos = (Position) invocation.getArguments()[0];
@@ -1649,7 +1649,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer1.produce(2);
 
         MessageIdImpl lastMessageId = (MessageIdImpl) topic.getLastMessageId().get();
-        Position lastPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
+        Position lastPosition = PositionFactory.create(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
 
         Awaitility.await().pollInterval(1, TimeUnit.SECONDS).timeout(30, TimeUnit.SECONDS)
                 .ignoreExceptions()

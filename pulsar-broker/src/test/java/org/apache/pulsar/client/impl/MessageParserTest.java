@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
@@ -95,7 +95,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         ManagedCursor cursor = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
-                .getManagedLedger().newNonDurableCursor(PositionImpl.EARLIEST);
+                .getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
 
         if (batchEnabled) {
             for (int i = 0; i < n - 1; i++) {
