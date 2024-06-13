@@ -1940,6 +1940,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BrokerService(pulsar, ioEventLoopGroup);
     }
 
+    @VisibleForTesting
+    public void setTransactionExecutorProvider(TransactionBufferProvider transactionBufferProvider) {
+        this.transactionBufferProvider = transactionBufferProvider;
+    }
+
     public void initConfigMetadataSynchronizerIfNeeded() {
         mutex.lock();
         try {
