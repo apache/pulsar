@@ -52,14 +52,10 @@ public interface Position extends Comparable<Position> {
      */
     default int compareTo(Position that) {
         if (getLedgerId() != that.getLedgerId()) {
-            return (getLedgerId() < that.getLedgerId() ? -1 : 1);
+            return Long.compare(getLedgerId(), that.getLedgerId());
         }
 
-        if (getEntryId() != that.getEntryId()) {
-            return (getEntryId() < that.getEntryId() ? -1 : 1);
-        }
-
-        return 0;
+        return Long.compare(getEntryId(), that.getEntryId());
     }
 
     /**
