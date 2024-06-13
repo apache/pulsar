@@ -131,6 +131,7 @@ public class TestZKServer implements AutoCloseable {
     public void stop() throws Exception {
         if (zooKeeperServerEmbedded != null) {
             zooKeeperServerEmbedded.close();
+            zooKeeperServerEmbedded = null;
         }
         log.info("Stopped test ZK server");
     }

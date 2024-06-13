@@ -391,11 +391,6 @@ public class Producer {
         private long entryTimestamp;
 
         @Override
-        public Position getNext() {
-            return null;
-        }
-
-        @Override
         public long getLedgerId() {
             return ledgerId;
         }
@@ -666,7 +661,7 @@ public class Producer {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topic).add("client", cnx.clientAddress())
+        return MoreObjects.toStringHelper(this).add("topic", topic).add("client", cnx.toString())
                 .add("producerName", producerName).add("producerId", producerId).toString();
     }
 

@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -275,15 +277,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         if (brokerGateway != null) {
             brokerGateway.close();
+            brokerGateway = null;
         }
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+
         resetConfig();
         callCloseables(closeables);
         closeables.clear();
         onCleanup();
+
+        // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
+        pulsar = null;
+        mockZooKeeper = null;
+        mockZooKeeperGlobal = null;
     }
 
     protected void closeAdmin() {
@@ -737,6 +746,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void reconnectAllConnections() throws Exception {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
+    }
+
+    protected void assertOtelMetricLongSumValue(String metricName, int value) {
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

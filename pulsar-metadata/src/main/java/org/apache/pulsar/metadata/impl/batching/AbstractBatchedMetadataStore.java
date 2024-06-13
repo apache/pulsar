@@ -52,7 +52,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxDelayMillis;
     private final int maxOperations;
     private final int maxSize;
-    private final MetadataEventSynchronizer synchronizer;
+    private MetadataEventSynchronizer synchronizer;
     private final BatchMetadataStoreStats batchMetadataStoreStats;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
@@ -75,8 +75,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         }
 
         // update synchronizer and register sync listener
-        synchronizer = conf.getSynchronizer();
-        registerSyncListener(Optional.ofNullable(synchronizer));
+        updateMetadataEventSynchronizer(conf.getSynchronizer());
         this.batchMetadataStoreStats =
                 new BatchMetadataStoreStats(metadataStoreName, executor);
     }
@@ -169,6 +168,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     @Override
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = synchronizer;
+        registerSyncListener(Optional.ofNullable(synchronizer));
     }
 
     private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {

@@ -358,17 +358,16 @@ public class TopicName implements ServiceUnitId {
         String localName;
         if (parts.size() == 4) {
             tenant = parts.get(0);
-            cluster = null;
             namespacePortion = parts.get(1);
             domain = parts.get(2);
-            localName = parts.get(3);
+            localName = Codec.decode(parts.get(3));
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else if (parts.size() == 5) {
             tenant = parts.get(0);
             cluster = parts.get(1);
             namespacePortion = parts.get(2);
             domain = parts.get(3);
-            localName = parts.get(4);
+            localName = Codec.decode(parts.get(4));
             return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
         } else {
             throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);

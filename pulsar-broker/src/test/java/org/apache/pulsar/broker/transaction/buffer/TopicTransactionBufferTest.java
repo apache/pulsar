@@ -24,12 +24,20 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -59,15 +67,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
 
@@ -234,7 +233,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         // 3. Send message and test the exception can be handled as expected.
         MessageIdImpl messageId = (MessageIdImpl) producer.newMessage().send();
         producer.newMessage().send();
-        Mockito.doReturn(new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()))
+        Mockito.doReturn(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()))
                 .when(transactionBuffer).getMaxReadPosition();
         try {
             consumer.getLastMessageIds();
@@ -280,9 +279,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         for (int i = 0; i < 3; i++) {
             expectedLastMessageID = (MessageIdImpl) producer.newMessage().send();
         }
-        assertMessageId(consumer, expectedLastMessageID, 0);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
         // 2.2 Case2: send 2 ongoing transactional messages and 2 original messages.
-        // |1:0|1:1|1:2|txn1->1:3|1:4|txn2->1:5|1:6|.
+        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5.
         Transaction txn1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
@@ -291,19 +290,37 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
                 .get();
+
+        // |1:0|1:1|1:2|txn1:1:3|
         producer.newMessage(txn1).send();
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|
         MessageIdImpl expectedLastMessageID1 = (MessageIdImpl) producer.newMessage().send();
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|
         producer.newMessage(txn2).send();
-        MessageIdImpl expectedLastMessageID2 = (MessageIdImpl) producer.newMessage().send();
+
         // 2.2.1 Last message ID will not change when txn1 and txn2 do not end.
-        assertMessageId(consumer, expectedLastMessageID, 0);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
+
         // 2.2.2 Last message ID will update to 1:4 when txn1 committed.
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|
         txn1.commit().get(5, TimeUnit.SECONDS);
-        assertMessageId(consumer, expectedLastMessageID1, 0);
-        // 2.2.3 Last message ID will update to 1:6 when txn2 aborted.
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // 2.2.3 Last message ID will still to 1:4 when txn2 aborted.
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|tx2:abort->1:7|
         txn2.abort().get(5, TimeUnit.SECONDS);
-        // Todo: We can not ignore the marker's position in this fix.
-        assertMessageId(consumer, expectedLastMessageID2, 2);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // Handle the case of the maxReadPosition < lastPosition, but it's an aborted transactional message.
+        Transaction txn3 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        producer.newMessage(txn3).send();
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+        txn3.abort().get(5, TimeUnit.SECONDS);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
     }
 
     /**
@@ -362,9 +379,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         });
     }
 
-    private void assertMessageId(Consumer<?> consumer, MessageIdImpl expected, int entryOffset) throws Exception {
+    private void assertGetLastMessageId(Consumer<?> consumer, MessageIdImpl expected) throws Exception {
         TopicMessageIdImpl actual = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
-        assertEquals(expected.getEntryId(), actual.getEntryId() - entryOffset);
+        assertEquals(expected.getEntryId(), actual.getEntryId());
         assertEquals(expected.getLedgerId(), actual.getLedgerId());
     }
 

@@ -121,6 +121,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,25 +148,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void rest() throws Exception {
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+    public void cleanupAfterMethod() throws Exception {
+        try {
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    deleteNamespaceWithRetry(namespace, true);
+                }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
+
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
+
+            pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+            pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+            super.producerBaseSetup();
+        } catch (Exception | AssertionError e) {
+            log.warn("Failed to clean up state. Restarting broker.", e);
+            log.warn("Thread dump:\n{}", ThreadDumpUtil.buildThreadDiagnosticString());
+            cleanup();
+            setup();
         }
-
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
-
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-
-        super.producerBaseSetup();
     }
 
     @DataProvider
@@ -4329,10 +4336,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        if (pulsarClient == null) {
-            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-        }
-
         final String topic = "persistent://my-property/my-ns/accessSchema";
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
@@ -4382,7 +4385,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             fail();
         } finally {
             pulsarClient.shutdown();
-            pulsarClient = null;
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
             admin.schemas().deleteSchema(topic);
         }
     }
@@ -4823,6 +4826,35 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         producerBase.close();
         admin.topics().delete(topic, false);
+    }
+
+    /**
+     * It verifies that consumer receives configured number of messages into the batch.
+     * @throws Exception
+     */
+    @Test
+    public void testBatchReceiveWithMaxBatchSize() throws Exception {
+        int maxBatchSize = 100;
+        final int internalQueueSize = 10;
+        final int maxBytes = 2000000;
+        final int timeOutInSeconds = 900;
+        final String topic = "persistent://my-property/my-ns/testBatchReceive";
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumBytes(maxBytes)
+                .maxNumMessages(maxBatchSize).timeout(timeOutInSeconds, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(internalQueueSize)
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).send();
+        }
+
+        assertEquals(consumer.batchReceive().size(), maxBatchSize);
     }
 
     private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {

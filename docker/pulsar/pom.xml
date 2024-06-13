@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-docker-image</artifactId>
@@ -52,7 +52,7 @@
       <id>git-commit-id-no-git</id>
       <activation>
         <file>
-          <missing>${basedir}/../../.git/index</missing>
+          <missing>${basedir}/../../.git</missing>
         </file>
       </activation>
       <properties>
@@ -73,19 +73,21 @@
                 <goals>
                   <goal>build</goal>
                   <goal>tag</goal>
+                  <goal>push</goal>
                 </goals>
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/pulsar</name>
+                      <name>${docker.organization}/${docker.image}</name>
                       <build>
                         <args>
                           <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
                           <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
+                          <SNAPPY_VERSION>${snappy.version}</SNAPPY_VERSION>
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
+                          <tag>${docker.tag}</tag>
                           <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <buildx>
@@ -124,25 +126,9 @@
 
     <profile>
       <id>docker-push</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>default</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
+      <properties>
+        <docker.skip.push>false</docker.skip.push>
+      </properties>
     </profile>
 
   </profiles>

@@ -566,13 +566,13 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         try {
             pulsarClient.newProducer().topic(ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC).create();
             Assert.fail("Create should have failed.");
-        } catch (PulsarClientException.TopicDoesNotExistException e) {
+        } catch (PulsarClientException.TopicDoesNotExistException | PulsarClientException.NotFoundException e) {
             // expected
         }
         try {
             pulsarClient.newProducer().topic(ExtensibleLoadManagerImpl.TOP_BUNDLES_LOAD_DATA_STORE_TOPIC).create();
             Assert.fail("Create should have failed.");
-        } catch (PulsarClientException.TopicDoesNotExistException e) {
+        } catch (PulsarClientException.TopicDoesNotExistException | PulsarClientException.NotFoundException e) {
             // expected
         }
 

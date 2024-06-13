@@ -87,7 +87,9 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Map.class
+            response = Map.class,
+            notes = "Returns a nested map structure which Swagger does not fully support for display."
+                    + "Structure: Map<String, Set<String>>. Please refer to this structure for details."
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -102,7 +104,8 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = List.class
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -120,6 +123,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Triggers a rebalance of functions to workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 408, message = "Request timeout")
@@ -134,6 +138,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Drains the specified worker, i.e., moves its work-assignments to other workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 408, message = "Request timeout"),
@@ -150,6 +155,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Drains this worker, i.e., moves its work-assignments to other workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 408, message = "Request timeout"),

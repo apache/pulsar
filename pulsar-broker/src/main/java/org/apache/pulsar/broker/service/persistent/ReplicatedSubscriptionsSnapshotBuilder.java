@@ -29,7 +29,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
@@ -118,7 +117,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             log.debug("[{}] Snapshot is complete {}", controller.topic().getName(), snapshotId);
         }
         // Snapshot is now complete, store it in the local topic
-        PositionImpl p = (PositionImpl) position;
+        Position p = position;
         controller.writeMarker(
                 Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
                         p.getLedgerId(), p.getEntryId(), responses));

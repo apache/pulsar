@@ -47,8 +47,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
@@ -491,8 +492,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
                         abortsField.setAccessible(true);
 
-                        LinkedMap<TxnID, PositionImpl> linkedMap =
-                                (LinkedMap<TxnID, PositionImpl>) abortsField.get(abortedTxnProcessor);
+                        LinkedMap<TxnID, Position> linkedMap =
+                                (LinkedMap<TxnID, Position>) abortsField.get(abortedTxnProcessor);
                         assertEquals(linkedMap.size(), 1);
                         assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
                                 ((MessageIdImpl) message.getMessageId()).getLedgerId());
@@ -799,7 +800,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             @Override
             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
                 readOnlyManagedLedger.asyncReadEntry(
-                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()),
+                        PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                         new AsyncCallbacks.ReadEntryCallback() {
                             @Override
                             public void readEntryComplete(Entry entry, Object ctx) {

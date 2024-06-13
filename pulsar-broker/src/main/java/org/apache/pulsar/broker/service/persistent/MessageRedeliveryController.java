@@ -24,7 +24,8 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.Set;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
@@ -145,7 +146,7 @@ public class MessageRedeliveryController {
         return false;
     }
 
-    public NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
-        return messagesToRedeliver.items(maxMessagesToRead, PositionImpl::new);
+    public NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
+        return messagesToRedeliver.items(maxMessagesToRead, PositionFactory::create);
     }
 }
