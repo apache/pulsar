@@ -256,6 +256,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getAddEntryErrorsTotal() {
+        return addEntryOpsFailed.getTotalCount();
+    }
+
+    @Override
     public long getReadEntriesSucceeded() {
         return readEntriesOps.getCount();
     }
@@ -268,6 +273,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public long getReadEntriesErrors() {
         return readEntriesOpsFailed.getCount();
+    }
+
+    @Override
+    public long getReadEntriesErrorsTotal() {
+        return readEntriesOpsFailed.getTotalCount();
     }
 
     @Override

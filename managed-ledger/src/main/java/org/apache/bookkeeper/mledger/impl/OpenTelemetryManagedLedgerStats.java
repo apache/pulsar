@@ -138,14 +138,14 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
         var attributesFailure = ledgerAttributeSet.getAttributesOperationFailure();
 
         var addEntrySucceed = stats.getAddEntrySucceedTotal();
-        var addEntryFailed = stats.getAddEntryErrors();
+        var addEntryFailed = stats.getAddEntryErrorsTotal();
         addEntryCounter.record(addEntrySucceed, attributesSucceed);
         addEntryCounter.record(addEntryFailed, attributesFailure);
         bytesOutCounter.record(stats.getAddEntryBytesTotal(), attributes);
         bytesOutWithReplicasCounter.record(stats.getAddEntryWithReplicasBytesTotal(), attributes);
 
         var readEntrySucceed = stats.getReadEntriesSucceededTotal();
-        var readEntryFailed = stats.getReadEntriesErrors();
+        var readEntryFailed = stats.getReadEntriesErrorsTotal();
         readEntryCounter.record(readEntrySucceed, attributesSucceed);
         readEntryCounter.record(readEntryFailed, attributesFailure);
         bytesInCounter.record(stats.getReadEntriesBytesTotal(), attributes);

@@ -116,6 +116,11 @@ public interface ManagedLedgerMXBean {
     long getAddEntryErrors();
 
     /**
+     * @return the total number of addEntry requests that failed
+     */
+    long getAddEntryErrorsTotal();
+
+    /**
      * @return the number of entries read from the managed ledger (from cache or BK)
      */
     long getEntriesReadTotalCount();
@@ -134,6 +139,11 @@ public interface ManagedLedgerMXBean {
      * @return the number of readEntries requests that failed
      */
     long getReadEntriesErrors();
+
+    /**
+     * @return the total number of readEntries requests that failed
+     */
+    long getReadEntriesErrorsTotal();
 
     /**
      * @return the number of readEntries requests that cache miss Rate
