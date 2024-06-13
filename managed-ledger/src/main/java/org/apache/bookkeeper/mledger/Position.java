@@ -67,14 +67,10 @@ public interface Position extends Comparable<Position> {
      */
     default int compareTo(long ledgerId, long entryId) {
         if (getLedgerId() != ledgerId) {
-            return (getLedgerId() < ledgerId ? -1 : 1);
+            return Long.compare(getLedgerId(), ledgerId);
         }
 
-        if (getEntryId() != entryId) {
-            return (getEntryId() < entryId ? -1 : 1);
-        }
-
-        return 0;
+        return Long.compare(getEntryId(), entryId);
     }
 
     /**
