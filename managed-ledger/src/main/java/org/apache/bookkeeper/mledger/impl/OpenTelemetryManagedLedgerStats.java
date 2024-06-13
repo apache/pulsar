@@ -136,25 +136,18 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
         var attributes = ledgerAttributeSet.getAttributes();
         var attributesSucceed = ledgerAttributeSet.getAttributesOperationSucceed();
         var attributesFailure = ledgerAttributeSet.getAttributesOperationFailure();
-        var attributesActive = ledgerAttributeSet.getAttributesOperationActive();
 
-        var addEntryTotal = stats.getAddEntrySucceedTotal();
         var addEntrySucceed = stats.getAddEntrySucceedTotal();
         var addEntryFailed = stats.getAddEntryErrors();
-        var addEntryActive = addEntryTotal - addEntrySucceed - addEntryFailed;
         addEntryCounter.record(addEntrySucceed, attributesSucceed);
         addEntryCounter.record(addEntryFailed, attributesFailure);
-        addEntryCounter.record(addEntryActive, attributesActive);
         bytesOutCounter.record(stats.getAddEntryBytesTotal(), attributes);
         bytesOutWithReplicasCounter.record(stats.getAddEntryWithReplicasBytesTotal(), attributes);
 
-        var readEntryTotal = stats.getReadEntriesSucceededTotal();
         var readEntrySucceed = stats.getReadEntriesSucceededTotal();
         var readEntryFailed = stats.getReadEntriesErrors();
-        var readEntryActive = readEntryTotal - readEntrySucceed - readEntryFailed;
         readEntryCounter.record(readEntrySucceed, attributesSucceed);
         readEntryCounter.record(readEntryFailed, attributesFailure);
-        readEntryCounter.record(readEntryActive, attributesActive);
         bytesInCounter.record(stats.getReadEntriesBytesTotal(), attributes);
 
         backlogCounter.record(stats.getNumberOfMessagesInBacklog(), attributes);

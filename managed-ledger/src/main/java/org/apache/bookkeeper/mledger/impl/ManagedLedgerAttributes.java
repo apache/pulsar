@@ -37,7 +37,6 @@ public class ManagedLedgerAttributes {
 
     @VisibleForTesting
     public enum OperationStatus {
-        ACTIVE,
         SUCCESS,
         FAILURE;
         public final Attributes attributes =
@@ -47,7 +46,6 @@ public class ManagedLedgerAttributes {
     private final Attributes attributes;
     private final Attributes attributesOperationSucceed;
     private final Attributes attributesOperationFailure;
-    private final Attributes attributesOperationActive;
 
     public ManagedLedgerAttributes(ManagedLedger ml) {
         var mlName = ml.getName();
@@ -56,11 +54,13 @@ public class ManagedLedgerAttributes {
                 PULSAR_MANAGER_LEDGER_NAME, ml.getName(),
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace()
         );
-        attributesOperationActive =
-                Attributes.builder().putAll(attributes).putAll(OperationStatus.ACTIVE.attributes).build();
-        attributesOperationSucceed =
-                Attributes.builder().putAll(attributes).putAll(OperationStatus.SUCCESS.attributes).build();
-        attributesOperationFailure =
-                Attributes.builder().putAll(attributes).putAll(OperationStatus.FAILURE.attributes).build();
+        attributesOperationSucceed = Attributes.builder()
+                .putAll(attributes)
+                .putAll(OperationStatus.SUCCESS.attributes)
+                .build();
+        attributesOperationFailure = Attributes.builder()
+                .putAll(attributes)
+                .putAll(OperationStatus.FAILURE.attributes)
+                .build();
     }
 }

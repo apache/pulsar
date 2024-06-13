@@ -162,11 +162,9 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
             var attribSucceed = managedLedgerAttributes.getAttributesOperationSucceed();
             var attribFailed = managedLedgerAttributes.getAttributesOperationFailure();
-            var attribActive = managedLedgerAttributes.getAttributesOperationActive();
             var otelMetrics = metricReader.collectAllMetrics();
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_COUNTER, attribSucceed, 15);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_COUNTER, attribFailed, 0);
-            assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_COUNTER, attribActive, 0);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.BYTES_OUT_COUNTER, attribCommon,
                     value -> assertThat(value).isPositive());
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.BYTES_OUT_WITH_REPLICAS_COUNTER,
@@ -175,7 +173,6 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribSucceed,
                     value -> assertThat(value).isPositive());
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribFailed, 0);
-            assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribActive, 0);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.BYTES_IN_COUNTER, attribCommon,
                     value -> assertThat(value).isPositive());
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_CACHE_MISS_COUNTER,
