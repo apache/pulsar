@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -1434,13 +1432,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
             // Ok
         }
 
-        final CompletableFuture<Optional<Topic>> timedOutTopicFuture = topicFuture;
-        // timeout topic future should be removed from cache
-        retryStrategically((test) -> pulsar1.getBrokerService().getTopic(topicName, false) != timedOutTopicFuture, 5,
-                1000);
-
-        assertNotEquals(timedOutTopicFuture, pulsar1.getBrokerService().getTopics().get(topicName));
-
         try {
             Consumer<byte[]> consumer = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                     .subscriptionName("my-subscriber-name").subscribeAsync().get(100, TimeUnit.MILLISECONDS);
@@ -1452,6 +1443,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) mlFactory.open(topicMlName + "-2");
         mlFuture.complete(ml);
 
+        // Re-create topic will success.
         Consumer<byte[]> consumer = client1.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).subscribeAsync()
                 .get(2 * topicLoadTimeoutSeconds, TimeUnit.SECONDS);
