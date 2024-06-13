@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +28,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
@@ -103,5 +109,67 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         consumer.join().close();
         admin.topics().delete(tpName, false);
         pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
+    }
+
+    @Test
+    public void testCloseLedgerThatTopicAfterCreateTimeout() throws Exception {
+        // Make the topic loading timeout faster.
+        long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
+        int topicLoadTimeoutSeconds = 1;
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
+        pulsar.getConfig().setBrokerDeduplicationEnabled(true);
+        pulsar.getConfig().setTransactionCoordinatorEnabled(true);
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
+
+        // Mock message deduplication recovery speed topicLoadTimeoutSeconds
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" +
+                TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
+        mockZooKeeper.delay(topicLoadTimeoutSeconds * 1000, (op, path) -> {
+            if (mlPath.equals(path)) {
+                log.info("Topic load timeout: " + path);
+                return true;
+            }
+            return false;
+        });
+
+        // First load topic will trigger timeout
+        // The first topic load will trigger a timeout. When the topic closes, it will call transactionBuffer.close.
+        // Here, we simulate a sleep to ensure that the ledger is not immediately closed.
+        TransactionBufferProvider mockTransactionBufferProvider = new TransactionBufferProvider() {
+            @Override
+            public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+                return new TransactionBufferDisable(originTopic) {
+                    @SneakyThrows
+                    @Override
+                    public CompletableFuture<Void> closeAsync() {
+                        Thread.sleep(500);
+                        return super.closeAsync();
+                    }
+                };
+            }
+        };
+        TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionExecutorProvider(mockTransactionBufferProvider);
+        CompletableFuture<Optional<Topic>> firstLoad = pulsar.getBrokerService().getTopic(tpName, true);
+        Awaitility.await().ignoreExceptions().atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                // assert first create topic timeout
+                .untilAsserted(() -> {
+                    assertTrue(firstLoad.isCompletedExceptionally());
+                });
+
+        // Once the first load topic times out, immediately to load the topic again.
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+        for (int i = 0; i < 10; i++) {
+            MessageId send = producer.send("msg".getBytes());
+            Thread.sleep(100);
+            assertNotNull(send);
+        }
+
+        // set to back
+        pulsar.setTransactionExecutorProvider(originalTransactionBufferProvider);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
+        pulsar.getConfig().setBrokerDeduplicationEnabled(false);
+        pulsar.getConfig().setTransactionCoordinatorEnabled(false);
     }
 }
