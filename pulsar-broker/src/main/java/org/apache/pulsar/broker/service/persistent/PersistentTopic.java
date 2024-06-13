@@ -549,7 +549,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Void> removeOrphanReplicationCursors() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
@@ -557,7 +556,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (!replicationClusters.contains(remoteCluster)) {
                     log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
                     futures.add(removeReplicator(remoteCluster));
-                    continue;
                 }
             }
         }
