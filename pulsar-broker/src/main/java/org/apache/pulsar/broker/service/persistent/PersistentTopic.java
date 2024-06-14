@@ -1467,7 +1467,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(
                             new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
                 } else if (failIfHasBacklogs) {
-                    if (hasBacklogs()) {
+                    if (hasBacklogs(false)) {
                         List<String> backlogSubs =
                                 subscriptions.values().stream()
                                         .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
@@ -2638,12 +2638,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogQuotaLimitTime = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         TimeBasedBacklogQuotaCheckResult backlogQuotaCheckResult = timeBasedBacklogQuotaCheckResult;
-        stats.oldestBacklogMessageAgeSeconds = (backlogQuotaCheckResult == null)
-            ? (long) -1
-                : TimeUnit.MILLISECONDS.toSeconds(
-                Clock.systemUTC().millis() - backlogQuotaCheckResult.getPositionPublishTimestampInMillis());
-
+        stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
         stats.oldestBacklogMessageSubscriptionName = (backlogQuotaCheckResult == null)
+                || !hasBacklogs(getStatsOptions.isGetPreciseBacklog())
             ? null
             : backlogQuotaCheckResult.getCursorName();
 
@@ -2906,7 +2903,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
                 break;
             case delete_when_subscriptions_caught_up:
-                if (hasBacklogs()) {
+                if (hasBacklogs(false)) {
                     return true;
                 }
                 break;
@@ -2919,8 +2916,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private boolean hasBacklogs() {
-        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(false) > 0);
+    private boolean hasBacklogs(boolean getPreciseBacklog) {
+        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(getPreciseBacklog) > 0);
     }
 
     @Override
@@ -3466,6 +3463,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        if (!hasBacklogs(false)) {
+            return 0;
+        }
         TimeBasedBacklogQuotaCheckResult result = timeBasedBacklogQuotaCheckResult;
         if (result == null) {
             return -1;
@@ -3553,6 +3553,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+            if (!hasBacklogs(true)) {
+                return CompletableFuture.completedFuture(false);
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
@@ -3606,6 +3609,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         } else {
             try {
+                if (!hasBacklogs(false)) {
+                    return CompletableFuture.completedFuture(false);
+                }
                 EstimateTimeBasedBacklogQuotaCheckResult checkResult =
                         estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
                 if (checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp() != null) {
