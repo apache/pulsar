@@ -51,9 +51,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
@@ -664,7 +665,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         PersistentSubscription sub = (PersistentSubscription) t.getSubscription("key_shared");
 
         // We need to ensure that dispatcher does not keep to look ahead in the topic,
-        PositionImpl readPosition = (PositionImpl) sub.getCursor().getReadPosition();
+        Position readPosition = sub.getCursor().getReadPosition();
         assertTrue(readPosition.getEntryId() < 1000);
     }
 
@@ -1646,8 +1647,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         managedLedger.getCursors().removeCursor(cursor.getName());
         managedLedger.getActiveCursors().removeCursor(cursor.getName());
         ManagedCursorImpl spyCursor = Mockito.spy(cursor);
-        managedLedger.getCursors().add(spyCursor, PositionImpl.EARLIEST);
-        managedLedger.getActiveCursors().add(spyCursor, PositionImpl.EARLIEST);
+        managedLedger.getCursors().add(spyCursor, PositionFactory.EARLIEST);
+        managedLedger.getActiveCursors().add(spyCursor, PositionFactory.EARLIEST);
         AtomicInteger replyReadCounter = new AtomicInteger();
         Mockito.doAnswer(invocation -> {
             if (!String.valueOf(invocation.getArguments()[2]).equals("Normal")) {
@@ -1887,8 +1888,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.openCursor(subName);
         log.info("cursor_readPosition {}, LAC {}", cursor.getReadPosition(), managedLedger.getLastConfirmedEntry());
-        assertTrue(((PositionImpl) cursor.getReadPosition())
-                .compareTo((PositionImpl) managedLedger.getLastConfirmedEntry())  > 0);
+        assertTrue((cursor.getReadPosition())
+                .compareTo(managedLedger.getLastConfirmedEntry())  > 0);
 
         // Make all consumers to start to read and acknowledge messages.
         // Verify: no repeated Read-and-discard.

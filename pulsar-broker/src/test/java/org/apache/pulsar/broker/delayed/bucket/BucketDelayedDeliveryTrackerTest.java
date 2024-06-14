@@ -45,7 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
@@ -165,7 +166,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker.containsMessage(1, 1));
         clockTime.set(20);
 
-        Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(1);
+        Set<Position> scheduledMessages = tracker.getScheduledMessages(1);
         assertEquals(scheduledMessages.stream().findFirst().get().getEntryId(), 1);
 
         tracker.addMessage(3, 3, 30);
@@ -198,7 +199,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Set<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), 1);
@@ -219,7 +220,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(100 * 10);
 
         assertTrue(tracker2.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages2 = new TreeSet<>();
+        Set<Position> scheduledMessages2 = new TreeSet<>();
 
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
@@ -227,8 +228,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         int i = 31;
-        for (PositionImpl scheduledMessage : scheduledMessages2) {
-            assertEquals(scheduledMessage, PositionImpl.get(i, i));
+        for (Position scheduledMessage : scheduledMessages2) {
+            assertEquals(scheduledMessage, PositionFactory.create(i, i));
             i++;
         }
 
@@ -304,14 +305,14 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(110 * 10);
 
-        NavigableSet<PositionImpl> scheduledMessages = new TreeSet<>();
+        NavigableSet<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
         for (int i = 1; i <= 110; i++) {
-            PositionImpl position = scheduledMessages.pollFirst();
-            assertEquals(position, PositionImpl.get(i, i));
+            Position position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionFactory.create(i, i));
         }
 
         tracker2.close();
@@ -380,7 +381,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
-        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Set<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
@@ -418,10 +419,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(6, tracker.getNumberOfDelayedMessages());
 
-        NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(5);
+        NavigableSet<Position> scheduledMessages = tracker.getScheduledMessages(5);
         for (int i = 1; i <= 5; i++) {
-            PositionImpl position = scheduledMessages.pollFirst();
-            assertEquals(position, PositionImpl.get(i, i));
+            Position position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionFactory.create(i, i));
         }
     }
 

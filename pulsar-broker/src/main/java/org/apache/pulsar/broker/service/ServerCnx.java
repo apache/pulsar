@@ -66,8 +66,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -1906,7 +1907,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // This position is only used for shadow replicator
         Position position = send.hasMessageId()
-                ? PositionImpl.get(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
+                ? PositionFactory.create(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
@@ -2075,7 +2076,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            Position position = new PositionImpl(msgIdData.getLedgerId(),
+            Position position = AckSetStateUtil.createPositionWithAckSet(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet);
 
 
@@ -2249,8 +2250,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                      getLargestBatchIndexWhenPossible(
                              topic,
-                             (PositionImpl) lastPosition,
-                             (PositionImpl) markDeletePosition,
+                             lastPosition,
+                             markDeletePosition,
                              partitionIndex,
                              requestId,
                              consumer.getSubscription().getName(),
@@ -2269,8 +2270,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
-            PositionImpl lastPosition,
-            PositionImpl markDeletePosition,
+            Position lastPosition,
+            Position markDeletePosition,
             int partitionIndex,
             long requestId,
             String subscriptionName,
@@ -2307,7 +2308,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (compactionHorizon != null && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0) {
+            if (compactionHorizon != null && lastPosition.compareTo(compactionHorizon) <= 0) {
                 handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                         markDeletePosition);
                 return;
@@ -2368,7 +2369,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,
-                                                          int partitionIndex, PositionImpl markDeletePosition) {
+                                                          int partitionIndex, Position markDeletePosition) {
         persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenAccept(entry -> {
             if (entry != null) {
                 try {

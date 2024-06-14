@@ -206,6 +206,11 @@
 	  <artifactId>protobuf-java</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.re2j</groupId>
+      <artifactId>re2j</artifactId>
+    </dependency>
+
     <!-- test -->
     <dependency>
       <groupId>org.bouncycastle</groupId>

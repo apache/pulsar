@@ -26,7 +26,8 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
@@ -114,9 +115,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        NavigableSet<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<Position> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
 
         while (n > 0 && !priorityQueue.isEmpty()) {
@@ -127,7 +128,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
-            positions.add(new PositionImpl(ledgerId, entryId));
+            positions.add(PositionFactory.create(ledgerId, entryId));
 
             priorityQueue.pop();
             --n;

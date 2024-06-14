@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.transaction.exception.TransactionException;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -143,20 +142,20 @@ public interface TransactionBuffer {
      * @param readPosition the persistent position of the txn message.
      * @return whether the txn is aborted.
      */
-    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
+    boolean isTxnAborted(TxnID txnID, Position readPosition);
 
     /**
      * Sync max read position for normal publish.
-     * @param position {@link PositionImpl} the position to sync.
+     * @param position {@link Position} the position to sync.
      * @param isMarkerMessage whether the message is marker message.
      */
-    void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage);
+    void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage);
 
     /**
      * Get the can read max position.
      * @return the stable position.
      */
-    PositionImpl getMaxReadPosition();
+    Position getMaxReadPosition();
 
     /**
      * Get the snapshot type.
