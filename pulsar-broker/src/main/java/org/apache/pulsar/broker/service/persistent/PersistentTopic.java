@@ -554,7 +554,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
                 if (!replicationClusters.contains(remoteCluster)) {
-                    log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
+                    log.warn("Remove the orphan replicator because the cluster '{}' does not exist", remoteCluster);
                     futures.add(removeReplicator(remoteCluster));
                 }
             }
