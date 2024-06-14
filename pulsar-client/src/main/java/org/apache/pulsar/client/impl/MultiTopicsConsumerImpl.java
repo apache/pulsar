@@ -1556,7 +1556,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         return client.getLookup().getTopicsUnderNamespace(topicName.getNamespaceObject(),
                 CommandGetTopicsOfNamespace.Mode.PERSISTENT,
-                "^" + topicName.getPartitionedTopicName() + "$",
+                TopicName.getPattern(topicName.getPartitionedTopicName()),
                 null).thenApply(getTopicsResult -> {
             if (getTopicsResult.getNonPartitionedOrPartitionTopics() == null
                     || getTopicsResult.getNonPartitionedOrPartitionTopics().isEmpty()) {
