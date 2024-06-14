@@ -387,10 +387,6 @@ public class RuntimeUtils {
                 // be loaded.
                 args.add("--add-opens");
                 args.add("java.base/java.util.zip=ALL-UNNAMED");
-
-                // Needed for netty.DnsResolverUtil on JDK9+
-                args.add("--add-opens");
-                args.add("java.base/sun.net=ALL-UNNAMED");
             }
 
             if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
