@@ -1100,7 +1100,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         } else {
                             newConsumer.resume();
                         }
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        Consumer originalValue = consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        if (originalValue != null) {
+                            newConsumer.closeAsync().exceptionally(ex -> {
+                                log.error("[{}] [{}] Failed to close the orphan consumer",
+                                        partitionName, subscription, ex);
+                                return null;
+                            });
+                        }
                     }
                     subscribeList.add(subFuture);
                 }
