@@ -4480,11 +4480,11 @@ public class PersistentTopicsBase extends AdminResource {
                             // Partition topic index is 0 to (number of partition - 1)
                             if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
                                 log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                                + " a number smaller then number of partition of partitioned topic {}.",
+                                                + " a number smaller than number of partition of partitioned topic {}.",
                                         clientAppId(), topicName, partitionTopicName.getLocalName());
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Can't create topic " + topicName + " with \"-partition-\" followed by"
-                                                + " a number smaller then number of partition of partitioned topic "
+                                                + " a number smaller than number of partition of partitioned topic "
                                                 + partitionTopicName.getLocalName());
                             } else if (metadata.partitions == 0) {
                                 log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
