@@ -206,6 +206,94 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
+    public void testBrokerMetrics() throws Exception {
+        cleanup();
+        conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
+        setup();
+
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        // system topic
+        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/__change_events").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        // additional system cursor
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .subscriptionName("test-cursor")
+                .subscribe();
+
+        Consumer<byte[]> c3 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/__change_events")
+                .subscriptionName("test-v1")
+                .subscribe();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+            p3.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+            c2.acknowledge(c2.receive());
+            c3.acknowledge(c3.receive());
+        }
+
+        // unsubscribe to test remove cursor impact on metric
+        c1.unsubscribe();
+        c2.unsubscribe();
+
+        //admin.topics().unload("persistent://my-property/use/my-ns/my-topic1");
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        });
+
+        List<Metric> bytesOutTotal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total");
+        List<Metric> bytesInTotal = (List<Metric>) metrics.get("pulsar_broker_in_bytes_total");
+        assertEquals(bytesOutTotal.size(), 2);
+        assertEquals(bytesInTotal.size(), 2);
+
+        double systemOutBytes = 0.0;
+        double userOutBytes = 0.0;
+        switch (bytesOutTotal.get(0).tags.get("system_subscription").toString()) {
+            case "true":
+                systemOutBytes = bytesOutTotal.get(0).value;
+                userOutBytes = bytesOutTotal.get(1).value;
+            case "false":
+                systemOutBytes = bytesOutTotal.get(1).value;
+                userOutBytes = bytesOutTotal.get(0).value;
+        }
+
+        double systemInBytes = 0.0;
+        double userInBytes = 0.0;
+        switch (bytesInTotal.get(0).tags.get("system_topic").toString()) {
+            case "true":
+                systemInBytes = bytesInTotal.get(0).value;
+                userInBytes = bytesInTotal.get(1).value;
+            case "false":
+                systemInBytes = bytesInTotal.get(1).value;
+                userInBytes = bytesInTotal.get(0).value;
+        }
+
+        assertEquals(userOutBytes / 2, systemOutBytes);
+        assertEquals(userInBytes / 2, systemInBytes);
+        assertEquals(userOutBytes + systemOutBytes, userInBytes + systemInBytes);
+    }
+
+    @Test
     public void testMetricsTopicCount() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";

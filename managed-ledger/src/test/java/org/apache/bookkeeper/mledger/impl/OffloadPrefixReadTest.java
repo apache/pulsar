@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
@@ -93,7 +94,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         UUID secondLedgerUUID = new UUID(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidMsb(),
                 ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidLsb());
 
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
         int i = 0;
         for (Entry e : cursor.readEntries(10)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
@@ -163,7 +164,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
                 secondLedger.getOffloadContext().getUidLsb());
 
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
         int i = 0;
         for (Entry e : cursor.readEntries(10)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);

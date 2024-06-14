@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.NULL_OFFLOAD_PROMISE;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
@@ -507,13 +506,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             callback.openReadOnlyCursorFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;
         }
-        checkArgument(startPosition instanceof PositionImpl);
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
                 callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
-                        createReadOnlyCursor((PositionImpl) startPosition), ctx);
+                        createReadOnlyCursor(startPosition), ctx);
             }
 
             @Override

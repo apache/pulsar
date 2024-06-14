@@ -144,6 +144,7 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.google.re2j:re2j</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
                   <include>io.netty.incubator:*</include>

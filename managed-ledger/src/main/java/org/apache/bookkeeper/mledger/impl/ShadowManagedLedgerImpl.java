@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
@@ -98,7 +99,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+                    MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+                    lastConfirmedEntry =
+                            PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
                     log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
                             lastConfirmedEntry);
                 }
@@ -205,13 +208,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (currentLedger == null) {
             return;
         }
-        lastConfirmedEntry = new PositionImpl(currentLedger.getId(), currentLedger.getLastAddConfirmed());
+        lastConfirmedEntry = PositionFactory.create(currentLedger.getId(), currentLedger.getLastAddConfirmed());
         // bypass empty ledgers, find last ledger with Message if possible.
         while (lastConfirmedEntry.getEntryId() == -1) {
             Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
             if (formerLedger != null) {
                 LedgerInfo ledgerInfo = formerLedger.getValue();
-                lastConfirmedEntry = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+                lastConfirmedEntry = PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
             } else {
                 break;
             }
@@ -281,7 +284,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+            MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+            lastConfirmedEntry =
+                    PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
             log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
         }
 

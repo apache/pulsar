@@ -19,6 +19,7 @@
 package org.apache.pulsar.opentelemetry;
 
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 
 /**
@@ -115,14 +116,30 @@ public interface OpenTelemetryAttributes {
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
+    enum TransactionStatus {
+        ACTIVE,
+        COMMITTED,
+        ABORTED;
+        public final Attributes attributes = Attributes.of(PULSAR_TRANSACTION_STATUS, name().toLowerCase());
+    }
 
     /**
      * The status of the Pulsar compaction operation.
      */
     AttributeKey<String> PULSAR_COMPACTION_STATUS = AttributeKey.stringKey("pulsar.compaction.status");
+    enum CompactionStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(PULSAR_COMPACTION_STATUS, name().toLowerCase());
+    }
 
     /**
      * The type of the backlog quota.
      */
     AttributeKey<String> PULSAR_BACKLOG_QUOTA_TYPE = AttributeKey.stringKey("pulsar.backlog.quota.type");
+    enum BacklogQuotaType {
+        SIZE,
+        TIME;
+        public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
+    }
 }

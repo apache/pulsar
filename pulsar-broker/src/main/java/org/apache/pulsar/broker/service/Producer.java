@@ -390,11 +390,6 @@ public class Producer {
         private long entryTimestamp;
 
         @Override
-        public Position getNext() {
-            return null;
-        }
-
-        @Override
         public long getLedgerId() {
             return ledgerId;
         }

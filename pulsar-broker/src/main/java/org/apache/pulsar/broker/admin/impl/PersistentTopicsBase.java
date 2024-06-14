@@ -63,11 +63,12 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -2286,7 +2287,7 @@ public class PersistentTopicsBase extends AdminResource {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
             return subscription.resetCursor(
-                    PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
+                    PositionFactory.create(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
         }).thenRun(() -> {
             log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
                     topicName, subscriptionName, targetMessageId);
@@ -2557,7 +2558,7 @@ public class PersistentTopicsBase extends AdminResource {
             CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
             getEntryBatchSize(batchSizeFuture, (PersistentTopic) topic, messageId, batchIndex);
             batchSizeFuture.thenAccept(bi -> {
-                PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
+                Position seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
                         messageId);
                 sub.resetCursor(seekPosition).thenRun(() -> {
                     log.info("[{}][{}] successfully reset cursor on subscription {}"
@@ -2601,7 +2602,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (batchIndex >= 0) {
             try {
                 ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
-                ledger.asyncReadEntry(new PositionImpl(messageId.getLedgerId(),
+                ledger.asyncReadEntry(PositionFactory.create(messageId.getLedgerId(),
                         messageId.getEntryId()), new AsyncCallbacks.ReadEntryCallback() {
                     @Override
                     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
@@ -2650,9 +2651,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private PositionImpl calculatePositionAckSet(boolean isExcluded, int batchSize,
+    private Position calculatePositionAckSet(boolean isExcluded, int batchSize,
                                                  int batchIndex, MessageIdImpl messageId) {
-        PositionImpl seekPosition;
+        Position seekPosition;
         if (batchSize > 0) {
             long[] ackSet;
             BitSetRecyclable bitSet = BitSetRecyclable.create();
@@ -2661,25 +2662,25 @@ public class PersistentTopicsBase extends AdminResource {
                 bitSet.clear(0, Math.max(batchIndex + 1, 0));
                 if (bitSet.length() > 0) {
                     ackSet = bitSet.toLongArray();
-                    seekPosition = PositionImpl.get(messageId.getLedgerId(),
+                    seekPosition = AckSetStateUtil.createPositionWithAckSet(messageId.getLedgerId(),
                             messageId.getEntryId(), ackSet);
                 } else {
-                    seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                    seekPosition = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
                     seekPosition = seekPosition.getNext();
                 }
             } else {
                 if (batchIndex - 1 >= 0) {
                     bitSet.clear(0, batchIndex);
                     ackSet = bitSet.toLongArray();
-                    seekPosition = PositionImpl.get(messageId.getLedgerId(),
+                    seekPosition = AckSetStateUtil.createPositionWithAckSet(messageId.getLedgerId(),
                             messageId.getEntryId(), ackSet);
                 } else {
-                    seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+                    seekPosition = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
                 }
             }
             bitSet.recycle();
         } else {
-            seekPosition = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
+            seekPosition = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
             seekPosition = isExcluded ? seekPosition.getNext() : seekPosition;
         }
         return seekPosition;
@@ -2713,7 +2714,7 @@ public class PersistentTopicsBase extends AdminResource {
             CompletableFuture<Response> results = new CompletableFuture<>();
             ManagedLedgerImpl ledger =
                     (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
-            ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId),
+            ledger.asyncReadEntry(PositionFactory.create(ledgerId, entryId),
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryFailed(ManagedLedgerException exception,
@@ -2929,12 +2930,12 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.PRECONDITION_FAILED,
                             "Could not examine messages due to the total message is zero");
                 }
-                PositionImpl startPosition = persistentTopic.getFirstPosition();
+                Position startPosition = persistentTopic.getFirstPosition();
 
                 long messageToSkip = initialPositionLocal.equals("earliest") ? messagePositionLocal :
                         totalMessage - messagePositionLocal + 1;
                 CompletableFuture<Entry> future = new CompletableFuture<>();
-                PositionImpl readPosition = persistentTopic.getPositionAfterN(startPosition, messageToSkip);
+                Position readPosition = persistentTopic.getPositionAfterN(startPosition, messageToSkip);
                 persistentTopic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
                     @Override
                     public void readEntryComplete(Entry entry, Object ctx) {
@@ -2976,7 +2977,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private Response generateResponseWithEntry(Entry entry, PersistentTopic persistentTopic) throws IOException {
         checkNotNull(entry);
-        PositionImpl pos = (PositionImpl) entry.getPosition();
+        Position pos = entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
         long totalSize = metadataAndPayload.readableBytes();
@@ -3094,10 +3095,10 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, (PositionImpl) entry.getPosition());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
             responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
         }
-        boolean isTxnUncommitted = ((PositionImpl) entry.getPosition())
+        boolean isTxnUncommitted = (entry.getPosition())
                 .compareTo(persistentTopic.getMaxReadPosition()) > 0;
         responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
@@ -3216,7 +3217,7 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(unused -> getTopicReferenceAsync(topicName))
         .thenAccept(t -> {
             PersistentTopic topic = (PersistentTopic) t;
-            PositionImpl pos = new PositionImpl(messageId.getLedgerId(),
+            Position pos = PositionFactory.create(messageId.getLedgerId(),
                     messageId.getEntryId());
             if (topic == null) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND,
@@ -4052,7 +4053,7 @@ public class PersistentTopicsBase extends AdminResource {
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
 
                 batchSizeFuture.thenAccept(bi -> {
-                    PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
+                    Position position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
                     try {
                         if (messageExpirer.expireMessages(position)) {
                             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
@@ -4479,11 +4480,11 @@ public class PersistentTopicsBase extends AdminResource {
                             // Partition topic index is 0 to (number of partition - 1)
                             if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
                                 log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                                + " a number smaller then number of partition of partitioned topic {}.",
+                                                + " a number smaller than number of partition of partitioned topic {}.",
                                         clientAppId(), topicName, partitionTopicName.getLocalName());
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Can't create topic " + topicName + " with \"-partition-\" followed by"
-                                                + " a number smaller then number of partition of partitioned topic "
+                                                + " a number smaller than number of partition of partitioned topic "
                                                 + partitionTopicName.getLocalName());
                             } else if (metadata.partitions == 0) {
                                 log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
