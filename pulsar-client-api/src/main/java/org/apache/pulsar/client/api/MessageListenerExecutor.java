@@ -25,9 +25,19 @@ public interface MessageListenerExecutor {
 
     /**
      * select a thread by message to execute the runnable!
-     *
+     * <p>
+     * Suggestions:
+     * <p>
+     * 1. The message listener task will be submitted to this executor for execution,
+     * so the implementations of this interface should carefully consider execution
+     * order if sequential consumption is required.
+     * </p>
+     * <p>
+     * 2. The users should release resources(e.g. threads) of the executor after closing
+     * the consumer to avoid leaks.
+     * </p>
      * @param message  the message
-     * @param runnable the runnable to execute
+     * @param runnable the runnable to execute, that is, the message listener task
      */
     void execute(Message<?> message, Runnable runnable);
 }
