@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 
@@ -103,7 +104,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static String getPartitionPattern(String topic) {
-        return "^" + get(topic).getPartitionedTopicName().toString() + "-partition-[0-9]+$";
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
+    }
+
+    public static String getPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "$";
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
