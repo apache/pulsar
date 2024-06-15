@@ -88,7 +88,7 @@ public class BrokersBase extends AdminResource {
     private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
     private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
-    private volatile long threadDumpLoggedTimestamp;
+    private static volatile long threadDumpLoggedTimestamp;
 
     @GET
     @Path("/{cluster}")
@@ -395,8 +395,9 @@ public class BrokersBase extends AdminResource {
             String threadNames = Arrays.stream(threadInfos)
                     .map(threadInfo -> threadInfo.getThreadName() + "(tid=" + threadInfo.getThreadId() + ")").collect(
                             Collectors.joining(", "));
-            if (System.currentTimeMillis() - threadDumpLoggedTimestamp
-                    > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
+            if ((System.currentTimeMillis() - threadDumpLoggedTimestamp
+                    > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) ||
+                    threadDumpLoggedTimestamp == 0) {
                 threadDumpLoggedTimestamp = System.currentTimeMillis();
                 LOG.error("Deadlocked threads detected. {}\n{}", threadNames,
                         ThreadDumpUtil.buildThreadDiagnosticString());
