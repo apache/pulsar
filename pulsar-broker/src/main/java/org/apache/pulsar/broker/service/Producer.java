@@ -23,10 +23,12 @@ import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.CaseFormat;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.opentelemetry.api.common.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -57,8 +60,8 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsI
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,10 +77,6 @@ public class Producer {
     private final long producerId;
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
-    private Rate msgIn;
-    private Rate chunkedMessageRate;
-    // it records msg-drop rate only for non-persistent topic
-    private final Rate msgDrop;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -87,6 +86,10 @@ public class Producer {
     private final CompletableFuture<Void> closeFuture;
 
     private final PublisherStatsImpl stats;
+    private volatile Attributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<Producer, Attributes> ATTRIBUTES_FIELD_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(Producer.class, Attributes.class, "attributes");
+
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
@@ -118,10 +121,7 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.msgIn = new Rate();
-        this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
-        this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
         this.isShadowTopic =
                 topic instanceof PersistentTopic && ((PersistentTopic) topic).getShadowSourceTopic().isPresent();
 
@@ -270,7 +270,7 @@ public class Producer {
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(),
+                MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
                         batchSize, isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
@@ -282,7 +282,7 @@ public class Producer {
     private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
                                        long batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
-                highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                highestSequenceId, headersAndPayload.readableBytes(), batchSize,
                 isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
@@ -339,8 +339,8 @@ public class Producer {
     }
 
     public void recordMessageDrop(int batchSize) {
-        if (this.isNonPersistentTopic) {
-            msgDrop.recordEvent(batchSize);
+        if (stats instanceof NonPersistentPublisherStatsImpl nonPersistentPublisherStats) {
+            nonPersistentPublisherStats.recordMsgDrop(batchSize);
         }
     }
 
@@ -374,7 +374,6 @@ public class Producer {
         private long sequenceId;
         private long ledgerId;
         private long entryId;
-        private Rate rateIn;
         private int msgSize;
         private long batchSize;
         private boolean chunked;
@@ -536,13 +535,13 @@ public class Producer {
             }
 
             // stats
-            rateIn.recordMultipleEvents(batchSize, msgSize);
+            producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
                     ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
-                producer.chunkedMessageRate.recordEvent();
+                producer.stats.recordChunkedMsgIn();
             }
             producer.publishOperationCompleted();
             if (producer.brokerInterceptor != null) {
@@ -552,12 +551,11 @@ public class Producer {
             recycle();
         }
 
-        static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+        static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, long batchSize,
+                                         boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
-            callback.rateIn = rateIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.chunked = chunked;
@@ -573,13 +571,12 @@ public class Producer {
             return callback;
         }
 
-        static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                int msgSize, long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+        static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, int msgSize,
+                             long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
             callback.highestSequenceId = highestSequenceId;
-            callback.rateIn = rateIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
@@ -628,7 +625,6 @@ public class Producer {
             highestSequenceId = -1L;
             originalSequenceId = -1L;
             originalHighestSequenceId = -1L;
-            rateIn = null;
             msgSize = 0;
             ledgerId = -1L;
             entryId = -1L;
@@ -733,23 +729,10 @@ public class Producer {
     }
 
     public void updateRates() {
-        msgIn.calculateRate();
-        chunkedMessageRate.calculateRate();
-        stats.msgRateIn = msgIn.getRate();
-        stats.msgThroughputIn = msgIn.getValueRate();
-        stats.averageMsgSize = msgIn.getAverageValue();
-        stats.chunkedMessageRate = chunkedMessageRate.getRate();
-        if (chunkedMessageRate.getCount() > 0 && this.topic instanceof PersistentTopic) {
-            ((PersistentTopic) this.topic).msgChunkPublished = true;
+        stats.calculateRates();
+        if (stats.getMsgChunkIn().getCount() > 0 && topic instanceof PersistentTopic persistentTopic) {
+            persistentTopic.msgChunkPublished = true;
         }
-        if (this.isNonPersistentTopic) {
-            msgDrop.calculateRate();
-            ((NonPersistentPublisherStatsImpl) stats).msgDropRate = msgDrop.getValueRate();
-        }
-    }
-
-    public void updateRates(int numOfMessages, long msgSizeInBytes) {
-        msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {
@@ -817,7 +800,7 @@ public class Producer {
             return;
         }
         MessagePublishContext messagePublishContext =
-                MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
+                MessagePublishContext.get(this, sequenceId, highSequenceId,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
         if (brokerInterceptor != null) {
             brokerInterceptor
@@ -870,5 +853,30 @@ public class Producer {
      */
     public void decrementThrottleCount() {
         cnx.decrementThrottleCount();
+    }
+
+    public Attributes getOpenTelemetryAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this, old -> {
+            if (old != null) {
+                return old;
+            }
+            var topicName = TopicName.get(topic.getName());
+            var builder = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, producerId)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE,
+                            CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, accessMode.name()))
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+            if (topicName.isPartitioned()) {
+                builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+            }
+            return builder.build();
+        });
     }
 }
