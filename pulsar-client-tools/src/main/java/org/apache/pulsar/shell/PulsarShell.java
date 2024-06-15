@@ -31,6 +31,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
@@ -130,6 +131,30 @@ public class PulsarShell {
         IDLE,
         RUNNING
     }
+    enum ShellMode {
+        ADMIN("admin"),
+        CLIENT("client"),
+        CONFIG("config"),
+        DEFAULT("");
+
+        private static final Map<String, ShellMode> COMMAND_MAP = new HashMap<>();
+
+        static {
+            for (ShellMode shellMode: values()) {
+                COMMAND_MAP.put(shellMode.command, shellMode);
+            }
+        }
+
+        final String command;
+
+        ShellMode(String command) {
+            this.command = command;
+        }
+
+        public static ShellMode valueOfCommand(String command) {
+            return COMMAND_MAP.get(command);
+        }
+    }
     private Properties properties;
     @Getter
     private final ConfigStore configStore;
@@ -142,6 +167,9 @@ public class PulsarShell {
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
     private ExecState execState = ExecState.IDLE;
+    private ShellMode shellMode = ShellMode.DEFAULT;
+    private String prompt;
+    private String promptMessage;
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -274,14 +302,13 @@ public class PulsarShell {
                             new AttributedStringBuilder().style(AttributedStyle.BOLD).append("exit").toAnsi(),
                             new AttributedStringBuilder().style(AttributedStyle.BOLD).append("quit").toAnsi());
             output(welcomeMessage, terminal);
-            String promptMessage;
             if (configShell.getCurrentConfig() != null) {
                 promptMessage = String.format("%s(%s)",
                         configShell.getCurrentConfig(), getHostFromUrl(serviceUrl));
             } else {
                 promptMessage = getHostFromUrl(serviceUrl);
             }
-            final String prompt = createPrompt(promptMessage);
+            prompt = createPrompt(promptMessage);
             return new InteractiveLineReader() {
                 @Override
                 public String readLine() {
@@ -414,13 +441,30 @@ public class PulsarShell {
                 return;
             }
             execState = ExecState.RUNNING;
-            final String line = words.stream().collect(Collectors.joining(" "));
+            String line = words.stream().collect(Collectors.joining(" "));
             if (StringUtils.isBlank(line)) {
                 continue;
             }
             if (isQuitCommand(line)) {
+                if (shellMode != ShellMode.DEFAULT) {
+                    output(String.format("Exiting from %s shell mode", shellMode.command), terminal);
+                    prompt = createPrompt(promptMessage);
+                    shellMode = ShellMode.DEFAULT;
+                    continue;
+                }
                 exit(0);
                 return;
+            }
+            if (shellMode != ShellMode.DEFAULT) {
+                words.add(0, shellMode.command);
+                line = shellMode.command + " " + line;
+            } else {
+                ShellMode newShellMode = ShellMode.valueOfCommand(line.toLowerCase(Locale.ROOT));
+                if (newShellMode != null) {
+                    shellMode = newShellMode;
+                    prompt = createPrompt(promptMessage + " " + shellMode.command);
+                    continue;
+                }
             }
             if (isHelp(line)) {
                 shellCommander.usage(System.out);
