@@ -412,8 +412,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     private RoaringBitmap createNewBitSet() {
-        return new RoaringBitmap();
-//        return this.threadSafe ? new ConcurrentBitSet(bitSetSize) : new BitSet(bitSetSize);
+        return threadSafe ? new ConcurrentRoaringBitmap() : new RoaringBitmap();
     }
 
 }
