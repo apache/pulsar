@@ -191,7 +191,10 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public int size() {
-        return roaringBitmap.getCardinality();
+        if (roaringBitmap.isEmpty()) {
+            return 0;
+        }
+        return roaringBitmap.last() + 1;
     }
 
     @Override
