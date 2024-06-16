@@ -413,12 +413,6 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     public boolean equals(final Object o) {
-        if (o == this) {
-            return true;
-        }
-        if (!(o instanceof ConcurrentBitSet)) {
-            return false;
-        }
         long stamp = rwLock.tryOptimisticRead();
         boolean isEqual = super.equals(o);
         if (!rwLock.validate(stamp)) {

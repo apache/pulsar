@@ -196,15 +196,18 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
         if (obj instanceof RoaringBitSet) {
             return roaringBitmap.equals(((RoaringBitSet) obj).roaringBitmap);
-        } else {
-            return super.equals(obj);
         }
+        return false;
     }
 
     @Override
     public Object clone() {
+        Object ignore = super.clone();
         return new RoaringBitSet(roaringBitmap.clone());
     }
 
