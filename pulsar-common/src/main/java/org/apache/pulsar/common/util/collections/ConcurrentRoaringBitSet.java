@@ -375,12 +375,12 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     @Override
     public Object clone() {
         long stamp = rwLock.tryOptimisticRead();
-        BitSet clonedBitSet = (BitSet) super.clone();
+        Object clonedBitSet = super.clone();
         if (!rwLock.validate(stamp)) {
             // Fallback to read lock
             stamp = rwLock.readLock();
             try {
-                clonedBitSet = (BitSet) super.clone();
+                clonedBitSet = super.clone();
             } finally {
                 rwLock.unlockRead(stamp);
             }
