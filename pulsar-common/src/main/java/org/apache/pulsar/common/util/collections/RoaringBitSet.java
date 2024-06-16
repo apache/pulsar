@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util.collections;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.stream.IntStream;
-
 import org.roaringbitmap.RoaringBitmap;
 
 @SuppressWarnings("all")
