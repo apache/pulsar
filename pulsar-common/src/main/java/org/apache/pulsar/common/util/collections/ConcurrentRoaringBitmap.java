@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import org.roaringbitmap.Container;
-import org.roaringbitmap.IntConsumer;
-import org.roaringbitmap.RelativeRangeConsumer;
-import org.roaringbitmap.RoaringBitmap;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -29,6 +25,10 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.StampedLock;
+import org.roaringbitmap.Container;
+import org.roaringbitmap.IntConsumer;
+import org.roaringbitmap.RelativeRangeConsumer;
+import org.roaringbitmap.RoaringBitmap;
 
 public class ConcurrentRoaringBitmap extends RoaringBitmap {
 
