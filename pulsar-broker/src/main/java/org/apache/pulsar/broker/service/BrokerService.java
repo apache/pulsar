@@ -3227,65 +3227,66 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
-        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
-                .thenCompose(policies -> pulsar.getNamespaceService().checkTopicExists(topicName)
-                    .thenCompose(topicExists -> fetchPartitionedTopicMetadataAsync(topicName)
-                            .thenCompose(metadata -> {
-                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
+        return pulsar.getNamespaceService().checkTopicExists(topicName).thenComposeAsync(topicExistsInfo -> {
+            final boolean topicExists = topicExistsInfo.isExists();
+            final TopicType topicType = topicExistsInfo.getTopicType();
+            final Integer partitions = topicExistsInfo.getPartitions();
+            topicExistsInfo.recycle();
 
-                                // There are a couple of potentially blocking calls, which we cannot make from the
-                                // MetadataStore callback thread.
-                                pulsar.getExecutor().execute(() -> {
-                                    // If topic is already exist, creating partitioned topic is not allowed.
+            // Topic exists.
+            if (topicExists) {
+                if (topicType.equals(TopicType.PARTITIONED)) {
+                    return CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitions));
+                }
+                return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+            }
 
-                                    if (metadata.partitions == 0
-                                            && !topicExists
-                                            && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService()
-                                            .isDefaultTopicTypePartitioned(topicName, policies)) {
-                                        isAllowAutoTopicCreationAsync(topicName, policies).thenAccept(allowed -> {
-                                            if (allowed) {
-                                                pulsar.getBrokerService()
-                                                        .createDefaultPartitionedTopicAsync(topicName, policies)
-                                                        .thenAccept(md -> future.complete(md))
-                                                        .exceptionally(ex -> {
-                                                            if (ex.getCause()
-                                                                    instanceof MetadataStoreException
-                                                                    .AlreadyExistsException) {
-                                                                log.info("[{}] The partitioned topic is already"
-                                                                        + " created, try to refresh the cache and read"
-                                                                        + " again.", topicName);
-                                                                // The partitioned topic might be created concurrently
-                                                                fetchPartitionedTopicMetadataAsync(topicName, true)
-                                                                        .whenComplete((metadata2, ex2) -> {
-                                                                            if (ex2 == null) {
-                                                                                future.complete(metadata2);
-                                                                            } else {
-                                                                                future.completeExceptionally(ex2);
-                                                                            }
-                                                                        });
-                                                            } else {
-                                                                log.error("[{}] operation of creating partitioned"
-                                                                        + " topic metadata failed",
-                                                                        topicName, ex);
-                                                                future.completeExceptionally(ex);
-                                                            }
-                                                            return null;
-                                                        });
-                                            } else {
-                                                future.complete(metadata);
-                                            }
-                                        }).exceptionally(ex -> {
-                                            future.completeExceptionally(ex);
-                                            return null;
-                                        });
-                                    } else {
-                                        future.complete(metadata);
-                                    }
-                                });
+            // Try created if allowed to create a partitioned topic automatically.
+            return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                .thenComposeAsync(policies -> {
+                    return isAllowAutoTopicCreationAsync(topicName, policies).thenComposeAsync(allowed -> {
+                        // Not Allow auto-creation.
+                        if (!allowed) {
+                            // Do not change the original behavior, or default return a non-partitioned topic.
+                            return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                        }
 
-                                return future;
-                            })));
+                        // Allow auto create non-partitioned topic.
+                        boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
+                                .isDefaultTopicTypePartitioned(topicName, policies);
+                        if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
+                            return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                        }
+
+                        // Create partitioned metadata.
+                        return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName, policies)
+                            .exceptionallyCompose(ex -> {
+                                // The partitioned topic might be created concurrently.
+                                if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
+                                    log.info("[{}] The partitioned topic is already created, try to refresh the cache"
+                                            + " and read again.", topicName);
+                                    CompletableFuture<PartitionedTopicMetadata> recheckFuture =
+                                            fetchPartitionedTopicMetadataAsync(topicName, true);
+                                    recheckFuture.exceptionally(ex2 -> {
+                                        // Just for printing a log if error occurs.
+                                        log.error("[{}] Fetch partitioned topic metadata failed", topicName, ex);
+                                        return null;
+                                    });
+                                    return recheckFuture;
+                                } else {
+                                    log.error("[{}] operation of creating partitioned topic metadata failed",
+                                            topicName, ex);
+                                    return CompletableFuture.failedFuture(ex);
+                                }
+                            });
+                    }, pulsar.getExecutor()).exceptionallyCompose(ex -> {
+                        log.error("[{}] operation of get partitioned metadata failed due to calling"
+                                        + " isAllowAutoTopicCreationAsync failed",
+                                topicName, ex);
+                        return CompletableFuture.failedFuture(ex);
+                    });
+            }, pulsar.getExecutor());
+        }, pulsar.getExecutor());
     }
 
     @SuppressWarnings("deprecation")
