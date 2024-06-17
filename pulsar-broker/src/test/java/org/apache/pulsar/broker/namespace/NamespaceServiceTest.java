@@ -821,14 +821,15 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get().isExists());
         });
 
         String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(partitionedTopic, 5);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get());
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get().isExists());
+            assertTrue(pulsar.getNamespaceService()
+                    .checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get().isExists());
         });
     }
 
