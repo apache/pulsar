@@ -254,10 +254,13 @@ public class TopicListService {
             return;
         }
 
-        // Proceed with normal watcher close
-        topicResources.deregisterPersistentTopicListener(watcherFuture.getNow(null));
+        watcherFuture.thenApply(watcher -> {
+            topicResources.deregisterPersistentTopicListener(watcher);
+            log.info("[{}] Deregistered watcher, watcherId={}", connection.toString(), watcherId);
+            return null;
+        });
         watchers.remove(watcherId);
-        log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
+        log.info("[{}] Removed watcher, watcherId={}", connection.toString(), watcherId);
     }
 
     /**
