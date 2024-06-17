@@ -293,11 +293,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     };
 
-    public enum State {
-        Start,
-        Connected,
-        Failed,
-        Connecting
+    enum State {
+        Start, Connected, Failed, Connecting
     }
 
     private final ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker(this);
