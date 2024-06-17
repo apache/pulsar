@@ -441,14 +441,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 46;
-            portArg = 33;
-            metricsPortArg = 35;
+            totalArgs = 52;
+            portArg = 39;
+            metricsPortArg = 41;
         } else {
             extraDepsEnv = "";
-            portArg = 32;
-            metricsPortArg = 34;
-            totalArgs = 45;
+            portArg = 38;
+            metricsPortArg = 40;
+            totalArgs = 51;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -479,7 +479,11 @@ public class KubernetesRuntimeTest {
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Dio.netty.tryReflectionSetAccessible=true"
-                + " --add-opens java.base/sun.net=ALL-UNNAMED"
+                + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
+                + " --add-opens java.base/java.nio=ALL-UNNAMED"
+                + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+                + " --add-opens java.base/java.util.zip=ALL-UNNAMED"
                 + " -Xmx" + RESOURCES.getRam()
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + jarLocation
@@ -1306,7 +1310,7 @@ public class KubernetesRuntimeTest {
                     .contains("--metrics_port 0"));
         }
     }
-    
+
     @Test
     public void testDeleteStatefulSetWithTranslatedKubernetesLabelChars() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
@@ -1315,22 +1319,22 @@ public class KubernetesRuntimeTest {
 
         CoreV1Api coreApi = mock(CoreV1Api.class);
         AppsV1Api appsApi = mock(AppsV1Api.class);
-        
+
         Call successfulCall = mock(Call.class);
         Response okResponse = mock(Response.class);
         when(okResponse.code()).thenReturn(HttpURLConnection.HTTP_OK);
         when(okResponse.isSuccessful()).thenReturn(true);
         when(okResponse.message()).thenReturn("");
         when(successfulCall.execute()).thenReturn(okResponse);
-        
+
         final String expectedFunctionNamePrefix = String.format("pf-%s-%s-%s", "c-tenant", "c-ns", "c-fn");
-        
+
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
         factory.setCoreClient(coreApi);
         factory.setAppsClient(appsApi);
 
         ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> t.startsWith(expectedFunctionNamePrefix);
-        
+
         when(appsApi.deleteNamespacedStatefulSetCall(
                 argThat(hasTranslatedFunctionName),
                 anyString(), isNull(), isNull(), anyInt(), isNull(), anyString(), any(), isNull())).thenReturn(successfulCall);
@@ -1342,14 +1346,14 @@ public class KubernetesRuntimeTest {
 
         V1PodList podList = mock(V1PodList.class);
         when(podList.getItems()).thenReturn(Collections.emptyList());
-        
+
         String expectedLabels = String.format("tenant=%s,namespace=%s,name=%s", "c-tenant", "c-ns", "c-fn");
-        
+
         when(coreApi.listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
                 eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(podList);
-        KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml", "/test/transforms", "transform.yml", Long.MIN_VALUE);        
+        KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml", "/test/transforms", "transform.yml", Long.MIN_VALUE);
         kr.deleteStatefulSet();
-        
+
         verify(coreApi).listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
                 eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull());
     }
