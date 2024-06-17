@@ -309,28 +309,6 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
         return bitSet;
     }
 
-    /**
-     * Thread-safe version of {@code length()}.
-     * StampedLock is not reentrant and that's why the length() method is not overridden. Overriding length() method
-     * would require to use a reentrant lock which would be less performant.
-     *
-     * @return length of the bit set
-     */
-    public int safeLength() {
-        long stamp = rwLock.tryOptimisticRead();
-        int length = super.length();
-        if (!rwLock.validate(stamp)) {
-            // Fallback to read lock
-            stamp = rwLock.readLock();
-            try {
-                length = super.length();
-            } finally {
-                rwLock.unlockRead(stamp);
-            }
-        }
-        return length;
-    }
-
     @Override
     public boolean intersects(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
