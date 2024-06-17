@@ -484,7 +484,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        return deferGetOwnerRequest(serviceUnit)
+        return dedupeGetOwnerRequest(serviceUnit)
                 .thenCompose(newOwner -> {
                     if (newOwner == null) {
                         return CompletableFuture.completedFuture(null);
@@ -622,7 +622,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
+        CompletableFuture<String> getOwnerRequest = dedupeGetOwnerRequest(serviceUnit);
 
         pubAsync(serviceUnit, new ServiceUnitStateData(Assigning, broker, getNextVersionId(serviceUnit)))
                 .whenComplete((__, ex) -> {
@@ -932,44 +932,54 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return broker.equals(brokerId);
     }
 
-    private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
+    private CompletableFuture<String> deferGetOwner(String serviceUnit) {
+        var future = new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
+                        TimeUnit.MILLISECONDS)
+                .exceptionally(e -> {
+                    var ownerAfter = getOwner(serviceUnit);
+                    log.warn("{} failed to wait for owner for serviceUnit:{}; Trying to "
+                                    + "return the current owner:{}",
+                            brokerId, serviceUnit, ownerAfter, e);
+                    if (ownerAfter == null) {
+                        throw new IllegalStateException(e);
+                    }
+                    return ownerAfter.orElse(null);
+                });
+        if (debug()) {
+            log.info("{} is waiting for owner for serviceUnit:{}", brokerId, serviceUnit);
+        }
+        return future;
+    }
+
+    private CompletableFuture<String> dedupeGetOwnerRequest(String serviceUnit) {
 
         var requested = new MutableObject<CompletableFuture<String>>();
         try {
-            return getOwnerRequests
-                    .computeIfAbsent(serviceUnit, k -> {
-                        var ownerBefore = getOwner(serviceUnit);
-                        if (ownerBefore != null && ownerBefore.isPresent()) {
-                            // Here, we do a quick active check first with the computeIfAbsent lock
-                            brokerRegistry.lookupAsync(ownerBefore.get()).getNow(Optional.empty())
-                                    .ifPresent(__ -> requested.setValue(
-                                            CompletableFuture.completedFuture(ownerBefore.get())));
-
-                            if (requested.getValue() != null) {
-                                return requested.getValue();
-                            }
-                        }
-
-
-                        CompletableFuture<String> future =
-                                new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
-                                                TimeUnit.MILLISECONDS)
-                                        .exceptionally(e -> {
-                                            var ownerAfter = getOwner(serviceUnit);
-                                            log.warn("{} failed to wait for owner for serviceUnit:{}; Trying to "
-                                                            + "return the current owner:{}",
-                                                    brokerId, serviceUnit, ownerAfter, e);
-                                            if (ownerAfter == null) {
-                                                throw new IllegalStateException(e);
-                                            }
-                                            return ownerAfter.orElse(null);
-                                        });
-                        if (debug()) {
-                            log.info("{} is waiting for owner for serviceUnit:{}", brokerId, serviceUnit);
-                        }
-                        requested.setValue(future);
-                        return future;
-                    });
+            return getOwnerRequests.computeIfAbsent(serviceUnit, k -> {
+                var ownerBefore = getOwner(serviceUnit);
+                if (ownerBefore != null && ownerBefore.isPresent()) {
+                    // Here, we do the broker active check first with the computeIfAbsent lock
+                    requested.setValue(brokerRegistry.lookupAsync(ownerBefore.get())
+                            .thenCompose(brokerLookupData -> {
+                                if (brokerLookupData.isPresent()) {
+                                    // The owner broker is active.
+                                    // Immediately return the request.
+                                    return CompletableFuture.completedFuture(ownerBefore.get());
+                                } else {
+                                    // The owner broker is inactive.
+                                    // The leader broker should be cleaning up the orphan service units.
+                                    // Defer this request til the leader notifies the new ownerships.
+                                    return deferGetOwner(serviceUnit);
+                                }
+                            }));
+                } else {
+                    // The owner broker has not been declared yet.
+                    // The ownership should be in the middle of transferring or assigning.
+                    // Defer this request til the inflight ownership change is complete.
+                    requested.setValue(deferGetOwner(serviceUnit));
+                }
+                return requested.getValue();
+            });
         } finally {
             var future = requested.getValue();
             if (future != null) {

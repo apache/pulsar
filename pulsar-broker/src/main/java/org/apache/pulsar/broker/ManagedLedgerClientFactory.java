@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker;
 
+import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -48,8 +50,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
-    private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = new ConcurrentHashMap<>();
+    private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
+            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
@@ -89,27 +91,20 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
         this.defaultBkClient =
-                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger);
+                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger)
+                        .get();
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
-            BookKeeper bkClient = null;
-            // find or create bk-client in cache for a specific ensemblePlacementPolicy
-            if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
-                bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
-                    try {
-                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
-                    } catch (Exception e) {
-                        log.error("Failed to initialize bk-client for policy {}, properties {}",
-                                ensemblePlacementPolicyConfig.getPolicyClass(),
-                                ensemblePlacementPolicyConfig.getProperties(), e);
-                    }
-                    return this.defaultBkClient;
-                });
+            if (ensemblePlacementPolicyConfig == null || ensemblePlacementPolicyConfig.getPolicyClass() == null) {
+                return CompletableFuture.completedFuture(defaultBkClient);
             }
-            return bkClient != null ? bkClient : defaultBkClient;
+
+            // find or create bk-client in cache for a specific ensemblePlacementPolicy
+            return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
+                    (config, executor) -> bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
+                            Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                            ensemblePlacementPolicyConfig.getProperties(), statsLogger));
         };
 
         try {
@@ -136,7 +131,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     @VisibleForTesting
     public Map<EnsemblePlacementPolicyConfig, BookKeeper> getBkEnsemblePolicyToBookKeeperMap() {
-        return bkEnsemblePolicyToBkClientMap;
+        return bkEnsemblePolicyToBkClientMap.synchronous().asMap();
     }
 
     @Override
@@ -164,7 +159,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 // factory, however that might be introducing more unknowns.
                 log.warn("Encountered exceptions on closing bookkeeper client", ree);
             }
-            bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
+            bkEnsemblePolicyToBkClientMap.synchronous().asMap().forEach((policy, bk) -> {
                 try {
                     if (bk != null) {
                         bk.close();

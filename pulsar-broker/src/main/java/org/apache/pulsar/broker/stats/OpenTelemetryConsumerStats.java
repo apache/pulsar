@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Collection;
@@ -27,8 +26,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryConsumerStats implements AutoCloseable {
 
@@ -51,6 +48,9 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
     // Replaces pulsar_consumer_unacked_messages
     public static final String MESSAGE_UNACKNOWLEDGED_COUNTER = "pulsar.broker.consumer.message.unack.count";
     private final ObservableLongMeasurement messageUnacknowledgedCounter;
+
+    public static final String CONSUMER_BLOCKED_COUNTER = "pulsar.broker.consumer.blocked";
+    private final ObservableLongMeasurement consumerBlockedCounter;
 
     // Replaces pulsar_consumer_available_permits
     public static final String MESSAGE_PERMITS_COUNTER = "pulsar.broker.consumer.permit.count";
@@ -91,6 +91,12 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
                 .setDescription("The total number of messages unacknowledged by this consumer.")
                 .buildObserver();
 
+        consumerBlockedCounter = meter
+                .upDownCounterBuilder(CONSUMER_BLOCKED_COUNTER)
+                .setUnit("1")
+                .setDescription("Indicates whether the consumer is currently blocked due to unacknowledged messages.")
+                .buildObserver();
+
         messagePermitsCounter = meter
                 .upDownCounterBuilder(MESSAGE_PERMITS_COUNTER)
                 .setUnit("{permit}")
@@ -114,6 +120,7 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
                 messageAckCounter,
                 messageRedeliverCounter,
                 messageUnacknowledgedCounter,
+                consumerBlockedCounter,
                 messagePermitsCounter);
     }
 
@@ -123,48 +130,13 @@ public class OpenTelemetryConsumerStats implements AutoCloseable {
     }
 
     private void recordMetricsForConsumer(Consumer consumer) {
-        var subscription = consumer.getSubscription();
-        var topicName = TopicName.get(subscription.getTopic().getName());
-
-        var builder = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.consumerName())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, consumer.consumerId())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_CONNECTED_SINCE,
-                        consumer.getConnectedSince().getEpochSecond())
-                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscription.getName())
-                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, consumer.subType().toString())
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
-                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
-        if (topicName.isPartitioned()) {
-            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
-        }
-        var clientAddress = consumer.getClientAddressAndPort();
-        if (clientAddress != null) {
-            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, clientAddress);
-        }
-        var clientVersion = consumer.getClientVersion();
-        if (clientVersion != null) {
-            builder.put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, clientVersion);
-        }
-        var metadataList = consumer.getMetadata()
-                .entrySet()
-                .stream()
-                .map(e -> String.format("%s:%s", e.getKey(), e.getValue()))
-                .toList();
-        builder.put(OpenTelemetryAttributes.PULSAR_CONSUMER_METADATA, metadataList);
-        var attributes = builder.build();
-
+        var attributes = consumer.getOpenTelemetryAttributes();
         messageOutCounter.record(consumer.getMsgOutCounter(), attributes);
         bytesOutCounter.record(consumer.getBytesOutCounter(), attributes);
         messageAckCounter.record(consumer.getMessageAckCounter(), attributes);
         messageRedeliverCounter.record(consumer.getMessageRedeliverCounter(), attributes);
-        messageUnacknowledgedCounter.record(consumer.getUnackedMessages(),
-                Attributes.builder()
-                        .putAll(attributes)
-                        .put(OpenTelemetryAttributes.PULSAR_CONSUMER_BLOCKED, consumer.isBlocked())
-                        .build());
+        messageUnacknowledgedCounter.record(consumer.getUnackedMessages(), attributes);
+        consumerBlockedCounter.record(consumer.isBlocked() ? 1 : 0, attributes);
         messagePermitsCounter.record(consumer.getAvailablePermits(), attributes);
     }
 }

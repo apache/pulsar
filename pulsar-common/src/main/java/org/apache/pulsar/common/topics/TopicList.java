@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.topics;
 
 import com.google.common.hash.Hashing;
+import com.google.re2j.Pattern;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -46,6 +46,7 @@ public class TopicList {
         return filterTopics(original, topicsPattern);
     }
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
+
 
         final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainScheme(topicsPattern.toString()));
 

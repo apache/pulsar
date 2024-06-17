@@ -31,6 +31,7 @@ import org.apache.bookkeeper.util.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -46,12 +47,15 @@ public class PulsarStandaloneTest {
     @Test
     public void testStandaloneWithRocksDB() throws Exception {
         String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw"};
         final int bookieNum = 3;
         final File tempDir = IOUtils.createTempDir("standalone", "test");
 
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         standalone.setBkDir(tempDir.getAbsolutePath());
+        standalone.setBkPort(0);
         standalone.setNumOfBk(bookieNum);
 
         standalone.startBookieWithMetadataStore();
@@ -90,11 +94,12 @@ public class PulsarStandaloneTest {
         }
         final File bkDir = IOUtils.createTempDir("standalone", "bk");
         standalone.setNumOfBk(1);
+        standalone.setBkPort(0);
         standalone.setBkDir(bkDir.getAbsolutePath());
         standalone.start();
 
         @Cleanup PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl("http://localhost:8080")
+                .serviceHttpUrl(standalone.getWebServiceUrl())
                 .authentication(new MockTokenAuthenticationProvider.MockAuthentication())
                 .build();
         if (enableBrokerClientAuth) {
@@ -104,8 +109,8 @@ public class PulsarStandaloneTest {
         } else {
             assertTrue(admin.clusters().getClusters().isEmpty());
             admin.clusters().createCluster("test_cluster", ClusterData.builder()
-                    .serviceUrl("http://localhost:8080/")
-                    .brokerServiceUrl("pulsar://localhost:6650/")
+                    .serviceUrl(standalone.getWebServiceUrl())
+                    .brokerServiceUrl(standalone.getBrokerServiceUrl())
                     .build());
             assertTrue(admin.tenants().getTenants().isEmpty());
             admin.tenants().createTenant("public", TenantInfo.builder()
@@ -124,5 +129,40 @@ public class PulsarStandaloneTest {
         standalone.close();
         cleanDirectory(bkDir);
         cleanDirectory(metadataDir);
+    }
+
+
+    @Test
+    public void testShutdownHookClosesBkCluster() throws Exception {
+        File dataDir = IOUtils.createTempDir("data", "");
+        File metadataDir = new File(dataDir, "metadata");
+        File bkDir = new File(dataDir, "bookkeeper");
+        @Cleanup
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-dir",
+                metadataDir.getAbsolutePath(),
+                "--bookkeeper-dir",
+                bkDir.getAbsolutePath()
+        });
+        standalone.setTestMode(true);
+        standalone.setBkPort(0);
+        standalone.start();
+        BKCluster bkCluster = standalone.bkCluster;
+        standalone.runShutdownHook();
+        assertTrue(bkCluster.isClosed());
+    }
+
+    @Test
+    public void testWipeData() throws Exception {
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/standalone_no_client_auth.conf",
+                "--wipe-data"
+        });
+        assertTrue(standalone.isWipeData());
     }
 }

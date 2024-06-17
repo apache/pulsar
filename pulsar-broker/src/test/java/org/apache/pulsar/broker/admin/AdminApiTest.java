@@ -65,7 +65,7 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -3481,7 +3481,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(subStats.getConsumers().size(), 2);
         ConsumerStats consumerStats = subStats.getConsumers().get(0);
         Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
-                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
+                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
 
         for (Consumer<byte[]> consumer : consumers) {
             consumer.close();

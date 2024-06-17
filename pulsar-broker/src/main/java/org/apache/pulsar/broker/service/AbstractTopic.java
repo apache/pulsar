@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -128,6 +130,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+    private LongAdder systemTopicBytesInCounter = new LongAdder();
     private final LongAdder filteredEntriesCounter = new LongAdder();
 
     private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
@@ -157,9 +160,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
+    protected final LongAdder bytesOutFromRemovedSystemSubscriptions = new LongAdder();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
+
+    protected Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -176,6 +182,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
         topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicSnapshotClock());
         updateActiveRateLimiters();
+
+        additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -921,6 +929,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         // increase counters
         bytesInCounter.add(msgSizeInBytes);
         msgInCounter.add(numOfMessages);
+
+        if (isSystemTopic()) {
+            systemTopicBytesInCounter.add(msgSizeInBytes);
+        }
     }
 
     private void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
@@ -1184,6 +1196,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 + sumSubscriptions(AbstractSubscription::getMsgOutCounter);
     }
 
+    public long getSystemTopicBytesInCounter() {
+        return systemTopicBytesInCounter.longValue();
+    }
+
     public long getBytesOutCounter() {
         return bytesOutFromRemovedSubscriptions.longValue()
                 + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
@@ -1368,5 +1384,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("[{}] Failed to get migration cluster URL", topic, e);
         }
         return Optional.empty();
+    }
+
+    public boolean isSystemCursor(String sub) {
+        return COMPACTION_SUBSCRIPTION.equals(sub)
+                || (additionalSystemCursorNames != null && additionalSystemCursorNames.contains(sub));
     }
 }

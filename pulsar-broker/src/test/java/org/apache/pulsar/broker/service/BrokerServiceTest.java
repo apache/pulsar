@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORD
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -1037,12 +1038,12 @@ public class BrokerServiceTest extends BrokerTestBase {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
-            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1, true);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
             long reqId2 = reqId++;
-            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2, true);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
@@ -1057,17 +1058,17 @@ public class BrokerServiceTest extends BrokerTestBase {
             // 3 lookup will fail
             latchRef.set(new CountDownLatch(1));
             long reqId3 = reqId++;
-            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3, true);
             f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
 
             long reqId4 = reqId++;
-            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4, true);
             f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
 
             long reqId5 = reqId++;
-            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5, true);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
@@ -1312,6 +1313,67 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
     }
+
+    @Test
+    public void testCheckInactiveSubscriptionWhenNoMessageToAck() throws Exception {
+        String namespace = "prop/testInactiveSubscriptionWhenNoMessageToAck";
+
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
+
+        String topic = "persistent://" + namespace + "/my-topic";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("test".getBytes());
+        producer.close();
+
+        // create consumer to consume all messages
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        consumer.acknowledge(consumer.receive());
+
+        Optional<Topic> topicOptional = pulsar.getBrokerService().getTopic(topic, true).get();
+        assertTrue(topicOptional.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+
+        // wait for 1s, but consumer is still connected all the time.
+        // so subscription should not be deleted.
+        Thread.sleep(1000);
+        persistentTopic.checkInactiveSubscriptions(1000);
+        PersistentTopic finalPersistentTopic = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic.getSubscriptions().containsKey("sub1"));
+        PersistentSubscription sub = persistentTopic.getSubscription("sub1");
+
+        // shutdown pulsar ungracefully
+        // disable the updateLastActive method to simulate the ungraceful shutdown
+        ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
+        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        doNothing().when(spyCursor).updateLastActive();
+        Field cursorField = PersistentSubscription.class.getDeclaredField("cursor");
+        cursorField.setAccessible(true);
+        cursorField.set(sub, spyCursor);
+
+        // restart pulsar
+        consumer.close();
+        restartBroker();
+
+        admin.lookups().lookupTopic(topic);
+        topicOptional = pulsar.getBrokerService().getTopic(topic, true).get();
+        assertTrue(topicOptional.isPresent());
+        persistentTopic = (PersistentTopic) topicOptional.get();
+        persistentTopic.checkInactiveSubscriptions(1000);
+
+        // check if subscription is still present
+        PersistentTopic finalPersistentTopic1 = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic1.getSubscriptions().containsKey("sub1"));
+        sub = persistentTopic.getSubscription("sub1");
+        assertNotNull(sub);
+    }
+
 
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and

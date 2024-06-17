@@ -2723,7 +2723,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistentAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName,
                     PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
                 .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
