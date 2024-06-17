@@ -158,6 +158,22 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
+    public int length() {
+        long stamp = rwLock.tryOptimisticRead();
+        int length = super.length();
+        if (!rwLock.validate(stamp)) {
+            // Fallback to read lock
+            stamp = rwLock.readLock();
+            try {
+                length = super.length();
+            } finally {
+                rwLock.unlockRead(stamp);
+            }
+        }
+        return length;
+    }
+
+    @Override
     public boolean isEmpty() {
         long stamp = rwLock.tryOptimisticRead();
         boolean isEmpty = super.isEmpty();
@@ -374,17 +390,17 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     @Override
     public Object clone() {
         long stamp = rwLock.tryOptimisticRead();
-        Object clonedBitSet = super.clone();
+        RoaringBitSet clone = (RoaringBitSet) super.clone();
         if (!rwLock.validate(stamp)) {
             // Fallback to read lock
             stamp = rwLock.readLock();
             try {
-                clonedBitSet = super.clone();
+                clone = (RoaringBitSet) super.clone();
             } finally {
                 rwLock.unlockRead(stamp);
             }
         }
-        return clonedBitSet;
+        return clone;
     }
 
     @Override

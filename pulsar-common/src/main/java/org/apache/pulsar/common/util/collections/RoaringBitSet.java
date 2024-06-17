@@ -27,7 +27,7 @@ import org.roaringbitmap.RoaringBitmap;
  *  A RoaringBitmap-backed BitSet implementation.
  */
 @SuppressWarnings("all")
-public class RoaringBitSet {
+public class RoaringBitSet implements Cloneable {
     private static final long serialVersionUID = 1L;
 
     private RoaringBitmap roaringBitmap;
@@ -166,9 +166,14 @@ public class RoaringBitSet {
         return false;
     }
 
-    @Override
     public Object clone() {
-        return new RoaringBitSet(roaringBitmap.clone());
+        try {
+            RoaringBitSet result = (RoaringBitSet) super.clone();
+            result.roaringBitmap = roaringBitmap.clone();
+            return result;
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError(e);
+        }
     }
 
     public IntStream stream() {
