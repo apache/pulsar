@@ -23,19 +23,20 @@ import java.util.stream.IntStream;
 import org.roaringbitmap.BitSetUtil;
 import org.roaringbitmap.RoaringBitmap;
 
+/**
+ *  A RoaringBitmap-backed BitSet implementation.
+ */
 @SuppressWarnings("all")
-public class RoaringBitSet extends BitSet {
+public class RoaringBitSet {
     private static final long serialVersionUID = 1L;
 
     private RoaringBitmap roaringBitmap;
 
     public RoaringBitSet() {
-        super(0);
         roaringBitmap = new RoaringBitmap();
     }
 
     private RoaringBitSet(RoaringBitmap roaringBitmap) {
-        super(0);
         this.roaringBitmap = roaringBitmap;
     }
 
@@ -43,12 +44,10 @@ public class RoaringBitSet extends BitSet {
         return roaringBitmap;
     }
 
-    @Override
     public void set(int bitIndex) {
         roaringBitmap.add(bitIndex);
     }
 
-    @Override
     public void set(int bitIndex, boolean value) {
         if (value) {
             roaringBitmap.add(bitIndex);
@@ -57,12 +56,10 @@ public class RoaringBitSet extends BitSet {
         }
     }
 
-    @Override
     public void set(int fromIndex, int toIndex) {
         roaringBitmap.add(fromIndex, toIndex);
     }
 
-    @Override
     public void set(int fromIndex, int toIndex, boolean value) {
         if (value) {
             roaringBitmap.add(fromIndex, toIndex);
@@ -71,54 +68,44 @@ public class RoaringBitSet extends BitSet {
         }
     }
 
-    @Override
     public void clear(int bitIndex) {
         roaringBitmap.remove(bitIndex);
     }
 
-    @Override
     public void clear(int fromIndex, int toIndex) {
         roaringBitmap.remove(fromIndex, toIndex);
     }
 
-    @Override
     public void clear() {
         roaringBitmap.clear();
     }
 
-    @Override
     public boolean get(int bitIndex) {
         return roaringBitmap.contains(bitIndex);
     }
 
-    @Override
-    public BitSet get(int fromIndex, int toIndex) {
+    public RoaringBitSet get(int fromIndex, int toIndex) {
         BitSet bitSet = BitSetUtil.bitsetOf(roaringBitmap);
         bitSet = bitSet.get(fromIndex, toIndex);
         return new RoaringBitSet(fromBitSet(bitSet));
     }
 
-    @Override
     public int nextSetBit(int fromIndex) {
         return (int) roaringBitmap.nextValue(fromIndex);
     }
 
-    @Override
     public int nextClearBit(int fromIndex) {
         return (int) roaringBitmap.nextAbsentValue(fromIndex);
     }
 
-    @Override
     public int previousSetBit(int fromIndex) {
         return (int) roaringBitmap.previousValue(fromIndex);
     }
 
-    @Override
     public int previousClearBit(int fromIndex) {
         return (int) roaringBitmap.previousAbsentValue(fromIndex);
     }
 
-    @Override
     public int length() {
         if (roaringBitmap.isEmpty()) {
             return 0;
@@ -126,58 +113,32 @@ public class RoaringBitSet extends BitSet {
         return roaringBitmap.last() + 1;
     }
 
-    @Override
     public boolean isEmpty() {
         return roaringBitmap.isEmpty();
     }
 
-    @Override
-    public boolean intersects(BitSet set) {
-        if (set instanceof RoaringBitSet) {
-            return RoaringBitmap.intersects(roaringBitmap, ((RoaringBitSet) set).roaringBitmap);
-        }
-        return RoaringBitmap.intersects(roaringBitmap, fromBitSet(set));
+    public boolean intersects(RoaringBitSet set) {
+        return RoaringBitmap.intersects(roaringBitmap, ((RoaringBitSet) set).roaringBitmap);
     }
 
-    @Override
     public int cardinality() {
         return roaringBitmap.getCardinality();
     }
 
-    @Override
-    public void and(BitSet set) {
-        if (set instanceof RoaringBitSet) {
-            roaringBitmap.and(((RoaringBitSet) set).roaringBitmap);
-        } else {
-            roaringBitmap.and(fromBitSet(set));
-        }
+    public void and(RoaringBitSet set) {
+        roaringBitmap.and(((RoaringBitSet) set).roaringBitmap);
     }
 
-    @Override
-    public void or(BitSet set) {
-        if (set instanceof RoaringBitSet) {
-            roaringBitmap.or(((RoaringBitSet) set).roaringBitmap);
-        } else {
-            roaringBitmap.or(fromBitSet(set));
-        }
+    public void or(RoaringBitSet set) {
+        roaringBitmap.or(((RoaringBitSet) set).roaringBitmap);
     }
 
-    @Override
-    public void xor(BitSet set) {
-        if (set instanceof RoaringBitSet) {
-            roaringBitmap.xor(((RoaringBitSet) set).roaringBitmap);
-        } else {
-            roaringBitmap.xor(fromBitSet(set));
-        }
+    public void xor(RoaringBitSet set) {
+        roaringBitmap.xor(((RoaringBitSet) set).roaringBitmap);
     }
 
-    @Override
-    public void andNot(BitSet set) {
-        if (set instanceof RoaringBitSet) {
-            roaringBitmap.andNot(((RoaringBitSet) set).roaringBitmap);
-        } else {
-            roaringBitmap.andNot(fromBitSet(set));
-        }
+    public void andNot(RoaringBitSet set) {
+        roaringBitmap.andNot(((RoaringBitSet) set).roaringBitmap);
     }
 
     @Override
@@ -185,7 +146,6 @@ public class RoaringBitSet extends BitSet {
         return roaringBitmap.hashCode();
     }
 
-    @Override
     public int size() {
         if (roaringBitmap.isEmpty()) {
             return 0;
@@ -208,12 +168,9 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public Object clone() {
-        super.clone();
         return new RoaringBitSet(roaringBitmap.clone());
     }
 
-
-    @Override
     public IntStream stream() {
         return roaringBitmap.stream();
     }
@@ -223,22 +180,18 @@ public class RoaringBitSet extends BitSet {
         return roaringBitmap.toString();
     }
 
-    @Override
     public void flip(int bitIndex) {
         roaringBitmap.flip(bitIndex, bitIndex + 1);
     }
 
-    @Override
     public void flip(int fromIndex, int toIndex) {
         roaringBitmap.flip(fromIndex, toIndex);
     }
 
-    @Override
     public long[] toLongArray() {
         return BitSetUtil.toLongArray(roaringBitmap);
     }
 
-    @Override
     public byte[] toByteArray() {
         return BitSetUtil.toByteArray(roaringBitmap);
     }

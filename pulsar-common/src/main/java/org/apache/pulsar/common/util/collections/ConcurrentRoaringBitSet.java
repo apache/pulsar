@@ -279,9 +279,9 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public BitSet get(int fromIndex, int toIndex) {
+    public RoaringBitSet get(int fromIndex, int toIndex) {
         long stamp = rwLock.tryOptimisticRead();
-        BitSet bitSet = super.get(fromIndex, toIndex);
+        RoaringBitSet bitSet = super.get(fromIndex, toIndex);
         if (!rwLock.validate(stamp)) {
             // Fallback to read lock
             stamp = rwLock.readLock();
@@ -317,7 +317,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public boolean intersects(BitSet set) {
+    public boolean intersects(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
         try {
             return super.intersects(set);
@@ -327,7 +327,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void and(BitSet set) {
+    public void and(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.and(set);
@@ -337,7 +337,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void or(BitSet set) {
+    public void or(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.or(set);
@@ -347,7 +347,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void xor(BitSet set) {
+    public void xor(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.xor(set);
@@ -357,7 +357,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void andNot(BitSet set) {
+    public void andNot(RoaringBitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.andNot(set);

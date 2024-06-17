@@ -22,7 +22,6 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -37,13 +36,13 @@ import org.apache.commons.lang.mutable.MutableInt;
  * <pre>
  * Usage:
  * a. This can be used if one doesn't want to create object for every new inserted {@code range}
- * b. It creates {@link BitSet} for every unique first-key of the range.
+ * b. It creates {@link RoaringBitSet} for every unique first-key of the range.
  * So, this rangeSet is not suitable for large number of unique keys.
  * </pre>
  */
 public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
-    protected final NavigableMap<Long, BitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
+    protected final NavigableMap<Long, RoaringBitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
     private boolean threadSafe = true;
     private final int bitSetSize;
     private final LongPairConsumer<T> consumer;
@@ -82,7 +81,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (lowerKey != upperKey) {
             // (1) set lower to last in lowerRange.getKey()
             if (isValid(lowerKey, lowerValue)) {
-                BitSet rangeBitSet = rangeBitSetMap.get(lowerKey);
+                RoaringBitSet rangeBitSet = rangeBitSetMap.get(lowerKey);
                 // if lower and upper has different key/ledger then set ranges for lower-key only if
                 // a. bitSet already exist and given value is not the last value in the bitset.
                 // it will prevent setting up values which are not actually expected to set
@@ -94,7 +93,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
             // (2) set 0th-index to upper-index in upperRange.getKey()
             if (isValid(upperKey, upperValue)) {
-                BitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(upperKey, (key) -> createNewBitSet());
+                RoaringBitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(upperKey, (key) -> createNewBitSet());
                 if (rangeBitSet != null) {
                     rangeBitSet.set(0, (int) upperValue + 1);
                 }
@@ -103,7 +102,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             // to set
         } else {
             long key = lowerKey;
-            BitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(key, (k) -> createNewBitSet());
+            RoaringBitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(key, (k) -> createNewBitSet());
             rangeBitSet.set((int) lowerValue, (int) upperValue + 1);
         }
         updatedAfterCachedForSize = true;
@@ -118,7 +117,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public boolean contains(long key, long value) {
 
-        BitSet rangeBitSet = rangeBitSetMap.get(key);
+        RoaringBitSet rangeBitSet = rangeBitSetMap.get(key);
         if (rangeBitSet != null) {
             return rangeBitSet.get(getSafeEntry(value));
         }
@@ -127,7 +126,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> rangeContaining(long key, long value) {
-        BitSet rangeBitSet = rangeBitSetMap.get(key);
+        RoaringBitSet rangeBitSet = rangeBitSetMap.get(key);
         if (rangeBitSet != null) {
             if (!rangeBitSet.get(getSafeEntry(value))) {
                 // if position is not part of any range then return null
@@ -152,7 +151,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return true;
         }
-        for (BitSet rangeBitSet : rangeBitSetMap.values()) {
+        for (RoaringBitSet rangeBitSet : rangeBitSetMap.values()) {
             if (!rangeBitSet.isEmpty()) {
                 return false;
             }
@@ -172,8 +171,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
-        Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
+        Entry<Long, RoaringBitSet> firstSet = rangeBitSetMap.firstEntry();
+        Entry<Long, RoaringBitSet> lastSet = rangeBitSetMap.lastEntry();
         int first = firstSet.getValue().nextSetBit(0);
         int last = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         return Range.openClosed(consumer.apply(firstSet.getKey(), first - 1), consumer.apply(lastSet.getKey(), last));
@@ -236,7 +235,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
+        Entry<Long, RoaringBitSet> firstSet = rangeBitSetMap.firstEntry();
         int lower = firstSet.getValue().nextSetBit(0);
         int upper = Math.max(lower, firstSet.getValue().nextClearBit(lower) - 1);
         return Range.openClosed(consumer.apply(firstSet.getKey(), lower - 1), consumer.apply(firstSet.getKey(), upper));
@@ -247,7 +246,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return null;
         }
-        Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
+        Entry<Long, RoaringBitSet> lastSet = rangeBitSetMap.lastEntry();
         int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
         return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
@@ -255,11 +254,11 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
-        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        NavigableMap<Long, RoaringBitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
         MutableInt v = new MutableInt(0);
         subMap.forEach((key, bitset) -> {
             if (key == lowerKey || key == upperKey) {
-                BitSet temp = (BitSet) bitset.clone();
+                RoaringBitSet temp = (RoaringBitSet) bitset.clone();
                 // Trim the bitset index which < lowerValue
                 if (key == lowerKey) {
                     temp.clear(0, (int) Math.max(0, lowerValue));
@@ -413,7 +412,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         return (int) Math.max(value, -1);
     }
 
-    private BitSet createNewBitSet() {
+    private RoaringBitSet createNewBitSet() {
         return this.threadSafe ? new ConcurrentRoaringBitSet() : new RoaringBitSet();
     }
 }
