@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.BrokersBase.getHeartbeatTopicName;
@@ -259,11 +260,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final PulsarBrokerOpenTelemetry openTelemetry;
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
-<<<<<<< HEAD
-    private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
-=======
     private OpenTelemetryProducerStats openTelemetryProducerStats;
->>>>>>> origin/master
+    private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -841,11 +839,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
             openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
-<<<<<<< HEAD
-            openTelemetryReplicatorStats = new OpenTelemetryReplicatorStats(this);
-=======
             openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
->>>>>>> origin/master
+            openTelemetryReplicatorStats = new OpenTelemetryReplicatorStats(this);
 
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
