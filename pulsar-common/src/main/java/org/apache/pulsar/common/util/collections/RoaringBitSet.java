@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.stream.IntStream;
+import org.roaringbitmap.BitSetUtil;
 import org.roaringbitmap.RoaringBitmap;
 
 @SuppressWarnings("all")
@@ -194,7 +194,9 @@ public class RoaringBitSet extends BitSet {
         if (roaringBitmap.isEmpty()) {
             return 0;
         }
-        return roaringBitmap.last() + 1;
+        int lastBit = Math.max(roaringBitmap.last(), 64);
+        int remainder = lastBit % 64;
+        return remainder == 0 ? lastBit : lastBit + 64 - remainder;
     }
 
     @Override
@@ -240,24 +242,15 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public long[] toLongArray() {
-        int[] arr = roaringBitmap.toArray();
-        ByteBuffer buffer = ByteBuffer.allocate(arr.length * 4);
-        buffer.asIntBuffer().put(arr);
-        return buffer.asLongBuffer().array();
+        return BitSetUtil.toLongArray(roaringBitmap);
     }
 
     @Override
     public byte[] toByteArray() {
-        int[] arr = roaringBitmap.toArray();
-        ByteBuffer buffer = ByteBuffer.allocate(arr.length * 4);
-        buffer.asIntBuffer().put(arr);
-        return buffer.array();
+        return BitSetUtil.toByteArray(roaringBitmap);
     }
 
     private static RoaringBitmap fromBitSet(BitSet bitSet) {
-        long[] arr = bitSet.toLongArray();
-        ByteBuffer buffer = ByteBuffer.allocate(arr.length * 8);
-        buffer.asLongBuffer().put(arr);
-        return RoaringBitmap.bitmapOf(buffer.asIntBuffer().array());
+        return BitSetUtil.bitmapOf(bitSet);
     }
 }
