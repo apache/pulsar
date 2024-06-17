@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.IntStream;
 
