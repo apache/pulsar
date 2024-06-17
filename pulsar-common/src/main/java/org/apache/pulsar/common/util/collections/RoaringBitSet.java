@@ -93,10 +93,9 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public BitSet get(int fromIndex, int toIndex) {
-        RoaringBitmap rb = roaringBitmap.clone();
-        rb.flip(0, fromIndex);
-        rb.flip(toIndex, rb.last());
-        return new RoaringBitSet(rb);
+        BitSet bitSet = BitSetUtil.bitsetOf(roaringBitmap);
+        bitSet = bitSet.get(fromIndex, toIndex);
+        return new RoaringBitSet(fromBitSet(bitSet));
     }
 
     @Override
@@ -134,13 +133,10 @@ public class RoaringBitSet extends BitSet {
 
     @Override
     public boolean intersects(BitSet set) {
-        RoaringBitmap bitmap = set instanceof RoaringBitSet ? ((RoaringBitSet) set).roaringBitmap : fromBitSet(set);
-        if (bitmap.isEmpty() || roaringBitmap.isEmpty()) {
-            return false;
+        if (set instanceof RoaringBitSet) {
+            return RoaringBitmap.intersects(roaringBitmap, ((RoaringBitSet) set).roaringBitmap);
         }
-        long rangeStart = bitmap.first();
-        long rangeEnd = bitmap.last();
-        return roaringBitmap.intersects(rangeStart, rangeEnd);
+        return RoaringBitmap.intersects(roaringBitmap, fromBitSet(set));
     }
 
     @Override
@@ -194,7 +190,7 @@ public class RoaringBitSet extends BitSet {
         if (roaringBitmap.isEmpty()) {
             return 0;
         }
-        int lastBit = Math.max(roaringBitmap.last(), 64);
+        int lastBit = Math.max(length(), 64);
         int remainder = lastBit % 64;
         return remainder == 0 ? lastBit : lastBit + 64 - remainder;
     }
