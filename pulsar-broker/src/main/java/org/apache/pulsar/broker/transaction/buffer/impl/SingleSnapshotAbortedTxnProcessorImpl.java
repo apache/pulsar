@@ -24,8 +24,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
@@ -49,7 +50,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
      * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
      * position have been deleted.
      */
-    private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
+    private final LinkedMap<TxnID, Position> aborts = new LinkedMap<>();
 
     private volatile long lastSnapshotTimestamps;
 
@@ -68,7 +69,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, Position abortedMarkerPersistentPosition) {
         aborts.put(abortedTxnId, abortedMarkerPersistentPosition);
     }
 
@@ -96,12 +97,12 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<PositionImpl> recoverFromSnapshot() {
+    public CompletableFuture<Position> recoverFromSnapshot() {
         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
                     try {
-                    PositionImpl startReadCursorPosition = null;
+                    Position startReadCursorPosition = null;
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshot> message = reader.readNextAsync()
                                     .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -109,7 +110,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
                                     handleSnapshot(transactionBufferSnapshot);
-                                    startReadCursorPosition = PositionImpl.get(
+                                    startReadCursorPosition = PositionFactory.create(
                                             transactionBufferSnapshot.getMaxReadPositionLedgerId(),
                                             transactionBufferSnapshot.getMaxReadPositionEntryId());
                                 }
@@ -144,7 +145,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition) {
+    public CompletableFuture<Void> takeAbortedTxnsSnapshot(Position maxReadPosition) {
         return takeSnapshotWriter.getFuture().thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
@@ -202,7 +203,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
             snapshot.getAborts().forEach(abortTxnMetadata ->
                     aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
                                     abortTxnMetadata.getTxnIdLeastBits()),
-                            PositionImpl.get(abortTxnMetadata.getLedgerId(),
+                            PositionFactory.create(abortTxnMetadata.getLedgerId(),
                                     abortTxnMetadata.getEntryId())));
         }
     }

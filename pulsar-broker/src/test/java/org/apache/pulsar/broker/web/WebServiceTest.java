@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -59,6 +61,8 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.UsageType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -106,6 +110,19 @@ public class WebServiceTest {
     @Test
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, false, false, false, -1, false);
+
+        var otelMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MAX.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MIN.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.ACTIVE.attributes,
+                value -> assertThat(value).isNotNegative());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.CURRENT.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.IDLE.attributes,
+                value -> assertThat(value).isNotNegative());
+
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -498,6 +515,7 @@ public class WebServiceTest {
         pulsarTestContext = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(config)
+                .enableOpenTelemetry(true)
                 .build();
 
         pulsar = pulsarTestContext.getPulsarService();

@@ -124,7 +124,8 @@ message ManagedCursorInfo {
     // the current cursor position
     repeated LongProperty properties = 5;
 
-    optional int64 lastActive = 6;
+    // deprecated, do not persist this field anymore
+    optional int64 lastActive = 6 [deprecated = true];
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;

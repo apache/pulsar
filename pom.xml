@@ -148,21 +148,21 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.108.Final</netty.version>
+    <netty.version>4.1.111.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.41</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.3.8</vertx.version>
+    <vertx.version>4.5.8</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.23.1</log4j2.version>
-    <bouncycastle.version>1.78</bouncycastle.version>
-    <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
-    <bouncycastle.bc-fips.version>1.0.2.4</bouncycastle.bc-fips.version>
+    <bouncycastle.version>1.78.1</bouncycastle.version>
+    <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
+    <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
     <jackson.version>2.14.2</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
@@ -215,7 +215,7 @@ flexible messaging model and an intuitive client API.</description>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
-    <aircompressor.version>0.20</aircompressor.version>
+    <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
@@ -251,20 +251,22 @@ flexible messaging model and an intuitive client API.</description>
     <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.7.5</jetcd.version>
+    <jetcd.version>0.7.7</jetcd.version>
     <oxia.version>0.3.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
-    <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.37.0</opentelemetry.version>
+    <opentelemetry.version>1.38.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>1.33.2</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.version>1.33.3</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
     <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
+    <re2j.version>1.7</re2j.version>
+    <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
     <testcontainers.version>1.18.3</testcontainers.version>
@@ -300,6 +302,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.4.1</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.5.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
@@ -314,7 +317,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>9.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>0.9.44</roaringbitmap.version>
+    <roaringbitmap.version>1.0.6</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
@@ -382,6 +385,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
         <version>${mockito.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>dev.failsafe</groupId>
+        <artifactId>failsafe</artifactId>
+        <version>${failsafe.version}</version>
       </dependency>
 
       <dependency>
@@ -509,6 +518,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>vertx-web</artifactId>
         <version>${vertx.version}</version>
       </dependency>
+      <dependency>
+          <groupId>io.vertx</groupId>
+          <artifactId>vertx-grpc</artifactId>
+          <version>${vertx.version}</version>
+      </dependency>
 
       <dependency>
          <groupId>org.apache.curator</groupId>
@@ -571,6 +585,10 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>jose4j</artifactId>
             <groupId>org.bitbucket.b_c</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -608,6 +626,13 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-util</artifactId>
+        <!-- This is only used for JEtcd so far. Once we upgrade Grpc to >= 1.60, we can remove the special version pin -->
+        <version>1.60.0</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>bookkeeper-common</artifactId>
         <version>${bookkeeper.version}</version>
@@ -635,6 +660,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper.stats</groupId>
         <artifactId>prometheus-metrics-provider</artifactId>
         <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.re2j</groupId>
+        <artifactId>re2j</artifactId>
+        <version>${re2j.version}</version>
       </dependency>
 
       <dependency>
@@ -1027,12 +1058,51 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-core</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
-
       <dependency>
         <groupId>io.etcd</groupId>
         <artifactId>jetcd-test</artifactId>
         <version>${jetcd.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>jetcd-core-shaded</artifactId>
+        <version>${project.version}</version>
+        <classifier>shaded</classifier>
+        <exclusions>
+          <exclusion>
+            <groupId>io.etcd</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.vertx</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1125,6 +1195,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>com.squareup.okio</groupId>
             <artifactId>okio</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1953,8 +2027,8 @@ flexible messaging model and an intuitive client API.</description>
               <configuration>
                 <rules>
                   <requireJavaVersion>
-                    <version>17</version>
-                    <message>Java 17+ is required to build Pulsar.</message>
+                    <version>[17,18),[21,22)</version>
+                    <message>Java 17 or Java 21 is required to build Pulsar.</message>
                   </requireJavaVersion>
                   <requireMavenVersion>
                     <version>3.6.1</version>
@@ -2115,6 +2189,11 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>io.fabric8</groupId>
           <artifactId>docker-maven-plugin</artifactId>
           <version>${docker-maven.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -2361,6 +2440,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <module>pulsar-metadata</module>
+        <module>jetcd-core-shaded</module>
         <module>jclouds-shaded</module>
 
         <!-- package management releated modules (begin) -->
@@ -2426,7 +2506,7 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
-
+        <module>jetcd-core-shaded</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->

@@ -23,9 +23,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -88,8 +88,8 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         producer.close();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
         Awaitility.await().atMost(Duration.ofSeconds(deduplicationSnapshotFrequency * 3)).untilAsserted(() -> {
-            PositionImpl LAC = (PositionImpl) ml.getLastConfirmedEntry();
-            PositionImpl cursorMD = (PositionImpl) cursor.getMarkDeletedPosition();
+            Position LAC = ml.getLastConfirmedEntry();
+            Position cursorMD = cursor.getMarkDeletedPosition();
             assertTrue(LAC.compareTo(cursorMD) <= 0);
         });
 
