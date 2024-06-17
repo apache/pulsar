@@ -98,8 +98,20 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
-                checkAllowAutoCreation);
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOwnershipAsync(topicName, authoritative).whenComplete((__, ex) -> {
+            if (ex != null) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                if (isNot307And404Exception(actEx)) {
+                    log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, actEx);
+            } else {
+                // "super.getPartitionedMetadata" will handle error itself.
+                super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
+                        checkAllowAutoCreation);
+            }
+        });
     }
 
     @GET

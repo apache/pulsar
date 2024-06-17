@@ -22,70 +22,150 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
+import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Semaphore;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 @Slf4j
-public class GetPartitionMetadataTest extends ProducerConsumerBase {
+public class GetPartitionMetadataTest {
 
-    private static final String DEFAULT_NS = "public/default";
+    protected static final String DEFAULT_NS = "public/default";
 
-    private PulsarClientImpl clientWithHttpLookup;
-    private PulsarClientImpl clientWitBinaryLookup;
+    protected String clusterName = "c1";
 
-    @Override
+    protected LocalBookkeeperEnsemble bkEnsemble;
+
+    protected ServiceConfiguration conf = new ServiceConfiguration();
+
+    protected PulsarService pulsar1;
+    protected URL url1;
+    protected PulsarAdmin admin1;
+    protected PulsarClientImpl clientWithHttpLookup1;
+    protected PulsarClientImpl clientWitBinaryLookup1;
+
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-        clientWithHttpLookup =
-                (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-        clientWitBinaryLookup =
-                (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble.start();
+        // Start broker.
+        setupBrokers();
+        // Create default NS.
+        admin1.clusters().createCluster(clusterName, new ClusterDataImpl());
+        admin1.tenants().createTenant(NamespaceName.get(DEFAULT_NS).getTenant(),
+                new TenantInfoImpl(Collections.emptySet(), Sets.newHashSet(clusterName)));
+        admin1.namespaces().createNamespace(DEFAULT_NS);
     }
 
-    @Override
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.internalCleanup();
-        if (clientWithHttpLookup != null) {
-            clientWithHttpLookup.close();
-        }
-        if (clientWitBinaryLookup != null) {
-            clientWitBinaryLookup.close();
+        cleanupBrokers();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
         }
     }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
+    protected void cleanupBrokers() throws Exception {
+        // Cleanup broker2.
+        if (clientWithHttpLookup1 != null) {
+            clientWithHttpLookup1.close();
+            clientWithHttpLookup1 = null;
+        }
+        if (clientWitBinaryLookup1 != null) {
+            clientWitBinaryLookup1.close();
+            clientWitBinaryLookup1 = null;
+        }
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
+        // Reset configs.
+        conf = new ServiceConfiguration();
     }
 
-    private LookupService getLookupService(boolean isUsingHttpLookup) {
+    protected void setupBrokers() throws Exception {
+        doInitConf();
+        // Start broker.
+        pulsar1 = new PulsarService(conf);
+        pulsar1.start();
+        url1 = new URL(pulsar1.getWebServiceAddress());
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
+        clientWithHttpLookup1 =
+                (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
+        clientWitBinaryLookup1 =
+                (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl()).build();
+    }
+
+    protected void doInitConf() {
+        conf.setClusterName(clusterName);
+        conf.setAdvertisedAddress("localhost");
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setWebServicePort(Optional.of(0));
+        conf.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+        conf.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort() + "/foo");
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerSheddingEnabled(false);
+    }
+
+    protected PulsarClientImpl[] getClientsToTest() {
+        return new PulsarClientImpl[] {clientWithHttpLookup1, clientWitBinaryLookup1};
+    }
+
+    protected PulsarClientImpl[] getClientsToTest(boolean isUsingHttpLookup) {
         if (isUsingHttpLookup) {
-            return clientWithHttpLookup.getLookup();
+            return new PulsarClientImpl[] {clientWithHttpLookup1};
         } else {
-            return clientWitBinaryLookup.getLookup();
+            return new PulsarClientImpl[] {clientWitBinaryLookup1};
         }
+
+    }
+
+    protected int getLookupRequestPermits() {
+        return pulsar1.getBrokerService().getLookupRequestSemaphore().availablePermits();
+    }
+
+    protected void verifyPartitionsNeverCreated(String topicNameStr) throws Exception {
+        TopicName topicName = TopicName.get(topicNameStr);
+        List<String> topicList = admin1.topics().getList("public/default");
+        for (int i = 0; i < 3; i++) {
+            assertFalse(topicList.contains(topicName.getPartition(i)));
+        }
+    }
+
+    protected void verifyNonPartitionedTopicNeverCreated(String topicNameStr) throws Exception {
+        TopicName topicName = TopicName.get(topicNameStr);
+        List<String> topicList = admin1.topics().getList("public/default");
+        assertFalse(topicList.contains(topicName.getPartitionedTopicName()));
     }
 
     @DataProvider(name = "topicDomains")
@@ -96,43 +176,53 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
         };
     }
 
+    protected static void doModifyTopicAutoCreation(PulsarAdmin admin1, PulsarService pulsar1,
+                                                  boolean allowAutoTopicCreation, TopicType allowAutoTopicCreationType,
+                                                  int defaultNumPartitions) throws Exception {
+        admin1.brokers().updateDynamicConfiguration(
+                "allowAutoTopicCreation", allowAutoTopicCreation + "");
+        admin1.brokers().updateDynamicConfiguration(
+                "allowAutoTopicCreationType", allowAutoTopicCreationType + "");
+        admin1.brokers().updateDynamicConfiguration(
+                "defaultNumPartitions", defaultNumPartitions + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfiguration().isAllowAutoTopicCreation(), allowAutoTopicCreation);
+            assertEquals(pulsar1.getConfiguration().getAllowAutoTopicCreationType(), allowAutoTopicCreationType);
+            assertEquals(pulsar1.getConfiguration().getDefaultNumPartitions(), defaultNumPartitions);
+        });
+    }
+
+    protected void modifyTopicAutoCreation(boolean allowAutoTopicCreation,
+                                           TopicType allowAutoTopicCreationType,
+                                           int defaultNumPartitions) throws Exception {
+        doModifyTopicAutoCreation(admin1, pulsar1, allowAutoTopicCreation, allowAutoTopicCreationType,
+                defaultNumPartitions);
+    }
+
     @Test(dataProvider = "topicDomains")
     public void testAutoCreatingMetadataWhenCallingOldAPI(TopicDomain topicDomain) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(true);
-        setup();
+        modifyTopicAutoCreation(true, TopicType.PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        // HTTP client.
-        final String tp1 = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        clientWithHttpLookup.getPartitionsForTopic(tp1).join();
-        Optional<PartitionedTopicMetadata> metadata1 = pulsar.getPulsarResources().getNamespaceResources()
-                .getPartitionedTopicResources()
-                .getPartitionedTopicMetadataAsync(TopicName.get(tp1), true).join();
-        assertTrue(metadata1.isPresent());
-        assertEquals(metadata1.get().partitions, 3);
+        for (PulsarClientImpl client : getClientsToTest()) {
+            // Verify: the behavior of topic creation.
+            final String tp = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+            client.getPartitionsForTopic(tp).join();
+            Optional<PartitionedTopicMetadata> metadata1 = pulsar1.getPulsarResources().getNamespaceResources()
+                    .getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(TopicName.get(tp), true).join();
+            assertTrue(metadata1.isPresent());
+            assertEquals(metadata1.get().partitions, 3);
 
-        // Binary client.
-        final String tp2 = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        clientWitBinaryLookup.getPartitionsForTopic(tp2).join();
-        Optional<PartitionedTopicMetadata> metadata2 = pulsar.getPulsarResources().getNamespaceResources()
-                .getPartitionedTopicResources()
-                .getPartitionedTopicMetadataAsync(TopicName.get(tp2), true).join();
-        assertTrue(metadata2.isPresent());
-        assertEquals(metadata2.get().partitions, 3);
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
 
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
-
-        // Cleanup.
-        admin.topics().deletePartitionedTopic(tp1, false);
-        admin.topics().deletePartitionedTopic(tp2, false);
+            // Cleanup.
+            admin1.topics().deletePartitionedTopic(tp, false);
+        }
     }
 
     @DataProvider(name = "autoCreationParamsAll")
@@ -163,40 +253,32 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
                                                            boolean paramMetadataAutoCreationEnabled,
                                                            boolean isUsingHttpLookup,
                                                            TopicDomain topicDomain) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(configAllowAutoTopicCreation);
-        setup();
+        modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        LookupService lookup = getLookupService(isUsingHttpLookup);
         // Create topic.
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        admin.topics().createNonPartitionedTopic(topicNameStr);
-        // Verify.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        PartitionedTopicMetadata response =
-                lookup.getPartitionedTopicMetadata(topicName, paramMetadataAutoCreationEnabled).join();
-        assertEquals(response.partitions, 0);
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
-        assertFalse(partitionedTopics.contains(topicNameStr));
-        List<String> topicList = admin.topics().getList("public/default");
-        for (int i = 0; i < 3; i++) {
-            assertFalse(topicList.contains(topicName.getPartition(i)));
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicNameStr);
+
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response =
+                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled).join();
+            assertEquals(response.partitions, 0);
+            List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopics.contains(topicNameStr));
+            verifyPartitionsNeverCreated(topicNameStr);
+
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
         }
 
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
-
         // Cleanup.
-        client.close();
-        admin.topics().delete(topicNameStr, false);
+        admin1.topics().delete(topicNameStr, false);
     }
 
     @Test(dataProvider = "autoCreationParamsAll")
@@ -204,36 +286,30 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
                                                         boolean paramMetadataAutoCreationEnabled,
                                                         boolean isUsingHttpLookup,
                                                         TopicDomain topicDomain) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(configAllowAutoTopicCreation);
-        setup();
+        modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        LookupService lookup = getLookupService(isUsingHttpLookup);
         // Create topic.
         final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        admin.topics().createPartitionedTopic(topicNameStr, 3);
-        // Verify.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        PartitionedTopicMetadata response =
-                lookup.getPartitionedTopicMetadata(topicName, paramMetadataAutoCreationEnabled).join();
-        assertEquals(response.partitions, 3);
-        List<String> topicList = admin.topics().getList("public/default");
-        assertFalse(topicList.contains(topicNameStr));
+        admin1.topics().createPartitionedTopic(topicNameStr, 3);
 
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response =
+                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled).join();
+            assertEquals(response.partitions, 3);
+            verifyNonPartitionedTopicNeverCreated(topicNameStr);
+
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
+        }
 
         // Cleanup.
-        client.close();
-        admin.topics().deletePartitionedTopic(topicNameStr, false);
+        admin1.topics().deletePartitionedTopic(topicNameStr, false);
     }
 
     @DataProvider(name = "clients")
@@ -247,76 +323,96 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "clients")
     public void testAutoCreatePartitionedTopic(boolean isUsingHttpLookup, TopicDomain topicDomain) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(true);
-        setup();
+        modifyTopicAutoCreation(true, TopicType.PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        LookupService lookup = getLookupService(isUsingHttpLookup);
-        // Create topic.
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        // Verify.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        PartitionedTopicMetadata response = lookup.getPartitionedTopicMetadata(topicName, true).join();
-        assertEquals(response.partitions, 3);
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
-        assertTrue(partitionedTopics.contains(topicNameStr));
-        List<String> topicList = admin.topics().getList("public/default");
-        assertFalse(topicList.contains(topicNameStr));
-        for (int i = 0; i < 3; i++) {
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Case-1: normal topic.
+            final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
+            assertEquals(response.partitions, 3);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+            assertTrue(partitionedTopics.contains(topicNameStr));
+            verifyNonPartitionedTopicNeverCreated(topicNameStr);
             // The API "getPartitionedTopicMetadata" only creates the partitioned metadata, it will not create the
             // partitions.
-            assertFalse(topicList.contains(topicName.getPartition(i)));
+            verifyPartitionsNeverCreated(topicNameStr);
+
+            // Case-2: topic with suffix "-partition-1".
+            final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
+                    topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response2 =
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+            assertEquals(response2.partitions, 0);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics2 =
+                    admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopics2.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(
+                    TopicName.get(topicNameStrWithSuffix).getPartitionedTopicName()));
+
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
+            // Cleanup.
+            admin1.topics().deletePartitionedTopic(topicNameStr, false);
+            try {
+                admin1.topics().delete(topicNameStrWithSuffix, false);
+            } catch (Exception ex) {}
         }
 
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
-
-        // Cleanup.
-        client.close();
-        admin.topics().deletePartitionedTopic(topicNameStr, false);
     }
 
     @Test(dataProvider = "clients")
     public void testAutoCreateNonPartitionedTopic(boolean isUsingHttpLookup, TopicDomain topicDomain) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
-        setup();
+        modifyTopicAutoCreation(true, TopicType.NON_PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        LookupService lookup = getLookupService(isUsingHttpLookup);
-        // Create topic.
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        // Verify.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        PartitionedTopicMetadata response = lookup.getPartitionedTopicMetadata(topicName, true).join();
-        assertEquals(response.partitions, 0);
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
-        assertFalse(partitionedTopics.contains(topicNameStr));
-        List<String> topicList = admin.topics().getList("public/default");
-        assertFalse(topicList.contains(topicNameStr));
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Case 1: normal topic.
+            final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
+            assertEquals(response.partitions, 0);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopics.contains(topicNameStr));
+            verifyPartitionsNeverCreated(topicNameStr);
 
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
+            // Case-2: topic with suffix "-partition-1".
+            final String topicNameStrWithSuffix = BrokerTestUtil.newUniqueName(
+                    topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
+            // Verify: the result of get partitioned topic metadata.
+            PartitionedTopicMetadata response2 =
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+            assertEquals(response2.partitions, 0);
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics2 =
+                    admin1.topics().getPartitionedTopicList("public/default");
+            assertFalse(partitionedTopics2.contains(topicNameStrWithSuffix));
+            assertFalse(partitionedTopics2.contains(
+                    TopicName.get(topicNameStrWithSuffix).getPartitionedTopicName()));
 
-        // Cleanup.
-        client.close();
-        try {
-            admin.topics().delete(topicNameStr, false);
-        } catch (Exception ex) {}
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
+            // Cleanup.
+            try {
+                admin1.topics().delete(topicNameStr, false);
+            } catch (Exception ex) {}
+            try {
+                admin1.topics().delete(topicNameStrWithSuffix, false);
+            } catch (Exception ex) {}
+        }
     }
 
     @DataProvider(name = "autoCreationParamsNotAllow")
@@ -336,64 +432,38 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
     public void testGetMetadataIfNotAllowedCreate(boolean configAllowAutoTopicCreation,
                                                   boolean paramMetadataAutoCreationEnabled,
                                                   boolean isUsingHttpLookup) throws Exception {
-        if (!configAllowAutoTopicCreation && paramMetadataAutoCreationEnabled) {
-            // These test cases are for the following PR.
-            // Which was described in the Motivation of https://github.com/apache/pulsar/pull/22206.
-            return;
+        modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
+
+        int lookupPermitsBefore = getLookupRequestPermits();
+
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Define topic.
+            final String topicNameStr = BrokerTestUtil.newUniqueName("persistent://" + DEFAULT_NS + "/tp");
+            final TopicName topicName = TopicName.get(topicNameStr);
+            // Verify: the result of get partitioned topic metadata.
+            try {
+                client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled)
+                        .join();
+                fail("Expect a not found exception");
+            } catch (Exception e) {
+                Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
+                assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
+                        || unwrapEx instanceof PulsarClientException.NotFoundException);
+            }
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+            pulsar1.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                    .partitionedTopicExists(topicName);
+            assertFalse(partitionedTopics.contains(topicNameStr));
+            verifyNonPartitionedTopicNeverCreated(topicNameStr);
+            verifyPartitionsNeverCreated(topicNameStr);
+
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
         }
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(configAllowAutoTopicCreation);
-        setup();
-
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
-
-        LookupService lookup = getLookupService(isUsingHttpLookup);
-        // Define topic.
-        final String topicNameStr = BrokerTestUtil.newUniqueName("persistent://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        // Verify.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-        try {
-            lookup.getPartitionedTopicMetadata(TopicName.get(topicNameStr), paramMetadataAutoCreationEnabled).join();
-            fail("Expect a not found exception");
-        } catch (Exception e) {
-            log.warn("", e);
-            Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
-            assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
-                    || unwrapEx instanceof PulsarClientException.NotFoundException);
-        }
-
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
-        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().partitionedTopicExists(topicName);
-        assertFalse(partitionedTopics.contains(topicNameStr));
-        List<String> topicList = admin.topics().getList("public/default");
-        assertFalse(topicList.contains(topicNameStr));
-        for (int i = 0; i < 3; i++) {
-            assertFalse(topicList.contains(topicName.getPartition(i)));
-        }
-
-        // Verify: lookup semaphore has been releases.
-        Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
-        });
-
-        // Cleanup.
-        client.close();
-    }
-
-    @DataProvider(name = "autoCreationParamsForNonPersistentTopic")
-    public Object[][] autoCreationParamsForNonPersistentTopic(){
-        return new Object[][]{
-                // configAllowAutoTopicCreation, paramCreateIfAutoCreationEnabled, isUsingHttpLookup.
-                {true, true, true},
-                {true, true, false},
-                {false, true, true},
-                {false, true, false},
-                {false, false, true}
-        };
     }
 
     /**
@@ -408,66 +478,46 @@ public class GetPartitionMetadataTest extends ProducerConsumerBase {
      *   param-auto-create = false
      *     HTTP API: not found error
      *     binary API: not support
-     *  This test only guarantees that the behavior is the same as before. The following separated PR will fix the
-     *  incorrect behavior.
+     * After PIP-344, the behavior will be the same as persistent topics, which was described in PIP-344.
      */
-    @Test(dataProvider = "autoCreationParamsForNonPersistentTopic")
-    public void testGetNonPersistentMetadataIfNotAllowedCreate(boolean configAllowAutoTopicCreation,
+    @Test(dataProvider = "autoCreationParamsNotAllow")
+    public void testGetMetadataIfNotAllowedCreateOfNonPersistentTopic(boolean configAllowAutoTopicCreation,
                                                   boolean paramMetadataAutoCreationEnabled,
                                                   boolean isUsingHttpLookup) throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreation(configAllowAutoTopicCreation);
-        setup();
+        modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
 
-        Semaphore semaphore = pulsar.getBrokerService().getLookupRequestSemaphore();
-        int lookupPermitsBefore = semaphore.availablePermits();
+        int lookupPermitsBefore = getLookupRequestPermits();
 
-        LookupService lookup = getLookupService(isUsingHttpLookup);
-        // Define topic.
-        final String topicNameStr = BrokerTestUtil.newUniqueName("non-persistent://" + DEFAULT_NS + "/tp");
-        final TopicName topicName = TopicName.get(topicNameStr);
-        // Verify.
-        // Regarding non-persistent topic, we do not know whether it exists or not.
-        // Broker will return a non-partitioned metadata if partitioned metadata does not exist.
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
-
-        if (!configAllowAutoTopicCreation && !paramMetadataAutoCreationEnabled && isUsingHttpLookup) {
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            // Define topic.
+            final String topicNameStr = BrokerTestUtil.newUniqueName("non-persistent://" + DEFAULT_NS + "/tp");
+            final TopicName topicName = TopicName.get(topicNameStr);
+            // Verify: the result of get partitioned topic metadata.
             try {
-                lookup.getPartitionedTopicMetadata(TopicName.get(topicNameStr), paramMetadataAutoCreationEnabled)
+                PartitionedTopicMetadata topicMetadata = client
+                        .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled)
                         .join();
-                Assert.fail("Expected a not found ex");
+                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                fail("Expected a not found ex");
             } catch (Exception ex) {
-                // Cleanup.
-                client.close();
-                return;
+                Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
+                assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
+                        || unwrapEx instanceof PulsarClientException.NotFoundException);
             }
-        }
 
-        PartitionedTopicMetadata metadata = lookup
-                .getPartitionedTopicMetadata(TopicName.get(topicNameStr), paramMetadataAutoCreationEnabled).join();
-        if (configAllowAutoTopicCreation && paramMetadataAutoCreationEnabled) {
-            assertEquals(metadata.partitions, 3);
-        } else {
-            assertEquals(metadata.partitions, 0);
-        }
-
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList("public/default");
-        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(topicName);
-        if (configAllowAutoTopicCreation && paramMetadataAutoCreationEnabled) {
-            assertTrue(partitionedTopics.contains(topicNameStr));
-        } else {
+            // Verify: the behavior of topic creation.
+            List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+            pulsar1.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                    .partitionedTopicExists(topicName);
             assertFalse(partitionedTopics.contains(topicNameStr));
+            verifyNonPartitionedTopicNeverCreated(topicNameStr);
+            verifyPartitionsNeverCreated(topicNameStr);
         }
 
         // Verify: lookup semaphore has been releases.
         Awaitility.await().untilAsserted(() -> {
-            int lookupPermitsAfter = semaphore.availablePermits();
-            assertEquals(lookupPermitsAfter, lookupPermitsBefore);
+            assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
         });
-
-        // Cleanup.
-        client.close();
     }
 }

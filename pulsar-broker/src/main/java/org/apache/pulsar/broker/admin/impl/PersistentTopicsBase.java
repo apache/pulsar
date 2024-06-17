@@ -570,13 +570,13 @@ public class PersistentTopicsBase extends AdminResource {
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
                         return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
                                 .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation) {
+                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {
                                 // If it does not exist, response a Not Found error.
                                 // Otherwise, response a non-partitioned metadata.
-                                return internalCheckTopicExists(topicName).thenApply(__ -> metadata);
+                                return internalCheckNonPartitionedTopicExists(topicName).thenApply(__ -> metadata);
                             }
                         });
                     }
@@ -724,6 +724,17 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
         return pulsar().getNamespaceService().checkTopicExists(topicName)
+                .thenAccept(info -> {
+                    boolean exists = info.isExists();
+                    info.recycle();
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalCheckNonPartitionedTopicExists(TopicName topicName) {
+        return pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
                 .thenAccept(exist -> {
                     if (!exist) {
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
@@ -5541,8 +5552,10 @@ public class PersistentTopicsBase extends AdminResource {
                             "Only persistent topic can be set as shadow topic"));
                 }
                 futures.add(pulsar().getNamespaceService().checkTopicExists(shadowTopicName)
-                        .thenAccept(isExists -> {
-                            if (!isExists) {
+                        .thenAccept(info -> {
+                            boolean exists = info.isExists();
+                            info.recycle();
+                            if (!exists) {
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Shadow topic [" + shadowTopic + "] not exists.");
                             }
