@@ -192,6 +192,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // Disable collecting topic stats during this test, as it deadlocks on access to map BrokerService.topics.
         pulsar2.getOpenTelemetryTopicStats().close();
         pulsar2.getOpenTelemetryConsumerStats().close();
+        pulsar2.getOpenTelemetryProducerStats().close();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         var lookupRequestSemaphoreField = BrokerService.class.getDeclaredField("lookupRequestSemaphore");

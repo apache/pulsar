@@ -25,6 +25,7 @@ import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.ResourceAttributes;
 import java.io.Closeable;
@@ -72,7 +73,9 @@ public class OpenTelemetryService implements Closeable {
         sdkBuilder.addPropertiesSupplier(() -> Map.of(
                 OTEL_SDK_DISABLED_KEY, "true",
                 // Cardinality limit includes the overflow attribute set, so we need to add 1.
-                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1)
+                "otel.experimental.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1),
+                // Reduce number of allocations by using reusable data mode.
+                "otel.java.experimental.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name()
         ));
 
         sdkBuilder.addResourceCustomizer(
