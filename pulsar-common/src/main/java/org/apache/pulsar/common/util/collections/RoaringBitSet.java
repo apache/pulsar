@@ -203,9 +203,6 @@ public class RoaringBitSet extends BitSet {
         if (obj instanceof RoaringBitSet) {
             return roaringBitmap.equals(((RoaringBitSet) obj).roaringBitmap);
         }
-        if (obj instanceof BitSet) {
-            return roaringBitmap.equals(fromBitSet((BitSet) obj));
-        }
         return false;
     }
 
