@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIM
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -561,6 +562,64 @@ public class ModularLoadManagerImplTest {
         // The bundle shouldn't be unloaded because the broker is the same.
         verify(namespacesSpy1, Mockito.times(4))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testUnloadBundleMetric() throws Exception {
+        final NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        final NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        stats1.msgRateIn = 100;
+        stats2.msgRateIn = 200;
+        final Map<String, NamespaceBundleStats> statsMap = new ConcurrentHashMap<>();
+        statsMap.put(mockBundleName(1), stats1);
+        statsMap.put(mockBundleName(2), stats2);
+        final LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.update(new SystemResourceUsage(), statsMap);
+        final Namespaces namespacesSpy1 = spy(pulsar1.getAdminClient().namespaces());
+        doNothing().when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
+        ModularLoadManagerImpl primaryLoadManagerSpy = spy(primaryLoadManager);
+
+        pulsar1.getConfiguration().setLoadBalancerEnabled(true);
+        final LoadData loadData = (LoadData) getField(primaryLoadManagerSpy, "loadData");
+
+        final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryBrokerId));
+        when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
+        brokerDataMap.put(primaryBrokerId, brokerDataSpy1);
+        // Need to update all the bundle data for the shredder to see the spy.
+        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+
+        sleep(100);
+
+        // Most expensive bundle will be unloaded.
+        localBrokerData.setCpu(new ResourceUsage(90, 100));
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 1l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 1l);
+
+        // Now less expensive bundle will be unloaded
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+
+        // Now both are in grace period: neither should be unloaded.
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+
+        // clear the recently unloaded bundles to avoid the grace period
+        loadData.getRecentlyUnloadedBundles().clear();
+
+        // Test bundle to be unloaded is filtered.
+        doAnswer(invocation -> {
+            // return empty broker to avoid unloading the bundle
+            return Optional.empty();
+        }).when(primaryLoadManagerSpy).selectBroker(any());
+        primaryLoadManagerSpy.doLoadShedding();
+
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
     }
 
     // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain

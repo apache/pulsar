@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -625,6 +626,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
         bundlesToUnload.asMap().forEach((broker, bundles) -> {
+            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
             bundles.forEach(bundle -> {
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
@@ -654,24 +656,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     pulsar.getAdminClient().namespaces()
                             .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                     loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                    unloadBundleCount++;
+                    unloadBundleForBroker.set(true);
                 } catch (PulsarServerException | PulsarAdminException e) {
                     log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
                 }
             });
+            if (unloadBundleForBroker.get()) {
+                unloadBrokerCount++;
+            }
         });
 
-        updateBundleUnloadingMetrics(bundlesToUnload);
+        updateBundleUnloadingMetrics();
     }
 
     /**
      * As leader broker, update bundle unloading metrics.
-     *
-     * @param bundlesToUnload
      */
-    private void updateBundleUnloadingMetrics(Multimap<String, String> bundlesToUnload) {
-        unloadBrokerCount += bundlesToUnload.keySet().size();
-        unloadBundleCount += bundlesToUnload.values().size();
-
+    private void updateBundleUnloadingMetrics() {
         List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
