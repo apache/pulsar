@@ -371,7 +371,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(brokerInterceptor, this);
         this.service.getPulsarStats().recordConnectionCreate();
-        updateStateAndCounters(this.state /* no change */);
         cnxsPerThread.get().add(this);
     }
 
@@ -426,7 +425,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
         this.topicListService.inactivate();
         this.service.getPulsarStats().recordConnectionClose();
-        this.service.getPulsarStats().getBrokerOperabilityMetrics().recordConnectionState(isActive, this.state);
 
         // complete possible pending connection check future
         if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
@@ -768,7 +766,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .isValidOriginalPrincipal(authRole, originalPrincipal, remoteAddress, false)) {
                     state = State.Failed;
                     service.getPulsarStats().recordConnectionCreateFail();
-                    service.getPulsarStats().getBrokerOperabilityMetrics().recordConnectionState(isActive, state);
                     final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError, "Invalid roles.");
                     NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
                     return;
@@ -777,7 +774,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     // Only allow proxyVersion to be set when connecting with a proxy
                     state = State.Failed;
                     service.getPulsarStats().recordConnectionCreateFail();
-                    service.getPulsarStats().getBrokerOperabilityMetrics().recordConnectionState(isActive, state);
                     final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError,
                             "Must not set proxyVersion without connecting as a ProxyRole.");
                     NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
@@ -789,7 +785,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableSubscriptionPatternEvaluation));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
-        service.getPulsarStats().getBrokerOperabilityMetrics().recordConnectionState(isActive, this.state);
         if (log.isDebugEnabled()) {
             log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
         }
@@ -3688,16 +3683,5 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void decrementThrottleCount() {
         throttleTracker.decrementThrottleCount();
-    }
-
-    private void updateStateAndCounters(State newState) {
-        state = newState;
-        var pulsarStats = service.getPulsarStats();
-        if (state == State.Connected) {
-            pulsarStats.recordConnectionCreateSuccess();
-        } else if (state == State.Failed) {
-            pulsarStats.recordConnectionCreateFail();
-        }
-        pulsarStats.getBrokerOperabilityMetrics().recordConnectionState(isActive, state);
     }
 }
