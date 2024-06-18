@@ -146,6 +146,7 @@ public class HttpClient implements Closeable {
         if (executorService != null) {
             executorService.shutdownNow();
         }
+        serviceNameResolver.close();
     }
 
     public <T> CompletableFuture<T> get(String path, Class<T> clazz) {

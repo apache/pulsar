@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
@@ -26,7 +27,7 @@ import org.apache.pulsar.common.net.ServiceURI;
 /**
  * A service name resolver to resolve real socket address.
  */
-public interface ServiceNameResolver {
+public interface ServiceNameResolver extends Closeable {
 
     /**
      * Resolve pulsar service url.
@@ -62,4 +63,8 @@ public interface ServiceNameResolver {
      */
     void updateServiceUrl(String serviceUrl) throws InvalidServiceURL;
 
+    @Override
+    default void close() {
+        // do nothing
+    }
 }

@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
@@ -110,7 +111,13 @@ public abstract class PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
 
     private static final LoadingCache<String, PulsarServiceNameResolver> SERVICE_NAME_RESOLVER_CACHE =
-            Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(5)).build(
+            Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(5))
+                    .evictionListener((RemovalListener<String, PulsarServiceNameResolver>) (key, value, cause) -> {
+                        if (value != null) {
+                            value.close();
+                        }
+                    })
+                    .build(
                     new CacheLoader<>() {
                         @Override
                         public @Nullable PulsarServiceNameResolver load(@NonNull String serviceUrl) throws Exception {

@@ -122,6 +122,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     @Override
     public void close() {
         this.executor.shutdown();
+        this.resolver.close();
     }
 
     boolean probeAvailable(String url) {

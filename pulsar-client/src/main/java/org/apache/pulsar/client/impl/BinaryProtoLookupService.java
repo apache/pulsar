@@ -464,6 +464,7 @@ public class BinaryProtoLookupService implements LookupService {
         if (createdLookupPinnedExecutor && lookupPinnedExecutor != null && !lookupPinnedExecutor.isShutdown()) {
             lookupPinnedExecutor.shutdown();
         }
+        serviceNameResolver.close();    
     }
 
     public static class LookupDataResult {
