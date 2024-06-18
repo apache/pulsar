@@ -788,7 +788,7 @@ public class NamespaceService implements AutoCloseable {
                                                          boolean closeWithoutWaitingClientDisconnect) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
-                    .unloadNamespaceBundleAsync(bundle, destinationBroker, false);
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker, false, timeout, timeoutUnit);
         }
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
@@ -1237,7 +1237,8 @@ public class NamespaceService implements AutoCloseable {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             future = extensibleLoadManager.unloadNamespaceBundleAsync(
-                    nsBundle, Optional.empty(), true);
+                    nsBundle, Optional.empty(), true,
+                    pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
         } else {
             future = ownershipCache.removeOwnership(nsBundle);
         }
