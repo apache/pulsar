@@ -624,7 +624,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     public CompletableFuture<Void> unloadNamespaceBundleAsync(ServiceUnitId bundle,
                                                               Optional<String> destinationBroker,
-                                                              boolean force) {
+                                                              boolean force,
+                                                              long timeout,
+                                                              TimeUnit timeoutUnit) {
         if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
             log.info("Skip unloading namespace bundle: {}.", bundle);
             return CompletableFuture.completedFuture(null);
@@ -647,7 +649,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     UnloadDecision unloadDecision =
                             new UnloadDecision(unload, UnloadDecision.Label.Success, UnloadDecision.Reason.Admin);
                     return unloadAsync(unloadDecision,
-                            conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+                            timeout, timeoutUnit);
                 });
     }
 
