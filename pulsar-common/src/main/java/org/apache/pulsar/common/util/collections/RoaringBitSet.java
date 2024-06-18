@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.BitSet;
 import java.util.stream.IntStream;
 import org.roaringbitmap.BitSetUtil;
@@ -30,7 +31,7 @@ import org.roaringbitmap.RoaringBitmap;
 public class RoaringBitSet implements Cloneable {
     private static final long serialVersionUID = 1L;
 
-    private RoaringBitmap roaringBitmap;
+    private final RoaringBitmap roaringBitmap;
 
     public RoaringBitSet() {
         roaringBitmap = new RoaringBitmap();
@@ -166,14 +167,9 @@ public class RoaringBitSet implements Cloneable {
         return false;
     }
 
+    @SuppressFBWarnings("CN_IDIOM_NO_SUPER_CALL")
     public Object clone() {
-        try {
-            RoaringBitSet result = (RoaringBitSet) super.clone();
-            result.roaringBitmap = roaringBitmap.clone();
-            return result;
-        } catch (CloneNotSupportedException e) {
-            throw new InternalError(e);
-        }
+        return new RoaringBitSet(roaringBitmap.clone());
     }
 
     public IntStream stream() {
