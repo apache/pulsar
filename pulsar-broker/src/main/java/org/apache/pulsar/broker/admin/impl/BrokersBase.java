@@ -395,9 +395,8 @@ public class BrokersBase extends AdminResource {
             String threadNames = Arrays.stream(threadInfos)
                     .map(threadInfo -> threadInfo.getThreadName() + "(tid=" + threadInfo.getThreadId() + ")").collect(
                             Collectors.joining(", "));
-            if ((System.currentTimeMillis() - threadDumpLoggedTimestamp
-                    > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) ||
-                    threadDumpLoggedTimestamp == 0) {
+            if (System.currentTimeMillis() - threadDumpLoggedTimestamp
+                    > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
                 threadDumpLoggedTimestamp = System.currentTimeMillis();
                 LOG.error("Deadlocked threads detected. {}\n{}", threadNames,
                         ThreadDumpUtil.buildThreadDiagnosticString());
