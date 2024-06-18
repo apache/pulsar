@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -40,17 +39,6 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-    }
-
-    @Override
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration conf = super.getDefaultConf();
-        conf.setTopicLevelPoliciesEnabled(false);
-        conf.setSystemTopicEnabled(false);
-        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
-        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
-        conf.setBrokerShutdownTimeoutMs(5000L);
-        return conf;
     }
 
     @Override
@@ -93,7 +81,8 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
                 .operationTimeout(1, TimeUnit.MILLISECONDS));
         assertThatThrownBy(() -> pulsarClient.newProducer().topic(topicName).create())
                 .isInstanceOf(PulsarClientException.AuthenticationException.class);

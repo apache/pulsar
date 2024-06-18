@@ -67,7 +67,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
         connectionCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(CONNECTION_COUNTER_METRIC_NAME)
-                .setDescription("Number of connections")
+                .setDescription("The number of connections.")
                 .setUnit("{connection}")
                 .buildWithCallback(measurement -> {
                     var closedConnections = connectionTotalClosedCount.sum();
@@ -80,7 +80,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
         connectionCreateCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(CONNECTION_CREATE_COUNTER_METRIC_NAME)
-                .setDescription("Number of connection create operations")
+                .setDescription("The number of connection create operations.")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> {
                     measurement.record(connectionCreateSuccessCount.sum(), ConnectionCreateStatus.SUCCESS.attributes);
