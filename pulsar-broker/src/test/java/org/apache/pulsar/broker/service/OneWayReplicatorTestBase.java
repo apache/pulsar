@@ -350,6 +350,11 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void verifyReplicationWorks(String topic) throws Exception {
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false).join().get();
+            assertTrue(persistentTopic.getReplicators().size() > 0);
+        });
         final String subscription = "__subscribe_1";
         final String msgValue = "__msg1";
         Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();

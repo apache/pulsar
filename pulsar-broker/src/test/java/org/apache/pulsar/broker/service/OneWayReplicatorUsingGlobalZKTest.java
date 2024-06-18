@@ -106,7 +106,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     }
 
     @Test(enabled = false)
-    public void testReloadWithTopicLevelGeoReplication() throws Exception {
-        super.testReloadWithTopicLevelGeoReplication();
+    public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
+        super.testReloadWithTopicLevelGeoReplication(replicationLevel);
     }
 }

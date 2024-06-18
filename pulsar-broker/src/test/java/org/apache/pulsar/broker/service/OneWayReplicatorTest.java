@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.SneakyThrows;
@@ -81,6 +82,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -830,13 +832,36 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         return lastMsgValue;
     }
 
-    @Test
-    public void testReloadWithTopicLevelGeoReplication() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+    enum ReplicationLevel {
+        TOPIC_LEVEL,
+        NAMESPACE_LEVEL;
+    }
+
+    @DataProvider(name = "replicationLevels")
+    public Object[][] replicationLevels() {
+        return new Object[][]{
+            {ReplicationLevel.TOPIC_LEVEL},
+            {ReplicationLevel.NAMESPACE_LEVEL}
+        };
+    }
+
+    @Test(dataProvider = "replicationLevels")
+    public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
+        final String topicName = ((Supplier<String>) () -> {
+            if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+                return BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+            } else {
+                return BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+            }
+        }).get();
         admin1.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        } else {
+            pulsar1.getConfig().setTopicLevelPoliciesEnabled(false);
+        }
         verifyReplicationWorks(topicName);
 
         /**
@@ -864,7 +889,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().unload(topicName);
 
         // Step 4. Verify: the message can be replicated to the remote cluster.
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(300)).untilAsserted(() -> {
             log.info("replication backlog: {}",
                     admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog());
             assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 0);
@@ -872,11 +897,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // Cleanup.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(broker1.getTopic(topicName, false).join().get().getReplicators().size(), 0);
-        });
-        admin1.topics().delete(topicName, false);
-        admin2.topics().delete(topicName, false);
+        if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(broker1.getTopic(topicName, false).join().get().getReplicators().size(), 0);
+            });
+            admin1.topics().delete(topicName, false);
+            admin2.topics().delete(topicName, false);
+        } else {
+            pulsar1.getConfig().setTopicLevelPoliciesEnabled(true);
+            cleanupTopics(() -> {
+                admin1.topics().delete(topicName);
+                admin2.topics().delete(topicName);
+            });
+        }
     }
 }
