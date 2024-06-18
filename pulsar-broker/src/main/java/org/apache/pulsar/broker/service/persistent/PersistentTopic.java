@@ -2475,7 +2475,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TimeBasedBacklogQuotaCheckResult backlogQuotaCheckResult = timeBasedBacklogQuotaCheckResult;
         stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
         stats.oldestBacklogMessageSubscriptionName = (backlogQuotaCheckResult == null)
-                || !hasBacklogs(getStatsOptions.isGetPreciseBacklog())
+                || !hasBacklogs(getPreciseBacklog)
             ? null
             : backlogQuotaCheckResult.getCursorName();
 
