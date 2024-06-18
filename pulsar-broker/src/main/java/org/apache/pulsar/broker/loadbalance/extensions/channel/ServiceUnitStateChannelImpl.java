@@ -113,7 +113,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
-    public static final int OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS = 3000;
     public static final long VERSION_ID_INIT = 1; // initial versionId
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
@@ -298,7 +297,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
 
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName(),
+                            config.getDefaultNumberOfNamespaceBundles());
 
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 
@@ -1013,6 +1013,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     if (ex != null) {
                         log.error("Failed to close topics under bundle:{} in {} ms",
                                 bundle.toString(), unloadBundleTime, ex);
+                        if (!disconnectClients) {
+                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                        }
                     } else {
                         log.info("Unloading bundle:{} with {} topics completed in {} ms",
                                 bundle, unloadedTopics, unloadBundleTime);
@@ -1355,11 +1358,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 }
             }
             if (cleaned) {
-                try {
-                    MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS);
-                } catch (InterruptedException e) {
-                    log.warn("Interrupted while gracefully waiting for the cleanup convergence.");
-                }
                 break;
             } else {
                 try {
@@ -1370,9 +1368,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 }
             }
         }
+        log.info("Finished cleanup waiting for orphan broker:{}. Elapsed {} ms", brokerId,
+                System.currentTimeMillis() - started);
     }
 
     private synchronized void doCleanup(String broker)  {
+        try {
+            if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
+                    .isEmpty()) {
+                log.error("Found the channel owner is empty. Skip the inactive broker:{}'s orphan bundle cleanup",
+                        broker);
+                return;
+            }
+        } catch (Exception e) {
+            log.error("Failed to find the channel owner. Skip the inactive broker:{}'s orphan bundle cleanup", broker);
+            return;
+        }
+
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;

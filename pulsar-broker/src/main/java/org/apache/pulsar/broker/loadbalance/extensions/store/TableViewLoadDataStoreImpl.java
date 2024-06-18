@@ -31,7 +31,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 
@@ -44,6 +43,7 @@ import org.apache.pulsar.client.api.TableView;
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     private static final long LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART = 2;
+    private static final long INIT_TIMEOUT_IN_SECS = 5;
 
     private volatile TableView<T> tableView;
     private volatile long tableViewLastUpdateTimestamp;
@@ -123,10 +123,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void startTableView() throws LoadDataStoreException {
         if (tableView == null) {
             try {
-                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
+                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).createAsync()
+                        .get(INIT_TIMEOUT_IN_SECS, TimeUnit.SECONDS);
                 tableView.forEachAndListen((k, v) ->
                         tableViewLastUpdateTimestamp = System.currentTimeMillis());
-            } catch (PulsarClientException e) {
+            } catch (Exception e) {
                 tableView = null;
                 throw new LoadDataStoreException(e);
             }
@@ -137,8 +138,9 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void startProducer() throws LoadDataStoreException {
         if (producer == null) {
             try {
-                producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
-            } catch (PulsarClientException e) {
+                producer = client.newProducer(Schema.JSON(clazz)).topic(topic).createAsync()
+                        .get(INIT_TIMEOUT_IN_SECS, TimeUnit.SECONDS);
+            } catch (Exception e) {
                 producer = null;
                 throw new LoadDataStoreException(e);
             }
