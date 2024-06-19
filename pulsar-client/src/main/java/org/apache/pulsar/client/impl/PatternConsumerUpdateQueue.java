@@ -20,8 +20,9 @@ import org.apache.commons.lang3.tuple.Pair;
  *    {@link PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsRemoved(Collection)} or
  *    {@link PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsAdded(Collection)}.
  *
- * When you are using a release >= 2.11, there are three scenarios: [1, 2, 4].
- * When you are using a release < 2.11, there is only one scenario: [3] and all the event will run in the same thread.
+ * When you are using this client connect to the broker whose version >= 2.11, there are three scenarios: [1, 2, 4].
+ * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all
+ *   the event will run in the same thread.
  */
 public class PatternConsumerUpdateQueue {
 
