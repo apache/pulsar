@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,6 +50,9 @@ public final class MetadataStoreStats implements AutoCloseable {
             .unit("bytes")
             .labelNames(METADATA_STORE_LABEL_NAME)
             .register();
+    public static final String METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME = "pulsar.broker.metadata.store.outgoing.size";
+    private final Attributes attributes;
+    private final LongCounter putBytesCounter;
 
     private final Histogram.Child getOpsSucceedChild;
     private final Histogram.Child delOpsSucceedChild;
@@ -58,7 +64,7 @@ public final class MetadataStoreStats implements AutoCloseable {
     private final String metadataStoreName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    public MetadataStoreStats(String metadataStoreName) {
+    public MetadataStoreStats(String metadataStoreName, OpenTelemetry openTelemetry) {
         this.metadataStoreName = metadataStoreName;
 
         this.getOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
@@ -68,6 +74,13 @@ public final class MetadataStoreStats implements AutoCloseable {
         this.delOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
         this.putOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
+
+        attributes = Attributes.of(BatchMetadataStoreStats.METADATA_STORE_NAME, metadataStoreName);
+        putBytesCounter = openTelemetry.getMeter("org.apache.pulsar")
+                .counterBuilder(METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME)
+                .setDescription("Number of bytes written to the metadata store")
+                .setUnit("{By")
+                .build();
     }
 
     public void recordGetOpsSucceeded(long millis) {
@@ -81,6 +94,7 @@ public final class MetadataStoreStats implements AutoCloseable {
     public void recordPutOpsSucceeded(long millis, int bytes) {
         this.putOpsSucceedChild.observe(millis);
         this.putBytesChild.inc(bytes);
+        this.putBytesCounter.add(bytes, attributes);
     }
 
     public void recordGetOpsFailed(long millis) {
