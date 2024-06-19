@@ -106,18 +106,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerProducedTopic(String topic) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the produced topic
-                return registerPartitionMap.compute(topic, (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addPublishPartitionToTxnAsync(
-                                txnId, Lists.newArrayList(topic))
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the produced topic
+            return registerPartitionMap.compute(topic, (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addPublishPartitionToTxnAsync(
+                                    txnId, Lists.newArrayList(topic))
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
@@ -147,18 +145,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addSubscriptionToTxnAsync(
-                                txnId, topic, subscription)
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the acked topic
+            return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addSubscriptionToTxnAsync(
+                                    txnId, topic, subscription)
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
