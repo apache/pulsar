@@ -18,7 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -108,5 +120,45 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test(enabled = false)
     public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
         super.testReloadWithTopicLevelGeoReplication(replicationLevel);
+    }
+
+    @Test
+    @Override
+    public void testConfigReplicationStartAt() throws Exception {
+        // Initialize.
+        String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        String subscription1 = "s1";
+        admin1.namespaces().createNamespace(ns1);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(60 * 24, 1024);
+        admin1.namespaces().setRetention(ns1, retentionPolicies);
+        admin2.namespaces().setRetention(ns1, retentionPolicies);
+
+        // Update config: start at "earliest".
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", MessageId.earliest.toString());
+        Awaitility.await().untilAsserted(() -> {
+            pulsar1.getConfiguration().getReplicationStartAt().equalsIgnoreCase("earliest");
+        });
+
+        // Verify: since the replication was started at earliest, there is one message to consume.
+        final String topic1 = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp_");
+        admin1.topics().createNonPartitionedTopicAsync(topic1);
+        admin1.topics().createSubscription(topic1, subscription1, MessageId.earliest);
+        org.apache.pulsar.client.api.Producer<String> p1 = client1.newProducer(Schema.STRING).topic(topic1).create();
+        p1.send("msg-1");
+        p1.close();
+
+        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        org.apache.pulsar.client.api.Consumer<String> c1 = client2.newConsumer(Schema.STRING).topic(topic1)
+                .subscriptionName(subscription1).subscribe();
+        Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        assertEquals(msg2.getValue(), "msg-1");
+        c1.close();
+
+        // cleanup.
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", MessageId.latest.toString());
+        Awaitility.await().untilAsserted(() -> {
+            pulsar1.getConfiguration().getReplicationStartAt().equalsIgnoreCase("latest");
+        });
     }
 }
