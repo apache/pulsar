@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.SneakyThrows;
@@ -58,7 +59,10 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -78,6 +82,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -808,5 +813,103 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().deletePartitionedTopic(topicName, false);
             admin2.topics().deletePartitionedTopic(topicName, false);
         });
+    }
+
+    private String getTheLatestMessage(String topic, PulsarClient client, PulsarAdmin admin) throws Exception {
+        String dummySubscription = "s_" + UUID.randomUUID().toString().replace("-", "");
+        admin.topics().createSubscription(topic, dummySubscription, MessageId.earliest);
+        Consumer<String> c = client.newConsumer(Schema.STRING).topic(topic).subscriptionName(dummySubscription)
+                .subscribe();
+        String lastMsgValue = null;
+        while (true) {
+            Message<String> msg = c.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            lastMsgValue = msg.getValue();
+        }
+        c.unsubscribe();
+        return lastMsgValue;
+    }
+
+    enum ReplicationLevel {
+        TOPIC_LEVEL,
+        NAMESPACE_LEVEL;
+    }
+
+    @DataProvider(name = "replicationLevels")
+    public Object[][] replicationLevels() {
+        return new Object[][]{
+            {ReplicationLevel.TOPIC_LEVEL},
+            {ReplicationLevel.NAMESPACE_LEVEL}
+        };
+    }
+
+    @Test(dataProvider = "replicationLevels")
+    public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
+        final String topicName = ((Supplier<String>) () -> {
+            if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+                return BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+            } else {
+                return BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+            }
+        }).get();
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        } else {
+            pulsar1.getConfig().setTopicLevelPoliciesEnabled(false);
+        }
+        verifyReplicationWorks(topicName);
+
+        /**
+         * Verify:
+         * 1. Inject an error to make the replicator is not able to work.
+         * 2. Send one message, since the replicator does not work anymore, this message will not be replicated.
+         * 3. Unload topic, the replicator will be re-created.
+         * 4. Verify: the message can be replicated to the remote cluster.
+         */
+        // Step 1: Inject an error to make the replicator is not able to work.
+        Replicator replicator = broker1.getTopic(topicName, false).join().get().getReplicators().get(cluster2);
+        replicator.terminate();
+
+        // Step 2: Send one message, since the replicator does not work anymore, this message will not be replicated.
+        String msg = UUID.randomUUID().toString();
+        Producer p1 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        p1.send(msg);
+        p1.close();
+        // The result of "peek message" will be the messages generated, so it is not the same as the message just sent.
+        Thread.sleep(3000);
+        assertNotEquals(getTheLatestMessage(topicName, client2, admin2), msg);
+        assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 1);
+
+        // Step 3: Unload topic, the replicator will be re-created.
+        admin1.topics().unload(topicName);
+
+        // Step 4. Verify: the message can be replicated to the remote cluster.
+        Awaitility.await().atMost(Duration.ofSeconds(300)).untilAsserted(() -> {
+            log.info("replication backlog: {}",
+                    admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog());
+            assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 0);
+            assertEquals(getTheLatestMessage(topicName, client2, admin2), msg);
+        });
+
+        // Cleanup.
+        if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
+            admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(broker1.getTopic(topicName, false).join().get().getReplicators().size(), 0);
+            });
+            admin1.topics().delete(topicName, false);
+            admin2.topics().delete(topicName, false);
+        } else {
+            pulsar1.getConfig().setTopicLevelPoliciesEnabled(true);
+            cleanupTopics(() -> {
+                admin1.topics().delete(topicName);
+                admin2.topics().delete(topicName);
+            });
+        }
     }
 }
