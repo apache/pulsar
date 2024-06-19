@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.IntStream;
+import org.roaringbitmap.RoaringBitSet;
 
 public class ConcurrentRoaringBitSet extends RoaringBitSet {
     private final StampedLock rwLock = new StampedLock();
@@ -294,9 +296,9 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public RoaringBitSet get(int fromIndex, int toIndex) {
+    public BitSet get(int fromIndex, int toIndex) {
         long stamp = rwLock.tryOptimisticRead();
-        RoaringBitSet bitSet = super.get(fromIndex, toIndex);
+        BitSet bitSet = super.get(fromIndex, toIndex);
         if (!rwLock.validate(stamp)) {
             // Fallback to read lock
             stamp = rwLock.readLock();
@@ -310,7 +312,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public boolean intersects(RoaringBitSet set) {
+    public boolean intersects(BitSet set) {
         long stamp = rwLock.writeLock();
         try {
             return super.intersects(set);
@@ -320,7 +322,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void and(RoaringBitSet set) {
+    public void and(BitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.and(set);
@@ -330,7 +332,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void or(RoaringBitSet set) {
+    public void or(BitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.or(set);
@@ -340,7 +342,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void xor(RoaringBitSet set) {
+    public void xor(BitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.xor(set);
@@ -350,7 +352,7 @@ public class ConcurrentRoaringBitSet extends RoaringBitSet {
     }
 
     @Override
-    public void andNot(RoaringBitSet set) {
+    public void andNot(BitSet set) {
         long stamp = rwLock.writeLock();
         try {
             super.andNot(set);
