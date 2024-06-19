@@ -181,6 +181,10 @@ public class OverloadShedderTest {
         conf.setLoadBalancerBandwidthInResourceWeight(0);
         conf.setLoadBalancerBandwidthOutResourceWeight(0);
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
+
+        // set bandwidth resource weight back to 1, or it will affect other tests
+        conf.setLoadBalancerBandwidthInResourceWeight(1);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1);
     }
 
     @Test
