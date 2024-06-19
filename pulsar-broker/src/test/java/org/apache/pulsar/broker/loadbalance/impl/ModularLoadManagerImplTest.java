@@ -684,6 +684,10 @@ public class ModularLoadManagerImplTest {
         currentData.setCpu(new ResourceUsage(206, 1000));
         assert (needUpdate.get());
 
+        // set the resource weight of cpu to 0, so that it should not trigger an update
+        conf.setLoadBalancerCPUResourceWeight(0);
+        assert (!needUpdate.get());
+
         lastData.setCpu(new ResourceUsage());
         currentData.setCpu(new ResourceUsage());
 
