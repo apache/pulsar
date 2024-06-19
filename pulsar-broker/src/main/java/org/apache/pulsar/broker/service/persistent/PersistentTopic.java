@@ -1919,7 +1919,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
-        ledger.asyncOpenCursor(name, new OpenCursorCallback() {
+        final InitialPosition initialPosition;
+        if (MessageId.earliest.toString()
+                .equalsIgnoreCase(getBrokerService().getPulsar().getConfiguration().getReplicationStartAt())) {
+            initialPosition = InitialPosition.Earliest;
+        } else {
+            initialPosition = InitialPosition.Latest;
+        }
+        ledger.asyncOpenCursor(name, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
