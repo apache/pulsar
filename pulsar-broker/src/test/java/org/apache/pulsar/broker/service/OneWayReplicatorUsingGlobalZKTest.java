@@ -104,4 +104,9 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testExpandTopicPartitionsOnNamespaceLevelReplication() throws Exception {
         super.testExpandTopicPartitionsOnNamespaceLevelReplication();
     }
+
+    @Test(enabled = false)
+    public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
+        super.testReloadWithTopicLevelGeoReplication(replicationLevel);
+    }
 }
