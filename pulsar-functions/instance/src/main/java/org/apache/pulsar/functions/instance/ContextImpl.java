@@ -27,6 +27,7 @@ import io.prometheus.client.Summary;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,14 +41,11 @@ import java.util.stream.Stream;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -55,7 +53,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
@@ -77,6 +75,7 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
@@ -88,6 +87,8 @@ import org.slf4j.Logger;
  */
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
+    private final ProducerBuilderFactory producerBuilderFactory;
+    private final Map<String, String> producerProperties;
     private InstanceConfig config;
     private Logger logger;
 
@@ -99,7 +100,6 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final PulsarAdmin pulsarAdmin;
     private Map<String, Producer<?>> publishProducers;
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
-    private ProducerBuilderImpl<?> producerBuilder;
 
     private final TopicSchema topicSchema;
 
@@ -151,27 +151,27 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
 
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         boolean useThreadLocalProducers = false;
+
         Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
+        ProducerConfig producerConfig = null;
         if (producerSpec != null) {
-            if (producerSpec.getMaxPendingMessages() != 0) {
-                this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
-            }
-            if (producerSpec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                this.producerBuilder
-                        .maxPendingMessagesAcrossPartitions(producerSpec.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (producerSpec.getBatchBuilder() != null) {
-                if (producerSpec.getBatchBuilder().equals("KEY_BASED")) {
-                    this.producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
-                } else {
-                    this.producerBuilder.batcherBuilder(BatcherBuilder.DEFAULT);
-                }
-            }
+            producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
             useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
         }
+        producerBuilderFactory = new ProducerBuilderFactory(client, producerConfig,
+                Thread.currentThread().getContextClassLoader(),
+                // This is for backwards compatibility. The PR https://github.com/apache/pulsar/pull/19470 removed
+                // the default and made it configurable for the producers created in PulsarSink, but not in ContextImpl.
+                // This is to keep the default unchanged for the producers created in ContextImpl.
+                producerBuilder -> producerBuilder.compressionType(CompressionType.LZ4));
+        producerProperties = Collections.unmodifiableMap(InstanceUtils.getProperties(componentType,
+                FunctionCommon.getFullyQualifiedName(
+                        this.config.getFunctionDetails().getTenant(),
+                        this.config.getFunctionDetails().getNamespace(),
+                        this.config.getFunctionDetails().getName()),
+                this.config.getInstanceId()));
+
         if (useThreadLocalProducers) {
             tlPublishProducers = new ThreadLocal<>();
         } else {
@@ -548,26 +548,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
 
         if (producer == null) {
-
-            Producer<T> newProducer = ((ProducerBuilderImpl<T>) producerBuilder.clone())
-                    .schema(schema)
-                    .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
-                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
-                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                    .messageRouter(FunctionResultRouter.of())
-                    // set send timeout to be infinity to prevent potential deadlock with consumer
-                    // that might happen when consumer is blocked due to unacked messages
-                    .sendTimeout(0, TimeUnit.SECONDS)
-                    .topic(topicName)
-                    .properties(InstanceUtils.getProperties(componentType,
-                            FunctionCommon.getFullyQualifiedName(
-                                    this.config.getFunctionDetails().getTenant(),
-                                    this.config.getFunctionDetails().getNamespace(),
-                                    this.config.getFunctionDetails().getName()),
-                            this.config.getInstanceId()))
+            Producer<T> newProducer = producerBuilderFactory
+                    .createProducerBuilder(topicName, schema, null)
+                    .properties(producerProperties)
                     .create();
 
             if (tlPublishProducers != null) {
