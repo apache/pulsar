@@ -88,7 +88,7 @@ public class BrokersBase extends AdminResource {
     private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
     private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
-    private volatile long threadDumpLoggedTimestamp;
+    private static volatile long threadDumpLoggedTimestamp;
 
     @GET
     @Path("/{cluster}")
