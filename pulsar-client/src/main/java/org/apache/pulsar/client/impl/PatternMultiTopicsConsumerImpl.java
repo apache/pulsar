@@ -297,6 +297,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
              *  1. Expand partitions.
              *  2. Non-partitioned topic, but has been subscribing.
              *  3. Non-partitioned topic or Partitioned topic, but has not been subscribing.
+             *  Note: The events that triggered by {@link TopicsPartitionChangedListener} after expanding partitions has
+             *    been disabled through "conf.setAutoUpdatePartitions(false)" when creating
+             *    {@link PatternMultiTopicsConsumerImpl}.
              */
             Set<String> groupedTopics = new HashSet<>();
             for (String tp : addedTopics) {
