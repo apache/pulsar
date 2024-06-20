@@ -32,7 +32,6 @@ import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 public class MockManagedCursor implements ManagedCursor {
 
@@ -103,13 +102,13 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                 PositionImpl maxPosition) {
+                                 Position maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes,
-                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
+                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, Position maxPosition) {
 
     }
 
@@ -139,13 +138,13 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, Position maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, Position maxPosition) {
 
     }
 
@@ -387,7 +386,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public Range<PositionImpl> getLastIndividualDeletedRange() {
+    public Range<Position> getLastIndividualDeletedRange() {
         return null;
     }
 
@@ -397,7 +396,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
+    public long[] getDeletedBatchIndexesAsLongArray(Position position) {
         return new long[0];
     }
 

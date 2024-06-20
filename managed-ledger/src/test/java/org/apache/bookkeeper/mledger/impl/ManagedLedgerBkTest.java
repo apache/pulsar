@@ -358,7 +358,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
         ManagedCursor c1 = ledger.openCursor("c1");
 
-        PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
+        Position p1 = ledger.addEntry("entry-1".getBytes());
 
         // Trigger the closure of the data ledger
         bkc.openLedger(p1.getLedgerId(), BookKeeper.DigestType.CRC32C, new byte[] {});
@@ -368,7 +368,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(2, c1.getNumberOfEntries());
         assertEquals(2, c1.getNumberOfEntriesInBacklog(false));
 
-        PositionImpl p3 = (PositionImpl) ledger.addEntry("entry-3".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
 
         // Now entry-2 should have been written before entry-3
         assertEquals(3, c1.getNumberOfEntries());

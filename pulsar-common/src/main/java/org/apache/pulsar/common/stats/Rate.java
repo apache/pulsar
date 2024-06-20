@@ -49,11 +49,11 @@ public class Rate {
         totalCountAdder.increment();
     }
 
-    public void recordMultipleEvents(long totalCount, long totalValue) {
+    public void recordMultipleEvents(long events, long totalValue) {
         valueAdder.add(totalValue);
         totalValueAdder.add(totalValue);
-        countAdder.add(totalCount);
-        totalCountAdder.add(totalCount);
+        countAdder.add(events);
+        totalCountAdder.add(events);
     }
 
     public void calculateRate() {
@@ -93,6 +93,6 @@ public class Rate {
     }
 
     public long getTotalValue() {
-        return totalValueAdder.sum();
+        return this.totalValueAdder.sum();
     }
 }

@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -371,12 +370,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+    public boolean isTxnAborted(TxnID txnID, Position readPosition) {
         return false;
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
+    public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
         if (!isMarkerMessage) {
             updateLastDispatchablePosition(position);
             if (maxReadPositionCallBack != null) {
@@ -386,8 +385,8 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public PositionImpl getMaxReadPosition() {
-        return (PositionImpl) topic.getLastPosition();
+    public Position getMaxReadPosition() {
+        return topic.getLastPosition();
     }
 
     @Override

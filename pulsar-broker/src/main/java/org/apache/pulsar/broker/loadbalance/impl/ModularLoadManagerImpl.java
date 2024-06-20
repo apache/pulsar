@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -292,15 +293,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
-        try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            log.error("Error when trying to create load shedding strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
-        }
-        log.error("create load shedding strategy failed. using OverloadShedder instead.");
-        return new OverloadShedder();
+        return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
+                Thread.currentThread().getContextClassLoader());
     }
 
     /**
@@ -425,6 +419,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return 100 * Math.abs((oldValue - newValue) / oldValue);
     }
 
+    private double getMaxResourceUsageWithWeight(LocalBrokerData localBrokerData, ServiceConfiguration conf) {
+        return localBrokerData.getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
+    }
+
     // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
         final long updateMaxIntervalMillis = TimeUnit.MINUTES
@@ -437,14 +439,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // Always update after surpassing the maximum interval.
             return true;
         }
-        final double maxChange = Math
-                .max(100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
-                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
-                                localData.getMsgRateIn() + localData.getMsgRateOut()),
-                                Math.max(
-                                        percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
-                                                localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
-                                        percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
+        final double maxChange = LocalBrokerData.max(
+                percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
+                        localData.getMsgRateIn() + localData.getMsgRateOut()),
+                percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
+                        localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
+                percentChange(lastData.getNumBundles(), localData.getNumBundles()),
+                100.0 * Math.abs(getMaxResourceUsageWithWeight(lastData, conf)
+                        - getMaxResourceUsageWithWeight(localData, conf))
+        );
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
                             + "time since last report written is {} seconds", maxChange,
@@ -632,6 +635,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
         bundlesToUnload.asMap().forEach((broker, bundles) -> {
+            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
             bundles.forEach(bundle -> {
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
@@ -661,24 +665,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     pulsar.getAdminClient().namespaces()
                             .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                     loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                    unloadBundleCount++;
+                    unloadBundleForBroker.set(true);
                 } catch (PulsarServerException | PulsarAdminException e) {
                     log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
                 }
             });
+            if (unloadBundleForBroker.get()) {
+                unloadBrokerCount++;
+            }
         });
 
-        updateBundleUnloadingMetrics(bundlesToUnload);
+        updateBundleUnloadingMetrics();
     }
 
     /**
      * As leader broker, update bundle unloading metrics.
-     *
-     * @param bundlesToUnload
      */
-    private void updateBundleUnloadingMetrics(Multimap<String, String> bundlesToUnload) {
-        unloadBrokerCount += bundlesToUnload.keySet().size();
-        unloadBundleCount += bundlesToUnload.values().size();
-
+    private void updateBundleUnloadingMetrics() {
         List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
@@ -932,7 +936,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-            final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
+            final double maxUsage = getMaxResourceUsageWithWeight(
+                    loadData.getBrokerData().get(broker.get()).getLocalData(), conf);
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
