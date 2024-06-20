@@ -184,7 +184,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             double maxThroughput = maxLocalBrokerData.getMsgThroughputIn() + maxLocalBrokerData.getMsgThroughputOut();
 
             double msgRequiredFromUnloadedBundles = (maxMsgRate - minMsgRate) * maxUnloadPercentage;
-            double throuputRequiredFromUnloadedBundles = (maxThroughput - minThroughput) * maxUnloadPercentage;
+            double throughputRequiredFromUnloadedBundles = (maxThroughput - minThroughput) * maxUnloadPercentage;
 
             boolean isMsgRateToOffload;
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
@@ -192,15 +192,15 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             if (msgRequiredFromUnloadedBundles > minMsgThreshold) {
                 isMsgRateToOffload = true;
                 trafficMarkedToOffload.setValue(msgRequiredFromUnloadedBundles);
-            } else if (throuputRequiredFromUnloadedBundles > minThroughputThreshold) {
+            } else if (throughputRequiredFromUnloadedBundles > minThroughputThreshold) {
                 isMsgRateToOffload = false;
-                trafficMarkedToOffload.setValue(throuputRequiredFromUnloadedBundles);
+                trafficMarkedToOffload.setValue(throughputRequiredFromUnloadedBundles);
             } else {
                 log.info(
                         "broker:[{}] is planning to shed bundles to broker:[{}],but the throughput {} MByte/s is "
                                 + "less than minimumThroughputThreshold {} MByte/s, and the msgRate {} rate/s"
                                 + " is also less than minimumMsgRateThreshold {} rate/s, skipping bundle unload.",
-                        overloadedBroker, underloadedBroker, throuputRequiredFromUnloadedBundles / MB,
+                        overloadedBroker, underloadedBroker, throughputRequiredFromUnloadedBundles / MB,
                         minThroughputThreshold / MB, msgRequiredFromUnloadedBundles, minMsgThreshold);
                 continue;
             }
