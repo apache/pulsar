@@ -103,7 +103,9 @@ public class ContextImplTest {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
-        when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
+        when(client.newProducer()).thenAnswer(invocation -> new ProducerBuilderImpl(client, Schema.BYTES));
+        when(client.newProducer(any())).thenAnswer(
+                invocation -> new ProducerBuilderImpl(client, invocation.getArgument(0)));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));

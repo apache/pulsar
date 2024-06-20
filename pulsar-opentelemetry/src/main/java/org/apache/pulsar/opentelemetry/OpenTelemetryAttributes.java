@@ -142,4 +142,20 @@ public interface OpenTelemetryAttributes {
         TIME;
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
     }
+
+    AttributeKey<String> PULSAR_CONNECTION_STATUS = AttributeKey.stringKey("pulsar.connection.status");
+    enum ConnectionStatus {
+        ACTIVE,
+        OPEN,
+        CLOSE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> PULSAR_CONNECTION_CREATE_STATUS =
+            AttributeKey.stringKey("pulsar.connection.create.operation.status");
+    enum ConnectionCreateStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
+    }
 }
