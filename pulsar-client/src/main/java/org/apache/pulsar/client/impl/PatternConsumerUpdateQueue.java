@@ -174,6 +174,9 @@ public class PatternConsumerUpdateQueue {
 
     public synchronized CompletableFuture<Void> cancelAllAndWaitForTheRunningTask() {
         this.closed = true;
+        if (taskInProgress == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         return taskInProgress.thenAccept(__ -> {}).exceptionally(ex -> null);
     }
 
