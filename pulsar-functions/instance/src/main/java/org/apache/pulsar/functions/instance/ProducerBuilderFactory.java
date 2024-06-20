@@ -95,10 +95,11 @@ public class ProducerBuilderFactory {
                 // from the top level. This default is only used if producer config is provided.
                 builder.compressionType(CompressionType.LZ4);
             }
-            if (producerConfig.getMaxPendingMessages() != 0) {
+            if (producerConfig.getMaxPendingMessages() != null && producerConfig.getMaxPendingMessages() != 0) {
                 builder.maxPendingMessages(producerConfig.getMaxPendingMessages());
             }
-            if (producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
+            if (producerConfig.getMaxPendingMessagesAcrossPartitions() != null
+                    && producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
                 builder.maxPendingMessagesAcrossPartitions(producerConfig.getMaxPendingMessagesAcrossPartitions());
             }
             if (producerConfig.getCryptoConfig() != null) {
