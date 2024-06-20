@@ -1879,9 +1879,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         return checkAllowedCluster(localCluster).thenCompose(success -> {
             if (!success) {
-                // local cluster is not part of global namespace replication list.
-                // The topic is not allowed to serve anymore.
-                return CompletableFuture.completedFuture(null);
+                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                // because pulsar doesn't serve global topic without local repl-cluster configured.
+                return deleteForcefully();
             }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
@@ -1932,14 +1932,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (policiesOptional.isPresent()) {
                         allowedClusters = policiesOptional.get().allowed_clusters;
                     }
-                    // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                    // because pulsar doesn't serve global topic without local repl-cluster configured.
                     if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
                             && !allowedClusters.contains(localCluster)) {
-                        log.warn("Deleting topic [{}] because local cluster is not part of "
-                                        + "global namespace repl list {} and allowed list {}", topic,
-                                replicationClusters, allowedClusters);
-                        return deleteForcefully().thenApply(__ -> false);
+                        log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
+                                localCluster, replicationClusters, allowedClusters);
+                        return CompletableFuture.completedFuture(false);
                     } else {
                         return CompletableFuture.completedFuture(true);
                     }
