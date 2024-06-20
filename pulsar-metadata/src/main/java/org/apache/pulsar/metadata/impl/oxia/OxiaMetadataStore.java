@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.streamnative.oxia.client.api.AsyncOxiaClient;
 import io.streamnative.oxia.client.api.DeleteOption;
 import io.streamnative.oxia.client.api.Notification;
@@ -58,7 +59,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
-        super("oxia-metadata");
+        super("oxia-metadata", OpenTelemetry.noop());
         this.client = oxia;
         this.identity = identity;
         this.synchronizer = Optional.empty();
@@ -71,7 +72,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             @NonNull MetadataStoreConfig metadataStoreConfig,
             boolean enableSessionWatcher)
             throws Exception {
-        super("oxia-metadata");
+        super("oxia-metadata", metadataStoreConfig.getOpenTelemetry());
 
         var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
         if (!metadataStoreConfig.isBatchingEnabled()) {

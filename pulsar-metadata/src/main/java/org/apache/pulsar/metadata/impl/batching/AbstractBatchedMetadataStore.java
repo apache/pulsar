@@ -56,7 +56,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final BatchMetadataStoreStats batchMetadataStoreStats;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super(conf.getMetadataStoreName());
+        super(conf.getMetadataStoreName(), conf.getOpenTelemetry());
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
