@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata.impl.stats;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Gauge;
@@ -62,8 +61,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private final Histogram.Child batchExecuteTimeChild;
     private final Histogram.Child opsPerBatchChild;
 
-    public static final AttributeKey<String> METADATA_STORE_NAME = AttributeKey.stringKey("pulsar.metadata.store.name");
-    private final String EXECUTOR_QUEUE_SIZE_METRIC_NAME = "pulsar.broker.metadata.store.executor.queue.size";
+    public static final String EXECUTOR_QUEUE_SIZE_METRIC_NAME = "pulsar.broker.metadata.store.executor.queue.size";
     private final ObservableLongUpDownCounter batchMetadataStoreSizeCounter;
 
     public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor, OpenTelemetry openTelemetry) {
@@ -85,11 +83,12 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
         this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
 
-        var meter = openTelemetry.getMeter("org.apache.pulsar"); // TODO
-        var attributes = Attributes.of(METADATA_STORE_NAME, metadataStoreName); // TODO
-        this.batchMetadataStoreSizeCounter = meter.upDownCounterBuilder(EXECUTOR_QUEUE_SIZE_METRIC_NAME)
-                .setDescription("The size of the batch metadata store executor queue")
-                .setUnit("entries")
+        var meter = openTelemetry.getMeter("org.apache.pulsar");
+        var attributes = Attributes.of(MetadataStoreStats.METADATA_STORE_NAME, metadataStoreName);
+        this.batchMetadataStoreSizeCounter = meter
+                .upDownCounterBuilder(EXECUTOR_QUEUE_SIZE_METRIC_NAME)
+                .setDescription("The number of blocking operations in the metadata store executor queue")
+                .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getQueueSize(), attributes));
     }
 

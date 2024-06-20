@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.impl.stats;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
@@ -50,7 +51,10 @@ public final class MetadataStoreStats implements AutoCloseable {
             .unit("bytes")
             .labelNames(METADATA_STORE_LABEL_NAME)
             .register();
-    public static final String METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME = "pulsar.broker.metadata.store.outgoing.size";
+
+    public static final AttributeKey<String> METADATA_STORE_NAME = AttributeKey.stringKey("pulsar.metadata.store.name");
+    public static final String METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME =
+            "pulsar.broker.metadata.store.outgoing.size";
     private final Attributes attributes;
     private final LongCounter putBytesCounter;
 
@@ -75,7 +79,7 @@ public final class MetadataStoreStats implements AutoCloseable {
         this.putOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
 
-        attributes = Attributes.of(BatchMetadataStoreStats.METADATA_STORE_NAME, metadataStoreName);
+        attributes = Attributes.of(METADATA_STORE_NAME, metadataStoreName);
         putBytesCounter = openTelemetry.getMeter("org.apache.pulsar")
                 .counterBuilder(METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME)
                 .setDescription("Number of bytes written to the metadata store")
