@@ -250,29 +250,7 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(functionConfig.getOutputTypeClassName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            ProducerConfig producerConf = functionConfig.getProducerConfig();
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (producerConf.getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(producerConf.getMaxPendingMessages());
-            }
-            if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (producerConf.getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
-            }
-            if (producerConf.getCryptoConfig() != null) {
-                pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
-            }
-            if (producerConf.getBatchBuilder() != null) {
-                pbldr.setBatchBuilder(producerConf.getBatchBuilder());
-            }
-            if (producerConf.getCompressionType() != null) {
-                pbldr.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
-            } else {
-                pbldr.setCompressionType(Function.CompressionType.LZ4);
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(convertProducerConfigToProducerSpec(functionConfig.getProducerConfig()));
         }
         if (functionConfig.getBatchBuilder() != null) {
             Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
@@ -463,23 +441,8 @@ public class FunctionConfigUtils {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
         if (functionDetails.getSink().getProducerSpec() != null) {
-            Function.ProducerSpec spec = functionDetails.getSink().getProducerSpec();
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (spec.getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
-            }
-            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (spec.hasCryptoSpec()) {
-                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
-            }
-            if (spec.getBatchBuilder() != null) {
-                producerConfig.setBatchBuilder(spec.getBatchBuilder());
-            }
-            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
-            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
-            functionConfig.setProducerConfig(producerConfig);
+            functionConfig.setProducerConfig(
+                    convertProducerSpecToProducerConfig(functionDetails.getSink().getProducerSpec()));
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
@@ -542,6 +505,50 @@ public class FunctionConfigUtils {
         }
 
         return functionConfig;
+    }
+
+    public static Function.ProducerSpec convertProducerConfigToProducerSpec(ProducerConfig producerConf) {
+        Function.ProducerSpec.Builder builder = Function.ProducerSpec.newBuilder();
+        if (producerConf.getMaxPendingMessages() != null) {
+            builder.setMaxPendingMessages(producerConf.getMaxPendingMessages());
+        }
+        if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
+            builder.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
+        }
+        if (producerConf.getUseThreadLocalProducers() != null) {
+            builder.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
+        }
+        if (producerConf.getCryptoConfig() != null) {
+            builder.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
+        }
+        if (producerConf.getBatchBuilder() != null) {
+            builder.setBatchBuilder(producerConf.getBatchBuilder());
+        }
+        if (producerConf.getCompressionType() != null) {
+            builder.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+        } else {
+            builder.setCompressionType(Function.CompressionType.LZ4);
+        }
+        return builder.build();
+    }
+
+    public static ProducerConfig convertProducerSpecToProducerConfig(Function.ProducerSpec spec) {
+        ProducerConfig producerConfig = new ProducerConfig();
+        if (spec.getMaxPendingMessages() != 0) {
+            producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
+        }
+        if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+            producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
+        }
+        if (spec.hasCryptoSpec()) {
+            producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+        }
+        if (spec.getBatchBuilder() != null) {
+            producerConfig.setBatchBuilder(spec.getBatchBuilder());
+        }
+        producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+        producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
+        return producerConfig;
     }
 
     public static void inferMissingArguments(FunctionConfig functionConfig,
