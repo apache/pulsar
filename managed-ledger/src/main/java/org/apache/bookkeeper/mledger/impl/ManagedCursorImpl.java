@@ -1018,6 +1018,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         return ledger.estimateBacklogFromPosition(markDeletePosition);
     }
 
+    private long getNumberOfEntriesInBacklog() {
+        if (markDeletePosition.compareTo(ledger.getLastPosition()) >= 0) {
+            return 0;
+        }
+        return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+    }
+
     @Override
     public long getNumberOfEntriesInBacklog(boolean isPrecise) {
         if (log.isDebugEnabled()) {
@@ -1026,16 +1033,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
         if (isPrecise) {
-            if (markDeletePosition.compareTo(ledger.getLastPosition()) >= 0) {
-                return 0;
-            }
-            return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+            return getNumberOfEntriesInBacklog();
         }
 
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
-            backlog = getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
+            backlog = getNumberOfEntriesInBacklog();
         }
 
         return backlog;
