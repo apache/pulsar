@@ -2976,5 +2976,52 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
+
+    @POST
+    @Path("/{tenant}/{namespace}/allowedClusters")
+    @ApiOperation(value = "Set the allowed clusters for a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "The list of allowed clusters should include all replication clusters."),
+            @ApiResponse(code = 403, message = "The requester does not have admin permissions."),
+            @ApiResponse(code = 404, message = "The specified tenant, cluster, or namespace does not exist."),
+            @ApiResponse(code = 409, message = "A peer-cluster cannot be part of an allowed-cluster."),
+            @ApiResponse(code = 412, message = "The namespace is not global or the provided cluster IDs are invalid.")})
+    public void setNamespaceAllowedClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @ApiParam(value = "List of allowed clusters", required = true)
+                                                List<String> clusterIds) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceAllowedClusters(clusterIds)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to set namespace allowed clusters on namespace {}",
+                            clientAppId(), namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/allowedClusters")
+    @ApiOperation(value = "Get the allowed clusters for a namespace.",
+            response = String.class, responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace is not global")})
+    public void getNamespaceAllowedClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetNamespaceAllowedClustersAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to get namespace allowed clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

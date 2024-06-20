@@ -2672,6 +2672,35 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set allowed clusters for a namespace")
+    private class SetAllowedClusters extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getAdmin().namespaces().setNamespaceAllowedClusters(namespace, Sets.newHashSet(clusters));
+        }
+    }
+
+    @Parameters(commandDescription = "Get allowed clusters for a namespace")
+    private class GetAllowedClusters extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceAllowedClusters(namespace));
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2698,6 +2727,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
+
+        jcommander.addCommand("set-allowed-clusters", new SetAllowedClusters());
+        jcommander.addCommand("get-allowed-clusters", new GetAllowedClusters());
 
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
