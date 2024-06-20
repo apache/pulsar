@@ -270,7 +270,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
 
-        loadSheddingStrategy = createLoadSheddingStrategy();
+        if (placementStrategy instanceof LoadSheddingStrategy) {
+            // bind the load shedding strategy and the placement strategy
+            loadSheddingStrategy = (LoadSheddingStrategy) placementStrategy;
+        } else {
+            loadSheddingStrategy = createLoadSheddingStrategy();
+        }
     }
 
     public void handleDataNotification(Notification t) {
