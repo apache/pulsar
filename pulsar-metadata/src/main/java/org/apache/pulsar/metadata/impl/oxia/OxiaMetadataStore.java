@@ -69,10 +69,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     public OxiaMetadataStore(
             @NonNull String serviceAddress,
             @NonNull String namespace,
-            @NonNull MetadataStoreConfig metadataStoreConfig,
+            MetadataStoreConfig metadataStoreConfig,
             boolean enableSessionWatcher)
             throws Exception {
-        super("oxia-metadata", metadataStoreConfig.getOpenTelemetry());
+        super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry());
 
         var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
         if (!metadataStoreConfig.isBatchingEnabled()) {

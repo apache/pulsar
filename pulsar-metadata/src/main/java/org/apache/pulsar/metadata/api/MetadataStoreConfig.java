@@ -97,5 +97,6 @@ public class MetadataStoreConfig {
     /**
      * OpenTelemetry instance to monitor metadata store operations.
      */
-    private OpenTelemetry openTelemetry;
+    @Builder.Default
+    private OpenTelemetry openTelemetry = OpenTelemetry.noop();
 }
