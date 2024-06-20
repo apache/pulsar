@@ -143,6 +143,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                                 "Transaction buffer recover failed to change the status to Ready,"
                                                         + "current state is: " + getState()));
                             } else {
+                                // when TB recover success, update ml.maxReadPosition
+                                topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
@@ -155,6 +157,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void noNeedToRecover() {
                         synchronized (TopicTransactionBuffer.this) {
                             maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                            // when TB no need to recover, update ml.maxReadPosition
+                            topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
                             if (!changeToNoSnapshotState()) {
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
@@ -487,6 +491,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (!disableCallback) {
                 maxReadPositionCallBack.maxReadPositionMovedForward(preMaxReadPosition, this.maxReadPosition);
             }
+            // When TB.maxReadPosition move forward, need to synchronize to ml
+            this.topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
         }
     }
 

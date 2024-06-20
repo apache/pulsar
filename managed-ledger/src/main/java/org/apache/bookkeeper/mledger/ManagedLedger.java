@@ -696,4 +696,6 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    void updateMaxReadPosition(Position position);
 }
