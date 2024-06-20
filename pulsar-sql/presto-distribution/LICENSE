@@ -484,7 +484,8 @@ The Apache Software License, Version 2.0
     - stream-2.9.5.jar
   * High Performance Primitive Collections for Java
     - hppc-0.9.1.jar
-
+  * RoaringBitmap
+    - RoaringBitmap-1.1.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
