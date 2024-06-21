@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
@@ -49,6 +50,11 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private final Summary abortLatency;
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
     private final Summary commitLatency;
+
+    public static final String PENDING_TRANSACTION_COUNTER = "pulsar.broker.transaction.buffer.client.pending.count";
+    private final ObservableLongUpDownCounter pendingTransactionCounter;
+
+    @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
     private final Gauge pendingRequests;
 
     private final boolean exposeTopicLevelMetrics;
@@ -84,6 +90,11 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
                         return handler.getPendingRequestsCount();
                     }
                 });
+        this.pendingTransactionCounter = pulsarService.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(PENDING_TRANSACTION_COUNTER)
+                .setDescription("The number of pending transactions in the transaction buffer client.")
+                .setUnit("{transaction}")
+                .buildWithCallback(measurement -> measurement.record(handler.getPendingRequestsCount()));
     }
 
     private Summary buildSummary(String name, String help, String[] labelNames) {
@@ -162,6 +173,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
             CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
             CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
+            pendingTransactionCounter.close();
         }
     }
 }
