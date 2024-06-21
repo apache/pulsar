@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -83,6 +84,11 @@ public class MLTransactionMetadataStore
     private final ExecutorService internalPinnedExecutor;
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
     private final long maxActiveTransactionsPerCoordinator;
+
+    private volatile TransactionMetadataStoreAttributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<MLTransactionMetadataStore, TransactionMetadataStoreAttributes>
+            ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    MLTransactionMetadataStore.class, TransactionMetadataStoreAttributes.class, "attributes");
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
@@ -512,11 +518,6 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public TransactionMetadataStoreAttributes getAttributes() {
-        return new TransactionMetadataStoreAttributes(this);
-    }
-
-    @Override
     public List<TxnMeta> getSlowTransactions(long timeout) {
         List<TxnMeta> txnMetas = new ArrayList<>();
         txnMetaMap.forEach((k, v) -> {
@@ -554,5 +555,14 @@ public class MLTransactionMetadataStore
 
     public ManagedLedger getManagedLedger() {
         return this.transactionLog.getManagedLedger();
+    }
+
+    @Override
+    public TransactionMetadataStoreAttributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new TransactionMetadataStoreAttributes(this));
     }
 }

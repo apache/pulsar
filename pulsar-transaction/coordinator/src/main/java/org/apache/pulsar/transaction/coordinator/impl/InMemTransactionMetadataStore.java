@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -49,6 +50,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final LongAdder commitTransactionCount;
     private final LongAdder abortTransactionCount;
     private final LongAdder transactionTimeoutCount;
+
+    private volatile TransactionMetadataStoreAttributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<InMemTransactionMetadataStore, TransactionMetadataStoreAttributes>
+            ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    InMemTransactionMetadataStore.class, TransactionMetadataStoreAttributes.class, "attributes");
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
@@ -163,12 +169,16 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public TransactionMetadataStoreAttributes getAttributes() {
-        return new TransactionMetadataStoreAttributes(this);
+    public List<TxnMeta> getSlowTransactions(long timeout) {
+        return null;
     }
 
     @Override
-    public List<TxnMeta> getSlowTransactions(long timeout) {
-        return null;
+    public TransactionMetadataStoreAttributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new TransactionMetadataStoreAttributes(this));
     }
 }

@@ -138,7 +138,9 @@ public interface TransactionMetadataStore {
      *
      * @return TransactionMetadataStoreAttributes {@link TransactionMetadataStoreAttributes}
      */
-    TransactionMetadataStoreAttributes getAttributes();
+    default TransactionMetadataStoreAttributes getAttributes() {
+        return new TransactionMetadataStoreAttributes(this);
+    }
 
     /**
      * Get the transactions witch timeout is bigger than given timeout.
