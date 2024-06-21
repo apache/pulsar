@@ -124,6 +124,18 @@ public interface OpenTelemetryAttributes {
     }
 
     /**
+     * The status of the Pulsar transaction buffer client operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.buffer.client.operation.status");
+    enum TransactionBufferClientOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    /**
      * The status of the Pulsar compaction operation.
      */
     AttributeKey<String> PULSAR_COMPACTION_STATUS = AttributeKey.stringKey("pulsar.compaction.status");
