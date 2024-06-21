@@ -22,7 +22,12 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.NonNull;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferClientStats;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.naming.TopicName;
@@ -39,10 +44,14 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     private final boolean exposeTopicLevelMetrics;
 
+    private final BrokerService brokerService;
+
     private static TransactionBufferClientStats instance;
 
-    private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics,
-                                             TransactionBufferHandler handler) {
+    private TransactionBufferClientStatsImpl(@NonNull PulsarService pulsarService,
+                                             boolean exposeTopicLevelMetrics,
+                                             @NonNull TransactionBufferHandler handler) {
+        this.brokerService = Objects.requireNonNull(pulsarService.getBrokerService());
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
         String[] labelNames = exposeTopicLevelMetrics
                 ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
@@ -63,7 +72,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
                 .setChild(new Gauge.Child() {
                     @Override
                     public double get() {
-                        return null == handler ? 0 : handler.getPendingRequestsCount();
+                        return handler.getPendingRequestsCount();
                     }
                 });
     }
@@ -77,23 +86,37 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         return builder.register();
     }
 
-    public static synchronized TransactionBufferClientStats getInstance(boolean exposeTopicLevelMetrics,
+    public static synchronized TransactionBufferClientStats getInstance(PulsarService pulsarService,
+                                                                        boolean exposeTopicLevelMetrics,
                                                                         TransactionBufferHandler handler) {
         if (null == instance) {
-            instance = new TransactionBufferClientStatsImpl(exposeTopicLevelMetrics, handler);
+            instance = new TransactionBufferClientStatsImpl(pulsarService, exposeTopicLevelMetrics, handler);
         }
-
         return instance;
     }
 
     @Override
     public void recordAbortFailed(String topic) {
         this.abortFailed.labels(labelValues(topic)).inc();
+        brokerService.getTopicReference(topic).ifPresent(topicObj -> {
+            if (topicObj instanceof PersistentTopic persistentTopic) {
+                persistentTopic.getPersistentTopicMetrics()
+                        .getTransactionBufferClientMetrics()
+                        .recordAbortFailed();
+            }
+        });
     }
 
     @Override
     public void recordCommitFailed(String topic) {
         this.commitFailed.labels(labelValues(topic)).inc();
+        brokerService.getTopicReference(topic).ifPresent(topicObj -> {
+            if (topicObj instanceof PersistentTopic persistentTopic) {
+                persistentTopic.getPersistentTopicMetrics()
+                        .getTransactionBufferClientMetrics()
+                        .recordCommitFailed();
+            }
+        });
     }
 
     @Override
