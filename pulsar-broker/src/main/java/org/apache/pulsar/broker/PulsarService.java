@@ -114,6 +114,7 @@ import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTransactionCoordinatorStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -260,6 +261,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
     private OpenTelemetryProducerStats openTelemetryProducerStats;
+    private OpenTelemetryTransactionCoordinatorStats openTelemetryTransactionCoordinatorStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -678,6 +680,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
+            if (openTelemetryTransactionCoordinatorStats != null) {
+                openTelemetryTransactionCoordinatorStats.close();
+                openTelemetryTransactionCoordinatorStats = null;
+            }
             if (openTelemetryProducerStats != null) {
                 openTelemetryProducerStats.close();
                 openTelemetryProducerStats = null;
@@ -983,6 +989,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .newProvider(config.getTransactionBufferProviderClassName());
                 transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
                         .newProvider(config.getTransactionPendingAckStoreProviderClassName());
+
+                openTelemetryTransactionCoordinatorStats = new OpenTelemetryTransactionCoordinatorStats(this);
             }
 
             this.metricsGenerator = new MetricsGenerator(this);

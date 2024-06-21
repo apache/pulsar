@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
@@ -159,6 +160,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         this.transactionMetadataStoreStats.setCommittedCount(this.commitTransactionCount.longValue());
         this.transactionMetadataStoreStats.setAbortedCount(this.abortTransactionCount.longValue());
         return transactionMetadataStoreStats;
+    }
+
+    @Override
+    public TransactionMetadataStoreAttributes getAttributes() {
+        return new TransactionMetadataStoreAttributes(this);
     }
 
     @Override

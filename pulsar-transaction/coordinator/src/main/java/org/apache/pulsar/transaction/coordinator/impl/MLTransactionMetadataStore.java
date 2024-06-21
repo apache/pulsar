@@ -45,6 +45,7 @@ import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -508,6 +509,11 @@ public class MLTransactionMetadataStore
         this.transactionMetadataStoreStats.setTimeoutCount(this.transactionTimeoutCount.longValue());
         this.transactionMetadataStoreStats.setAppendLogCount(this.appendLogCount.longValue());
         return transactionMetadataStoreStats;
+    }
+
+    @Override
+    public TransactionMetadataStoreAttributes getAttributes() {
+        return new TransactionMetadataStoreAttributes(this);
     }
 
     @Override

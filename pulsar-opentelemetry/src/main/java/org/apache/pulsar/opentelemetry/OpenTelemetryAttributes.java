@@ -117,11 +117,18 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
     enum TransactionStatus {
+        ABORTED,
         ACTIVE,
         COMMITTED,
-        ABORTED;
+        CREATED,
+        TIMEOUT;
         public final Attributes attributes = Attributes.of(PULSAR_TRANSACTION_STATUS, name().toLowerCase());
     }
+
+    /**
+     * The ID of the Pulsar transaction coordinator.
+     */
+    AttributeKey<Long> PULSAR_TRANSACTION_COORDINATOR_ID = AttributeKey.longKey("pulsar.transaction.coordinator.id");
 
     /**
      * The status of the Pulsar transaction buffer client operation.
