@@ -82,8 +82,8 @@ public final class MetadataStoreStats implements AutoCloseable {
         attributes = Attributes.of(METADATA_STORE_NAME, metadataStoreName);
         putBytesCounter = openTelemetry.getMeter("org.apache.pulsar")
                 .counterBuilder(METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME)
-                .setDescription("Number of bytes written to the metadata store")
-                .setUnit("{By")
+                .setDescription("The total amount of data written to the metadata store")
+                .setUnit("{By}")
                 .build();
     }
 
