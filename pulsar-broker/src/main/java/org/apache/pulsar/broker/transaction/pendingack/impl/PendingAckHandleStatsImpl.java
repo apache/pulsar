@@ -22,8 +22,10 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleAttributes;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -38,10 +40,18 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
     private final String[] labelFailed;
     private final String[] commitLatencyLabel;
 
+    private final String topic;
+    private final String subscription;
+
     private final LongAdder commitTxnSucceedCounter = new LongAdder();
     private final LongAdder commitTxnFailedCounter = new LongAdder();
     private final LongAdder abortTxnSucceedCounter = new LongAdder();
     private final LongAdder abortTxnFailedCounter = new LongAdder();
+
+    private volatile PendingAckHandleAttributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<PendingAckHandleStatsImpl, PendingAckHandleAttributes>
+            ATTRIBUTES_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    PendingAckHandleStatsImpl.class, PendingAckHandleAttributes.class, "attributes");
 
     public PendingAckHandleStatsImpl(String topic, String subscription, boolean exposeTopicLevelMetrics) {
         initialize(exposeTopicLevelMetrics);
@@ -56,6 +66,9 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
                 namespace = "unknown";
             }
         }
+
+        this.topic = topic;
+        this.subscription = subscription;
 
         labelSucceed = exposeTopicLevelMetrics0
                 ? new String[]{namespace, topic, subscription, "succeed"} : new String[]{namespace, "succeed"};
@@ -96,6 +109,35 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
             abortTxnCounter.remove(this.labelSucceed);
             abortTxnCounter.remove(this.labelFailed);
         }
+    }
+
+    @Override
+    public long getCommitSuccessCount() {
+        return commitTxnSucceedCounter.sum();
+    }
+
+    @Override
+    public long getCommitFailedCount() {
+        return commitTxnFailedCounter.sum();
+    }
+
+    @Override
+    public long getAbortSuccessCount() {
+        return abortTxnSucceedCounter.sum();
+    }
+
+    @Override
+    public long getAbortFailedCount() {
+        return abortTxnFailedCounter.sum();
+    }
+
+    @Override
+    public PendingAckHandleAttributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_UPDATER.updateAndGet(PendingAckHandleStatsImpl.this,
+                old -> old != null ? old : new PendingAckHandleAttributes(topic, subscription));
     }
 
     static void initialize(boolean exposeTopicLevelMetrics) {

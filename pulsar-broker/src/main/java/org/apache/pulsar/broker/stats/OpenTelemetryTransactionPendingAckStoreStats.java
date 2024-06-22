@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
@@ -60,12 +59,14 @@ public class OpenTelemetryTransactionPendingAckStoreStats implements AutoCloseab
     }
 
     private void recordMetricsForSubscription(ObservableLongMeasurement measurement, Subscription subscription) {
-        if (subscription instanceof PersistentSubscription persistentSubscription) { // This should always be true.
-            var stats = persistentSubscription.getPendingAckHandle().getPendingAckHandleStats();
-            if (stats != null) {
-                var attributes = Attributes.empty();
-                measurement.record(1, attributes);
-            }
+        assert subscription instanceof PersistentSubscription; // The topics have already been filtered for persistence.
+        var stats = ((PersistentSubscription) subscription).getPendingAckHandle().getPendingAckHandleStats();
+        if (stats != null) {
+            var attributes = stats.getAttributes();
+            measurement.record(stats.getCommitSuccessCount(), attributes.getCommitSuccessAttributes());
+            measurement.record(stats.getCommitFailedCount(), attributes.getCommitFailureAttributes());
+            measurement.record(stats.getAbortSuccessCount(), attributes.getAbortSuccessAttributes());
+            measurement.record(stats.getAbortFailedCount(), attributes.getAbortFailureAttributes());
         }
     }
 }

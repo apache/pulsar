@@ -126,6 +126,18 @@ public interface OpenTelemetryAttributes {
     }
 
     /**
+     * The status of the Pulsar transaction ack store operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.pending.ack.store.operation.status");
+    enum TransactionPendingAckOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    /**
      * The ID of the Pulsar transaction coordinator.
      */
     AttributeKey<Long> PULSAR_TRANSACTION_COORDINATOR_ID = AttributeKey.longKey("pulsar.transaction.coordinator.id");
