@@ -81,7 +81,7 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
         if (exposeTopicLevelMetrics0) {
             commitTxnCounter.remove(this.labelSucceed);
             commitTxnCounter.remove(this.labelFailed);
-            abortTxnCounter.remove(this.labelFailed);
+            abortTxnCounter.remove(this.labelSucceed);
             abortTxnCounter.remove(this.labelFailed);
         }
     }
