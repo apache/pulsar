@@ -1015,6 +1015,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
+    public PendingAckHandleStats getPendingAckHandleStats() {
+        return handleStats;
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
         synchronized (PendingAckHandleImpl.this) {

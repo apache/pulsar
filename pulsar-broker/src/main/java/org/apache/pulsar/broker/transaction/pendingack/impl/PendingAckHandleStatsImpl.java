@@ -22,6 +22,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.common.naming.TopicName;
@@ -36,6 +37,11 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
     private final String[] labelSucceed;
     private final String[] labelFailed;
     private final String[] commitLatencyLabel;
+
+    private final LongAdder commitTxnSucceedCounter = new LongAdder();
+    private final LongAdder commitTxnFailedCounter = new LongAdder();
+    private final LongAdder abortTxnSucceedCounter = new LongAdder();
+    private final LongAdder abortTxnFailedCounter = new LongAdder();
 
     public PendingAckHandleStatsImpl(String topic, String subscription, boolean exposeTopicLevelMetrics) {
         initialize(exposeTopicLevelMetrics);
@@ -62,18 +68,24 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
     @Override
     public void recordCommitTxn(boolean success, long nanos) {
         String[] labels;
+        LongAdder counter;
         if (success) {
             labels = labelSucceed;
+            counter = commitTxnSucceedCounter;
             commitTxnLatency.labels(commitLatencyLabel).observe(TimeUnit.NANOSECONDS.toMicros(nanos));
         } else {
             labels = labelFailed;
+            counter = commitTxnFailedCounter;
         }
         commitTxnCounter.labels(labels).inc();
+        counter.increment();
     }
 
     @Override
     public void recordAbortTxn(boolean success) {
         abortTxnCounter.labels(success ? labelSucceed : labelFailed).inc();
+        var counter = success ? abortTxnSucceedCounter : abortTxnFailedCounter;
+        counter.increment();
     }
 
     @Override
