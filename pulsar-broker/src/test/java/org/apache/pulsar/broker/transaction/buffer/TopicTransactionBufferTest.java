@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +46,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
@@ -57,6 +60,7 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -69,7 +73,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
-
 
     @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
@@ -101,10 +104,20 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferAppendMarkerWriteFailState() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/testPendingAckManageLedgerWriteFailState";
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
+                .build();
+
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -112,11 +125,19 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        assertMetricLongSumValue(
+                pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics(),
+                OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER, attributes, 0);
+
         producer.newMessage(txn).value("test".getBytes()).send();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         FieldUtils.writeField(persistentTopic.getManagedLedger(), "state", ManagedLedgerImpl.State.WriteFailed, true);
         txn.commit().get();
+
+        assertMetricLongSumValue(
+                pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics(),
+                OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER, attributes, 1);
     }
 
     @Test
