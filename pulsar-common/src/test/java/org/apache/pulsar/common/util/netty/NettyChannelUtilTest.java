@@ -28,6 +28,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.VoidChannelPromise;
+import io.netty.util.ReferenceCountUtil;
 import java.nio.charset.StandardCharsets;
 import org.testng.annotations.Test;
 
@@ -45,7 +46,7 @@ public class NettyChannelUtilTest {
             verify(ctx).writeAndFlush(same(byteBuf), same(voidChannelPromise));
             verify(ctx).voidPromise();
         } finally {
-            byteBuf.release();
+            ReferenceCountUtil.safeRelease(byteBuf);
         }
     }
 
@@ -62,7 +63,7 @@ public class NettyChannelUtilTest {
             verify(ctx).writeAndFlush(same(byteBuf));
             verify(promise).addListener(same(ChannelFutureListener.CLOSE));
         } finally {
-            byteBuf.release();
+            ReferenceCountUtil.safeRelease(byteBuf);
         }
     }
 }
