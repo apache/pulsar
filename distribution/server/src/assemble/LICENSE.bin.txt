@@ -352,8 +352,9 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-slf4j2-impl-2.23.1.jar
     - org.apache.logging.log4j-log4j-web-2.23.1.jar
  * Java Native Access JNA
-    - net.java.dev.jna-jna-jpms-5.12.1.jar
-    - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
+    - net.java.dev.jna-jna-jpms-5.14.0.jar
+    - net.java.dev.jna-jna-platform-5.14.0.jar
+    - net.java.dev.jna-jna-platform-jpms-5.14.0.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.17.0.jar
     - org.apache.bookkeeper-bookkeeper-common-allocator-4.17.0.jar
@@ -556,8 +557,9 @@ MIT License
     - org.slf4j-jcl-over-slf4j-2.0.13.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.33.0.jar
- * oshi
-    - com.github.oshi-oshi-core-java11-6.4.0.jar
+  * Oshi
+    - com.github.oshi-oshi-core-6.4.9.jar
+    - com.github.oshi-oshi-core-java11-6.4.9.jar
  * Auth0, Inc.
     - com.auth0-java-jwt-4.3.0.jar
     - com.auth0-jwks-rsa-0.22.0.jar
