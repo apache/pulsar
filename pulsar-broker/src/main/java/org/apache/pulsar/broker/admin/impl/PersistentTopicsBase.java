@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
@@ -89,6 +90,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -1390,6 +1393,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse asyncResponse) {
+        CompletableFuture<ManagedLedgerInfo> mlFuture = new CompletableFuture<>();
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
                 .thenAccept(__ -> {
                     String managedLedger = topicName.getPersistenceNamingEncoding();
@@ -1397,13 +1401,11 @@ public class PersistentTopicsBase extends AdminResource {
                             .asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
                         @Override
                         public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                            asyncResponse.resume((StreamingOutput) output -> {
-                                objectWriter().writeValue(output, info);
-                            });
+                            mlFuture.complete(info);
                         }
                         @Override
                         public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                            asyncResponse.resume(exception);
+                            mlFuture.completeExceptionally(exception);
                         }
                     }, null);
                 }).exceptionally(ex -> {
@@ -1411,6 +1413,22 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+
+        // Schema store ledgers
+        CompletableFuture<List<Long>> schemaFuture = ((BookkeeperSchemaStorage) pulsar().getSchemaStorage())
+                .getStoreLedgerIdsBySchemaId(topicName.getSchemaName());
+
+        FutureUtil.waitForAll(Lists.newArrayList(mlFuture, schemaFuture)).handle((res, ex) -> {
+            if (ex != null) {
+                asyncResponse.resume(ex);
+                return null;
+            }
+            TopicInternalInfo info = new TopicInternalInfo(mlFuture.getNow(null), schemaFuture.getNow(null));
+            asyncResponse.resume((StreamingOutput) output -> {
+                objectWriter().writeValue(output, info);
+            });
+            return null;
+        });
 
     }
 
