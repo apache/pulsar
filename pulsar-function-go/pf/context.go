@@ -34,22 +34,26 @@ import (
 // message, what are our operating constraints, etc can be accessed by the
 // executing function
 type FunctionContext struct {
-	instanceConf  *instanceConf
-	userConfigs   map[string]interface{}
-	logAppender   *LogAppender
-	outputMessage func(topic string) pulsar.Producer
-	userMetrics   sync.Map
-	record        pulsar.Message
+	instanceConf    *instanceConf
+	userConfigs     map[string]interface{}
+	secrets         map[string]interface{}
+	logAppender     *LogAppender
+	outputMessage   func(topic string) pulsar.Producer
+	userMetrics     sync.Map
+	record          pulsar.Message
+	secretsProvider SecretsProvider
 }
 
 // NewFuncContext returns a new Function context
 func NewFuncContext() *FunctionContext {
 	instanceConf := newInstanceConf()
 	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
+	secrets := buildUserConfig(instanceConf.funcDetails.SecretsMap)
 
 	fc := &FunctionContext{
 		instanceConf: instanceConf,
 		userConfigs:  userConfigs,
+		secrets:      secrets,
 	}
 	return fc
 }
@@ -153,6 +157,15 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 // GetUserConfMap returns the pulsar function's user configuration map
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
+}
+
+// GetSecretValue returns the value of a key from the pulsar function's secret
+// map
+func (c *FunctionContext) GetSecretValue(key string) interface{} {
+	if c.secretsProvider != nil {
+		return c.secretsProvider.GetValue(c.secrets, key)
+	}
+	return nil
 }
 
 // NewOutputMessage send message to the topic @param topicName: The name of the
