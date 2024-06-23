@@ -532,6 +532,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 return allowTheSpecifiedActionOpsAsync(
                                         namespaceName, role, authData, AuthAction.consume);
                             case CREATE_TOPIC:
+                                return allowTheSpecifiedActionOpsAsync(
+                                        namespaceName, role, authData, AuthAction.create_topic);
                             case DELETE_TOPIC:
                             case ADD_BUNDLE:
                             case DELETE_BUNDLE:

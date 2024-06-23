@@ -181,9 +181,10 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
         admin.namespaces().createNamespace(namespaceName);
 
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
+                Sets.newHashSet(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce, AuthAction.create_topic));
 
         Consumer<byte[]> consumer;
         try {
@@ -192,7 +193,8 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
                     .subscriptionName("my-subscriber-name").subscribe();
         } catch (Exception ex) {
             // expected
-            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.consume));
+            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
+                    Sets.newHashSet(AuthAction.consume, AuthAction.create_topic));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1")
@@ -205,7 +207,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         } catch (Exception ex) {
             // expected
             admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
-                    Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+                    Sets.newHashSet(AuthAction.produce, AuthAction.consume, AuthAction.create_topic));
             producer = proxyClient.newProducer(Schema.BYTES)
                     .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1").create();
         }

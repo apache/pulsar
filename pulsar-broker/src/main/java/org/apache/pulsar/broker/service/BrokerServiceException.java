@@ -234,6 +234,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class UnauthorizedException extends BrokerServiceException {
+        public UnauthorizedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
