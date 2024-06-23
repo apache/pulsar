@@ -2341,6 +2341,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         OpSendMsg pendingRegisteringOp = null;
+        int messageBytesSizeInCache = 0;
         while (msgIterator.hasNext()) {
             OpSendMsg op = msgIterator.next();
             if (from != null) {
@@ -2372,12 +2373,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (stripChecksum) {
                 stripChecksum(op);
             }
+            // To avoid IO buffer overflow, split to multi-flush.
+            if (messageBytesSizeInCache + op.cmd.readableBytes() < messageBytesSizeInCache) {
+                cnx.ctx().flush();
+                messageBytesSizeInCache = 0;
+            }
             op.cmd.retain();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Re-Sending message in cnx {}, sequenceId {}", topic, producerName,
                         cnx.channel(), op.sequenceId);
             }
             cnx.ctx().write(op.cmd, cnx.ctx().voidPromise());
+            messageBytesSizeInCache += op.cmd.readableBytes();
             op.updateSentTimestamp();
             stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
         }
