@@ -131,4 +131,17 @@ public abstract class CoordinatorException extends Exception {
             super(message);
         }
     }
+
+
+    /**
+     * Exception is thrown when the transaction preserver is closed.
+     */
+    public  static class PreserverClosedException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public PreserverClosedException(String message) {
+            super(message);
+        }
+    }
 }

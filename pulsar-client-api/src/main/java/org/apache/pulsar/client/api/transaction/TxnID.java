@@ -20,9 +20,9 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
 import java.util.Objects;
-import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -32,6 +32,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class TxnID implements Serializable {
 
     private static final long serialVersionUID = 0L;
@@ -41,36 +43,24 @@ public class TxnID implements Serializable {
      *
      * @serial
      */
-    private final long mostSigBits;
+    private long mostSigBits;
 
     /*
      * The least significant 64 bits of this TxnID.
      *
      * @serial
      */
-    private final long leastSigBits;
+    private long leastSigBits;
 
-    @Getter(AccessLevel.NONE)
-    private final transient int hashCode;
-
-    @Getter(AccessLevel.NONE)
-    private final transient String txnStr;
-
-    public TxnID(long mostSigBits, long leastSigBits) {
-        this.mostSigBits = mostSigBits;
-        this.leastSigBits = leastSigBits;
-        this.hashCode = Objects.hash(mostSigBits, leastSigBits);
-        this.txnStr = "(" + mostSigBits + "," + leastSigBits + ")";
-    }
 
     @Override
     public String toString() {
-        return txnStr;
+        return "(" + mostSigBits + "," + leastSigBits + ")";
     }
 
     @Override
     public int hashCode() {
-        return hashCode;
+        return Objects.hash(mostSigBits, leastSigBits);
     }
 
     @Override

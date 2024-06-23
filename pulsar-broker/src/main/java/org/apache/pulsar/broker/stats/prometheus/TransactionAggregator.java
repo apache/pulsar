@@ -84,6 +84,10 @@ public class TransactionAggregator {
                     transactionCoordinatorStats.reset();
                     TransactionMetadataStoreStats transactionMetadataStoreStats =
                             transactionMetadataStore.getMetadataStoreStats();
+                    transactionCoordinatorStats.tcRecoveryTime =
+                            transactionMetadataStoreStats.getTcRecoverTime();
+                    transactionCoordinatorStats.preserverRecoveryTime =
+                            transactionMetadataStoreStats.getPreserverRecoverTime();
                     transactionCoordinatorStats.actives =
                             transactionMetadataStoreStats.getActives();
                     transactionCoordinatorStats.committedCount =
@@ -239,6 +243,10 @@ public class TransactionAggregator {
     static void printTransactionCoordinatorStats(PrometheusMetricStreams stream, String cluster,
                                                  AggregatedTransactionCoordinatorStats stats,
                                                  long coordinatorId) {
+        writeMetric(stream, "pulsar_txn_tc_recovery_time_ms", stats.tcRecoveryTime, cluster,
+                coordinatorId);
+        writeMetric(stream, "pulsar_txn_preserver_recovery_time_ms", stats.preserverRecoveryTime,
+                cluster, coordinatorId);
         writeMetric(stream, "pulsar_txn_active_count", stats.actives, cluster,
                 coordinatorId);
         writeMetric(stream, "pulsar_txn_committed_total", stats.committedCount, cluster,

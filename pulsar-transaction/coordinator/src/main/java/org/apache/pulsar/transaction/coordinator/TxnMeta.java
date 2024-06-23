@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.Beta;
 import java.util.List;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -28,6 +29,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
  */
 @Beta
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 public interface TxnMeta {
 
     /**
@@ -82,6 +84,21 @@ public interface TxnMeta {
         throws InvalidTxnStatusException;
 
     /**
+     * Clear the list of produced partitions when txnMeta is stored in Preserver.
+     * @return
+     * @throws InvalidTxnStatusException
+     */
+    TxnMeta clearProducedPartitions();
+
+    /**
+     * Clear the list of acked partitions when txnMeta is stored in Preserver.
+     * @return
+     * @throws InvalidTxnStatusException
+     */
+    TxnMeta clearAckedPartitions();
+
+
+    /**
      * Update the transaction stats from the <tt>newStatus</tt> only when
      * the current status is the expected <tt>expectedStatus</tt>.
      *
@@ -102,7 +119,9 @@ public interface TxnMeta {
     long getOpenTimestamp();
 
     /**
-     * Return the transaction timeout at.
+     * Return the transaction timeout.
+     * WARNING: timeoutAt is not the time point when the transaction will time out,
+     * but the duration of the transaction timeout.
      *
      * @return transaction timeout at.
      */
@@ -114,4 +133,10 @@ public interface TxnMeta {
      * @return transaction's owner.
      */
     String getOwner();
+
+    /**
+     * Return the transaction client name.
+     * @return the transaction client name.
+     */
+    String getClientName();
 }

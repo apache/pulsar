@@ -40,11 +40,15 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataPreserver;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataPreserverImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.awaitility.Awaitility;
@@ -115,6 +119,124 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(2));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
+
+    @Test
+    public void testCommitAndAbortTerminatedTransactionWithPreserverEnabled() throws Exception {
+        TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
+        pulsar.getConfiguration().setTransactionMetaPersistCount(2);
+        transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0));
+        Awaitility.await().until(() ->
+                transactionMetadataStoreService.getStores().size() == 1);
+        TransactionMetadataStore transactionMetadataStore=transactionMetadataStoreService.getStores().get(TransactionCoordinatorID.get(0));
+        checkTransactionMetadataStoreReady((MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
+                .getStores().get(TransactionCoordinatorID.get(0)));
+        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null, "txnClient").get();
+        Assert.assertEquals(txnID0.getMostSigBits(), 0);
+        transactionMetadataStoreService.endTransaction(txnID0, TxnAction.COMMIT_VALUE, false, "txnClient").get();
+        transactionMetadataStore.getTxnMeta(txnID0).handle((txnMeta, throwable) -> {
+            Assert.assertNotNull(throwable);
+            Assert.assertTrue(throwable instanceof CoordinatorException.TransactionNotFoundException);
+            return null;
+        }).get();
+        // commit again.
+        transactionMetadataStoreService.endTransaction(txnID0, TxnAction.COMMIT_VALUE, false, "txnClient").get();
+
+
+        TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null, "txnClient").get();
+        Assert.assertEquals(txnID0.getMostSigBits(), 0);
+        transactionMetadataStoreService.endTransaction(txnID1, TxnAction.ABORT_VALUE, false, "txnClient").get();
+        transactionMetadataStore.getTxnMeta(txnID1).handle((txnMeta, throwable) -> {
+            Assert.assertNotNull(throwable);
+            Assert.assertTrue(throwable instanceof CoordinatorException.TransactionNotFoundException);
+            return null;
+        }).get();
+        // abort again.
+        transactionMetadataStoreService.endTransaction(txnID1, TxnAction.ABORT_VALUE, false, "txnClient").get();
+
+        // commit the aborted transaction will throw InvalidTxnStatusException.
+        transactionMetadataStoreService.endTransaction(txnID1, TxnAction.COMMIT_VALUE, false, "txnClient")
+                .handle((txnMeta, throwable) -> {
+                    Assert.assertNotNull(throwable);
+                    Assert.assertTrue(FutureUtil.unwrapCompletionException(throwable)
+                            instanceof CoordinatorException.InvalidTxnStatusException);
+                    return null;
+                }).get();
+
+        // create and commit third transaction, which will trigger the first transaction to be removed.
+        TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null, "txnClient").get();
+        Assert.assertEquals(txnID2.getMostSigBits(), 0);
+        transactionMetadataStoreService.endTransaction(txnID2, TxnAction.COMMIT_VALUE, false, "txnClient").get();
+        transactionMetadataStore.getTxnMeta(txnID2).handle((txnMeta, throwable) -> {
+            Assert.assertNotNull(throwable);
+            Assert.assertTrue(throwable instanceof CoordinatorException.TransactionNotFoundException);
+            return null;
+        }).get();
+        // recommit the first transaction, which will be failed.
+        transactionMetadataStoreService.endTransaction(txnID0, TxnAction.COMMIT_VALUE, false, "txnClient")
+                .handle((txnMeta, throwable) -> {
+                    Assert.assertNotNull(throwable);
+                    Assert.assertTrue(FutureUtil.unwrapCompletionException(throwable)
+                            instanceof CoordinatorException.TransactionNotFoundException);
+                    return null;
+                }).get();
+
+
+        // close the preserver and reopen it.
+        Field preserverField = transactionMetadataStore.getClass().getDeclaredField("transactionMetadataPreserver");
+        preserverField.setAccessible(true);
+        TransactionMetadataPreserver preserver = (TransactionMetadataPreserver) preserverField.get(transactionMetadataStore);
+        preserver.closeAsync().get();
+        preserverField.set(transactionMetadataStore, new MLTransactionMetadataPreserverImpl(
+                TransactionCoordinatorID.get(0l), 2, 1l, 600l, pulsarClient
+        ));
+        preserver = (TransactionMetadataPreserver) preserverField.get(transactionMetadataStore);
+        preserver.replay();
+        Assert.assertNull(preserver.getTxnMeta(txnID0,"txnClient"));
+        Assert.assertNotNull(preserver.getTxnMeta(txnID1,"txnClient"));
+        Assert.assertNotNull(preserver.getTxnMeta(txnID2,"txnClient"));
+
+
+        // try to expire all the transactions.
+        Field transactionMetaExpireCheckIntervalInMSField = preserver.getClass().getDeclaredField("transactionMetaPersistTimeInMS");
+        transactionMetaExpireCheckIntervalInMSField.setAccessible(true);
+        transactionMetaExpireCheckIntervalInMSField.set(preserver, Long.MIN_VALUE);
+        Method expireMethod = preserver.getClass().getDeclaredMethod("expireTransactionMetadata");
+        expireMethod.invoke(preserver);
+        transactionMetadataStoreService.endTransaction(txnID2, TxnAction.COMMIT_VALUE, false, "txnClient")
+                .handle((txnMeta, throwable) -> {
+                    Assert.assertNotNull(throwable);
+                    Assert.assertTrue(FutureUtil.unwrapCompletionException(throwable)
+                            instanceof CoordinatorException.TransactionNotFoundException);
+                    return null;
+                }).get();
+    }
+
+    @Test
+    public void testCommitAndAbortTerminatedTransactionWithPreserverClosed() throws Exception {
+        TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
+        pulsar.getConfiguration().setTransactionMetaPersistCount(10);
+        transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0));
+        Awaitility.await().until(() ->
+                transactionMetadataStoreService.getStores().size() == 1);
+        TransactionMetadataStore transactionMetadataStore=transactionMetadataStoreService.getStores().get(TransactionCoordinatorID.get(0));
+        checkTransactionMetadataStoreReady((MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
+                .getStores().get(TransactionCoordinatorID.get(0)));
+        Field preserverField = transactionMetadataStore.getClass().getDeclaredField("transactionMetadataPreserver");
+        preserverField.setAccessible(true);
+        TransactionMetadataPreserver preserver = (TransactionMetadataPreserver) preserverField.get(transactionMetadataStore);
+        preserver.closeAsync().get();
+        TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000, null, "txnClient").get();
+        Assert.assertEquals(txnID0.getMostSigBits(), 0);
+        transactionMetadataStoreService.endTransaction(txnID0, TxnAction.COMMIT_VALUE, false, "txnClient")
+                .handle((txnMeta, throwable) -> {
+                    Assert.assertNotNull(throwable);
+                    Assert.assertTrue(FutureUtil.unwrapCompletionException(throwable)
+                            instanceof CoordinatorException.PreserverClosedException);
+                    return null;
+                }).get();
+    }
+
+
 
     @Test
     public void testAddProducedPartitionToTxn() throws Exception {

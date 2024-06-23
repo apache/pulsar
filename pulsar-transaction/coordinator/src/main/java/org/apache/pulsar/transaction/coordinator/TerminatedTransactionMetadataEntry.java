@@ -16,36 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats.prometheus;
+package org.apache.pulsar.transaction.coordinator;
 
-public class AggregatedTransactionCoordinatorStats {
-    public long tcRecoveryTime;
 
-    public long preserverRecoveryTime;
+import java.util.LinkedList;
 
-    public int actives;
+public class TerminatedTransactionMetadataEntry {
+    LinkedList<TxnMeta> txnMetas;
 
-    public long committedCount;
+    public TerminatedTransactionMetadataEntry() {
+        this.txnMetas = new LinkedList<>();
+    }
 
-    public long abortedCount;
+    public LinkedList<TxnMeta> getTxnMetas() {
+        return new LinkedList<>(txnMetas);
+    }
 
-    public long createdCount;
-
-    public long timeoutCount;
-
-    public long appendLogCount;
-
-    public long[] executionLatency;
-
-    public void reset() {
-        tcRecoveryTime = 0;
-        preserverRecoveryTime = 0;
-        actives = 0;
-        committedCount = 0;
-        abortedCount = 0;
-        createdCount = 0;
-        timeoutCount = 0;
-        appendLogCount = 0;
-        executionLatency = null;
+    public void setTxnMetas(LinkedList<TxnMeta> txnMetas) {
+        this.txnMetas = new LinkedList<>(txnMetas);
     }
 }

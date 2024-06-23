@@ -18,8 +18,13 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -44,6 +50,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataPreserver;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
@@ -59,6 +66,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
@@ -72,6 +80,8 @@ public class MLTransactionMetadataStore
     @VisibleForTesting
     final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
     private final TransactionTimeoutTracker timeoutTracker;
+    private final TransactionMetadataPreserver transactionMetadataPreserver;
+    private final Timer timer;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
     private final LongAdder createdTransactionCount;
     private final LongAdder committedTransactionCount;
@@ -93,6 +103,8 @@ public class MLTransactionMetadataStore
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
         this.timeoutTracker = timeoutTracker;
+        this.transactionMetadataPreserver = new MLTransactionMetadataPreserverImpl();
+        this.timer = null;
         this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
 
         this.maxActiveTransactionsPerCoordinator = maxActiveTransactionsPerCoordinator;
@@ -105,6 +117,52 @@ public class MLTransactionMetadataStore
                 + tcID.toString() + "thread_factory");
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
+
+    public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
+                                      MLTransactionLogImpl mlTransactionLog,
+                                      TransactionTimeoutTracker timeoutTracker,
+                                      TransactionMetadataPreserver transactionMetadataPreserver,
+                                      Timer timer,
+                                      MLTransactionSequenceIdGenerator sequenceIdGenerator,
+                                      long maxActiveTransactionsPerCoordinator) {
+        super(State.None);
+        this.sequenceIdGenerator = sequenceIdGenerator;
+        this.tcID = tcID;
+        this.transactionLog = mlTransactionLog;
+        this.timeoutTracker = timeoutTracker;
+        this.transactionMetadataPreserver = transactionMetadataPreserver;
+        this.timer = timer;
+        this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
+
+        this.maxActiveTransactionsPerCoordinator = maxActiveTransactionsPerCoordinator;
+        this.createdTransactionCount = new LongAdder();
+        this.committedTransactionCount = new LongAdder();
+        this.abortedTransactionCount = new LongAdder();
+        this.transactionTimeoutCount = new LongAdder();
+        this.appendLogCount = new LongAdder();
+        DefaultThreadFactory threadFactory = new DefaultThreadFactory("transaction_coordinator_"
+                + tcID.toString() + "_thread_factory");
+        this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+    }
+
+    // TimerTask for expire old transaction metadata in preserver
+    class ExpireOldTransactionMetadataInPreserverTask implements TimerTask {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            internalPinnedExecutor.execute(() -> {
+                try {
+                    transactionMetadataPreserver.expireTransactionMetadata();
+                } catch (Exception e) {
+                    log.error("Expire old transaction metadata in preserver error", e);
+                }
+                // schedule next timeout
+                timer.newTimeout(ExpireOldTransactionMetadataInPreserverTask.this,
+                        transactionMetadataPreserver.getExpireOldTransactionMetadataIntervalMS(),
+                        TimeUnit.MILLISECONDS);
+            });
+        }
+    }
+
 
     public CompletableFuture<TransactionMetadataStore> init(TransactionRecoverTracker recoverTracker) {
         CompletableFuture<TransactionMetadataStore> completableFuture = new CompletableFuture<>();
@@ -120,6 +178,11 @@ public class MLTransactionMetadataStore
                 @Override
                 public void replayComplete() {
                     recoverTracker.appendOpenTransactionToTimeoutTracker();
+                    if (transactionMetadataPreserverEnabled()) {
+                        timer.newTimeout(new ExpireOldTransactionMetadataInPreserverTask(),
+                                transactionMetadataPreserver.getExpireOldTransactionMetadataIntervalMS(),
+                                TimeUnit.MILLISECONDS);
+                    }
                     if (!changeToReadyState()) {
                         log.error("Managed ledger transaction metadata store change state error when replay complete");
                         completableFuture
@@ -152,8 +215,10 @@ public class MLTransactionMetadataStore
                                     long timeoutAt = transactionMetadataEntry.getTimeoutMs();
                                     final String owner = transactionMetadataEntry.hasOwner()
                                             ? transactionMetadataEntry.getOwner() : null;
+                                    String clientName = transactionMetadataEntry.hasClientName()
+                                            ? transactionMetadataEntry.getClientName() : null;
                                     final TxnMetaImpl left = new TxnMetaImpl(txnID,
-                                            openTimestamp, timeoutAt, owner);
+                                            openTimestamp, timeoutAt, owner, clientName);
                                     txnMetaMap.put(transactionId, MutablePair.of(left, positions));
                                     recoverTracker.handleOpenStatusTransaction(txnSequenceId,
                                             timeoutAt + openTimestamp);
@@ -216,9 +281,18 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID) {
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
+        return getTxnMeta(txnid, null);
+    }
+
+    @Override
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID, String clientName) {
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
         CompletableFuture<TxnMeta> completableFuture = new CompletableFuture<>();
+        if (txnMetaListPair == null && transactionMetadataPreserverEnabled()
+                && clientName != null && isNotBlank(clientName)) {
+            completableFuture.complete(getTxnMetaFromPreserver(txnID, clientName));
+        }
         if (txnMetaListPair == null) {
             completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
@@ -228,7 +302,30 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction(long timeOut, String owner) {
+    public TxnMeta getTxnMetaFromPreserver(TxnID txnID, String clientName) {
+        return transactionMetadataPreserver.getTxnMeta(txnID, clientName);
+    }
+
+    @Override
+    public boolean transactionMetadataPreserverEnabled() {
+        return transactionMetadataPreserver.enabled();
+    }
+
+    @Override
+    public CompletableFuture<Void> appendTxnMetaToPreserver(TxnMeta txnMeta, String clientName) {
+        if (!transactionMetadataPreserver.enabled() || isBlank(clientName)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        internalPinnedExecutor.execute(()->{
+            transactionMetadataPreserver.append(txnMeta, clientName);
+            completableFuture.complete(null);
+        });
+        return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<TxnID> newTransaction(long timeOut, String owner, String clientName) {
         if (this.maxActiveTransactionsPerCoordinator == 0
                 || this.maxActiveTransactionsPerCoordinator > txnMetaMap.size()) {
             CompletableFuture<TxnID> completableFuture = new CompletableFuture<>();
@@ -258,13 +355,16 @@ public class MLTransactionMetadataStore
                     }
                     transactionMetadataEntry.setOwner(owner);
                 }
+                if (clientName != null && !StringUtils.isBlank(clientName)) {
+                    transactionMetadataEntry.setClientName(clientName);
+                }
                 transactionLog.append(transactionMetadataEntry)
                         .whenComplete((position, throwable) -> {
                             if (throwable != null) {
                                 completableFuture.completeExceptionally(throwable);
                             } else {
                                 appendLogCount.increment();
-                                TxnMeta txn = new TxnMetaImpl(txnID, currentTimeMillis, timeOut, owner);
+                                TxnMeta txn = new TxnMetaImpl(txnID, currentTimeMillis, timeOut, owner, clientName);
                                 List<Position> positions = new ArrayList<>();
                                 positions.add(position);
                                 Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
@@ -281,6 +381,12 @@ public class MLTransactionMetadataStore
                     + "reach max active txn! tcId : " + getTransactionCoordinatorID().getId()));
         }
     }
+
+    @Override
+    public CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner) {
+        return newTransaction(timeoutInMills, owner, null);
+    }
+
 
     @Override
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnID, List<String> partitions) {
@@ -382,9 +488,30 @@ public class MLTransactionMetadataStore
                 return;
             }
             getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
-                if (txnMetaListPair.getLeft().status() == newStatus) {
+                TxnMeta txnMeta = txnMetaListPair.getLeft();
+                if (txnMeta.status() == newStatus) {
                     promise.complete(null);
                     return promise;
+                }
+                if (transactionMetadataPreserver.enabled() && !isBlank(txnMeta.getClientName())
+                        && (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED)) {
+                    // before changed to committed/aborted status, flush the metadata to __terminated_txn_state.
+                    // so the state of transaction persisted in __terminated_txn_state may be committing instead
+                    // of committed, we should regard committing as committed when catch TransactionNotFound exception.
+                    // As the endTxn command in TB has been executed successfully, the partition metadata
+                    // is useless, we will remove it to save memory and reduce message size.
+                    txnMeta.clearProducedPartitions();
+                    txnMeta.clearAckedPartitions();
+                    if (log.isDebugEnabled()) {
+                        log.debug("flush txnId:{} metadata before update status to {}",
+                                txnID, newStatus.name());
+                    }
+                    try {
+                        transactionMetadataPreserver.flush(txnMeta.getClientName());
+                    } catch (CoordinatorException.PreserverClosedException e) {
+                        promise.completeExceptionally(e);
+                        return promise;
+                    }
                 }
                 TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                         .setTxnidMostBits(txnID.getMostSigBits())
@@ -399,14 +526,23 @@ public class MLTransactionMetadataStore
                         .thenAccept(position -> {
                             appendLogCount.increment();
                             try {
-                                synchronized (txnMetaListPair.getLeft()) {
-                                    txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
+                                synchronized (txnMeta) {
+                                    if (txnMeta.status() == newStatus) {
+                                        transactionLog.deletePosition(Collections.singletonList(position));
+                                        promise.complete(null);
+                                        return;
+                                    }
+                                    txnMeta.updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
                                 }
                                 if (newStatus == TxnStatus.ABORTING && isTimeout) {
                                     this.transactionTimeoutCount.increment();
                                 }
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("TxnID : " + txnMeta.id().toString()
+                                                + " update txn status to " + newStatus.name());
+                                    }
                                     this.transactionMetadataStoreStats
                                             .addTransactionExecutionLatencySample(System.currentTimeMillis()
                                                     - txnMetaListPair.getLeft().getOpenTimestamp());
@@ -489,6 +625,7 @@ public class MLTransactionMetadataStore
                             new IllegalStateException(
                                     "Managed ledger transaction metadata store state to close error!"));
                 }
+                transactionMetadataPreserver.closeAsync();
                 // Shutdown the ExecutorService
                 MoreExecutors.shutdownAndAwaitTermination(internalPinnedExecutor, Duration.ofSeconds(5L));
                 return CompletableFuture.completedFuture(null);
@@ -501,6 +638,14 @@ public class MLTransactionMetadataStore
     @Override
     public TransactionMetadataStoreStats getMetadataStoreStats() {
         this.transactionMetadataStoreStats.setCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.tcRecoverTime = recoverTime.getRecoverEndTime()
+                - recoverTime.getRecoverStartTime();
+        if (transactionMetadataPreserverEnabled()) {
+            this.transactionMetadataStoreStats.preserverRecoverTime =
+                    transactionMetadataPreserver.getRecoveryTime();
+        } else {
+            this.transactionMetadataStoreStats.preserverRecoverTime = 0L;
+        }
         this.transactionMetadataStoreStats.setActives(txnMetaMap.size());
         this.transactionMetadataStoreStats.setCreatedCount(this.createdTransactionCount.longValue());
         this.transactionMetadataStoreStats.setCommittedCount(this.committedTransactionCount.longValue());

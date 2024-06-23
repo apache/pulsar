@@ -283,6 +283,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
+        } else if (t instanceof CoordinatorException.PreserverClosedException) {
+            return ServerError.TransactionPreserverClosed;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

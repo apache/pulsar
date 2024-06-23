@@ -129,6 +129,14 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder listenerName(String name);
 
     /**
+     * Configure the client name which is globally unique.
+     * used to save transaction metadata.
+     * @param name
+     * @return
+     */
+    ClientBuilder clientName(String name);
+
+    /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
      * @return the client builder instance
      */

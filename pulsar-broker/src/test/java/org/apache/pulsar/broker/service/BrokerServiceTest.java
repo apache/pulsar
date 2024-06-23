@@ -1604,6 +1604,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot")));
         assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-0")));
         assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-1")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("persistent://pulsar/system/__terminated_txn_state_0")));
         assertTrue(brokerService.isSystemTopic(TopicName
                 .get("topicxxx-partition-0-multiTopicsReader-f433329d68__transaction_pending_ack")));
         assertTrue(brokerService.isSystemTopic(

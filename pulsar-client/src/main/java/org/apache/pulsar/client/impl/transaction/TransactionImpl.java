@@ -183,6 +183,9 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public CompletableFuture<Void> commit() {
         timeout.cancel();
+        if (state == State.COMMITTED) {
+            return CompletableFuture.completedFuture(null);
+        }
         return checkState(State.OPEN, State.COMMITTING).thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
@@ -214,6 +217,9 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public CompletableFuture<Void> abort() {
         timeout.cancel();
+        if (state == State.ABORTED) {
+            return CompletableFuture.completedFuture(null);
+        }
         return checkState(State.OPEN, State.ABORTING).thenCompose(__ -> internalAbort());
     }
 
@@ -242,7 +248,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public TxnID getTxnID() {
-        return this.txnId;
+        return new TxnID(txnIdMostBits, txnIdLeastBits);
     }
 
     @Override

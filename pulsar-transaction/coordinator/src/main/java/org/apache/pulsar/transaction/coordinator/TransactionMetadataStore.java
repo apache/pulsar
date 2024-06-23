@@ -53,6 +53,40 @@ public interface TransactionMetadataStore {
     CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid);
 
     /**
+     * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
+     *
+     * @param txnid transaction id
+     * @param clientName the client name that creates the transaction
+     * @return a future represents the result of this operation.
+     *         it returns {@link TxnMeta} of the given transaction.
+     */
+    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid, String clientName);
+
+    /**
+     * Query the {@link TxnMeta} of a given transaction <tt>txnID</tt>
+     * and clientName from TransactionMetadataPreserver.
+     * @param txnID
+     * @param clientName
+     * @return TxnMeta of the given transaction and clientName.
+     */
+    TxnMeta getTxnMetaFromPreserver(TxnID txnID, String clientName);
+
+
+    /**
+     * check if the transaction metadata preserver is enabled.
+     * @return true if the transaction metadata preserver is enabled.
+     */
+    boolean transactionMetadataPreserverEnabled();
+
+    /**
+     * append the transaction metadata to the transaction metadata preserver.
+     * @param txnMeta
+     * @param clientName
+     */
+    CompletableFuture<Void> appendTxnMetaToPreserver(TxnMeta txnMeta, String clientName);
+
+
+    /**
      * Create a new transaction in the transaction metadata store.
      *
      * @param timeoutInMills the timeout duration of the transaction in mills
@@ -62,6 +96,19 @@ public interface TransactionMetadataStore {
      *         transaction.
      */
     CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner);
+
+    /**
+     * Create a new transaction in the transaction metadata store.
+     *
+     * @param timeoutInMills the timeout duration of the transaction in mills
+     * @param owner the role which is the owner of the transaction
+     * @param clientName the client name that creates the transaction
+     * @return a future represents the result of creating a new transaction.
+     * it returns {@link TxnID} as the identifier for identifying the
+     * transaction.
+     */
+    CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner, String clientName);
+
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnid</tt>.

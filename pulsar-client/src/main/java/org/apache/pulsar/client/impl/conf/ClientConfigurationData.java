@@ -262,6 +262,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String listenerName;
 
     @ApiModelProperty(
+            name = "clientName",
+            value = "Client name that is used to save transaction metadata."
+    )
+    private String clientName;
+
+
+    @ApiModelProperty(
             name = "useKeyStoreTls",
             value = "Set TLS using KeyStore way."
     )

@@ -117,17 +117,33 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
 
     @Override
     public void appendOpenTransactionToTimeoutTracker() {
+        if (log.isDebugEnabled()) {
+            log.debug("Append open transaction to timeout tracker, tcId: {}, openTransactions: {}",
+                    tcId, openTransactions);
+        }
         openTransactions.forEach(timeoutTracker::replayAddTransaction);
     }
 
     @Override
     public void handleCommittingAndAbortingTransaction() {
-        committingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
-                        false));
+        if (log.isDebugEnabled()) {
+            log.debug("Handle committing and aborting transaction, tcId: {}, committingTransactions: {}, "
+                    + "abortingTransactions: {}", tcId, committingTransactions, abortingTransactions);
+        }
+        committingTransactions.forEach(k -> {
+            TxnID txnID = new TxnID(tcId, k);
+            transactionMetadataStoreService.getTxnMeta(txnID)
+                    .thenAccept(txnMeta ->
+                            transactionMetadataStoreService.endTransaction(txnID, TxnAction.COMMIT_VALUE,
+                                    false, txnMeta.getClientName()));
+        });
 
-        abortingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
-                        false));
+        abortingTransactions.forEach(k -> {
+            TxnID txnID = new TxnID(tcId, k);
+            transactionMetadataStoreService.getTxnMeta(txnID)
+                    .thenAccept(txnMeta ->
+                            transactionMetadataStoreService.endTransaction(txnID, TxnAction.ABORT_VALUE,
+                                    false, txnMeta.getClientName()));
+        });
     }
 }

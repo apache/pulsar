@@ -143,7 +143,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                 (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
 
         for (TransactionMetaStoreHandler handler : handlers) {
-            handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
+            handler.newTransactionAsync(10, TimeUnit.SECONDS, null).get();
         }
         for (TransactionMetaStoreHandler handler : handlers) {
             Field stateField = HandlerState.class.getDeclaredField("state");
@@ -155,7 +155,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             method.setAccessible(true);
             assertEquals(method.invoke(handler).toString(), "Closed");
             try {
-                handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
+                handler.newTransactionAsync(10, TimeUnit.SECONDS, null).get();
             } catch (ExecutionException | InterruptedException e) {
                 assertTrue(e.getCause()
                         instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);

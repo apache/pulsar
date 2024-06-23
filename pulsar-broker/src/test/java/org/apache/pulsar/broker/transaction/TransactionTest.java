@@ -999,6 +999,97 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testConcurrentCommit() throws Exception {
+        String topic = NAMESPACE1 + "/testConcurrentCommit";
+
+        // configure clientName
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true)
+                .clientName("txnClient")
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                // ensure that batch message is sent
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+
+        // send batch message, the size is 5
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage(txn).value(("test" + i).getBytes());
+        }
+        producer.flush();
+
+        CompletableFuture future = new CompletableFuture();
+        // try to commit many times.
+        while (!txn.getState().equals(Transaction.State.COMMITTED)) {
+            txn.commit().exceptionally(e -> {
+                future.completeExceptionally(e);
+                return null;
+            });
+        }
+        assertTrue(!future.isCompletedExceptionally());
+
+        txn.commit().get();
+    }
+
+    @Test
+    public void testConcurrentAbort() throws Exception {
+        String topic = NAMESPACE1 + "/testConcurrentCommit";
+
+        // configure clientName
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true)
+                .clientName("txnClient")
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                // ensure that batch message is sent
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+
+        // send batch message, the size is 5
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage(txn).value(("test" + i).getBytes());
+        }
+        producer.flush();
+
+        CompletableFuture future = new CompletableFuture();
+        // try to abort many times.
+        while (!txn.getState().equals(Transaction.State.ABORTED)) {
+            txn.abort().exceptionally(e -> {
+                future.completeExceptionally(e);
+                return null;
+            });
+        }
+        assertTrue(!future.isCompletedExceptionally());
+
+        txn.abort().get();
+    }
+
+
+    @Test
     public void testNoEntryCanBeReadWhenRecovery() throws Exception {
         String topic = NAMESPACE1 + "/test";
         PersistentTopic persistentTopic =
@@ -1674,7 +1765,7 @@ public class TransactionTest extends TransactionTestBase {
                 .build().get();
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .endTransaction(transaction.getTxnID(), 0, false);
-        transaction.commit();
+        transaction.abort();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
 

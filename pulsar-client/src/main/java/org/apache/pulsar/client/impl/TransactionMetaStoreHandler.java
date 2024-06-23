@@ -206,7 +206,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.pendingRequests.clear();
     }
 
-    public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
+    public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit, String clientName) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
         }
@@ -215,7 +215,7 @@ public class TransactionMetaStoreHandler extends HandlerState
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
+        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), clientName);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client);
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
@@ -453,7 +453,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         });
     }
 
-    public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
+    public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action, String clientName) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("End txn {}, action {}", txnID, action);
         }
@@ -462,7 +462,8 @@ public class TransactionMetaStoreHandler extends HandlerState
             return callback;
         }
         long requestId = client.newRequestId();
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(),
+                txnID.getMostSigBits(), action, clientName);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client);
         internalPinnedExecutor.execute(() -> {
@@ -536,7 +537,8 @@ public class TransactionMetaStoreHandler extends HandlerState
 
 
     private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
-        if (error == ServerError.TransactionCoordinatorNotFound) {
+        if (error == ServerError.TransactionCoordinatorNotFound
+                || error == ServerError.TransactionPreserverClosed) {
             if (getState() != State.Connecting) {
                 connectionHandler.reconnectLater(new TransactionCoordinatorClientException
                         .CoordinatorNotFoundException(message));

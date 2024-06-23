@@ -70,7 +70,7 @@ public class TransactionMetadataStoreProviderTest {
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
         this.store = this.provider.openStore(tcId, null, null,
-                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), 0L,
+                null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), null, 0L,
                 new TxnLogBufferedWriterConfig(), transactionTimer).get();
     }
 

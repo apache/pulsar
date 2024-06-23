@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataPreserver;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
@@ -66,6 +67,7 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
                                                                  ManagedLedgerConfig managedLedgerConfig,
                                                                  TransactionTimeoutTracker timeoutTracker,
                                                                  TransactionRecoverTracker recoverTracker,
+                                                                 TransactionMetadataPreserver preserver,
                                                                  long maxActiveTransactionsPerCoordinator,
                                                                  TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
                                                                  Timer timer) {
@@ -76,7 +78,7 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
 
         // MLTransactionLogInterceptor will init sequenceId and update the sequenceId to managedLedger properties.
         return txnLog.initialize().thenCompose(__ ->
-                new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker,
+                new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker, preserver, timer,
                         mlTransactionSequenceIdGenerator, maxActiveTransactionsPerCoordinator).init(recoverTracker));
     }
 

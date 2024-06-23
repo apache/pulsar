@@ -174,7 +174,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
-        return nextHandler().newTransactionAsync(timeout, unit);
+        return nextHandler().newTransactionAsync(timeout, unit, pulsarClient.getConfiguration().getClientName());
     }
 
     @Override
@@ -239,7 +239,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
                             txnID.getMostSigBits()));
         }
-        return handler.endTxnAsync(txnID, TxnAction.COMMIT);
+        return handler.endTxnAsync(txnID, TxnAction.COMMIT, pulsarClient.getConfiguration().getClientName());
     }
 
     @Override
@@ -259,7 +259,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
                             txnID.getMostSigBits()));
         }
-        return handler.endTxnAsync(txnID, TxnAction.ABORT);
+        return handler.endTxnAsync(txnID, TxnAction.ABORT, pulsarClient.getConfiguration().getClientName());
     }
 
     @Override
