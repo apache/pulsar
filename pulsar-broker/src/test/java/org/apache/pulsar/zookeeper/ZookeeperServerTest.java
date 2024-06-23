@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import lombok.Getter;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class ZookeeperServerTest implements Closeable {
     private final File zkTmpDir;
+    @Getter
     private ZooKeeperServer zks;
     private NIOServerCnxnFactory serverFactory;
     private int zkPort;

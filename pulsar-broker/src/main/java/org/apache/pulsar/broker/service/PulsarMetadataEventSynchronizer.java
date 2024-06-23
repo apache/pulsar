@@ -118,8 +118,9 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     private void publishAsync(MetadataEvent event, CompletableFuture<Void> future) {
         if (!isProducerStarted()) {
-            log.info("Producer is not started on {}, failed to publish {}", topicName, event);
+            log.warn("Producer is not started on {}, failed to publish {}", topicName, event);
             future.completeExceptionally(new IllegalStateException("producer is not started yet"));
+            return;
         }
         producer.newMessage().value(event).sendAsync().thenAccept(__ -> {
             log.info("successfully published metadata change event {}", event);
@@ -155,8 +156,8 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                     State stateTransient = state;
                     log.info("[{}] Closing the new producer because the synchronizer state is {}", prod,
                             stateTransient);
-                    CompletableFuture closeProducer = new CompletableFuture<>();
-                    closeResource(() -> prod.closeAsync(), closeProducer);
+                    CompletableFuture<Void> closeProducer = new CompletableFuture<>();
+                    closeResource(prod::closeAsync, closeProducer);
                     closeProducer.thenRun(() -> {
                         log.info("[{}] Closed the new producer because the synchronizer state is {}", prod,
                                 stateTransient);
@@ -220,11 +221,13 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 log.info("successfully created consumer {}", topicName);
             } else {
                 State stateTransient = state;
-                log.info("[{}] Closing the new consumer because the synchronizer state is {}", stateTransient);
-                CompletableFuture closeConsumer = new CompletableFuture<>();
-                closeResource(() -> consumer.closeAsync(), closeConsumer);
+                log.info("[{}] Closing the new consumer because the synchronizer state is {}", topicName,
+                        stateTransient);
+                CompletableFuture<Void> closeConsumer = new CompletableFuture<>();
+                closeResource(consumer::closeAsync, closeConsumer);
                 closeConsumer.thenRun(() -> {
-                    log.info("[{}] Closed the new consumer because the synchronizer state is {}", stateTransient);
+                    log.info("[{}] Closed the new consumer because the synchronizer state is {}", topicName,
+                            stateTransient);
                 });
             }
         }).exceptionally(ex -> {

@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +45,10 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTestBase {
+public class SyncConfigStore2ZKPerClusterTest extends GeoReplicationWithConfigurationSyncTestBase {
 
-    private static final String CONF_NAME_SYNC_EVENT_TOPIC = "configurationMetadataSyncEventTopic";
-    private static final String SYNC_EVENT_TOPIC = TopicDomain.persistent.value() + "://" + SYSTEM_NAMESPACE
+    protected static final String CONF_NAME_SYNC_EVENT_TOPIC = "configurationMetadataSyncEventTopic";
+    protected static final String SYNC_EVENT_TOPIC = TopicDomain.persistent.value() + "://" + SYSTEM_NAMESPACE
             + "/__sync_config_meta";
 
     @Override
@@ -58,6 +59,7 @@ public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTest
         tenantInfo.setAllowedClusters(new HashSet<>(Arrays.asList(cluster1, cluster2)));
         admin1.tenants().createTenant(TopicName.get(SYNC_EVENT_TOPIC).getTenant(), tenantInfo);
         admin1.namespaces().createNamespace(TopicName.get(SYNC_EVENT_TOPIC).getNamespace());
+        verifyMetadataStores();
     }
 
     @Override
@@ -66,23 +68,35 @@ public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTest
         super.cleanup();
     }
 
+    @Override
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+        config.setForceUseSeparatedConfigurationStoreInMemory(true);
+    }
+
+    protected void verifyMetadataStores() {
+        Awaitility.await().untilAsserted(() -> {
+            // Verify: config metadata store url is not the same as local metadata store url.
+            assertTrue(pulsar1.getConfig().isConfigurationStoreSeparated());
+            assertTrue(pulsar2.getConfig().isConfigurationStoreSeparated());
+            // Verify: Pulsar initialized itself to update the metadata synchronizer dynamically.
+            assertTrue(pulsar1.hasConditionOfDynamicUpdateConf("configurationMetadataSyncEventTopic")
+                    .getLeft());
+            assertTrue(pulsar2.hasConditionOfDynamicUpdateConf("configurationMetadataSyncEventTopic")
+                    .getLeft());
+            assertTrue(pulsar1.hasConditionOfDynamicUpdateConf("metadataSyncEventTopic")
+                    .getLeft());
+            assertTrue(pulsar2.hasConditionOfDynamicUpdateConf("metadataSyncEventTopic")
+                    .getLeft());
+        });
     }
 
     @Test
     public void testDynamicEnableConfigurationMetadataSyncEventTopic() throws Exception {
-        // Verify the condition that supports synchronizer: the metadata store is a different one.
-        Awaitility.await().untilAsserted(() -> {
-            boolean shouldShutdownConfigurationMetadataStore =
-                    WhiteboxImpl.getInternalState(pulsar1, "shouldShutdownConfigurationMetadataStore");
-            assertTrue(shouldShutdownConfigurationMetadataStore);
-        });
-
         // Verify the synchronizer will be created dynamically.
         admin1.brokers().updateDynamicConfiguration(CONF_NAME_SYNC_EVENT_TOPIC, SYNC_EVENT_TOPIC);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(3600)).untilAsserted(() -> {
             assertEquals(pulsar1.getConfig().getConfigurationMetadataSyncEventTopic(), SYNC_EVENT_TOPIC);
             PulsarMetadataEventSynchronizer synchronizer =
                     WhiteboxImpl.getInternalState(pulsar1, "configMetadataSynchronizer");
@@ -100,7 +114,7 @@ public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTest
 
         // Verify the synchronizer will be closed dynamically.
         admin1.brokers().deleteDynamicConfiguration(CONF_NAME_SYNC_EVENT_TOPIC);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(3600)).untilAsserted(() -> {
             // The synchronizer that was started will be closed.
             assertEquals(synchronizerStarted.getState(), PulsarMetadataEventSynchronizer.State.Closed);
             assertTrue(synchronizerStarted.isClosingOrClosed());

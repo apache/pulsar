@@ -48,6 +48,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -203,7 +204,13 @@ public class BrokersBase extends AdminResource {
                                            @PathParam("configName") String configName,
                                            @PathParam("configValue") String configValue) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
+                .thenApply(__ -> {
+                    Pair<Boolean, String> pair = pulsar().hasConditionOfDynamicUpdateConf(configName);
+                    if (!pair.getLeft()) {
+                        throw new RestException(Status.BAD_REQUEST, pair.getRight());
+                    }
+                    return null;
+                }).thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
                     asyncResponse.resume(Response.ok().build());
@@ -227,7 +234,13 @@ public class BrokersBase extends AdminResource {
             @Suspended AsyncResponse asyncResponse,
             @PathParam("configName") String configName) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
+                .thenApply(__ -> {
+                    Pair<Boolean, String> pair = pulsar().hasConditionOfDynamicUpdateConf(configName);
+                    if (!pair.getLeft()) {
+                        throw new RestException(Status.BAD_REQUEST, pair.getRight());
+                    }
+                    return null;
+                }).thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully to delete dynamic configuration {}", clientAppId(), configName);
                     asyncResponse.resume(Response.ok().build());
