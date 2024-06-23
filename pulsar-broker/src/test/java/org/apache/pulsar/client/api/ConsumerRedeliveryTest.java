@@ -424,4 +424,28 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             assertTrue(values.isEmpty());
         }
     }
+
+    @Test
+    public void testRedeliverMessagesWithoutValue() throws Exception {
+        String topic = "persistent://my-property/my-ns/testRedeliverMessagesWithoutValue";
+        @Cleanup Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .enableRetry(true)
+                .subscribe();
+        @Cleanup Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key("messages without value").send();
+        }
+
+        Message<Integer> message = consumer.receive();
+        consumer.reconsumeLater(message, 2, TimeUnit.SECONDS);
+        for (int i = 0; i < 9; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        assertTrue(consumer.receive(5, TimeUnit.SECONDS).getTopicName().contains("sub-RETRY"));
+    }
 }
