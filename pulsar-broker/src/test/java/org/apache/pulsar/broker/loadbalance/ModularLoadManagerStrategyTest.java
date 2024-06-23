@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
+import org.apache.pulsar.broker.loadbalance.impl.UniformLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -46,6 +47,64 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
+
+    // Test that uniform placement strategy works correctly.
+    public void testUniformPlacementStrategy() {
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData();
+        BrokerData brokerData2 = initBrokerData();
+        BrokerData brokerData3 = initBrokerData();
+        brokerData1.getTimeAverageData().setLongTermMsgRateIn(100);
+        brokerData2.getTimeAverageData().setLongTermMsgRateIn(200);
+        brokerData3.getTimeAverageData().setLongTermMsgRateIn(300);
+        brokerData1.getTimeAverageData().setLongTermMsgThroughputIn(10000);
+        brokerData2.getTimeAverageData().setLongTermMsgThroughputIn(20000);
+        brokerData3.getTimeAverageData().setLongTermMsgThroughputIn(30000);
+        brokerData1.getTimeAverageData().setShortTermMsgRateIn(400);
+        brokerData2.getTimeAverageData().setShortTermMsgRateIn(300);
+        brokerData3.getTimeAverageData().setShortTermMsgRateIn(200);
+        brokerData1.getTimeAverageData().setShortTermMsgThroughputIn(40000);
+        brokerData2.getTimeAverageData().setShortTermMsgThroughputIn(30000);
+        brokerData3.getTimeAverageData().setShortTermMsgThroughputIn(20000);
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        ModularLoadManagerStrategy strategy = new UniformLoadManagerStrategy();
+
+        conf.setLoadBalancerUniformPlacementStrategyType("least_long_term_msg_rate");
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+        brokerData1.getTimeAverageData().setLongTermMsgRateIn(400);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(10, 100));
+
+        conf.setLoadBalancerUniformPlacementStrategyType("least_long_term_msg_throughput");
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+        brokerData1.getTimeAverageData().setLongTermMsgThroughputIn(40000);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(10, 100));
+
+        conf.setLoadBalancerUniformPlacementStrategyType("least_short_term_msg_rate");
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        brokerData3.getTimeAverageData().setShortTermMsgRateIn(500);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(10, 100));
+
+        conf.setLoadBalancerUniformPlacementStrategyType("least_short_term_msg_throughput");
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        brokerData3.getTimeAverageData().setShortTermMsgThroughputIn(50000);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+        brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+    }
 
     // Test that least long term message rate works correctly.
     public void testLeastLongTermMessageRate() {

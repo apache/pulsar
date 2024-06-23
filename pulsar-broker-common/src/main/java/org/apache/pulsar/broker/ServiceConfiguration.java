@@ -2290,6 +2290,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "load balance placement strategy type. least_long_term_msg_rate, least_long_term_msg_throughput, "
+                    + "least_short_term_msg_rate and least_short_term_msg_throughput is supported. Works only when "
+                    + "loadBalancerLoadPlacementStrategy is"
+                    + " org.apache.pulsar.broker.loadbalance.impl.UniformStickyKeyLoadManagerImpl"
+    )
+    private String loadBalancerUniformPlacementStrategyType = "least_long_term_msg_rate";
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Percentage of change to trigger load report update"
