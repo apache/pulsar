@@ -85,4 +85,51 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      * Close the subscription tracker and release all resources.
      */
     void close();
+
+    DelayedDeliveryTracker DISABLE = new DelayedDeliveryTracker() {
+        @Override
+        public boolean addMessage(long ledgerId, long entryId, long deliveryAt) {
+            return false;
+        }
+
+        @Override
+        public boolean hasMessageAvailable() {
+            return false;
+        }
+
+        @Override
+        public long getNumberOfDelayedMessages() {
+            return 0;
+        }
+
+        @Override
+        public long getBufferMemoryUsage() {
+            return 0;
+        }
+
+        @Override
+        public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+            return null;
+        }
+
+        @Override
+        public boolean shouldPauseAllDeliveries() {
+            return false;
+        }
+
+        @Override
+        public void resetTickTime(long tickTime) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> clear() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+
+        }
+    };
 }
