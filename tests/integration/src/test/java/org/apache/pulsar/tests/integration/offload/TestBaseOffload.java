@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.awaitility.Awaitility;
@@ -219,7 +220,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 .map(l -> l.offloaded).findFirst().get();
     }
 
-    private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic)
+    protected long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic)
             throws Exception {
         return writeAndWaitForOffload(serviceUrl, adminUrl, topic, -1);
     }
@@ -304,11 +305,20 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 "namespaces", "get-offload-deletion-lag", namespace).getStdout();
         Assert.assertTrue(output.contains("Unset for namespace"));
 
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
+
         long offloadedLedger = writeAndWaitForOffload(serviceUrl, adminUrl, topic);
         // give it up to 5 seconds to delete, it shouldn't
         // so we wait this every time
         Thread.sleep(5000);
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+
+        long finalOffloadedLedger1 = offloadedLedger;
+        ManagedLedgerInternalStats.LedgerInfo offloadedLedgerInfo =
+                admin.topics().getInternalStats(topic).ledgers.stream()
+                        .filter((x) -> x.ledgerId == finalOffloadedLedger1).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
 
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-deletion-lag", namespace,
                 "--lag", "0m");
@@ -324,6 +334,12 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
         Assert.assertFalse(ledgerExistsInBookKeeper(offloadedLedger));
 
+        long finalOffloadedLedger2 = offloadedLedger;
+        offloadedLedgerInfo = admin.topics().getInternalStats(topic).ledgers.stream()
+                .filter((x) -> x.ledgerId == finalOffloadedLedger2).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertTrue(offloadedLedgerInfo.bookkeeperDeleted);
+
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "clear-offload-deletion-lag", namespace);
 
         Thread.sleep(5); // wait 5 seconds to allow broker to see update
@@ -338,6 +354,14 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         // so we wait this every time
         Thread.sleep(5000);
         Assert.assertTrue(ledgerExistsInBookKeeper(offloadedLedger));
+
+        long finalOffloadedLedger3 = offloadedLedger;
+        offloadedLedgerInfo = admin.topics().getInternalStats(topic).ledgers.stream()
+                .filter((x) -> x.ledgerId == finalOffloadedLedger3).findFirst().get();
+        Assert.assertTrue(offloadedLedgerInfo.offloaded);
+        Assert.assertFalse(offloadedLedgerInfo.bookkeeperDeleted);
+
+        admin.close();
     }
 
     protected void testDeleteOffloadedTopic(String serviceUrl, String adminUrl,
