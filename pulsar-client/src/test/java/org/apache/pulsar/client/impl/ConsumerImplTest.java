@@ -82,8 +82,8 @@ public class ConsumerImplTest {
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, null, null,
-                true);
+                executorProvider, -1, subscribeFuture, null, null
+        );
         consumer.setState(HandlerState.State.Ready);
     }
 
@@ -228,8 +228,8 @@ public class ConsumerImplTest {
         consumerConf.setStartPaused(true);
 
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorProvider, -1, false, new CompletableFuture<>(), null, null, null,
-                true);
+                executorProvider, -1, new CompletableFuture<>(), null, null
+        );
 
         Assert.assertTrue(consumer.paused);
     }
