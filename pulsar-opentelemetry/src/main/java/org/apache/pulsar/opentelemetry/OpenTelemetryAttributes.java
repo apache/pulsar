@@ -148,4 +148,20 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_REPLICATION_REMOTE_CLUSTER_NAME =
             AttributeKey.stringKey("pulsar.replication.remote.cluster.name");
+
+    AttributeKey<String> PULSAR_CONNECTION_STATUS = AttributeKey.stringKey("pulsar.connection.status");
+    enum ConnectionStatus {
+        ACTIVE,
+        OPEN,
+        CLOSE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> PULSAR_CONNECTION_CREATE_STATUS =
+            AttributeKey.stringKey("pulsar.connection.create.operation.status");
+    enum ConnectionCreateStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
+    }
 }

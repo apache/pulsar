@@ -107,7 +107,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-unix-common</artifactId>
-      <classifier>linux-x86_64</classifier>
     </dependency>
 
     <dependency>
@@ -252,6 +251,11 @@
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
     </dependency>
   </dependencies>
 

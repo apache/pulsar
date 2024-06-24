@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -73,7 +72,7 @@ public class PulsarClientBasedHandlerTest {
         pulsar.close();
         final var elapsedMs = System.currentTimeMillis() - beforeStop;
         log.info("It spends {} ms to stop the broker ({} for protocol handler)", elapsedMs, handler.closeTimeMs);
-        Assert.assertTrue(elapsedMs < ServiceUnitStateChannelImpl.OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS
+        Assert.assertTrue(elapsedMs <
                 + handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
     }
 
