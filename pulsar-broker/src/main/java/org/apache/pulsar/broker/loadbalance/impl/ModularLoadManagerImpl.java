@@ -890,7 +890,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
 
             // distribute bundles evenly to candidate-brokers if enable
-            if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+            // or system-namespace bundles
+            if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()
+                    || serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
                 LoadManagerShared.removeMostServicingBrokersForNamespace(bundle,
                         brokerCandidateCache,
                         brokerToNamespaceToBundleRange);
