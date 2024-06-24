@@ -98,18 +98,15 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
         return msgInCount.sum();
     }
 
-    public void incrementMsgInCounter() {
-        msgInCount.increment();
-    }
-
     @Override
     @JsonProperty
     public long getBytesInCount() {
         return bytesInCount.sum();
     }
 
-    public void incrementBytesInCounter(long bytes) {
-        bytesInCount.add(bytes);
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+        msgInCount.add(numOfMessages);
+        bytesInCount.add(msgSizeInBytes);
     }
 
     @Override

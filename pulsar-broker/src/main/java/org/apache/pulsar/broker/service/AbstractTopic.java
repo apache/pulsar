@@ -933,6 +933,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (isSystemTopic()) {
             systemTopicBytesInCounter.add(msgSizeInBytes);
         }
+
+        if (producer.isRemote()) {
+            var remoteClusterName = producer.getRemoteCluster();
+            var replicator = getReplicators().get(remoteClusterName);
+            if (replicator != null) {
+                replicator.getStats().incrementPublishCount(numOfMessages, msgSizeInBytes);
+            }
+        }
     }
 
     private void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
