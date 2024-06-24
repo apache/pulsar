@@ -526,7 +526,7 @@ jobs:
           DOCKER_CLI_EXPERIMENTAL=enabled mvn -B -am -pl docker/pulsar,tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
           -Ddocker.platforms=${{ matrix.platform }} \
           -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true \
-          -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
+          -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -X
 
       - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
         if: ${{ matrix.platform == 'linux/amd64' }}
