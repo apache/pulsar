@@ -192,7 +192,7 @@ public class PulsarSinkTest {
         pulsarConfig.setTypeClassName(Void.class.getName());
         PulsarSink pulsarSink =
                 new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader(), new ProducerCache());
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         try {
             Schema schema = pulsarSink.initializeSchema();
