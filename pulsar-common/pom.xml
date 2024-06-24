@@ -246,11 +246,6 @@
       <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.roaringbitmap</groupId>
-      <artifactId>RoaringBitmap</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
