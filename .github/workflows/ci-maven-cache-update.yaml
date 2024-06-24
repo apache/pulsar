@@ -60,7 +60,7 @@ jobs:
             mvn_arguments: ''
 
           - name: all modules - macos
-            runs-on: macos-11
+            runs-on: macos-latest
             cache_name: 'm2-dependencies-all'
 
           - name: core-modules

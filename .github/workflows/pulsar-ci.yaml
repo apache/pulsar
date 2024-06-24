@@ -938,7 +938,7 @@ jobs:
 
   macos-build:
     name: Build Pulsar on MacOS
-    runs-on: macos-11
+    runs-on: macos-latest
     timeout-minutes: 120
     needs: ['changed_files_job', 'integration-tests']
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
