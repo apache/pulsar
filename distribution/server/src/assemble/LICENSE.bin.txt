@@ -505,7 +505,8 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.1.0.jar
+    - org.roaringbitmap-RoaringBitmap-0.9.44.jar
+    - org.roaringbitmap-shims-0.9.44.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
