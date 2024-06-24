@@ -466,7 +466,7 @@ public class ContextImplTest {
                 pulsarAdmin, clientBuilder, t -> {
                     assertEquals(t, fatalException);
                     fatalInvoked.set(true);
-        }, null);
+        }, producerCache);
         context.fatal(fatalException);
         assertTrue(fatalInvoked.get());
     }
