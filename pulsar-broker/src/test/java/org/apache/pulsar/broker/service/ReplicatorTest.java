@@ -1855,37 +1855,53 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.receive(2);
         consumer2.receive(1);
 
-        var attributes = Attributes.of(
-                OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
-                OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
-                OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
-                OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
-                OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
-        );
-        var dummyValue = 0;
-        var metrics = metricReader1.collectAllMetrics();
-        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes, dummyValue);
-        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes, dummyValue);
-        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes, 3);
-        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes,
-                aLong -> assertThat(aLong).isPositive());
-        assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes, 1);
+        {
+            // Validate replicator metrics on cluster 1 from cluster 2
+            var attributes = Attributes.of(
+                    OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
+                    OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
+                    OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
+                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
+            );
+            var metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes, 3);
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes,
+                    aLong -> assertThat(aLong).isPositive());
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes, 1);
 
-        var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
-        assertThat(topicOpt).isPresent();
-        var topic = topicOpt.get();
-        var persistentReplicators = topic.getReplicators()
-                .values()
-                .stream()
-                .map(PersistentReplicator.class::cast)
-                .toList();
-        persistentReplicators.forEach(this::pauseReplicator);
-        producer1.produce(5);
-        Awaitility.await().untilAsserted(() -> {
-            persistentReplicators.forEach(repl -> repl.expireMessages(1));
-            assertMetricLongSumValue(metricReader1.collectAllMetrics(), OpenTelemetryReplicatorStats.EXPIRED_COUNTER,
-                    attributes, 5);
-        });
+            var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
+            assertThat(topicOpt).isPresent();
+            var topic = topicOpt.get();
+            var persistentReplicators = topic.getReplicators()
+                    .values()
+                    .stream()
+                    .map(PersistentReplicator.class::cast)
+                    .toList();
+            persistentReplicators.forEach(this::pauseReplicator);
+            producer1.produce(5);
+            Awaitility.await().untilAsserted(() -> {
+                persistentReplicators.forEach(repl -> repl.expireMessages(1));
+                assertMetricLongSumValue(metricReader1.collectAllMetrics(),
+                        OpenTelemetryReplicatorStats.EXPIRED_COUNTER,
+                        attributes, 5);
+            });
+        }
+
+        {
+            // Validate replicator metrics on cluster 2 from cluster 1
+            var attributes = Attributes.of(
+                    OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
+                    OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
+                    OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
+                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster1
+            );
+            var metrics = metricReader2.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes, 3);
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes,
+                    aLong -> assertThat(aLong).isPositive());
+        }
     }
 
     @Test
