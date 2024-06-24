@@ -399,6 +399,7 @@ _ci_upload_coverage_files() {
                   --transform="flags=r;s|\\(/jacoco.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --transform="flags=r;s|\\(/tmp/jacocoDir/.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --exclude="*/META-INF/bundled-dependencies/*" \
+                  --exclude="*/META-INF/versions/*" \
                   $GITHUB_WORKSPACE/target/classpath_* \
                   $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco*.exec" -printf "%p\n%h/classes\n" | sort | uniq) \
                   $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
@@ -540,11 +541,11 @@ ci_create_test_coverage_report() {
     local classfilesArgs="--classfiles $({
       {
         for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E "$excludeJarsPattern" || true; }); do
-            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 2>/dev/null)" ]]; then
-              # file must be processed by removing META-INF/bundled-dependencies
+            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' 2>/dev/null)" ]]; then
+              # file must be processed by removing META-INF/bundled-dependencies and META-INF/versions
               local jartempfile=$(mktemp -t jarfile.XXXX --suffix=.jar)
               cp $classpathEntry $jartempfile
-              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' &> /dev/null
+              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' &> /dev/null
               echo $jartempfile
             else
               echo $classpathEntry
@@ -606,7 +607,7 @@ ci_create_inttest_coverage_report() {
       # remove jar file that causes duplicate classes issue
       rm /tmp/jacocoDir/pulsar_lib/org.apache.pulsar-bouncy-castle* || true
       # remove any bundled dependencies as part of .jar/.nar files
-      find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' \; |grep -E -v "Nothing to do|^$" || true
+      find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' \; |grep -E -v "Nothing to do|^$" || true
     fi
     # projects that aren't considered as production code and their own src/main/java source code shouldn't be analysed
     local excludeProjectsPattern="testmocks|testclient|buildtools"

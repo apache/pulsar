@@ -100,6 +100,12 @@
                   <pattern>io.vertx</pattern>
                   <shadedPattern>org.apache.pulsar.jetcd.shaded.io.vertx</shadedPattern>
                 </relocation>
+                <!-- relocate multi-release packages -->
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/io/vertx/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/jetcd/shaded/io/vertx/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
                 <!-- relocate to use grpc-netty-shaded packages -->
                 <relocation>
                   <pattern>io.grpc.netty</pattern>
@@ -123,6 +129,11 @@
                 </filter>
               </filters>
               <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
+                </transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
