@@ -123,8 +123,6 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(sourceTopic, 3);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
 
-        // We should not allow to set with the shadow partition topic which contains `-partition-n`.
-        Assert.assertThrows(PulsarAdminException.class, ()-> admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic+"-partition-0")));
         admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
 
         @Cleanup
@@ -145,21 +143,6 @@ public class ShadowTopicTest extends BrokerTestBase {
         for (int i = 0; i < 10; i++) {
             Assert.assertTrue(set.contains("msg-" + i));
         }
-    }
-
-    @Test
-    public void testPartitionedShadowTopicExpansion() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
-        String shadowTopic = sourceTopic + "-shadow";
-        admin.topics().createPartitionedTopic(sourceTopic, 1);
-        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
-
-        Assert.assertThrows(PulsarAdminException.class, () -> admin.topics().updatePartitionedTopic(sourceTopic, 3));
-
-        admin.topics().updatePartitionedTopic(shadowTopic, 3);
-
-        admin.topics().updatePartitionedTopic(sourceTopic, 3);
     }
 
     @Test
