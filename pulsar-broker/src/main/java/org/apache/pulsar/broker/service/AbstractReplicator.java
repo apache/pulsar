@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.common.Attributes;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +76,10 @@ public abstract class AbstractReplicator implements Replicator {
     @VisibleForTesting
     @Getter
     protected volatile State state = State.Disconnected;
+
+    private volatile Attributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<AbstractReplicator, Attributes> ATTRIBUTES_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, Attributes.class, "attributes");
 
     public enum State {
         /**
@@ -487,5 +493,27 @@ public abstract class AbstractReplicator implements Replicator {
 
     public boolean isTerminated() {
         return state == State.Terminating || state == State.Terminated;
+    }
+
+    public Attributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_UPDATER.updateAndGet(this, old -> {
+            if (old != null) {
+                return old;
+            }
+            var topicName = TopicName.get(getLocalTopic().getName());
+            var builder = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+            if (topicName.isPartitioned()) {
+                builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+            }
+            builder.put(OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, getRemoteCluster());
+            return builder.build();
+        });
     }
 }
