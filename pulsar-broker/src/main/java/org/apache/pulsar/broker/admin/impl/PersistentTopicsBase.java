@@ -451,23 +451,19 @@ public class PersistentTopicsBase extends AdminResource {
                     // update remote cluster
                     return namespaceResources().getPoliciesAsync(namespaceName)
                             .thenCompose(policies -> {
-                                if (policies.isEmpty()) {
+                                if (!policies.isPresent()) {
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 // Combine namespace level policies and topic level policies.
                                 Set<String> replicationClusters = policies.get().replication_clusters;
                                 TopicPolicies topicPolicies =
                                         pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
-                                if (topicPolicies != null && topicPolicies.getReplicationClusters() != null) {
+                                if (topicPolicies != null) {
                                     replicationClusters = new HashSet<>(topicPolicies.getReplicationClusters());
                                 }
-
-                                CompletableFuture<Void> checkShadowTopics = checkShadowTopicsPartitions(topicPolicies,
-                                        expectPartitions);
-
                                 // Do check replicated clusters.
-                                if (replicationClusters.isEmpty()) {
-                                    return checkShadowTopics;
+                                if (replicationClusters.size() == 0) {
+                                    return CompletableFuture.completedFuture(null);
                                 }
                                 boolean containsCurrentCluster =
                                         replicationClusters.contains(pulsar().getConfig().getClusterName());
@@ -479,7 +475,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                                 if (replicationClusters.size() == 1) {
                                     // The replication clusters just has the current cluster itself.
-                                    return checkShadowTopics;
+                                    return CompletableFuture.completedFuture(null);
                                 }
                                 // Do sync operation to other clusters.
                                 List<CompletableFuture<Void>> futures = replicationClusters.stream()
@@ -499,35 +495,6 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
-    }
-
-    private CompletableFuture<Void> checkShadowTopicsPartitions(TopicPolicies topicPolicies, int expectPartitions) {
-        return Optional.ofNullable(topicPolicies)
-                .map(TopicPolicies::getShadowTopics)
-                .filter(shadowTopics -> !shadowTopics.isEmpty())
-                .map(shadowTopics -> {
-                    List<CompletableFuture<Void>> futures = shadowTopics.stream()
-                            .map(shadowTopic -> getPartitionedTopicMetadataAsync(
-                                    TopicName.get(shadowTopic), false, false)
-                                    .thenCompose(metadata -> {
-                                        if (metadata.partitions < expectPartitions) {
-                                            return CompletableFuture.<Void>failedFuture(
-                                                    new RestException(400, String.format(
-                                                            "The shadow topic %s has fewer partitions than the "
-                                                                    + "current topic. Currently, it only contains %d "
-                                                            + "partitions. Please expand the partitions of the shadow"
-                                                            + " topic %s first.",
-                                                            shadowTopic, metadata.partitions,
-                                                            shadowTopic
-                                                    ))
-                                            );
-                                        }
-                                        return CompletableFuture.completedFuture(null);
-                                    }))
-                            .collect(Collectors.toList());
-                    return FutureUtil.waitForAll(futures);
-                })
-                .orElse(CompletableFuture.completedFuture(null));
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
@@ -5407,11 +5374,6 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Cannot specify empty shadow topics, please use remove command instead."));
         }
-        if (shadowTopics.stream().map(TopicName::get).anyMatch(TopicName::isPartitioned)) {
-            return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Couldn't set a partition of a topic as the shadow topic."));
-        }
-
         return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> validateShadowTopics(shadowTopics))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
