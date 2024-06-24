@@ -29,7 +29,7 @@ public interface Replicator {
 
     Topic getLocalTopic();
 
-    ReplicatorStatsImpl getStats();
+    ReplicatorStatsImpl computeStats();
 
     CompletableFuture<Void> terminate();
 
@@ -55,4 +55,6 @@ public interface Replicator {
     long getNumberOfEntriesInBacklog();
 
     boolean isTerminated();
+
+    ReplicatorStatsImpl getStats();
 }

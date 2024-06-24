@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -108,6 +109,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
+    @Getter
     protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
@@ -596,7 +598,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
     }
 
-    public ReplicatorStatsImpl getStats() {
+    public ReplicatorStatsImpl computeStats() {
         stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
         stats.connected = isConnected();
         stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());

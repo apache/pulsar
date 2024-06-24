@@ -146,7 +146,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public NonPersistentReplicatorStatsImpl getStats() {
+    public NonPersistentReplicatorStatsImpl computeStats() {
         ProducerImpl producer = this.producer;
         stats.connected = isConnected();
         stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
@@ -159,6 +159,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             stats.outboundConnectedSince = null;
         }
 
+        return stats;
+    }
+
+    @Override
+    public NonPersistentReplicatorStatsImpl getStats() {
         return stats;
     }
 
