@@ -409,7 +409,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         EntryFilter filter = new EntryFilterProducerTest();
         EntryFilterWithClassLoader
                 loader = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter,
-                narClassLoader);
+                narClassLoader, false);
         Pair<String, List<EntryFilter>> entryFilters = Pair.of("filter", List.of(loader));
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()

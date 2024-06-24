@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.BrokersBase.getHeartbeatTopicName;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
@@ -72,6 +73,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
@@ -110,6 +112,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -256,6 +259,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final PulsarBrokerOpenTelemetry openTelemetry;
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
+    private OpenTelemetryProducerStats openTelemetryProducerStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -414,6 +418,41 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private boolean isManagedLedgerNotFoundException(Throwable e) {
+        Throwable realCause = e.getCause();
+        return realCause instanceof ManagedLedgerException.MetadataNotFoundException
+                || realCause instanceof MetadataStoreException.NotFoundException;
+    }
+
+    private void deleteHeartbeatResource() {
+        if (this.brokerService != null) {
+            LOG.info("forcefully delete heartbeat topic when close broker");
+
+            String heartbeatTopicNameV1 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), false);
+            String heartbeatTopicNameV2 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), true);
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV1, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV1, e);
+                }
+            }
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV2, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV2, e);
+                }
+            }
+
+            LOG.info("finish forcefully delete heartbeat topic when close broker");
+        }
+    }
+
     @Override
     public void close() throws PulsarServerException {
         try {
@@ -459,6 +498,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
+
+            if (brokerId != null) {
+                // forcefully delete heartbeat topic when close broker
+                deleteHeartbeatResource();
+            }
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
@@ -634,6 +678,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
+            if (openTelemetryProducerStats != null) {
+                openTelemetryProducerStats.close();
+                openTelemetryProducerStats = null;
+            }
             if (openTelemetryConsumerStats != null) {
                 openTelemetryConsumerStats.close();
                 openTelemetryConsumerStats = null;
@@ -785,6 +833,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
             openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
+            openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
 
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
@@ -827,7 +876,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
-                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this);
 
             OffloadPoliciesImpl defaultOffloadPolicies =
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
@@ -1920,6 +1969,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return new BrokerService(pulsar, ioEventLoopGroup);
+    }
+
+    @VisibleForTesting
+    public void setTransactionExecutorProvider(TransactionBufferProvider transactionBufferProvider) {
+        this.transactionBufferProvider = transactionBufferProvider;
     }
 
     private CompactionServiceFactory loadCompactionServiceFactory() {

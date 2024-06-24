@@ -1001,38 +1001,38 @@ public class BrokerService implements Closeable {
         return getTopic(TopicName.get(topic), createIfMissing, properties);
     }
 
+    /**
+     * Retrieves or creates a topic based on the specified parameters.
+     * 0. If disable PersistentTopics or NonPersistentTopics, it will return a failed future with NotAllowedException.
+     * 1. If topic future exists in the cache returned directly regardless of whether it fails or timeout.
+     * 2. If the topic metadata exists, the topic is created regardless of {@code createIfMissing}.
+     * 3. If the topic metadata not exists, and {@code createIfMissing} is false,
+     *    returns an empty Optional in a CompletableFuture. And this empty future not be added to the map.
+     * 4. Otherwise, use computeIfAbsent. It returns the existing topic or creates and adds a new topicFuture.
+     *    Any exceptions will remove the topicFuture from the map.
+     *
+     * @param topicName The name of the topic, potentially including partition information.
+     * @param createIfMissing If true, creates the topic if it does not exist.
+     * @param properties Topic configuration properties used during creation.
+     * @return CompletableFuture with an Optional of the topic if found or created, otherwise empty.
+     */
     public CompletableFuture<Optional<Topic>> getTopic(final TopicName topicName, boolean createIfMissing,
                                                        Map<String, String> properties) {
         try {
-            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
-            if (topicFuture != null) {
-                if (topicFuture.isCompletedExceptionally()
-                        || (topicFuture.isDone() && !topicFuture.getNow(Optional.empty()).isPresent())) {
-                    // Exceptional topics should be recreated.
-                    topics.remove(topicName.toString(), topicFuture);
-                } else {
-                    // a non-existing topic in the cache shouldn't prevent creating a topic
-                    if (createIfMissing) {
-                        if (topicFuture.isDone() && topicFuture.getNow(Optional.empty()).isPresent()) {
-                            return topicFuture;
-                        } else {
-                            return topicFuture.thenCompose(value -> {
-                                if (!value.isPresent()) {
-                                    // retry and create topic
-                                    return getTopic(topicName, createIfMissing, properties);
-                                } else {
-                                    // in-progress future completed successfully
-                                    return CompletableFuture.completedFuture(value);
-                                }
-                            });
-                        }
-                    } else {
-                        return topicFuture;
-                    }
-                }
+            // If topic future exists in the cache returned directly regardless of whether it fails or timeout.
+            CompletableFuture<Optional<Topic>> tp = topics.get(topicName.toString());
+            if (tp != null) {
+                return tp;
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
+                if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Broker is unable to load persistent topic {}", topicName);
+                    }
+                    return FutureUtil.failedFuture(new NotAllowedException(
+                            "Broker is unable to load persistent topic"));
+                }
                 return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topicName)
                         .thenCompose(exists -> {
                     if (!exists && !createIfMissing) {
@@ -1047,44 +1047,48 @@ public class BrokerService implements Closeable {
                         throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
                     }).thenCompose(optionalTopicPolicies -> {
                         final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
-                        return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
-                            if (topicName.isPartitioned()) {
-                                final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
-                                return fetchPartitionedTopicMetadataAsync(topicNameEntity)
-                                        .thenCompose((metadata) -> {
-                                            // Allow crate non-partitioned persistent topic that name includes
-                                            // `partition`
-                                            if (metadata.partitions == 0
-                                                    || topicName.getPartitionIndex() < metadata.partitions) {
-                                                return loadOrCreatePersistentTopic(tpName, createIfMissing,
-                                                        properties, topicPolicies);
-                                            }
+                        if (topicName.isPartitioned()) {
+                            final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
+                            return fetchPartitionedTopicMetadataAsync(topicNameEntity)
+                                    .thenCompose((metadata) -> {
+                                        // Allow crate non-partitioned persistent topic that name includes
+                                        // `partition`
+                                        if (metadata.partitions == 0
+                                                || topicName.getPartitionIndex() < metadata.partitions) {
+                                            return topics.computeIfAbsent(topicName.toString(), (tpName) ->
+                                                    loadOrCreatePersistentTopic(tpName,
+                                                            createIfMissing, properties, topicPolicies));
+                                        } else {
                                             final String errorMsg =
                                                     String.format("Illegal topic partition name %s with max allowed "
                                                             + "%d partitions", topicName, metadata.partitions);
                                             log.warn(errorMsg);
                                             return FutureUtil.failedFuture(
                                                     new BrokerServiceException.NotAllowedException(errorMsg));
-                                        });
-                            }
-                            return loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies);
-                        }).thenCompose(optionalTopic -> {
-                            if (!optionalTopic.isPresent() && createIfMissing) {
-                                log.warn("[{}] Try to recreate the topic with createIfMissing=true "
-                                        + "but the returned topic is empty", topicName);
-                                return getTopic(topicName, createIfMissing, properties);
-                            }
-                            return CompletableFuture.completedFuture(optionalTopic);
-                        });
+                                        }
+                                    });
+                        } else {
+                            return topics.computeIfAbsent(topicName.toString(), (tpName) ->
+                                    loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies));
+                        }
                     });
                 });
             } else {
-                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Broker is unable to load non-persistent topic {}", topicName);
+                    }
+                    return FutureUtil.failedFuture(new NotAllowedException(
+                            "Broker is unable to load persistent topic"));
+                }
+                if (!topics.containsKey(topicName.toString())) {
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
-                    if (topicName.isPartitioned()) {
-                        final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                        return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
-                            if (topicName.getPartitionIndex() < metadata.partitions) {
+                }
+                if (topicName.isPartitioned()) {
+                    final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                        if (topicName.getPartitionIndex() < metadata.partitions) {
+                            return topics.computeIfAbsent(topicName.toString(), (name) -> {
                                 topicEventsDispatcher
                                         .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
@@ -1095,11 +1099,13 @@ public class BrokerService implements Closeable {
                                 topicEventsDispatcher
                                         .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                                 return res;
-                            }
-                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
-                            return CompletableFuture.completedFuture(Optional.empty());
-                        });
-                    } else if (createIfMissing) {
+                            });
+                        }
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                        return CompletableFuture.completedFuture(Optional.empty());
+                    });
+                } else if (createIfMissing) {
+                    return topics.computeIfAbsent(topicName.toString(), (name) -> {
                         topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
                         CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
@@ -1109,11 +1115,15 @@ public class BrokerService implements Closeable {
                         topicEventsDispatcher
                                 .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                         return res;
-                    } else {
+                    });
+                } else {
+                    CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
+                    if (topicFuture == null) {
                         topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
-                        return CompletableFuture.completedFuture(Optional.empty());
+                        topicFuture = CompletableFuture.completedFuture(Optional.empty());
                     }
-                });
+                    return topicFuture;
+                }
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
@@ -1252,15 +1262,9 @@ public class BrokerService implements Closeable {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
             pulsarStats.recordTopicLoadFailed();
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
-        if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Broker is unable to load non-persistent topic {}", topic);
-            }
-            return FutureUtil.failedFuture(
-                    new NotAllowedException("Broker is not unable to load non-persistent topic"));
-        }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic;
         try {
@@ -1283,7 +1287,6 @@ public class BrokerService implements Closeable {
                     }).exceptionally(ex -> {
                 log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
                 nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex);
                 });
                 return null;
@@ -1534,14 +1537,6 @@ public class BrokerService implements Closeable {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
-        if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Broker is unable to load persistent topic {}", topic);
-            }
-            topicFuture.completeExceptionally(new NotAllowedException(
-                    "Broker is unable to load persistent topic"));
-            return topicFuture;
-        }
 
         checkTopicNsOwnership(topic)
                 .thenRun(() -> {
@@ -1556,6 +1551,7 @@ public class BrokerService implements Closeable {
                             // do not recreate topic if topic is already migrated and deleted by broker
                             // so, avoid creating a new topic if migration is already started
                             if (ex != null && (ex.getCause() instanceof TopicMigratedException)) {
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(ex.getCause());
                                 return null;
                             }
@@ -1570,6 +1566,7 @@ public class BrokerService implements Closeable {
                         }
                     }
                 }).exceptionally(ex -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex.getCause());
                     return null;
                 });
@@ -1744,6 +1741,7 @@ public class BrokerService implements Closeable {
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
+                                                        topics.remove(topic, topicFuture);
                                                         if (ex != null) {
                                                             log.warn("[{}] Get an error when closing topic.",
                                                                     topic, ex);
@@ -1760,6 +1758,7 @@ public class BrokerService implements Closeable {
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
+                                                    topics.remove(topic, topicFuture);
                                                     if (closeEx != null) {
                                                         log.warn("[{}] Get an error when closing topic.",
                                                                 topic, closeEx);
@@ -3179,65 +3178,66 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
-        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
-                .thenCompose(policies -> pulsar.getNamespaceService().checkTopicExists(topicName)
-                    .thenCompose(topicExists -> fetchPartitionedTopicMetadataAsync(topicName)
-                            .thenCompose(metadata -> {
-                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
+        return pulsar.getNamespaceService().checkTopicExists(topicName).thenComposeAsync(topicExistsInfo -> {
+            final boolean topicExists = topicExistsInfo.isExists();
+            final TopicType topicType = topicExistsInfo.getTopicType();
+            final Integer partitions = topicExistsInfo.getPartitions();
+            topicExistsInfo.recycle();
 
-                                // There are a couple of potentially blocking calls, which we cannot make from the
-                                // MetadataStore callback thread.
-                                pulsar.getExecutor().execute(() -> {
-                                    // If topic is already exist, creating partitioned topic is not allowed.
+            // Topic exists.
+            if (topicExists) {
+                if (topicType.equals(TopicType.PARTITIONED)) {
+                    return CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitions));
+                }
+                return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+            }
 
-                                    if (metadata.partitions == 0
-                                            && !topicExists
-                                            && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService()
-                                            .isDefaultTopicTypePartitioned(topicName, policies)) {
-                                        isAllowAutoTopicCreationAsync(topicName, policies).thenAccept(allowed -> {
-                                            if (allowed) {
-                                                pulsar.getBrokerService()
-                                                        .createDefaultPartitionedTopicAsync(topicName, policies)
-                                                        .thenAccept(md -> future.complete(md))
-                                                        .exceptionally(ex -> {
-                                                            if (ex.getCause()
-                                                                    instanceof MetadataStoreException
-                                                                    .AlreadyExistsException) {
-                                                                log.info("[{}] The partitioned topic is already"
-                                                                        + " created, try to refresh the cache and read"
-                                                                        + " again.", topicName);
-                                                                // The partitioned topic might be created concurrently
-                                                                fetchPartitionedTopicMetadataAsync(topicName, true)
-                                                                        .whenComplete((metadata2, ex2) -> {
-                                                                            if (ex2 == null) {
-                                                                                future.complete(metadata2);
-                                                                            } else {
-                                                                                future.completeExceptionally(ex2);
-                                                                            }
-                                                                        });
-                                                            } else {
-                                                                log.error("[{}] operation of creating partitioned"
-                                                                        + " topic metadata failed",
-                                                                        topicName, ex);
-                                                                future.completeExceptionally(ex);
-                                                            }
-                                                            return null;
-                                                        });
-                                            } else {
-                                                future.complete(metadata);
-                                            }
-                                        }).exceptionally(ex -> {
-                                            future.completeExceptionally(ex);
-                                            return null;
-                                        });
-                                    } else {
-                                        future.complete(metadata);
-                                    }
-                                });
+            // Try created if allowed to create a partitioned topic automatically.
+            return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                .thenComposeAsync(policies -> {
+                    return isAllowAutoTopicCreationAsync(topicName, policies).thenComposeAsync(allowed -> {
+                        // Not Allow auto-creation.
+                        if (!allowed) {
+                            // Do not change the original behavior, or default return a non-partitioned topic.
+                            return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                        }
 
-                                return future;
-                            })));
+                        // Allow auto create non-partitioned topic.
+                        boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
+                                .isDefaultTopicTypePartitioned(topicName, policies);
+                        if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
+                            return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                        }
+
+                        // Create partitioned metadata.
+                        return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName, policies)
+                            .exceptionallyCompose(ex -> {
+                                // The partitioned topic might be created concurrently.
+                                if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
+                                    log.info("[{}] The partitioned topic is already created, try to refresh the cache"
+                                            + " and read again.", topicName);
+                                    CompletableFuture<PartitionedTopicMetadata> recheckFuture =
+                                            fetchPartitionedTopicMetadataAsync(topicName, true);
+                                    recheckFuture.exceptionally(ex2 -> {
+                                        // Just for printing a log if error occurs.
+                                        log.error("[{}] Fetch partitioned topic metadata failed", topicName, ex);
+                                        return null;
+                                    });
+                                    return recheckFuture;
+                                } else {
+                                    log.error("[{}] operation of creating partitioned topic metadata failed",
+                                            topicName, ex);
+                                    return CompletableFuture.failedFuture(ex);
+                                }
+                            });
+                    }, pulsar.getExecutor()).exceptionallyCompose(ex -> {
+                        log.error("[{}] operation of get partitioned metadata failed due to calling"
+                                        + " isAllowAutoTopicCreationAsync failed",
+                                topicName, ex);
+                        return CompletableFuture.failedFuture(ex);
+                    });
+            }, pulsar.getExecutor());
+        }, pulsar.getExecutor());
     }
 
     @SuppressWarnings("deprecation")

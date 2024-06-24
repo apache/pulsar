@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -43,12 +42,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions) {
+                                                                List<MutablePair<Position, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<Position> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
@@ -63,12 +62,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public void syncBatchPositionAckSetForTransaction(PositionImpl position) {
+    public void syncBatchPositionAckSetForTransaction(Position position) {
         //no operation
     }
 
     @Override
-    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(Position position) {
         return false;
     }
 
@@ -103,10 +102,10 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+    public Position getPositionInPendingAck(Position position) {
         return null;
     }
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex) {
         return null;
     }
 }

@@ -23,8 +23,6 @@ import io.netty.buffer.ByteBuf;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -256,6 +254,12 @@ public class BinaryProtoLookupService implements LookupService {
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
+                partitionFuture.completeExceptionally(new PulsarClientException.NotSupportedException("The feature of"
+                        + " getting partitions without auto-creation is not supported from the broker,"
+                        + " please upgrade the broker to the latest version."));
+                return;
+            }
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
                     metadataAutoCreationEnabled);
@@ -378,17 +382,7 @@ public class BinaryProtoLookupService implements LookupService {
                         log.debug("[namespace: {}] Success get topics list in request: {}",
                                 namespace, requestId);
                     }
-                    // do not keep partition part of topic name
-                    List<String> result = new ArrayList<>();
-                    r.getTopics().forEach(topic -> {
-                        String filtered = TopicName.get(topic).getPartitionedTopicName();
-                        if (!result.contains(filtered)) {
-                            result.add(filtered);
-                        }
-                    });
-
-                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
-                            r.isFiltered(), r.isChanged()));
+                    getTopicsResultFuture.complete(r);
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });

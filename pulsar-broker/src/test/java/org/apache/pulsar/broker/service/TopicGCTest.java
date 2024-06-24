@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -99,6 +100,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         Consumer<String> consumerAllPartition = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                 .subscriptionName(subscription).isAckReceiptEnabled(true).subscribe();
         Message<String> msg = consumerAllPartition.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg);
         String receivedMsgValue = msg.getValue();
         log.info("received msg: {}", receivedMsgValue);
         consumerAllPartition.acknowledge(msg);

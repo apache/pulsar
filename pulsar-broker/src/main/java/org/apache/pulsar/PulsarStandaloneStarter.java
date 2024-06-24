@@ -19,9 +19,12 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import lombok.AccessLevel;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -38,6 +41,9 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
     @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
+    private Thread shutdownThread;
+    @Setter(AccessLevel.PACKAGE)
+    private boolean testMode;
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
 
@@ -108,30 +114,54 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 }
             }
         }
+    }
 
+    @Override
+    public synchronized void start() throws Exception {
         registerShutdownHook();
+        super.start();
     }
 
     protected void registerShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        if (shutdownThread != null) {
+            throw new IllegalStateException("Shutdown hook already registered");
+        }
+        shutdownThread = new Thread(() -> {
             try {
-                if (fnWorkerService != null) {
-                    fnWorkerService.stop();
-                }
-
-                if (broker != null) {
-                    broker.close();
-                }
-
-                if (bkEnsemble != null) {
-                    bkEnsemble.stop();
-                }
+                doClose(false);
             } catch (Exception e) {
                 log.error("Shutdown failed: {}", e.getMessage(), e);
             } finally {
-                LogManager.shutdown();
+                if (!testMode) {
+                    LogManager.shutdown();
+                }
             }
-        }));
+        });
+        Runtime.getRuntime().addShutdownHook(shutdownThread);
+    }
+
+    // simulate running the shutdown hook, for testing
+    @VisibleForTesting
+    void runShutdownHook() {
+        if (!testMode) {
+            throw new IllegalStateException("Not in test mode");
+        }
+        Runtime.getRuntime().removeShutdownHook(shutdownThread);
+        shutdownThread.run();
+        shutdownThread = null;
+    }
+
+    @Override
+    public void close() {
+        doClose(true);
+    }
+
+    private synchronized void doClose(boolean removeShutdownHook) {
+        super.close();
+        if (shutdownThread != null && removeShutdownHook) {
+            Runtime.getRuntime().removeShutdownHook(shutdownThread);
+            shutdownThread = null;
+        }
     }
 
     protected void exit(int status) {

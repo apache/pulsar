@@ -227,7 +227,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
@@ -310,7 +310,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
@@ -393,7 +393,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
@@ -490,7 +490,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
@@ -566,7 +566,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         // 3. verify consumer get methods, to get 5 number of partitions and topics.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 5);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 5);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
@@ -595,7 +595,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
         Awaitility.await().untilAsserted(() -> {
-            assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+            assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
@@ -667,7 +667,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 2. verify consumer get methods. There is no need to trigger discovery, because the broker will push the
         // changes to update(CommandWatchTopicUpdate).
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         Awaitility.await().untilAsserted(() -> {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 4);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 4);
@@ -728,7 +728,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         // 2. verify consumer can subscribe the topic.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         Awaitility.await().untilAsserted(() -> {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
@@ -786,7 +786,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 2. verify consumer can subscribe the topic.
         // Since the minimum value of `patternAutoDiscoveryPeriod` is 60s, we set the test timeout to a triple value.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         Awaitility.await().atMost(Duration.ofMinutes(3)).untilAsserted(() -> {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
@@ -883,7 +883,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 6 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
@@ -999,7 +999,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 0 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
@@ -1092,7 +1092,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
 
         // 4. verify consumer get methods
-        assertSame(consumerImpl.getPattern(), pattern);
+        assertSame(consumerImpl.getPattern().pattern(), pattern.pattern());
         assertEquals(consumerImpl.getPartitionedTopics().size(), 0);
 
         producer1.send("msg-1");

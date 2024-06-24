@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertTrue;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,8 +36,9 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
@@ -249,7 +249,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             }
             return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
-                    PositionImpl.EARLIEST, new ManagedLedgerConfig());
+                    PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
             log.error("Failed to get origin topic readonly cursor.", e);
             Assert.fail("Failed to get origin topic readonly cursor.");
@@ -401,8 +401,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckPositions");
                     field.setAccessible(true);
 
-                    Map<PositionImpl, MutablePair<PositionImpl, Long>> map =
-                            (Map<PositionImpl, MutablePair<PositionImpl, Long>>) field.get(pendingAckHandle);
+                    Map<Position, MutablePair<Position, Long>> map =
+                            (Map<Position, MutablePair<Position, Long>>) field.get(pendingAckHandle);
                     if (map != null) {
                         pendingAckCount += map.size();
                     }

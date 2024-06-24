@@ -17,8 +17,10 @@
 # under the License.
 #
 
+ARG ALPINE_VERSION=3.20
+
 # First create a stage with just the Pulsar tarball and scripts
-FROM alpine as pulsar
+FROM alpine:$ALPINE_VERSION as pulsar
 
 RUN apk add zip
 
@@ -48,8 +50,11 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage;
 RUN chmod -R g+rx /pulsar/bin
 RUN chmod -R o+rx /pulsar
 
+# Enable snappy-java to use system lib
+RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
+
 ###  Create one stage to include JVM distribution
-FROM alpine AS jvm
+FROM alpine:$ALPINE_VERSION AS jvm
 
 RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub
 RUN echo "https://apk.corretto.aws" >> /etc/apk/repositories
@@ -61,15 +66,24 @@ RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress 
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+## Create one stage to include snappy-java native lib
+# Fix the issue when using snappy-java in x86 arch alpine
+# See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
+# We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
+FROM alpine:$ALPINE_VERSION AS snappy-java
 
+ARG SNAPPY_VERSION
+RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
+ENV JAVA_HOME=/usr
+RUN curl -Ls https://github.com/xerial/snappy-java/archive/refs/tags/v$SNAPPY_VERSION.tar.gz | tar zxf - && cd snappy-java-$SNAPPY_VERSION && make clean-native native
 FROM apachepulsar/glibc-base:2.38 as glibc
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
-FROM alpine:3.19.1
+FROM alpine:$ALPINE_VERSION
 ENV LANG C.UTF-8
 
-# Install some utilities
+# Install some utilities, some are required by Pulsar scripts
 RUN apk add --no-cache \
             bash \
             python3 \
@@ -79,7 +93,8 @@ RUN apk add --no-cache \
             gcompat \
             ca-certificates \
             procps \
-            curl
+            curl \
+            bind-tools
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
@@ -114,6 +129,8 @@ RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
 
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
+
+COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs

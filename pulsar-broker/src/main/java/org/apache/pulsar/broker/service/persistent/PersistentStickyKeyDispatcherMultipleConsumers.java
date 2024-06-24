@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -72,7 +71,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * This means that, in order to preserve ordering, new consumers can only receive old
      * messages, until the mark-delete position will move past this point.
      */
-    private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
+    private final LinkedHashMap<Consumer, Position> recentlyJoinedConsumers;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -125,7 +124,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 })
         ).thenRun(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
+                Position readPositionWhenJoining = cursor.getReadPosition();
                 consumer.setReadPositionWhenJoining(readPositionWhenJoining);
                 // If this was the 1st consumer, or if all the messages are already acked, then we
                 // don't need to do anything special
@@ -168,10 +167,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
             };
 
-    private static final FastThreadLocal<Map<Consumer, List<PositionImpl>>> localGroupedPositions =
-            new FastThreadLocal<Map<Consumer, List<PositionImpl>>>() {
+    private static final FastThreadLocal<Map<Consumer, List<Position>>> localGroupedPositions =
+            new FastThreadLocal<Map<Consumer, List<Position>>>() {
                 @Override
-                protected Map<Consumer, List<PositionImpl>> initialValue() throws Exception {
+                protected Map<Consumer, List<Position>> initialValue() throws Exception {
                     return new HashMap<>();
                 }
             };
@@ -197,9 +196,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
         // This may happen when consumer closed. See issue #12885 for details.
         if (!allowOutOfOrderDelivery) {
-            NavigableSet<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
+            NavigableSet<Position> messagesToReplayNow = this.getMessagesToReplayNow(1);
             if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty()) {
-                PositionImpl replayPosition = messagesToReplayNow.first();
+                Position replayPosition = messagesToReplayNow.first();
 
                 // We have received a message potentially from the delayed tracker and, since we're not using it
                 // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to
@@ -352,7 +351,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return maxMessages;
         }
         removeConsumersFromRecentJoinedConsumers();
-        PositionImpl maxReadPosition = recentlyJoinedConsumers.get(consumer);
+        Position maxReadPosition = recentlyJoinedConsumers.get(consumer);
         // At this point, all the old messages were already consumed and this consumer
         // is now ready to receive any message
         if (maxReadPosition == null) {
@@ -374,7 +373,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // But the message [2,3] should not dispatch to consumer2.
 
         if (readType == ReadType.Replay) {
-            PositionImpl minReadPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
+            Position minReadPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
             if (minReadPositionForRecentJoinedConsumer != null
                     && minReadPositionForRecentJoinedConsumer.compareTo(maxReadPosition) < 0) {
                 maxReadPosition = minReadPositionForRecentJoinedConsumer;
@@ -383,7 +382,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
         for (int i = 0; i < maxMessages; i++) {
-            if (((PositionImpl) entries.get(i)).compareTo(maxReadPosition) >= 0) {
+            if ((entries.get(i)).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
                 return i;
@@ -413,14 +412,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         if (MapUtils.isEmpty(recentlyJoinedConsumers)) {
             return false;
         }
-        Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
+        Iterator<Map.Entry<Consumer, Position>> itr = recentlyJoinedConsumers.entrySet().iterator();
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
-        PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
+        Position mdp = cursor.getMarkDeletedPosition();
         if (mdp != null) {
-            PositionImpl nextPositionOfTheMarkDeletePosition =
+            Position nextPositionOfTheMarkDeletePosition =
                     ((ManagedLedgerImpl) cursor.getManagedLedger()).getNextValidPosition(mdp);
             while (itr.hasNext()) {
-                Map.Entry<Consumer, PositionImpl> entry = itr.next();
+                Map.Entry<Consumer, Position> entry = itr.next();
                 if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
                     itr.remove();
                     hasConsumerRemovedFromTheRecentJoinedConsumers = true;
@@ -433,7 +432,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
         if (isDispatcherStuckOnReplays) {
             // If we're stuck on replay, we want to move forward reading on the topic (until the overall max-unacked
             // messages kicks in), instead of keep replaying the same old messages, since the consumer that these
@@ -456,7 +455,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected synchronized NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+    protected synchronized NavigableSet<Position> filterOutEntriesWillBeDiscarded(NavigableSet<Position> src) {
         // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
         // So skip this filter out.
         if (isAllowOutOfOrderDelivery()) {
@@ -465,11 +464,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         if (src.isEmpty()) {
             return src;
         }
-        NavigableSet<PositionImpl> res = new TreeSet<>();
+        NavigableSet<Position> res = new TreeSet<>();
         // Group positions.
-        final Map<Consumer, List<PositionImpl>> groupedPositions = localGroupedPositions.get();
+        final Map<Consumer, List<Position>> groupedPositions = localGroupedPositions.get();
         groupedPositions.clear();
-        for (PositionImpl pos : src) {
+        for (Position pos : src) {
             Long stickyKeyHash = redeliveryMessages.getHash(pos.getLedgerId(), pos.getEntryId());
             if (stickyKeyHash == null) {
                 res.add(pos);
@@ -483,7 +482,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             groupedPositions.computeIfAbsent(c, k -> new ArrayList<>()).add(pos);
         }
         // Filter positions by the Recently Joined Position rule.
-        for (Map.Entry<Consumer, List<PositionImpl>> item : groupedPositions.entrySet()) {
+        for (Map.Entry<Consumer, List<Position>> item : groupedPositions.entrySet()) {
             int availablePermits = getAvailablePermits(item.getKey());
             if (availablePermits == 0) {
                 continue;
@@ -548,7 +547,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
     }
 
-    public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {
+    public LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
         return recentlyJoinedConsumers;
     }
 

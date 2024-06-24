@@ -16,36 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.utils;
-
-import static org.testng.Assert.assertEquals;
-import java.io.Serializable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import org.testng.annotations.Test;
+package org.apache.bookkeeper.mledger.impl;
 
 /**
- * Unit test of {@link JavaSerDe}.
+ * Interface to manage the ackSet state attached to a position.
+ * Helpers in {@link AckSetStateUtil} to create positions with
+ * ackSet state and to extract the state.
  */
-public class JavaSerDeTest {
+public interface AckSetState {
+    /**
+     * Get the ackSet bitset information encoded as a long array.
+     * @return the ackSet
+     */
+    long[] getAckSet();
 
-    @Data
-    @AllArgsConstructor
-    private static class TestObject implements Serializable {
+    /**
+     * Set the ackSet bitset information as a long array.
+     * @param ackSet the ackSet
+     */
+    void setAckSet(long[] ackSet);
 
-        private int intField;
-        private String stringField;
-
+    /**
+     * Check if the ackSet is set.
+     * @return true if the ackSet is set, false otherwise
+     */
+    default boolean hasAckSet() {
+        return getAckSet() != null;
     }
-
-    @Test
-    public void testSerDe() {
-        TestObject to = new TestObject(1234, "test-serde-java-object");
-
-        byte[] data = JavaSerDe.of().serialize(to);
-        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
-
-        assertEquals(to, deserializeTo);
-    }
-
 }

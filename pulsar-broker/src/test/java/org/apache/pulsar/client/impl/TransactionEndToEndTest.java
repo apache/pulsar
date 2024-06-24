@@ -46,7 +46,6 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -439,7 +438,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                                 //when delete commit marker operation finish, it can run next delete commit marker operation
                                 //so this test may not delete all the position in this manageLedger.
                                 Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                        .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                        .getManagedLedger()).getNextValidPosition(markDeletePosition);
                                 //marker is the lastConfirmedEntry, after commit the marker will only be write in
                                 if (!markerPosition.equals(lastConfirmedEntry)) {
                                     log.error("Mark delete position is not commit marker position!");
@@ -744,7 +743,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                         //when delete commit marker operation finish, it can run next delete commit marker operation
                         //so this test may not delete all the position in this manageLedger.
                         Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                .getManagedLedger()).getNextValidPosition(markDeletePosition);
                         //marker is the lastConfirmedEntry, after commit the marker will only be write in
                         if (!markerPosition.equals(lastConfirmedEntry)) {
                             log.error("Mark delete position is not commit marker position!");

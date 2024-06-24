@@ -347,23 +347,22 @@ The Apache Software License, Version 2.0
     - commons-text-1.10.0.jar
     - commons-compress-1.26.0.jar
  * Netty
-    - netty-buffer-4.1.108.Final.jar
-    - netty-codec-4.1.108.Final.jar
-    - netty-codec-dns-4.1.108.Final.jar
-    - netty-codec-http-4.1.108.Final.jar
-    - netty-codec-socks-4.1.108.Final.jar
-    - netty-codec-haproxy-4.1.108.Final.jar
-    - netty-common-4.1.108.Final.jar
-    - netty-handler-4.1.108.Final.jar
-    - netty-handler-proxy-4.1.108.Final.jar
-    - netty-resolver-4.1.108.Final.jar
-    - netty-resolver-dns-4.1.108.Final.jar
-    - netty-transport-4.1.108.Final.jar
-    - netty-transport-classes-epoll-4.1.108.Final.jar
-    - netty-transport-native-epoll-4.1.108.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.108.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.108.Final.jar
-    - netty-transport-native-unix-common-4.1.108.Final-linux-x86_64.jar
+    - netty-buffer-4.1.111.Final.jar
+    - netty-codec-4.1.111.Final.jar
+    - netty-codec-dns-4.1.111.Final.jar
+    - netty-codec-http-4.1.111.Final.jar
+    - netty-codec-socks-4.1.111.Final.jar
+    - netty-codec-haproxy-4.1.111.Final.jar
+    - netty-common-4.1.111.Final.jar
+    - netty-handler-4.1.111.Final.jar
+    - netty-handler-proxy-4.1.111.Final.jar
+    - netty-resolver-4.1.111.Final.jar
+    - netty-resolver-dns-4.1.111.Final.jar
+    - netty-transport-4.1.111.Final.jar
+    - netty-transport-classes-epoll-4.1.111.Final.jar
+    - netty-transport-native-epoll-4.1.111.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.111.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.111.Final.jar
     - netty-tcnative-boringssl-static-2.0.65.Final.jar
     - netty-tcnative-boringssl-static-2.0.65.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.65.Final-linux-x86_64.jar
@@ -374,31 +373,33 @@ The Apache Software License, Version 2.0
     - netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.108.Final.jar
-    - netty-resolver-dns-native-macos-4.1.108.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.108.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.111.Final.jar
+    - netty-resolver-dns-native-macos-4.1.111.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.111.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
     - simpleclient_tracer_common-0.16.0.jar
     - simpleclient_tracer_otel-0.16.0.jar
     - simpleclient_tracer_otel_agent-0.16.0.jar
+ * RoaringBitmap
+    - RoaringBitmap-1.1.0.jar
  * Log4J
     - log4j-api-2.23.1.jar
     - log4j-core-2.23.1.jar
     - log4j-slf4j2-impl-2.23.1.jar
     - log4j-web-2.23.1.jar
  * OpenTelemetry
-    - opentelemetry-api-1.37.0.jar
-    - opentelemetry-api-incubator-1.37.0-alpha.jar
-    - opentelemetry-context-1.37.0.jar
+    - opentelemetry-api-1.38.0.jar
+    - opentelemetry-api-incubator-1.38.0-alpha.jar
+    - opentelemetry-context-1.38.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.17.0.jar
     - cpu-affinity-4.17.0.jar
     - circe-checksum-4.17.0.jar
   * AirCompressor
-     - aircompressor-0.20.jar
+     - aircompressor-0.27.jar
  * AsyncHttpClient
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
@@ -417,6 +418,7 @@ The Apache Software License, Version 2.0
   * Apache Avro
     - avro-1.11.3.jar
     - avro-protobuf-1.11.3.jar
+ * RE2j -- re2j-1.7.jar
 
 BSD 3-clause "New" or "Revised" License
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
@@ -474,10 +476,9 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.78.jar
-    - bcprov-ext-jdk18on-1.78.jar
-    - bcprov-jdk18on-1.78.jar
-    - bcutil-jdk18on-1.78.jar
+    - bcpkix-jdk18on-1.78.1.jar
+    - bcprov-jdk18on-1.78.1.jar
+    - bcutil-jdk18on-1.78.1.jar
 
 ------------------------
 

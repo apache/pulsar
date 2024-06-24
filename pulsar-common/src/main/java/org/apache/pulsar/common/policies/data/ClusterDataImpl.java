@@ -107,7 +107,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private boolean brokerClientTlsEnabled;
     @ApiModelProperty(
         name = "tlsAllowInsecureConnection",
-        value = "Allow TLS connections to servers whose certificate cannot be"
+        value = "Allow TLS connections to servers whose certificate cannot"
                 + " be verified to have been signed by a trusted certificate"
                 + " authority."
     )
