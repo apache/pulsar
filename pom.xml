@@ -298,7 +298,7 @@ flexible messaging model and an intuitive client API.</description>
     <git-commit-id-plugin.version>4.9.10</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
     <spotbugs.version>4.7.3</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
