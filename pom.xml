@@ -141,7 +141,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.26.0</commons-compress.version>
 
-    <bookkeeper.version>4.17.0</bookkeeper.version>
+    <bookkeeper.version>4.17.1</bookkeeper.version>
     <zookeeper.version>3.9.2</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
