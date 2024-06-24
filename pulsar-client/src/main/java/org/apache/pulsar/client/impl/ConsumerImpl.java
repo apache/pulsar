@@ -902,6 +902,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
+                    if (topic.endsWith("t1") && counter.incrementAndGet() == 2) {
+                        sleepMillis(6000);
+                    }
                     if (changeToReadyState()) {
                         consumerIsReconnectedToBroker(cnx, currentSize);
                     } else {
@@ -984,6 +987,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         return future;
     }
+
+    private static void sleepMillis(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (Exception ex) {}
+    }
+
+    static AtomicInteger counter = new AtomicInteger();
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
         log.info("[{}][{}] Subscribed to topic on {} -- consumer: {}", topic, subscription,
@@ -1099,7 +1110,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         consumersClosedCounter.increment();
 
+        sleepMillis(3000);
         if (!isConnected()) {
+            if (topic.endsWith("t1")) {
+                sleepMillis(9000);
+            }
+
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
             closeConsumerTasks();

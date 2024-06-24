@@ -4878,4 +4878,29 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             return 0;
         }
     }
+
+    @Test
+    public void testConcurrencyClose() throws Exception {
+        final String topic = "persistent://my-property/my-ns/t1";
+        final String s1 = "s1";
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(s1)
+                .subscribe();
+
+        new Thread(() -> {
+            admin.topics().unloadAsync(topic);
+        }).start();
+
+        new Thread(() -> {
+            consumer.closeAsync();
+        }).start();
+
+        Thread.sleep(6000);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+            assertEquals(persistentTopic.getSubscription(s1).getConsumers().size(), 0);
+        });
+    }
 }
