@@ -113,6 +113,7 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -2101,6 +2102,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 .build();
         admin.clusters().updateCluster(clusterName, cluster);
         Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
+    }
+
+    @Test
+    public void testUpdateClusterServiceUrl() throws Exception {
+        String clusterName = "test_cluster";
+        ClusterDataImpl initialCluster = new ClusterDataImpl();
+        initialCluster.setServiceUrl("http://example.com");
+        admin.clusters().createCluster(clusterName, initialCluster);
+        ClusterDataImpl updatedCluster = new ClusterDataImpl();
+        updatedCluster.setServiceUrl("http://new-example.com");
+        admin.clusters().updateCluster(clusterName, updatedCluster);
+        ClusterDataImpl retrievedCluster = (ClusterDataImpl) admin.clusters().getCluster(clusterName);
+        Assert.assertEquals(retrievedCluster.getServiceUrl(), updatedCluster.getServiceUrl());
+    }
+
+    @Test
+    public void testUpdateClusterBrokerServiceUrl() throws Exception {
+        String clusterName = "test_cluster";
+        ClusterDataImpl initialCluster = new ClusterDataImpl();
+        initialCluster.setBrokerServiceUrl("pulsar://broker.example.com:6650");
+        admin.clusters().createCluster(clusterName, initialCluster);
+        ClusterDataImpl updatedCluster = new ClusterDataImpl();
+        updatedCluster.setBrokerServiceUrl("pulsar://new-broker.example.com:6650");
+        admin.clusters().updateCluster(clusterName, updatedCluster);
+        ClusterDataImpl retrievedCluster = (ClusterDataImpl) admin.clusters().getCluster(clusterName);
+        Assert.assertEquals(retrievedCluster.getBrokerServiceUrl(), updatedCluster.getBrokerServiceUrl());
     }
 
     @Test
