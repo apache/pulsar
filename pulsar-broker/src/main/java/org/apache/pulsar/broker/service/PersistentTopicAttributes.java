@@ -68,21 +68,25 @@ public class PersistentTopicAttributes extends TopicAttributes {
 
         transactionBufferClientCommitSucceededAttributes = Attributes.builder()
                 .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                 .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
                 .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
                 .build();
         transactionBufferClientCommitFailedAttributes = Attributes.builder()
                 .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                 .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
                 .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
                 .build();
         transactionBufferClientAbortSucceededAttributes = Attributes.builder()
                 .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                 .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
                 .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
                 .build();
         transactionBufferClientAbortFailedAttributes = Attributes.builder()
                 .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                 .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
                 .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
                 .build();

@@ -105,7 +105,6 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     public void testTransactionBufferAppendMarkerWriteFailState() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/testPendingAckManageLedgerWriteFailState";
         var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)

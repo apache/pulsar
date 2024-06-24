@@ -373,7 +373,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         var otelMetrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
         var commonAttributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString())

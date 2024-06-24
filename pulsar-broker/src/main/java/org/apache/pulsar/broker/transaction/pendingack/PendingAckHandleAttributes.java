@@ -50,7 +50,6 @@ public class PendingAckHandleAttributes {
                                             TransactionPendingAckOperationStatus txAckStoreStatus) {
         var builder = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscriptionName)
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
                 .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName())

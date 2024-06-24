@@ -234,6 +234,7 @@ public class TransactionTest extends TransactionTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
+                        .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                         .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
                         .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
                         .build(),
@@ -241,6 +242,7 @@ public class TransactionTest extends TransactionTestBase {
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
+                        .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
                         .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
                         .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
                         .build(),
