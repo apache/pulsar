@@ -87,7 +87,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         var attributes = Attributes.of(MetadataStoreStats.METADATA_STORE_NAME, metadataStoreName);
         this.batchMetadataStoreSizeCounter = meter
                 .upDownCounterBuilder(EXECUTOR_QUEUE_SIZE_METRIC_NAME)
-                .setDescription("The number of blocking operations in the metadata store executor queue")
+                .setDescription("The number of batch operations in the metadata store executor queue")
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> measurement.record(getQueueSize(), attributes));
     }
