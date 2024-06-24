@@ -23,6 +23,7 @@ import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -135,7 +136,8 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                         .getTopics()
                         .values()
                         .stream()
-                        .map(topicFuture -> topicFuture.getNow(Optional.empty()))
+                        .filter(topicFuture -> topicFuture.isDone() && !topicFuture.isCompletedExceptionally())
+                        .map(CompletableFuture::join)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .flatMap(topic -> topic.getReplicators().values().stream())
