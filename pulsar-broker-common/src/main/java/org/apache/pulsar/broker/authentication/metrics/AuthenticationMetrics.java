@@ -72,6 +72,7 @@ public class AuthenticationMetrics {
         authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
     }
 
+    public static final String AUTHENTICATION_COUNTER_METRIC_NAME = "pulsar.authentication.count";
     private final LongCounter authenticationCounter;
 
     private static final AttributeKey<String> PROVIDER_KEY = AttributeKey.stringKey("pulsar.authentication.provider");
@@ -80,7 +81,7 @@ public class AuthenticationMetrics {
     private static final AttributeKey<String> ERROR_CODE_KEY = AttributeKey.stringKey("pulsar.authentication.error");
 
     public AuthenticationMetrics(Meter meter) {
-        authenticationCounter = meter.counterBuilder("pulsar.authentication.count")
+        authenticationCounter = meter.counterBuilder(AUTHENTICATION_COUNTER_METRIC_NAME)
                 .setDescription("Number of authentication operations")
                 .setUnit("{operation}")
                 .build();
@@ -99,7 +100,7 @@ public class AuthenticationMetrics {
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, "failure",
-                ERROR_CODE_KEY, errorCode.name());
+                ERROR_CODE_KEY, errorCode.name().toLowerCase());
         authenticationCounter.add(1, attributes);
     }
 

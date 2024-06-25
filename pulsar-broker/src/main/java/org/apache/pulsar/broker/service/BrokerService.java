@@ -102,6 +102,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -385,8 +386,8 @@ public class BrokerService implements Closeable {
                 .name("pulsar-backlog-quota-checker")
                 .numThreads(1)
                 .build();
-        this.authenticationService =
-                new AuthenticationService(pulsar.getConfiguration(), pulsar.getOpenTelemetry().getOpenTelemetry());
+        this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
+                new AuthenticationMetrics(pulsar.getOpenTelemetry().getMeter()));
         this.blockedDispatchers =
                 ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
         this.topicFactory = createPersistentTopicFactory();
