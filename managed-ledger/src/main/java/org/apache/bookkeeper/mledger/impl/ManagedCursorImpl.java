@@ -2679,7 +2679,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     && getConfig().getMaxUnackedRangesToPersist() > 0
                     && individualDeletedMessages.size() > getConfig().getMaxUnackedRangesToPersistInMetadataStore();
         } finally {
-            lock.writeLock().unlock();
+            lock.readLock().unlock();
         }
     }
 
