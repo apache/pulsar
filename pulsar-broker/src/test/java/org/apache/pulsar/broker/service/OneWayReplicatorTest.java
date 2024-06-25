@@ -62,7 +62,6 @@ import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -512,10 +511,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         } finally {
             // cleanup.
             admin1.topics().deletePartitionedTopic(topicName, true);
-            try {
+            if (!usingGlobalZK) {
                 admin2.topics().deletePartitionedTopic(topicName, true);
-            } catch (PulsarAdminException.NotFoundException e) {
-                // Ignore
             }
         }
     }
