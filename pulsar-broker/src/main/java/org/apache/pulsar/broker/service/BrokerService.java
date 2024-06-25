@@ -275,6 +275,7 @@ public class BrokerService implements Closeable {
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
+    private final AuthenticationMetrics authenticationMetrics;
     private final AuthenticationService authenticationService;
 
     public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
@@ -386,8 +387,8 @@ public class BrokerService implements Closeable {
                 .name("pulsar-backlog-quota-checker")
                 .numThreads(1)
                 .build();
-        this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
-                new AuthenticationMetrics(pulsar.getOpenTelemetry().getMeter()));
+        this.authenticationMetrics = new AuthenticationMetrics(pulsar.getOpenTelemetry().getMeter());
+        this.authenticationService = new AuthenticationService(pulsar.getConfiguration(), authenticationMetrics);
         this.blockedDispatchers =
                 ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
         this.topicFactory = createPersistentTopicFactory();
