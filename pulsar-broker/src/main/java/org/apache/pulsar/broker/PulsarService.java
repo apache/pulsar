@@ -113,6 +113,7 @@ import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTransactionCoordinatorStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTransactionPendingAckStoreStats;
@@ -262,6 +263,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryTopicStats openTelemetryTopicStats;
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
     private OpenTelemetryProducerStats openTelemetryProducerStats;
+    private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
     private OpenTelemetryTransactionCoordinatorStats openTelemetryTransactionCoordinatorStats;
     private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
@@ -690,6 +692,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTransactionCoordinatorStats.close();
                 openTelemetryTransactionCoordinatorStats = null;
             }
+            if (openTelemetryReplicatorStats != null) {
+                openTelemetryReplicatorStats.close();
+                openTelemetryReplicatorStats = null;
+            }
             if (openTelemetryProducerStats != null) {
                 openTelemetryProducerStats.close();
                 openTelemetryProducerStats = null;
@@ -846,6 +852,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
             openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
             openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
+            openTelemetryReplicatorStats = new OpenTelemetryReplicatorStats(this);
 
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())

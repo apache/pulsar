@@ -174,6 +174,12 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
     }
 
+    /**
+     * The name of the remote cluster for a Pulsar replicator.
+     */
+    AttributeKey<String> PULSAR_REPLICATION_REMOTE_CLUSTER_NAME =
+            AttributeKey.stringKey("pulsar.replication.remote.cluster.name");
+
     AttributeKey<String> PULSAR_CONNECTION_STATUS = AttributeKey.stringKey("pulsar.connection.status");
     enum ConnectionStatus {
         ACTIVE,

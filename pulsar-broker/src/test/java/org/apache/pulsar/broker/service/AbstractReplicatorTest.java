@@ -140,6 +140,11 @@ public class AbstractReplicatorTest {
         }
 
         @Override
+        public ReplicatorStatsImpl computeStats() {
+            return null;
+        }
+
+        @Override
         public ReplicatorStatsImpl getStats() {
             return null;
         }
