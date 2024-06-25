@@ -158,6 +158,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final AtomicReference<Schema<?>> sinkSchema = new AtomicReference<>();
     private SinkSchemaInfoProvider sinkSchemaInfoProvider = null;
 
+    private final ProducerCache producerCache = new ProducerCache();
+
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
@@ -277,7 +279,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
             return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-                pulsarAdmin, clientBuilder);
+                pulsarAdmin, clientBuilder, producerCache);
         } finally {
             Thread.currentThread().setContextClassLoader(clsLoader);
         }
@@ -572,6 +574,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         instanceCache = null;
+
+        producerCache.close();
 
         if (logAppender != null) {
             removeLogTopicAppender(LoggerContext.getContext());
@@ -917,7 +921,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
-                        this.functionClassLoader);
+                        this.functionClassLoader, this.producerCache);
             }
         } else {
             object = Reflections.createInstance(
