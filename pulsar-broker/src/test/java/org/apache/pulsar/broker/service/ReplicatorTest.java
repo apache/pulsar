@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleGaugeValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -31,6 +35,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.Attributes;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -58,10 +63,10 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -69,6 +74,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -104,6 +110,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -667,7 +674,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Thread.sleep(100);
         replicator.updateRates(); // for code-coverage
         replicator.expireMessages(1); // for code-coverage
-        ReplicatorStats status = replicator.getStats();
+        ReplicatorStats status = replicator.computeStats();
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
@@ -697,7 +704,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         replicator.updateRates();
 
-        ReplicatorStats status = replicator.getStats();
+        ReplicatorStats status = replicator.computeStats();
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
@@ -997,14 +1004,28 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
             Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
-            assertEquals(replicator.getStats().replicationBacklog, 0);
+            assertEquals(replicator.computeStats().replicationBacklog, 0);
+            var attributes = Attributes.of(
+                    OpenTelemetryAttributes.PULSAR_DOMAIN, dest.getDomain().value(),
+                    OpenTelemetryAttributes.PULSAR_TENANT, dest.getTenant(),
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, dest.getNamespace(),
+                    OpenTelemetryAttributes.PULSAR_TOPIC, dest.getPartitionedTopicName(),
+                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
+            );
+            var metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
 
             // Next message will not be replicated, because r2 has reached the quota
             producer1.produce(1);
 
             Thread.sleep(500);
 
-            assertEquals(replicator.getStats().replicationBacklog, 1);
+            assertEquals(replicator.computeStats().replicationBacklog, 1);
+            metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
+                    aDouble -> assertThat(aDouble).isPositive());
 
             // Consumer will now drain 1 message and the replication backlog will be cleared
             consumer2.receive(1);
@@ -1013,13 +1034,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
             consumer2.receive(1);
 
             int retry = 10;
-            for (int i = 0; i < retry && replicator.getStats().replicationBacklog > 0; i++) {
+            for (int i = 0; i < retry && replicator.computeStats().replicationBacklog > 0; i++) {
                 if (i != retry - 1) {
                     Thread.sleep(100);
                 }
             }
 
-            assertEquals(replicator.getStats().replicationBacklog, 0);
+            assertEquals(replicator.computeStats().replicationBacklog, 0);
+            metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
+            assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);
         }
     }
 
@@ -1814,6 +1838,72 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
+    public void testReplicationMetrics() throws Exception {
+        var destTopicName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/replicationMetrics"));
+
+        @Cleanup
+        var producer1 = new MessageProducer(url1, destTopicName);
+
+        @Cleanup
+        var consumer1 = new MessageConsumer(url1, destTopicName);
+
+        @Cleanup
+        var consumer2 = new MessageConsumer(url2, destTopicName);
+
+        // Produce from cluster 1 and consume from the 1 and 2.
+        producer1.produce(3);
+        consumer1.receive(2);
+        consumer2.receive(1);
+
+        {
+            // Validate replicator metrics on cluster 1 from cluster 2
+            var attributes = Attributes.of(
+                    OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
+                    OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
+                    OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
+                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster2
+            );
+            var metrics = metricReader1.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes, 3);
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes,
+                    aLong -> assertThat(aLong).isPositive());
+
+            var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
+            assertThat(topicOpt).isPresent();
+            var topic = topicOpt.get();
+            var persistentReplicators = topic.getReplicators()
+                    .values()
+                    .stream()
+                    .map(PersistentReplicator.class::cast)
+                    .toList();
+            persistentReplicators.forEach(this::pauseReplicator);
+            producer1.produce(5);
+            Awaitility.await().untilAsserted(() -> {
+                persistentReplicators.forEach(repl -> repl.expireMessages(1));
+                assertMetricLongSumValue(metricReader1.collectAllMetrics(),
+                        OpenTelemetryReplicatorStats.EXPIRED_COUNTER,
+                        attributes, 5);
+            });
+        }
+
+        {
+            // Validate replicator metrics on cluster 2 from cluster 1
+            var attributes = Attributes.of(
+                    OpenTelemetryAttributes.PULSAR_DOMAIN, destTopicName.getDomain().value(),
+                    OpenTelemetryAttributes.PULSAR_TENANT, destTopicName.getTenant(),
+                    OpenTelemetryAttributes.PULSAR_NAMESPACE, destTopicName.getNamespace(),
+                    OpenTelemetryAttributes.PULSAR_TOPIC, destTopicName.getPartitionedTopicName(),
+                    OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, cluster1
+            );
+            var metrics = metricReader2.collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_IN_COUNTER, attributes, 3);
+            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_IN_COUNTER, attributes,
+                    aLong -> assertThat(aLong).isPositive());
+        }
+    }
+
+    @Test
     public void testEnableReplicationWithNamespaceAllowedClustersPolices() throws Exception {
         log.info("--- testEnableReplicationWithNamespaceAllowedClustersPolices ---");
         String namespace1 = "pulsar/ns" + RandomUtils.nextLong();
@@ -1873,5 +1963,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(replicator.isConnected());
         });
         replicator.closeProducerAsync(true);
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(replicator.isConnected());
+        });
     }
 }
