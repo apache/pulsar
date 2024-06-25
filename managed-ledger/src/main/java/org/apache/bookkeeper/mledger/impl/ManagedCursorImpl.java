@@ -3504,7 +3504,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     position.getEntryId());
             if (range != null) {
                 Position nextPosition = range.upperEndpoint().getNext();
-                return (nextPosition != null && nextPosition.compareTo(position) > 0) ? nextPosition : position.getNext();
+                return (nextPosition != null && nextPosition.compareTo(position) > 0)
+                        ? nextPosition : position.getNext();
             }
             return position.getNext();
         } finally {

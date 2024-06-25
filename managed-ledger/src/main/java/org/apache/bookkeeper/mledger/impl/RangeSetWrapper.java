@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Wraps other Range classes, and adds LRU, marking dirty data and other features on this basis.
