@@ -68,11 +68,11 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
@@ -459,6 +459,29 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStopped(partition1);
         admin1.topics().deletePartitionedTopic(topicName);
         admin2.topics().deletePartitionedTopic(topicName);
+    }
+
+    // https://github.com/apache/pulsar/issues/22967
+    @Test
+    public void testPartitionedTopicWithTopicPolicyAndNoReplicationClusters() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createPartitionedTopic(topicName, 2);
+        try {
+            admin1.topicPolicies().setMessageTTL(topicName, 5);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
+            });
+            admin1.topics().updatePartitionedTopic(topicName, 3, false);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 3);
+            });
+        } finally {
+            // cleanup.
+            admin1.topics().deletePartitionedTopic(topicName, true);
+            if (!usingGlobalZK) {
+                admin2.topics().deletePartitionedTopic(topicName, true);
+            }
+        }
     }
 
     @Test
