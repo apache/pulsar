@@ -68,6 +68,9 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        // disable considering cpu usage to avoid broker2 being overloaded.
+        conf.setLoadBalancerCPUResourceWeight(0);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
     }
 
     // Test that least resource usage with weight works correctly.
@@ -88,8 +91,8 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 
@@ -167,8 +170,8 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 

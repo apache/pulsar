@@ -37,12 +37,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -50,9 +52,11 @@ import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -279,7 +283,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         Topic.PublishContext publishContext2 = getPublishContext(producerName2, 1);
 
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 1), null, publishContext1);
+        persistentTopic.addComplete(PositionFactory.create(0, 1), null, publishContext1);
         verify(managedLedger, times(1)).asyncAddEntry(any(ByteBuf.class), any(), any());
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -289,7 +293,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
         persistentTopic.publishMessage(byteBuf2, publishContext2);
-        persistentTopic.addComplete(new PositionImpl(0, 2), null, publishContext2);
+        persistentTopic.addComplete(PositionFactory.create(0, 2), null, publishContext2);
         verify(managedLedger, times(2)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
@@ -301,7 +305,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 3), null, publishContext1);
+        persistentTopic.addComplete(PositionFactory.create(0, 3), null, publishContext1);
         verify(managedLedger, times(3)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -313,7 +317,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
-        persistentTopic.addComplete(new PositionImpl(0, 4), null, publishContext1);
+        persistentTopic.addComplete(PositionFactory.create(0, 4), null, publishContext1);
         verify(managedLedger, times(4)).asyncAddEntry(any(ByteBuf.class), any(), any());
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -353,7 +357,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         verify(publishContext1, times(1)).completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
 
         // complete seq 6 message eventually
-        persistentTopic.addComplete(new PositionImpl(0, 5), null, publishContext1);
+        persistentTopic.addComplete(PositionFactory.create(0, 5), null, publishContext1);
 
         // simulate failure
         byteBuf1 = getMessage(producerName1, 7);
@@ -390,7 +394,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         publishContext1 = getPublishContext(producerName1, 8);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(7)).asyncAddEntry(any(ByteBuf.class), any(), any());
-        persistentTopic.addComplete(new PositionImpl(0, 5), null, publishContext1);
+        persistentTopic.addComplete(PositionFactory.create(0, 5), null, publishContext1);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
@@ -489,5 +493,33 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 });
         messageDeduplication.purgeInactiveProducers();
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
+    }
+
+
+    @Test
+    public void testMessageDeduplicationShouldNotWorkForSystemTopic() throws PulsarAdminException {
+        final String localName = UUID.randomUUID().toString();
+        final String namespace = "prop/ns-abc";
+        final String prefix = "persistent://%s/".formatted(namespace);
+        final String topic = prefix + localName;
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // broker level policies
+        final String eventSystemTopic = prefix + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final Optional<Topic> optionalTopic = pulsar.getBrokerService().getTopic(eventSystemTopic, true).join();
+        assertTrue(optionalTopic.isPresent());
+        final Topic ptRef = optionalTopic.get();
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
+
+        // namespace level policies
+        admin.namespaces().setDeduplicationStatus(namespace, true);
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
+
+        // topic level policies
+        admin.topicPolicies().setDeduplicationStatus(eventSystemTopic, true);
+        assertTrue(ptRef.isSystemTopic());
+        assertFalse(ptRef.isDeduplicationEnabled());
     }
 }

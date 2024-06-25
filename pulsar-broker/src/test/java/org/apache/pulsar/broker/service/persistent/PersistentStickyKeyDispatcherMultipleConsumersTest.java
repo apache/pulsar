@@ -56,7 +56,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -348,10 +348,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         final Queue<Position> actualEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
 
         final Queue<Position> expectedEntriesToConsumer1 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer1.add(PositionImpl.get(1, 1));
+        expectedEntriesToConsumer1.add(PositionFactory.create(1, 1));
         final Queue<Position> expectedEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer2.add(PositionImpl.get(1, 2));
-        expectedEntriesToConsumer2.add(PositionImpl.get(1, 3));
+        expectedEntriesToConsumer2.add(PositionFactory.create(1, 2));
+        expectedEntriesToConsumer2.add(PositionFactory.create(1, 3));
 
         final AtomicInteger remainingEntriesNum = new AtomicInteger(
                 expectedEntriesToConsumer1.size() + expectedEntriesToConsumer2.size());

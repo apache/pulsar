@@ -72,11 +72,12 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
@@ -686,7 +687,7 @@ public class TransactionTest extends TransactionTestBase {
 
         //test publishing normal messages will change maxReadPosition in the state of NoSnapshot.
         MessageIdImpl messageId = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position = topicTransactionBuffer.getMaxReadPosition();
+        Position position = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position.getEntryId(), messageId.getEntryId());
 
@@ -703,16 +704,16 @@ public class TransactionTest extends TransactionTestBase {
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
         MessageIdImpl messageId1 = (MessageIdImpl) txnProducer.newMessage(transaction).value("txn message").send();
-        PositionImpl position1 = topicTransactionBuffer.getMaxReadPosition();
+        Position position1 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position1.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position1.getEntryId(), messageId.getEntryId());
 
         MessageIdImpl messageId2 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position2 = topicTransactionBuffer.getMaxReadPosition();
+        Position position2 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position2.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position2.getEntryId(), messageId.getEntryId());
         transaction.commit().get();
-        PositionImpl position3 = topicTransactionBuffer.getMaxReadPosition();
+        Position position3 = topicTransactionBuffer.getMaxReadPosition();
 
         Assert.assertEquals(position3.getLedgerId(), messageId2.getLedgerId());
         Assert.assertEquals(position3.getEntryId(), messageId2.getEntryId() + 1);
@@ -720,7 +721,7 @@ public class TransactionTest extends TransactionTestBase {
         //test publishing normal messages will change maxReadPosition if the state of TB
         //is Ready and ongoingTxns is empty.
         MessageIdImpl messageId4 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position4 = topicTransactionBuffer.getMaxReadPosition();
+        Position position4 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position4.getLedgerId(), messageId4.getLedgerId());
         Assert.assertEquals(position4.getEntryId(), messageId4.getEntryId());
 
@@ -734,7 +735,7 @@ public class TransactionTest extends TransactionTestBase {
         maxReadPositionField.setAccessible(true);
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.Initializing);
         MessageIdImpl messageId5 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
-        PositionImpl position5 = (PositionImpl) maxReadPositionField.get(topicTransactionBuffer);
+        Position position5 = (Position) maxReadPositionField.get(topicTransactionBuffer);
         Assert.assertEquals(position5.getLedgerId(), messageId4.getLedgerId());
         Assert.assertEquals(position5.getEntryId(), messageId4.getEntryId());
     }
@@ -829,7 +830,7 @@ public class TransactionTest extends TransactionTestBase {
         ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn(true).when(managedCursor).hasMoreEntries();
         doReturn(false).when(managedCursor).isClosed();
-        doReturn(new PositionImpl(-1, -1)).when(managedCursor).getMarkDeletedPosition();
+        doReturn(PositionFactory.create(-1, -1)).when(managedCursor).getMarkDeletedPosition();
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
             callback.readEntriesFailed(new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"),
@@ -1022,7 +1023,7 @@ public class TransactionTest extends TransactionTestBase {
                 topicTransactionBuffer.getMaxReadPosition());
         completableFuture.get();
 
-        doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();
+        doReturn(PositionFactory.LATEST).when(managedLedger).getLastConfirmedEntry();
         ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn(false).when(managedCursor).hasMoreEntries();
         doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
@@ -1095,10 +1096,10 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
+    public void testNotChangeMaxReadPositionCountWhenCheckIfNoSnapshot() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
+                .getTopic(NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
@@ -1106,9 +1107,9 @@ public class TransactionTest extends TransactionTestBase {
 
         AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(buffer);
         Field changeTimeField = TopicTransactionBuffer
-                .class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+                .class.getDeclaredField("changeMaxReadPositionCount");
         changeTimeField.setAccessible(true);
-        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) changeTimeField.get(buffer);
+        AtomicLong changeMaxReadPositionCount = (AtomicLong) changeTimeField.get(buffer);
 
         Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
         field1.setAccessible(true);
@@ -1117,10 +1118,10 @@ public class TransactionTest extends TransactionTestBase {
                     TopicTransactionBufferState.State state = (TopicTransactionBufferState.State) field1.get(buffer);
                     Assert.assertEquals(state, TopicTransactionBufferState.State.NoSnapshot);
         });
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
-        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
-        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+        buffer.syncMaxReadPositionForNormalPublish(PositionFactory.create(1, 1), false);
+        Assert.assertEquals(changeMaxReadPositionCount.get(), 0L);
 
     }
 
@@ -1632,7 +1633,7 @@ public class TransactionTest extends TransactionTestBase {
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
         ManagedCursorContainer managedCursors = new ManagedCursorContainer();
         when(managedLedger.getCursors()).thenReturn(managedCursors);
-        PositionImpl position = PositionImpl.EARLIEST;
+        Position position = PositionFactory.EARLIEST;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
         // Create topic.
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
@@ -1977,5 +1978,74 @@ public class TransactionTest extends TransactionTestBase {
             assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
+    }
+
+    @Test
+    public void testPersistentTopicGetLastDispatchablePositionWithTxn() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testPersistentTopicGetLastDispatchablePositionWithTxn";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        BrokerService brokerService = pulsarTestContexts.get(0).getBrokerService();
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopicReference(topic).get();
+
+
+        // send a normal message
+        String body = UUID.randomUUID().toString();
+        MessageIdImpl msgId = (MessageIdImpl) producer.send(body);
+
+        // send 3 txn messages
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn).value(UUID.randomUUID().toString()).send();
+
+        // get last dispatchable position
+        Position lastDispatchablePosition = persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId()));
+
+        // abort the txn
+        txn.abort().get(5, TimeUnit.SECONDS);
+
+        // get last dispatchable position
+        lastDispatchablePosition = persistentTopic.getLastDispatchablePosition().get();
+        // the last dispatchable position should be the message id of the normal message
+        assertEquals(lastDispatchablePosition, PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId()));
+
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString()).send();
+        List<Message<String>> messages = new ArrayList<>();
+        while (reader.hasMessageAvailable()) {
+            messages.add(reader.readNext());
+        }
+        assertEquals(messages.size(), 1);
+        assertEquals(messages.get(0).getValue(), body);
+
+        txn1.abort().get(5, TimeUnit.SECONDS);
+
+        @Cleanup
+        Reader<String> reader1 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        List<Message<String>> messages1 = new ArrayList<>();
+        while (reader1.hasMessageAvailable()) {
+            messages1.add(reader1.readNext());
+        }
+        assertEquals(messages1.size(), 1);
+        assertEquals(messages1.get(0).getValue(), body);
     }
 }

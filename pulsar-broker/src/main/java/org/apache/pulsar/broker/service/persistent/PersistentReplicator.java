@@ -28,11 +28,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -45,7 +47,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -56,7 +57,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -65,6 +65,7 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +109,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
+    @Getter
+    protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
 
@@ -119,7 +121,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
                 brokerService, replicationClient);
         this.topic = localTopic;
-        this.cursor = cursor;
+        this.cursor = Objects.requireNonNull(cursor);
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
@@ -187,12 +189,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
         return cursor.getNumberOfEntriesInBacklog(true);
     }
 
+    public long getMessageExpiredCount() {
+        return expiryMonitor.getTotalMessageExpired();
+    }
+
     @Override
     protected void disableReplicatorRead() {
-        if (this.cursor != null) {
-            // deactivate cursor after successfully close the producer
-            this.cursor.setInactive();
-        }
+        // deactivate cursor after successfully close the producer
+        this.cursor.setInactive();
     }
 
     /**
@@ -331,12 +335,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateCursorState() {
-        if (this.cursor != null) {
-            if (producer != null && producer.isConnected()) {
-                this.cursor.setActive();
-            } else {
-                this.cursor.setInactive();
-            }
+        if (isConnected()) {
+            cursor.setActive();
+        } else {
+            cursor.setInactive();
         }
     }
 
@@ -576,11 +578,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             terminate();
             return;
         }
-        if (ctx instanceof PositionImpl) {
-            PositionImpl deletedEntry = (PositionImpl) ctx;
-            if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+        if (ctx instanceof Position) {
+            Position deletedEntry = (Position) ctx;
+            if (deletedEntry.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 brokerService.getPulsar().getExecutor().schedule(
-                        () -> cursor.asyncDelete(deletedEntry, (PersistentReplicator) this, deletedEntry), 10,
+                        () -> cursor.asyncDelete(deletedEntry, this, deletedEntry), 10,
                         TimeUnit.SECONDS);
             }
         }
@@ -596,10 +598,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
     }
 
-    public ReplicatorStatsImpl getStats() {
-        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
-        stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
+    public ReplicatorStatsImpl computeStats() {
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
+        stats.connected = isConnected();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
         ProducerImpl producer = this.producer;
         if (producer != null) {
@@ -615,13 +617,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     public void updateMessageTTL(int messageTTLInSeconds) {
         this.messageTTLInSeconds = messageTTLInSeconds;
-    }
-
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
     }
 
     @Override
@@ -690,12 +685,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
         default:
             // Do nothing
         }
-    }
-
-    @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
     }
 
     @Override

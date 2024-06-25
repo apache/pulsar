@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -41,7 +42,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 
 public class TopicListWatcherTest {
 

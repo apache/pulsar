@@ -24,7 +24,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -74,7 +75,7 @@ public class TxnBatchedPositionImplTest {
 
     /**
      * Why is this test needed ？
-     * {@link org.apache.bookkeeper.mledger.impl.ManagedCursorImpl} maintains batchIndexes, use {@link PositionImpl} or
+     * {@link org.apache.bookkeeper.mledger.impl.ManagedCursorImpl} maintains batchIndexes, use {@link Position} or
      * {@link TxnBatchedPositionImpl} as the key. However, different maps may use "param-key.equals(key-in-map)" to
      * determine the contains, or use "key-in-map.equals(param-key)" or use "param-key.compareTo(key-in-map)" or use
      * "key-in-map.compareTo(param-key)" to determine the {@link Map#containsKey(Object)}, the these approaches may
@@ -88,48 +89,48 @@ public class TxnBatchedPositionImplTest {
         // build data.
         Random random = new Random();
         int v = random.nextInt();
-        PositionImpl position = new PositionImpl(ledgerId, entryId);
+        Position position = PositionFactory.create(ledgerId, entryId);
         TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize, batchIndex);
         // ConcurrentSkipListMap.
-        ConcurrentSkipListMap<PositionImpl, Integer> map1 = new ConcurrentSkipListMap<>();
+        ConcurrentSkipListMap<Position, Integer> map1 = new ConcurrentSkipListMap<>();
         map1.put(position, v);
         Assert.assertTrue(map1.containsKey(txnBatchedPosition));
-        ConcurrentSkipListMap<PositionImpl, Integer> map2 = new ConcurrentSkipListMap<>();
+        ConcurrentSkipListMap<Position, Integer> map2 = new ConcurrentSkipListMap<>();
         map2.put(txnBatchedPosition, v);
         Assert.assertTrue(map2.containsKey(position));
         // HashMap.
-        HashMap<PositionImpl, Integer> map3 = new HashMap<>();
+        HashMap<Position, Integer> map3 = new HashMap<>();
         map3.put(position, v);
         Assert.assertTrue(map3.containsKey(txnBatchedPosition));
-        HashMap<PositionImpl, Integer> map4 = new HashMap<>();
+        HashMap<Position, Integer> map4 = new HashMap<>();
         map4.put(txnBatchedPosition, v);
         Assert.assertTrue(map4.containsKey(position));
         // ConcurrentHashMap.
-        ConcurrentHashMap<PositionImpl, Integer> map5 = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Position, Integer> map5 = new ConcurrentHashMap<>();
         map5.put(position, v);
         Assert.assertTrue(map5.containsKey(txnBatchedPosition));
-        ConcurrentHashMap<PositionImpl, Integer> map6 = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Position, Integer> map6 = new ConcurrentHashMap<>();
         map6.put(txnBatchedPosition, v);
         Assert.assertTrue(map6.containsKey(position));
         // LinkedHashMap.
-        LinkedHashMap<PositionImpl, Integer> map7 = new LinkedHashMap<>();
+        LinkedHashMap<Position, Integer> map7 = new LinkedHashMap<>();
         map7.put(position, v);
         Assert.assertTrue(map7.containsKey(txnBatchedPosition));
-        LinkedHashMap<PositionImpl, Integer> map8 = new LinkedHashMap<>();
+        LinkedHashMap<Position, Integer> map8 = new LinkedHashMap<>();
         map8.put(txnBatchedPosition, v);
         Assert.assertTrue(map8.containsKey(position));
     }
 
     /**
      * Why is this test needed ？
-     * Make sure that when compare to the "markDeletePosition", it looks like {@link PositionImpl}
+     * Make sure that when compare to the "markDeletePosition", it looks like {@link Position}
      * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
      *    determine whether the keys are the same. In {@link java.util.HashMap}, it use the
      *    {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
      */
     @Test
     public void testCompareTo(){
-        PositionImpl position = new PositionImpl(1, 1);
+        Position position = PositionFactory.create(1, 1);
         TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, 2, 0);
         Assert.assertEquals(position.compareTo(txnBatchedPosition), 0);
         Assert.assertEquals(txnBatchedPosition.compareTo(position), 0);

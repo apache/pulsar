@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -136,7 +136,12 @@ public class AbstractReplicatorTest {
 
         @Override
         protected Position getReplicatorReadPosition() {
-            return PositionImpl.EARLIEST;
+            return PositionFactory.EARLIEST;
+        }
+
+        @Override
+        public ReplicatorStatsImpl computeStats() {
+            return null;
         }
 
         @Override

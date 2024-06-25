@@ -38,8 +38,8 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -478,7 +478,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             ledgerId = msgId.getLedgerId();
             entryId = msgId.getEntryId();
         }
-        getCursor(topicName, subName).delete(PositionImpl.get(ledgerId, entryId, bitSetRecyclable.toLongArray()));
+        getCursor(topicName, subName).delete(AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, bitSetRecyclable.toLongArray()));
         // step 4: send messages to consumer2.
         receiveMessageSignal2.complete(null);
         // Verify: Consumer2 will get all the 100 messages, and "unAckMessages" is 100.

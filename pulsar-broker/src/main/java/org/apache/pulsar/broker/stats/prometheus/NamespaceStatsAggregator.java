@@ -211,6 +211,8 @@ public class NamespaceStatsAggregator {
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
+        stats.systemTopicBytesInCounter = tStatus.systemTopicBytesInCounter;
+        stats.bytesOutInternalCounter = tStatus.getBytesOutInternalCounter();
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
@@ -288,7 +290,7 @@ public class NamespaceStatsAggregator {
         }
 
         topic.getReplicators().forEach((cluster, replicator) -> {
-            ReplicatorStatsImpl replStats = replicator.getStats();
+            ReplicatorStatsImpl replStats = replicator.computeStats();
             AggregatedReplicationStats aggReplStats = stats.replicationStats.get(replicator.getRemoteCluster());
             if (aggReplStats == null) {
                 aggReplStats = new AggregatedReplicationStats();
@@ -358,6 +360,16 @@ public class NamespaceStatsAggregator {
                 brokerStats.timeBasedBacklogQuotaExceededEvictionCount, cluster, BacklogQuotaType.message_age);
 
         writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
+        long userOutBytes = brokerStats.bytesOutCounter - brokerStats.bytesOutInternalCounter;
+        writeMetric(stream, "pulsar_broker_out_bytes_total",
+                userOutBytes, cluster, "system_subscription", "false");
+        writeMetric(stream, "pulsar_broker_out_bytes_total",
+                brokerStats.bytesOutInternalCounter, cluster, "system_subscription", "true");
+        long userTopicInBytes = brokerStats.bytesInCounter - brokerStats.systemTopicBytesInCounter;
+        writeMetric(stream, "pulsar_broker_in_bytes_total",
+                userTopicInBytes, cluster, "system_topic", "false");
+        writeMetric(stream, "pulsar_broker_in_bytes_total",
+                brokerStats.systemTopicBytesInCounter, cluster, "system_topic", "true");
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
@@ -412,7 +424,8 @@ public class NamespaceStatsAggregator {
                 namespace);
 
         stats.bucketDelayedIndexStats.forEach((k, metric) -> {
-            writeMetric(stream, metric.name, metric.value, cluster, namespace, metric.labelsAndValues);
+            String[] labels = ArrayUtils.addAll(new String[]{"namespace", namespace}, metric.labelsAndValues);
+            writeMetric(stream, metric.name, metric.value, cluster, labels);
         });
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
@@ -534,12 +547,20 @@ public class NamespaceStatsAggregator {
         stream.writeSample(metricName, value, "cluster", cluster);
     }
 
-    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
-                                    String namespace, String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[]{"cluster", cluster, "namespace", namespace};
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
+    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                    String cluster, String... extraLabelsAndValues) {
+        String[] labels = ArrayUtils.addAll(new String[]{"cluster", cluster}, extraLabelsAndValues);
         stream.writeSample(metricName, value, labels);
     }
+
+
+    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
+                                    String namespace) {
+        String[] labels = new String[]{"cluster", cluster, "namespace", namespace};
+        stream.writeSample(metricName, value, labels);
+    }
+
+
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,
                                              AggregatedNamespaceStats namespaceStats,

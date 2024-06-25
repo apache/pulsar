@@ -27,9 +27,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -56,7 +56,7 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void invalidateEntries(PositionImpl lastPosition) {
+    public void invalidateEntries(Position lastPosition) {
     }
 
     @Override
@@ -105,7 +105,7 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, PositionImpl position, AsyncCallbacks.ReadEntryCallback callback,
+    public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
         lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                 (ledgerEntries, exception) -> {
