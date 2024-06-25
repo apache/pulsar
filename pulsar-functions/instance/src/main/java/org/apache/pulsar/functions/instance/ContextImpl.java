@@ -29,16 +29,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -85,6 +84,7 @@ import org.slf4j.Logger;
 /**
  * This class implements the Context interface exposed to the user.
  */
+@Slf4j
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private final ProducerBuilderFactory producerBuilderFactory;
@@ -98,8 +98,6 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final ClientBuilder clientBuilder;
     private final PulsarClient client;
     private final PulsarAdmin pulsarAdmin;
-    private Map<String, Producer<?>> publishProducers;
-    private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
 
     private final TopicSchema topicSchema;
 
@@ -137,12 +135,15 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final Function.FunctionDetails.ComponentType componentType;
 
+    private final ProducerCache producerCache;
+    private final boolean useThreadLocalProducers;
+
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder)
-            throws PulsarClientException {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
+                       ProducerCache producerCache) throws PulsarClientException {
         this.config = config;
         this.logger = logger;
         this.clientBuilder = clientBuilder;
@@ -151,14 +152,17 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
 
-        boolean useThreadLocalProducers = false;
+        this.producerCache = producerCache;
 
         Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
         ProducerConfig producerConfig = null;
         if (producerSpec != null) {
             producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
             useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
+        } else {
+            useThreadLocalProducers = false;
         }
+
         producerBuilderFactory = new ProducerBuilderFactory(client, producerConfig,
                 Thread.currentThread().getContextClassLoader(),
                 // This is for backwards compatibility. The PR https://github.com/apache/pulsar/pull/19470 removed
@@ -171,12 +175,6 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         this.config.getFunctionDetails().getNamespace(),
                         this.config.getFunctionDetails().getName()),
                 this.config.getInstanceId()));
-
-        if (useThreadLocalProducers) {
-            tlPublishProducers = new ThreadLocal<>();
-        } else {
-            publishProducers = new ConcurrentHashMap<>();
-        }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -535,39 +533,15 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
-        Producer<T> producer;
-        if (tlPublishProducers != null) {
-            Map<String, Producer<?>> producerMap = tlPublishProducers.get();
-            if (producerMap == null) {
-                producerMap = new HashMap<>();
-                tlPublishProducers.set(producerMap);
-            }
-            producer = (Producer<T>) producerMap.get(topicName);
-        } else {
-            producer = (Producer<T>) publishProducers.get(topicName);
-        }
-
-        if (producer == null) {
-            Producer<T> newProducer = producerBuilderFactory
-                    .createProducerBuilder(topicName, schema, null)
-                    .properties(producerProperties)
-                    .create();
-
-            if (tlPublishProducers != null) {
-                tlPublishProducers.get().put(topicName, newProducer);
-            } else {
-                Producer<T> existingProducer = (Producer<T>) publishProducers.putIfAbsent(topicName, newProducer);
-
-                if (existingProducer != null) {
-                    // The value in the map was not updated after the concurrent put
-                    newProducer.close();
-                    producer = existingProducer;
-                } else {
-                    producer = newProducer;
-                }
-            }
-        }
-        return producer;
+        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
+        return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,
+                topicName, additionalCacheKey, () -> {
+                    log.info("Initializing producer on topic {} with schema {}", topicName, schema);
+                    return producerBuilderFactory
+                            .createProducerBuilder(topicName, schema, null)
+                            .properties(producerProperties)
+                            .create();
+                });
     }
 
     public Map<String, Double> getAndResetMetrics() {
@@ -706,28 +680,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public void close() {
-        List<CompletableFuture> futures = new LinkedList<>();
-
-        if (publishProducers != null) {
-            for (Producer<?> producer : publishProducers.values()) {
-                futures.add(producer.closeAsync());
-            }
-        }
-
-        if (tlPublishProducers != null) {
-            for (Producer<?> producer : tlPublishProducers.get().values()) {
-                futures.add(producer.closeAsync());
-            }
-        }
-
         if (pulsarAdmin != null) {
             pulsarAdmin.close();
-        }
-
-        try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-        } catch (InterruptedException | ExecutionException e) {
-            logger.warn("Failed to close producers", e);
         }
     }
 
