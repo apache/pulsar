@@ -20,19 +20,15 @@ package org.apache.pulsar.functions.sink;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -48,6 +44,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.AbstractSinkRecord;
 import org.apache.pulsar.functions.instance.ProducerBuilderFactory;
+import org.apache.pulsar.functions.instance.ProducerCache;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
@@ -62,6 +59,7 @@ public class PulsarSink<T> implements Sink<T> {
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
+    private final ProducerCache producerCache;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
@@ -80,43 +78,25 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
-        protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
-
         protected Producer<T> getProducer(String destinationTopic, Schema schema) {
-            return getProducer(destinationTopic, null, destinationTopic, schema);
+            return getProducer(destinationTopic, schema, null, null);
         }
 
-        protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
-            return publishProducers.computeIfAbsent(producerId, s -> {
-                try {
-                    log.info("Initializing producer {} on topic {} with schema {}",
-                        producerName, topicName, schema);
-                    Producer<T> producer = createProducer(
-                            topicName,
-                            schema, producerName
-                    );
-                    log.info("Initialized producer {} on topic {} with schema {}: {} -> {}",
-                        producerName, topicName, schema, producerId, producer);
-                    return producer;
-                } catch (PulsarClientException e) {
-                    log.error("Failed to create Producer while doing user publish", e);
-                    throw new RuntimeException(e);
-                }
-            });
+        protected Producer<T> getProducer(String topicName, Schema schema, String producerName, String partitionId) {
+            return producerCache.getOrCreateProducer(ProducerCache.CacheArea.SINK_RECORD_CACHE, topicName, partitionId,
+                    () -> {
+                        Producer<T> producer = createProducer(topicName, schema, producerName);
+                        log.info(
+                                "Initialized producer with name '{}' on topic '{}' with schema {} partitionId {} "
+                                        + "-> {}",
+                                producerName, topicName, schema, partitionId, producer);
+                        return producer;
+                    });
         }
 
         @Override
         public void close() throws Exception {
-            List<CompletableFuture<Void>> closeFutures = new ArrayList<>(publishProducers.size());
-            for (Map.Entry<String, Producer<T>> entry : publishProducers.entrySet()) {
-                Producer<T> producer = entry.getValue();
-                closeFutures.add(producer.closeAsync());
-            }
-            try {
-                org.apache.pulsar.common.util.FutureUtil.waitForAll(closeFutures);
-            } catch (Exception e) {
-                log.warn("Failed to close all the producers", e);
-            }
+            // no op
         }
 
         public Function<Throwable, Void> getPublishErrorHandler(AbstractSinkRecord<T> record, boolean failSource) {
@@ -153,13 +133,7 @@ public class PulsarSink<T> implements Sink<T> {
         public PulsarSinkAtMostOnceProcessor() {
             if (!(schema instanceof AutoConsumeSchema)) {
                 // initialize default topic
-                try {
-                    publishProducers.put(pulsarSinkConfig.getTopic(),
-                        createProducer(pulsarSinkConfig.getTopic(), schema, null));
-                } catch (PulsarClientException e) {
-                    log.error("Failed to create Producer while doing user publish", e);
-                    throw new RuntimeException(e);
-                }
+                getProducer(pulsarSinkConfig.getTopic(), schema);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("The Pulsar producer is not initialized until the first record is"
@@ -232,13 +206,10 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-            Producer<T> producer = getProducer(
-                    String.format("%s-%s", record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
-                            record.getPartitionId().get()),
-                    record.getPartitionId().get(),
-                    record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic()),
-                    schemaToWrite
-            );
+            String topicName = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
+            String partitionId = record.getPartitionId().get();
+            String producerName = partitionId;
+            Producer<T> producer = getProducer(topicName, schemaToWrite, producerName, partitionId);
             if (schemaToWrite != null) {
                 return producer.newMessage(schemaToWrite);
             } else {
@@ -263,13 +234,14 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
-                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
+                      ComponentStatsManager stats, ClassLoader functionClassLoader, ProducerCache producerCache) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client, functionClassLoader);
         this.properties = properties;
         this.stats = stats;
         this.functionClassLoader = functionClassLoader;
+        this.producerCache = producerCache;
     }
 
     @Override
@@ -341,14 +313,17 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    Producer<T> createProducer(String topic, Schema<T> schema, String producerName)
-            throws PulsarClientException {
-        ProducerBuilder<T> builder =
-                producerBuilderFactory.createProducerBuilder(topic, schema != null ? schema : this.schema,
-                        producerName);
-        return builder
-                .properties(properties)
-                .create();
+    Producer<T> createProducer(String topicName, Schema<T> schema, String producerName) {
+        Schema<T> schemaToUse = schema != null ? schema : this.schema;
+        try {
+            log.info("Initializing producer {} on topic {} with schema {}", producerName, topicName, schemaToUse);
+            return producerBuilderFactory.createProducerBuilder(topicName, schemaToUse, producerName)
+                    .properties(properties)
+                    .create();
+        } catch (PulsarClientException e) {
+            throw new RuntimeException("Failed to create Producer for topic " + topicName
+                    + " producerName " + producerName + " schema " + schemaToUse, e);
+        }
     }
 
     @SuppressWarnings("unchecked")
