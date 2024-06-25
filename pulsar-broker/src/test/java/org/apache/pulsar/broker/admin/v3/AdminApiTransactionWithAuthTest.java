@@ -29,6 +29,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.SneakyThrows;
@@ -48,6 +49,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -147,6 +149,12 @@ public class AdminApiTransactionWithAuthTest extends MockedPulsarServiceBaseTest
         admin = Mockito.spy(PulsarAdmin.builder().serviceHttpUrl(serviceHttpUrl)
                 .authentication(AuthenticationToken.class.getName(), transactionOwnerToken).build());
         admin.transactions().abortTransaction(transaction.getTxnID());
+        try {
+            pulsar.getTransactionMetadataStoreService().getTxnMeta(transaction.getTxnID()).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
+        }
 
         // 2. Super user can abort any transaction.
         transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
@@ -157,6 +165,12 @@ public class AdminApiTransactionWithAuthTest extends MockedPulsarServiceBaseTest
         admin = Mockito.spy(PulsarAdmin.builder().serviceHttpUrl(serviceHttpUrl)
                 .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN).build());
         admin.transactions().abortTransaction(transaction.getTxnID());
+        try {
+            pulsar.getTransactionMetadataStoreService().getTxnMeta(transaction.getTxnID()).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
+        }
 
         // 3. Non-super user and non-transaction owner cannot abort the transaction.
         transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
