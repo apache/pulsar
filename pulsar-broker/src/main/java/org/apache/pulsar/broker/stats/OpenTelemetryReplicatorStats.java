@@ -26,8 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
-import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class OpenTelemetryReplicatorStats implements AutoCloseable {
@@ -55,10 +55,6 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
     // Replaces pulsar_replication_rate_expired
     public static final String EXPIRED_COUNTER = "pulsar.broker.replication.message.expired";
     private final ObservableLongMeasurement expiredCounter;
-
-    // Replaces pulsar_replication_connected_count
-    public static final String CONNECTED_COUNTER = "pulsar.broker.replication.connected.count";
-    private final ObservableLongMeasurement connectedCounter;
 
     // Replaces pulsar_replication_delay_in_seconds
     public static final String DELAY_GAUGE = "pulsar.broker.replication.message.age";
@@ -111,12 +107,6 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                 .setDescription("The total number of messages that expired for this replicator.")
                 .buildObserver();
 
-        connectedCounter = meter
-                .upDownCounterBuilder(CONNECTED_COUNTER)
-                .setUnit("{subscriber}")
-                .setDescription("The total number of replication subscribers that are running.")
-                .buildObserver();
-
         delayGauge = meter
                 .gaugeBuilder(DELAY_GAUGE)
                 .setUnit("{second}")
@@ -146,7 +136,6 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
                 bytesOutCounter,
                 backlogCounter,
                 expiredCounter,
-                connectedCounter,
                 delayGauge,
                 droppedCounter);
     }
@@ -164,7 +153,6 @@ public class OpenTelemetryReplicatorStats implements AutoCloseable {
         messageOutCounter.record(stats.getMsgOutCount(), attributes);
         bytesInCounter.record(stats.getBytesInCount(), attributes);
         bytesOutCounter.record(stats.getBytesOutCount(), attributes);
-        connectedCounter.record(replicator.isConnected() ? 1 : 0, attributes);
         var delaySeconds = MetricsUtil.convertToSeconds(replicator.getReplicationDelayMs(), TimeUnit.MILLISECONDS);
         delayGauge.record(delaySeconds, attributes);
 

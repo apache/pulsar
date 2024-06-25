@@ -1868,7 +1868,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.MESSAGE_OUT_COUNTER, attributes, 3);
             assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BYTES_OUT_COUNTER, attributes,
                     aLong -> assertThat(aLong).isPositive());
-            assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.CONNECTED_COUNTER, attributes, 1);
 
             var topicOpt = pulsar1.getBrokerService().getTopicReference(destTopicName.toString());
             assertThat(topicOpt).isPresent();
