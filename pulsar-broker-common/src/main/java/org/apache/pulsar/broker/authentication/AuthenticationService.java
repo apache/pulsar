@@ -56,7 +56,8 @@ public class AuthenticationService implements Closeable {
         this(conf, new AuthenticationMetrics(OpenTelemetry.noop().getMeter("noop")));
     }
 
-    public AuthenticationService(ServiceConfiguration conf, AuthenticationMetrics authenticationMetrics) throws PulsarServerException {
+    public AuthenticationService(ServiceConfiguration conf, AuthenticationMetrics authenticationMetrics)
+            throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
