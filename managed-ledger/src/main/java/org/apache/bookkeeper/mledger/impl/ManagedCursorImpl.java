@@ -2393,10 +2393,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.deleteFailed(getManagedLedgerException(e), ctx);
             return;
         } finally {
-            if (individualDeletedMessages.isEmpty()) {
+            boolean empty = individualDeletedMessages.isEmpty();
+            lock.writeLock().unlock();
+            if (empty) {
                 callback.deleteComplete(ctx);
             }
-            lock.writeLock().unlock();
         }
 
         // Apply rate limiting to mark-delete operations
@@ -3466,12 +3467,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public boolean isMessageDeleted(Position position) {
-        if (position.compareTo(markDeletePosition) <= 0) {
-            return true;
-        }
         lock.readLock().lock();
         try {
-            return individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+            return position.compareTo(markDeletePosition) <= 0
+                    || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
         } finally {
             lock.readLock().unlock();
         }
