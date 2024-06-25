@@ -338,6 +338,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // the advertised address is defined as the host component of the broker's canonical name.
         this.advertisedAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
 
+        // the broker id is used in the load manager to identify the broker
+        // it should not be used for making connections to the broker
+        this.brokerId =
+                String.format("%s:%s", advertisedAddress, config.getWebServicePort()
+                        .or(config::getWebServicePortTls).orElseThrow());
+
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
@@ -917,12 +923,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.webServiceAddressTls = webAddressTls(config);
             this.brokerServiceUrl = brokerUrl(config);
             this.brokerServiceUrlTls = brokerUrlTls(config);
-
-            // the broker id is used in the load manager to identify the broker
-            // it should not be used for making connections to the broker
-            this.brokerId =
-                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
-                            .or(config::getWebServicePortTls).orElseThrow());
 
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
