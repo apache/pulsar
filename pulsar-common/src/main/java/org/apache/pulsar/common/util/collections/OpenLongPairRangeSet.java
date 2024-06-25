@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.roaringbitmap.RoaringBitSet;
 
@@ -42,11 +43,10 @@ import org.roaringbitmap.RoaringBitSet;
  * So, this rangeSet is not suitable for large number of unique keys.
  * </pre>
  */
-public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
+@NotThreadSafe
+public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
     protected final NavigableMap<Long, BitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
-    private final boolean threadSafe;
-    private final int bitSetSize;
     private final LongPairConsumer<T> consumer;
 
     // caching place-holder for cpu-optimization to avoid calculating ranges again
@@ -55,17 +55,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     private volatile boolean updatedAfterCachedForSize = true;
     private volatile boolean updatedAfterCachedForToString = true;
 
-    public ConcurrentOpenLongPairRangeSet(LongPairConsumer<T> consumer) {
-        this(1024, true, consumer);
-    }
-
-    public ConcurrentOpenLongPairRangeSet(int size, LongPairConsumer<T> consumer) {
-        this(size, true, consumer);
-    }
-
-    public ConcurrentOpenLongPairRangeSet(int size, boolean threadSafe, LongPairConsumer<T> consumer) {
-        this.threadSafe = threadSafe;
-        this.bitSetSize = size;
+    public OpenLongPairRangeSet(LongPairConsumer<T> consumer) {
         this.consumer = consumer;
     }
 
@@ -413,6 +403,6 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     private BitSet createNewBitSet() {
-        return this.threadSafe ? new ConcurrentRoaringBitSet() : new RoaringBitSet();
+        return new RoaringBitSet();
     }
 }
