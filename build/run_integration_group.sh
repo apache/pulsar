@@ -177,6 +177,10 @@ test_group_standalone() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-standalone.xml -DintegrationTests
 }
 
+test_group_upgrade() {
+ mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-upgrade.xml -DintegrationTests
+}
+
 test_group_transaction() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests
 }
