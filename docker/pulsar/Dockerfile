@@ -54,11 +54,9 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM alpine:$ALPINE_VERSION AS jvm
+FROM amazoncorretto:21-alpine AS jvm
 
-RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub
-RUN echo "https://apk.corretto.aws" >> /etc/apk/repositories
-RUN apk add --no-cache amazon-corretto-21 binutils
+RUN apk add --no-cache binutils
 
 # Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
 # This still includes all JDK modules, though in the future we could compile a list of required modules
