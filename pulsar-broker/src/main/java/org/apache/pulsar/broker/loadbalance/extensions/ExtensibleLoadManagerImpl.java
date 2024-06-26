@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -167,10 +166,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private TopBundleLoadDataReporter topBundleLoadDataReporter;
 
-    private ScheduledFuture brokerLoadDataReportTask;
-    private ScheduledFuture topBundlesLoadDataReportTask;
+    private volatile ScheduledFuture brokerLoadDataReportTask;
+    private volatile ScheduledFuture topBundlesLoadDataReportTask;
 
-    private ScheduledFuture monitorTask;
+    private volatile ScheduledFuture monitorTask;
     private SplitScheduler splitScheduler;
 
     private UnloadManager unloadManager;
@@ -199,7 +198,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private final ConcurrentHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = new ConcurrentHashMap<>();
-    private final CountDownLatch initWaiter = new CountDownLatch(1);
+    private final CompletableFuture<Void> initWaiter = new CompletableFuture<>();
 
     /**
      * Get all the bundles that are owned by this broker.
@@ -376,12 +375,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     pulsar.getCoordinationService(), pulsar.getBrokerId(),
                     pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                     state -> {
-                        pulsar.getLoadManagerExecutor().execute(() -> {
-                            if (state == LeaderElectionState.Leading) {
-                                playLeader();
-                            } else {
-                                playFollower();
-                            }
+                        pulsar.runWhenReadyForIncomingRequests(() -> {
+                            pulsar.getLoadManagerExecutor().execute(() -> {
+                                if (state == LeaderElectionState.Leading) {
+                                    playLeader();
+                                } else {
+                                    playFollower();
+                                }
+                            });
                         });
                     });
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
@@ -391,7 +392,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
-            this.serviceUnitStateChannel.start();
+            pulsar.runWhenReadyForIncomingRequests(() -> {
+                try {
+                    this.serviceUnitStateChannel.start();
+                } catch (Exception e) {
+                    failStarting(e);
+                }
+            });
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -423,54 +430,72 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
             this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
             this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
-            var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
-            this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                    .scheduleAtFixedRate(() -> {
-                                try {
-                                    brokerLoadDataReporter.reportAsync(false);
-                                    // TODO: update broker load metrics using getLocalData
-                                } catch (Throwable e) {
-                                    log.error("Failed to run the broker load manager executor job.", e);
-                                }
-                            },
-                            interval,
-                            interval, TimeUnit.MILLISECONDS);
-
-            this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
-                    .scheduleAtFixedRate(() -> {
-                                try {
-                                    // TODO: consider excluding the bundles that are in the process of split.
-                                    topBundleLoadDataReporter.reportAsync(false);
-                                } catch (Throwable e) {
-                                    log.error("Failed to run the top bundles load manager executor job.", e);
-                                }
-                            },
-                            interval,
-                            interval, TimeUnit.MILLISECONDS);
-
-            this.monitorTask = this.pulsar.getLoadManagerExecutor()
-                    .scheduleAtFixedRate(() -> {
-                                monitor();
-                            },
-                            MONITOR_INTERVAL_IN_MILLIS,
-                            MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
 
             this.unloadScheduler = new UnloadScheduler(
                     pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
                     serviceUnitStateChannel, unloadCounter, unloadMetrics);
             this.splitScheduler = new SplitScheduler(
                     pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
-            this.splitScheduler.start();
-            this.initWaiter.countDown();
-            this.started = true;
-            log.info("Started load manager.");
+
+            pulsar.runWhenReadyForIncomingRequests(() -> {
+                try {
+                    var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+
+                    this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                            .scheduleAtFixedRate(() -> {
+                                        try {
+                                            brokerLoadDataReporter.reportAsync(false);
+                                            // TODO: update broker load metrics using getLocalData
+                                        } catch (Throwable e) {
+                                            log.error("Failed to run the broker load manager executor job.", e);
+                                        }
+                                    },
+                                    interval,
+                                    interval, TimeUnit.MILLISECONDS);
+
+                    this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                            .scheduleAtFixedRate(() -> {
+                                        try {
+                                            // TODO: consider excluding the bundles that are in the process of split.
+                                            topBundleLoadDataReporter.reportAsync(false);
+                                        } catch (Throwable e) {
+                                            log.error("Failed to run the top bundles load manager executor job.", e);
+                                        }
+                                    },
+                                    interval,
+                                    interval, TimeUnit.MILLISECONDS);
+
+                    this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                            .scheduleAtFixedRate(() -> {
+                                        monitor();
+                                    },
+                                    MONITOR_INTERVAL_IN_MILLIS,
+                                    MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
+
+                    this.splitScheduler.start();
+                    this.initWaiter.complete(null);
+                    this.started = true;
+                    log.info("Started load manager.");
+                } catch (Exception ex) {
+                    failStarting(ex);
+                }
+            });
         } catch (Exception ex) {
-            log.error("Failed to start the extensible load balance and close broker registry {}.",
-                    this.brokerRegistry, ex);
-            if (this.brokerRegistry != null) {
+            failStarting(ex);
+        }
+    }
+
+    private void failStarting(Exception ex) {
+        log.error("Failed to start the extensible load balance and close broker registry {}.",
+                this.brokerRegistry, ex);
+        if (this.brokerRegistry != null) {
+            try {
                 brokerRegistry.close();
+            } catch (PulsarServerException e) {
+                // ignore
             }
         }
+        initWaiter.completeExceptionally(ex);
     }
 
     @Override
@@ -816,7 +841,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                initWaiter.await();
+                initWaiter.get();
                 if (!serviceUnitStateChannel.isChannelOwner()) {
                     becameFollower = true;
                     break;
@@ -866,7 +891,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                initWaiter.await();
+                initWaiter.get();
                 if (serviceUnitStateChannel.isChannelOwner()) {
                     becameLeader = true;
                     break;
@@ -936,7 +961,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     @VisibleForTesting
     protected void monitor() {
         try {
-            initWaiter.await();
+            initWaiter.get();
 
             // Monitor role
             // Periodically check the role in case ZK watcher fails.
