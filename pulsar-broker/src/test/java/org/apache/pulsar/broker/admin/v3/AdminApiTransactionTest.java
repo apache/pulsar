@@ -81,6 +81,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -1042,6 +1043,38 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> peekMsg = peekMsgs.get(i);
             assertEquals(new String(peekMsg.getValue()), "msg-uncommitted");
         }
+    }
+
+    public void testGetOwnedTransactions() throws Exception {
+        initTransaction(2);
+        TxnID txnID1 = pulsar.getTransactionMetadataStoreService()
+                .newTransaction(new TransactionCoordinatorID(0), 10000, "user1").get();
+        TxnID txnID2 = pulsar.getTransactionMetadataStoreService()
+                .newTransaction(new TransactionCoordinatorID(0), 20000, "user2").get();
+        TxnID txnID3 = pulsar.getTransactionMetadataStoreService()
+                .newTransaction(new TransactionCoordinatorID(1), 30000, "user1").get();
+
+        Map<String, TransactionMetadata> transactionMetadataMap = admin
+                .transactions().getOwnedTransactionsByCoordinatorId(1, "user1");
+        assertEquals(transactionMetadataMap.size(), 1);
+        TransactionMetadata transactionMetadata = transactionMetadataMap.get(txnID3.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 30000);
+
+        transactionMetadataMap = admin.transactions().getOwnedTransactions("user1");
+        assertEquals(transactionMetadataMap.size(), 2);
+        transactionMetadata = transactionMetadataMap.get(txnID1.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 10000);
+        transactionMetadata = transactionMetadataMap.get(txnID3.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 30000);
+
+        transactionMetadataMap = admin.transactions().getOwnedTransactions("user2");
+        assertEquals(transactionMetadataMap.size(), 1);
+        transactionMetadata = transactionMetadataMap.get(txnID2.toString());
+        assertNotNull(transactionMetadata);
+        assertEquals(transactionMetadata.timeoutAt, 20000);
     }
 
     private static void verifyCoordinatorStats(String state,
