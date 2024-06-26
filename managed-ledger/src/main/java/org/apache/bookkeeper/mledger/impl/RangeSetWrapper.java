@@ -55,7 +55,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         this.config = managedCursor.getManagedLedger().getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<>(rangeConverter)
+                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
         this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
     }

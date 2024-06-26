@@ -37,7 +37,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 
-public class OpenLongPairRangeSetTest {
+public class ConcurrentOpenLongPairRangeSetTest {
 
     static final LongPairConsumer<LongPair> consumer = LongPair::new;
     static final RangeBoundConsumer<LongPair> reverseConsumer = pair -> pair;
