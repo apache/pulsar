@@ -2198,8 +2198,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(replicationClient -> {
                     Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
                         try {
-                            return new ShadowReplicator(shadowTopic, PersistentTopic.this, cursor, brokerService,
-                                    (PulsarClientImpl) replicationClient);
+                            TopicName sourceTopicName = TopicName.get(getName());
+                            String shadowPartitionTopic = shadowTopic;
+                            if (sourceTopicName.isPartitioned()) {
+                                shadowPartitionTopic += "-partition-" + sourceTopicName.getPartitionIndex();
+                            }
+                            return new ShadowReplicator(shadowPartitionTopic, PersistentTopic.this, cursor,
+                                    brokerService, (PulsarClientImpl) replicationClient);
                         } catch (PulsarServerException e) {
                             log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
                         }
