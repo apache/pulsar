@@ -44,7 +44,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testIsEmpty() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertTrue(set.isEmpty());
         // lowerValueOpen and upperValue are both -1 so that an empty set will be added
         set.addOpenClosed(0, -1, 0, -1);
@@ -55,7 +55,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddForSameKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         // add 0 to 5
         set.add(Range.closed(new LongPair(0, 0), new LongPair(0, 5)));
         // add 8,9,10
@@ -76,7 +76,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddForDifferentKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
         set.addOpenClosed(0, 98, 0, 99);
         set.addOpenClosed(0, 100, 1, 5);
@@ -93,7 +93,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testAddCompareCompareWithGuava() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -132,14 +132,14 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testNPE() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.span());
     }
 
     @Test
     public void testDeleteCompareWithGuava() {
 
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
 
         // add 10K values for key 0
@@ -193,7 +193,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testRemoveRangeInSameKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.addOpenClosed(0, 1, 0, 50);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
@@ -217,7 +217,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testSpanWithGuava() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
         set.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
         gSet.add(Range.openClosed(new LongPair(0, 97), new LongPair(0, 99)));
@@ -242,7 +242,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testFirstRange() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.firstRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
@@ -260,7 +260,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testLastRange() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.lastRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
@@ -282,7 +282,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testToString() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
         assertEquals(set.toString(), "[(0:97..0:99]]");
@@ -296,7 +296,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteForDifferentKey() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.addOpenClosed(0, 97, 0, 99);
         set.addOpenClosed(0, 99, 1, 5);
         set.addOpenClosed(1, 9, 1, 15);
@@ -327,7 +327,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteWithAtMost() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
@@ -353,7 +353,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testDeleteWithLeastMost() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         set.add(Range.closed(new LongPair(1, 10), new LongPair(1, 15)));
@@ -382,7 +382,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testRangeContaining() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
         set.add(Range.closed(new LongPair(0, 100), new LongPair(1, 5)));
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
@@ -423,7 +423,7 @@ public class OpenLongPairRangeSetTest {
      */
     @Test
     public void testCacheFlagConflict() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.openClosed(new LongPair(0, 1), new LongPair(0, 2)));
         set.add(Range.openClosed(new LongPair(0, 3), new LongPair(0, 4)));
         assertEquals(set.toString(), "[(0:1..0:2],(0:3..0:4]]");
@@ -466,7 +466,7 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testCardinality() {
-        OpenLongPairRangeSet<LongPair> set = new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         int v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
         assertEquals(v, 0 );
         set.addOpenClosed(1, 0, 1, 20);
@@ -486,8 +486,8 @@ public class OpenLongPairRangeSetTest {
 
     @Test
     public void testForEachResultTheSameAsForEachWithRangeBoundMapper() {
-        OpenLongPairRangeSet<LongPair> set =
-                new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPair> set =
+                new ConcurrentOpenLongPairRangeSet<>(consumer);
 
         LongPairRangeSet.DefaultRangeSet<LongPair> defaultRangeSet =
                 new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);

@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
-import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Wraps other Range classes, and adds LRU, marking dirty data and other features on this basis.
@@ -55,7 +55,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         this.config = managedCursor.getManagedLedger().getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new OpenLongPairRangeSet<>(rangeConverter)
+                ? new ConcurrentOpenLongPairRangeSet<>(rangeConverter)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
         this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
     }
@@ -148,16 +148,16 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     @VisibleForTesting
     void add(Range<LongPair> range) {
-        if (!(rangeSet instanceof OpenLongPairRangeSet)) {
+        if (!(rangeSet instanceof ConcurrentOpenLongPairRangeSet)) {
             throw new UnsupportedOperationException("Only ConcurrentOpenLongPairRangeSet support this method");
         }
-        ((OpenLongPairRangeSet<T>) rangeSet).add(range);
+        ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).add(range);
     }
 
     @VisibleForTesting
     void remove(Range<T> range) {
-        if (rangeSet instanceof OpenLongPairRangeSet) {
-            ((OpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
+        if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
+            ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
         } else {
             ((DefaultRangeSet<T>) rangeSet).remove(range);
         }

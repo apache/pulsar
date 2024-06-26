@@ -34,8 +34,8 @@ public class DefaultRangeSetTest {
     public void testBehavior() {
         LongPairRangeSet.DefaultRangeSet<LongPairRangeSet.LongPair> set =
                 new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
-        OpenLongPairRangeSet<LongPairRangeSet.LongPair> rangeSet =
-                new OpenLongPairRangeSet<>(consumer);
+        ConcurrentOpenLongPairRangeSet<LongPairRangeSet.LongPair> rangeSet =
+                new ConcurrentOpenLongPairRangeSet<>(consumer);
 
         assertNull(set.firstRange());
         assertNull(set.lastRange());
