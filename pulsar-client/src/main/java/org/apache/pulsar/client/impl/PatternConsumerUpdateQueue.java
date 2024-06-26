@@ -49,7 +49,7 @@ public class PatternConsumerUpdateQueue {
      */
     private boolean recheckTaskInQueue = false;
 
-    private long lastRecheckTaskStartingTimestamp = 0;
+    private volatile long lastRecheckTaskStartingTimestamp = 0;
 
     private boolean closed;
 
