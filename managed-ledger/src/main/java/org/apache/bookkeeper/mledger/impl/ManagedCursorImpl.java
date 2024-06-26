@@ -3039,7 +3039,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
-        lock.readLock().lock();
+        lock.writeLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
                 this.individualDeletedMessagesSerializedSize = 0;
@@ -3081,7 +3081,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             individualDeletedMessages.resetDirtyKeys();
             return rangeList;
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
     }
 
