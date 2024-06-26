@@ -1069,7 +1069,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected ManagedLedgerStorage newManagedLedgerClientFactory() throws Exception {
         return ManagedLedgerStorage.create(
                 config, localMetadataStore,
-                bkClientFactory, ioEventLoopGroup
+                bkClientFactory, ioEventLoopGroup, openTelemetry.getOpenTelemetryService().getOpenTelemetry()
         );
     }
 

@@ -164,4 +164,48 @@ public interface OpenTelemetryAttributes {
         FAILURE;
         public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
     }
+
+    /**
+     * The type of the pool arena.
+     */
+    AttributeKey<String> ML_POOL_ARENA_TYPE = AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");
+    enum PoolArenaType {
+        SMALL,
+        NORMAL,
+        HUGE;
+        public final Attributes attributes = Attributes.of(ML_POOL_ARENA_TYPE, name().toLowerCase());
+    }
+
+    /**
+     * The type of the pool chunk allocation.
+     */
+    AttributeKey<String> ML_POOL_CHUNK_ALLOCATION_TYPE =
+            AttributeKey.stringKey("pulsar.managed_ledger.pool.chunk.allocation.type");
+    enum PoolChunkAllocationType {
+        ALLOCATED,
+        USED;
+        public final Attributes attributes = Attributes.of(ML_POOL_CHUNK_ALLOCATION_TYPE, name().toLowerCase());
+    }
+
+    /**
+     * The status of the cache entry.
+     */
+    AttributeKey<String> ML_CACHE_ENTRY_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.cache.entry.status");
+    enum CacheEntryStatus {
+        ACTIVE,
+        EVICTED,
+        INSERTED;
+        public final Attributes attributes = Attributes.of(ML_CACHE_ENTRY_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The result of the cache operation.
+     */
+    AttributeKey<String> ML_CACHE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.managed_ledger.cache.operation.status");
+    enum CacheOperationStatus {
+        HIT,
+        MISS;
+        public final Attributes attributes = Attributes.of(ML_CACHE_OPERATION_STATUS, name().toLowerCase());
+    }
 }
