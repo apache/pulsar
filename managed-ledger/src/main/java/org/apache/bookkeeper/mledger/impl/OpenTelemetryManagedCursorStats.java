@@ -80,19 +80,19 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
         outgoingByteCounter = meter
                 .counterBuilder(OUTGOING_BYTE_COUNTER)
                 .setUnit("{By}")
-                .setDescription("The size of write to ledger.")
+                .setDescription("The total amount of data written to the ledger.")
                 .buildObserver();
 
         outgoingByteLogicalCounter = meter
                 .counterBuilder(OUTGOING_BYTE_LOGICAL_COUNTER)
                 .setUnit("{By}")
-                .setDescription("The size of write to ledger (not including replicas).")
+                .setDescription("The total amount of data written to the ledger, not including replicas.")
                 .buildObserver();
 
         incomingByteCounter = meter
                 .counterBuilder(INCOMING_BYTE_COUNTER)
                 .setUnit("{By}")
-                .setDescription("The size of read from ledger.")
+                .setDescription("The total amount of data read from the ledger.")
                 .buildObserver();
 
         batchCallback = meter.batchCallback(() -> factory.getManagedLedgers()
