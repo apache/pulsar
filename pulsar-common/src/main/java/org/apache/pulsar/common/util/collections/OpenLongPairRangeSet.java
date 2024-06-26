@@ -28,9 +28,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.roaringbitmap.RoaringBitSet;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -43,10 +41,11 @@ import org.roaringbitmap.RoaringBitSet;
  * So, this rangeSet is not suitable for large number of unique keys.
  * </pre>
  */
-@NotThreadSafe
-public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
+public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
     protected final NavigableMap<Long, BitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
+    private boolean threadSafe = true;
+    private final int bitSetSize;
     private final LongPairConsumer<T> consumer;
 
     // caching place-holder for cpu-optimization to avoid calculating ranges again
@@ -55,7 +54,17 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     private volatile boolean updatedAfterCachedForSize = true;
     private volatile boolean updatedAfterCachedForToString = true;
 
-    public OpenLongPairRangeSet(LongPairConsumer<T> consumer) {
+    public ConcurrentOpenLongPairRangeSet(LongPairConsumer<T> consumer) {
+        this(1024, true, consumer);
+    }
+
+    public ConcurrentOpenLongPairRangeSet(int size, LongPairConsumer<T> consumer) {
+        this(size, true, consumer);
+    }
+
+    public ConcurrentOpenLongPairRangeSet(int size, boolean threadSafe, LongPairConsumer<T> consumer) {
+        this.threadSafe = threadSafe;
+        this.bitSetSize = size;
         this.consumer = consumer;
     }
 
@@ -86,7 +95,9 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
             // (2) set 0th-index to upper-index in upperRange.getKey()
             if (isValid(upperKey, upperValue)) {
                 BitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(upperKey, (key) -> createNewBitSet());
-                rangeBitSet.set(0, (int) upperValue + 1);
+                if (rangeBitSet != null) {
+                    rangeBitSet.set(0, (int) upperValue + 1);
+                }
             }
             // No-op if values are not valid eg: if lower == LongPair.earliest or upper == LongPair.latest then nothing
             // to set
@@ -403,6 +414,7 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     }
 
     private BitSet createNewBitSet() {
-        return new RoaringBitSet();
+        return this.threadSafe ? new ConcurrentBitSet(bitSetSize) : new BitSet(bitSetSize);
     }
+
 }

@@ -26,6 +26,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.OpenTelemetry;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
@@ -136,8 +137,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         if (resources == null) {
-            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
-            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
+            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null, OpenTelemetry.noop());
+            MetadataStoreExtended configStore =
+                    (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null, OpenTelemetry.noop());
             resources = new PulsarResources(localStore, configStore);
         }
         this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),

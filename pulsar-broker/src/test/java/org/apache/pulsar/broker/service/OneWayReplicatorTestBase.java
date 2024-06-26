@@ -266,6 +266,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
+        config.setForceDeleteNamespaceAllowed(true);
     }
 
     @Override
@@ -276,11 +277,11 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         if (!usingGlobalZK) {
             admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
         }
-        admin1.namespaces().deleteNamespace(replicatedNamespace);
-        admin1.namespaces().deleteNamespace(nonReplicatedNamespace);
+        admin1.namespaces().deleteNamespace(replicatedNamespace, true);
+        admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         if (!usingGlobalZK) {
-            admin2.namespaces().deleteNamespace(replicatedNamespace);
-            admin2.namespaces().deleteNamespace(nonReplicatedNamespace);
+            admin2.namespaces().deleteNamespace(replicatedNamespace, true);
+            admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         }
 
         // shutdown.

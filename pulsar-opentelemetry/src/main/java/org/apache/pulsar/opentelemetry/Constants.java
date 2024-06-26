@@ -16,18 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.opentelemetry;
 
 /**
- * Statistics for a non-persistent replicator.
+ * Common OpenTelemetry constants to be used by Pulsar components.
  */
-public interface NonPersistentReplicatorStats extends ReplicatorStats {
+public interface Constants {
 
-    /**
-     * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
-     **/
-    double getMsgDropRate();
+    String BROKER_INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.broker";
 
-    /** Total number of messages dropped by the broker for the replicator. */
-    long getMsgDropCount();
 }

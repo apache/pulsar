@@ -116,6 +116,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             }
 
             msgOut.recordEvent(headersAndPayload.readableBytes());
+            stats.incrementMsgOutCounter();
+            stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
 
             msg.setReplicatedFrom(localCluster);
 
@@ -129,6 +131,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                         replicatorId);
             }
             msgDrop.recordEvent();
+            stats.incrementMsgDropCount();
             entry.release();
         }
     }
@@ -143,11 +146,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    public NonPersistentReplicatorStatsImpl getStats() {
-        stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
-
+    public NonPersistentReplicatorStatsImpl computeStats() {
         ProducerImpl producer = this.producer;
+        stats.connected = isConnected();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
+
         if (producer != null) {
             stats.outboundConnection = producer.getConnectionId();
             stats.outboundConnectedSince = producer.getConnectedSince();
@@ -159,11 +162,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         return stats;
     }
 
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
+    @Override
+    public NonPersistentReplicatorStatsImpl getStats() {
+        return stats;
     }
 
     private static final class ProducerSendCallback implements SendCallback {
@@ -255,11 +256,5 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     protected void disableReplicatorRead() {
         // No-op
-    }
-
-    @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
     }
 }

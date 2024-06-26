@@ -961,7 +961,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStatsImpl replicatorStats = replicator.getStats();
+            NonPersistentReplicatorStatsImpl replicatorStats = replicator.computeStats();
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
