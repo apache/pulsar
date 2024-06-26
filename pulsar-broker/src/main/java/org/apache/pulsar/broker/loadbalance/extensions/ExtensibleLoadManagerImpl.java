@@ -376,12 +376,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     pulsar.getCoordinationService(), pulsar.getBrokerId(),
                     pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                     state -> {
-                        pulsar.getLoadManagerExecutor().execute(() -> {
-                            if (state == LeaderElectionState.Leading) {
-                                playLeader();
-                            } else {
-                                playFollower();
-                            }
+                        pulsar.runWhenReadyForIncomingRequests(() -> {
+                            pulsar.getLoadManagerExecutor().execute(() -> {
+                                if (state == LeaderElectionState.Leading) {
+                                    playLeader();
+                                } else {
+                                    playFollower();
+                                }
+                            });
                         });
                     });
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
@@ -391,7 +393,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
-            this.serviceUnitStateChannel.start();
+            pulsar.runWhenReadyForIncomingRequests(() -> {
+                try {
+                    this.serviceUnitStateChannel.start();
+                } catch (PulsarServerException e) {
+                    throw FutureUtil.wrapToCompletionException(e);
+                }
+            });
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -461,7 +469,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.splitScheduler = new SplitScheduler(
                     pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
             this.splitScheduler.start();
-            this.initWaiter.countDown();
+            pulsar.runWhenReadyForIncomingRequests(() -> this.initWaiter.countDown());
             this.started = true;
             log.info("Started load manager.");
         } catch (Exception ex) {
