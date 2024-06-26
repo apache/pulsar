@@ -93,10 +93,9 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
         cursorProperties.forEach((k, v) -> {
             if (k != null && v != null && k.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)) {
-                CompletableFuture<Void> future = sequencer.sequential(() -> {
-                    return cursor.removeCursorProperty(k)
-                            .thenCompose(__ -> bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v)));
-                });
+                CompletableFuture<Void> future = sequencer.sequential(() ->
+                        bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v))
+                                .thenCompose(__ -> cursor.removeCursorProperty(k)));
                 futures.add(future);
             }
         });

@@ -193,9 +193,10 @@ class ImmutableBucket extends Bucket {
         stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
-        return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
-                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
-                        BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
+
+        return executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                .whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                 dispatcherName, bucketId, bucketKey, ex);
@@ -208,7 +209,8 @@ class ImmutableBucket extends Bucket {
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                 System.currentTimeMillis() - deleteStartTime);
                     }
-        });
+                })
+                .thenCompose(__ -> removeBucketCursorProperty(bucketKey));
     }
 
     CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {
