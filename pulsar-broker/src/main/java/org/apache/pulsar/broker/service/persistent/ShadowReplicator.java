@@ -92,6 +92,8 @@ public class ShadowReplicator extends PersistentReplicator {
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
 
                 msgOut.recordEvent(headersAndPayload.readableBytes());
+                stats.incrementMsgOutCounter();
+                stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
 

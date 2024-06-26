@@ -34,7 +34,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -548,7 +548,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+            boolean authoritative, String subName, Position position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {

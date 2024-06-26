@@ -18,17 +18,29 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertNull;
-import org.testng.annotations.Test;
+/**
+ * Interface to manage the ackSet state attached to a position.
+ * Helpers in {@link AckSetStateUtil} to create positions with
+ * ackSet state and to extract the state.
+ */
+public interface AckSetState {
+    /**
+     * Get the ackSet bitset information encoded as a long array.
+     * @return the ackSet
+     */
+    long[] getAckSet();
 
-public class PositionImplRecyclableTest {
+    /**
+     * Set the ackSet bitset information as a long array.
+     * @param ackSet the ackSet
+     */
+    void setAckSet(long[] ackSet);
 
-    @Test
-    void shouldNotCarryStateInAckSetWhenRecycled() {
-        PositionImplRecyclable position = PositionImplRecyclable.create();
-        position.ackSet = new long[]{1L, 2L, 3L};
-        position.recycle();
-        PositionImplRecyclable position2 = PositionImplRecyclable.create();
-        assertNull(position2.ackSet);
+    /**
+     * Check if the ackSet is set.
+     * @return true if the ackSet is set, false otherwise
+     */
+    default boolean hasAckSet() {
+        return getAckSet() != null;
     }
 }

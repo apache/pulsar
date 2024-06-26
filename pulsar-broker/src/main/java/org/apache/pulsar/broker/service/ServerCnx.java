@@ -66,8 +66,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -83,8 +84,7 @@ import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.TopicResources;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -160,6 +160,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
@@ -368,6 +369,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.commandSender = new PulsarCommandSenderImpl(brokerInterceptor, this);
         this.service.getPulsarStats().recordConnectionCreate();
         cnxsPerThread.get().add(this);
+        service.getPulsar().runWhenReadyForIncomingRequests(() -> {
+            // enable auto read after PulsarService is ready to accept incoming requests
+            ctx.channel().config().setAutoRead(true);
+        });
     }
 
     @Override
@@ -613,58 +618,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     // Get if exists, respond not found error if not exists.
                     getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
-                        boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled();
+                        boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled()
+                                && brokerAllowAutoCreate;
                         if (!autoCreateIfNotExist) {
-                            final NamespaceResources namespaceResources = getBrokerService().pulsar()
-                                    .getPulsarResources().getNamespaceResources();
-                            final TopicResources topicResources = getBrokerService().pulsar().getPulsarResources()
-                                    .getTopicResources();
-                            namespaceResources.getPartitionedTopicResources()
-                                .getPartitionedTopicMetadataAsync(topicName, false)
-                                .handle((metadata, getMetadataEx) -> {
-                                    if (getMetadataEx != null) {
-                                        log.error("{} {} Failed to get partition metadata", topicName,
-                                                ServerCnx.this.toString(), getMetadataEx);
-                                        writeAndFlush(
-                                                Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                        "Failed to get partition metadata",
-                                                        requestId));
-                                    } else if (metadata.isPresent()) {
-                                        commandSender.sendPartitionMetadataResponse(metadata.get().partitions,
-                                                requestId);
-                                    } else if (topicName.isPersistent()) {
-                                        topicResources.persistentTopicExists(topicName).thenAccept(exists -> {
-                                            if (exists) {
-                                                commandSender.sendPartitionMetadataResponse(0, requestId);
-                                                return;
-                                            }
-                                            writeAndFlush(Commands.newPartitionMetadataResponse(
-                                                    ServerError.TopicNotFound, "", requestId));
-                                        }).exceptionally(ex -> {
-                                            log.error("{} {} Failed to get partition metadata", topicName,
-                                                    ServerCnx.this.toString(), ex);
-                                            writeAndFlush(
-                                                    Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                            "Failed to check partition metadata",
-                                                            requestId));
-                                            return null;
-                                        });
-                                    } else {
-                                        // Regarding non-persistent topic, we do not know whether it exists or not.
-                                        // Just return a non-partitioned metadata if partitioned metadata does not
-                                        // exist.
-                                        // Broker will respond a not found error when doing subscribing or producing if
-                                        // broker not allow to auto create topics.
-                                        commandSender.sendPartitionMetadataResponse(0, requestId);
-                                    }
-                                    return null;
-                                }).whenComplete((ignore, ignoreEx) -> {
-                                    lookupSemaphore.release();
-                                    if (ignoreEx != null) {
-                                        log.error("{} {} Failed to handle partition metadata request", topicName,
-                                                ServerCnx.this.toString(), ignoreEx);
-                                    }
-                                });
+                            NamespaceService namespaceService = getBrokerService().getPulsar().getNamespaceService();
+                            namespaceService.checkTopicExists(topicName).thenAccept(topicExistsInfo -> {
+                                lookupSemaphore.release();
+                                if (!topicExistsInfo.isExists()) {
+                                    writeAndFlush(Commands.newPartitionMetadataResponse(
+                                            ServerError.TopicNotFound, "", requestId));
+                                } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
+                                    commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(),
+                                            requestId);
+                                } else {
+                                    commandSender.sendPartitionMetadataResponse(0, requestId);
+                                }
+                                // release resources.
+                                topicExistsInfo.recycle();
+                            }).exceptionally(ex -> {
+                                lookupSemaphore.release();
+                                log.error("{} {} Failed to get partition metadata", topicName,
+                                        ServerCnx.this.toString(), ex);
+                                writeAndFlush(
+                                        Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                                                "Failed to get partition metadata",
+                                                requestId));
+                                return null;
+                            });
                         } else {
                             // Get if exists, create a new one if not exists.
                             unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
@@ -1906,7 +1886,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // This position is only used for shadow replicator
         Position position = send.hasMessageId()
-                ? PositionImpl.get(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
+                ? PositionFactory.create(send.getMessageId().getLedgerId(), send.getMessageId().getEntryId()) : null;
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
@@ -2075,7 +2055,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            Position position = new PositionImpl(msgIdData.getLedgerId(),
+            Position position = AckSetStateUtil.createPositionWithAckSet(msgIdData.getLedgerId(),
                     msgIdData.getEntryId(), ackSet);
 
 
@@ -2249,8 +2229,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                      getLargestBatchIndexWhenPossible(
                              topic,
-                             (PositionImpl) lastPosition,
-                             (PositionImpl) markDeletePosition,
+                             lastPosition,
+                             markDeletePosition,
                              partitionIndex,
                              requestId,
                              consumer.getSubscription().getName(),
@@ -2269,8 +2249,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
-            PositionImpl lastPosition,
-            PositionImpl markDeletePosition,
+            Position lastPosition,
+            Position markDeletePosition,
             int partitionIndex,
             long requestId,
             String subscriptionName,
@@ -2307,7 +2287,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (compactionHorizon != null && lastPosition.compareTo((PositionImpl) compactionHorizon) <= 0) {
+            if (compactionHorizon != null && lastPosition.compareTo(compactionHorizon) <= 0) {
                 handleLastMessageIdFromCompactionService(persistentTopic, requestId, partitionIndex,
                         markDeletePosition);
                 return;
@@ -2368,7 +2348,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,
-                                                          int partitionIndex, PositionImpl markDeletePosition) {
+                                                          int partitionIndex, Position markDeletePosition) {
         persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenAccept(entry -> {
             if (entry != null) {
                 try {

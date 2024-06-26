@@ -21,7 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
@@ -31,7 +32,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 @Slf4j
 public class ReplicatedSubscriptionSnapshotCache {
     private final String subscription;
-    private final NavigableMap<PositionImpl, ReplicatedSubscriptionsSnapshot> snapshots;
+    private final NavigableMap<Position, ReplicatedSubscriptionsSnapshot> snapshots;
     private final int maxSnapshotToCache;
 
     public ReplicatedSubscriptionSnapshotCache(String subscription, int maxSnapshotToCache) {
@@ -42,7 +43,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
     public synchronized void addNewSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         MarkersMessageIdData msgId = snapshot.getLocalMessageId();
-        PositionImpl position = new PositionImpl(msgId.getLedgerId(), msgId.getEntryId());
+        Position position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
@@ -61,10 +62,10 @@ public class ReplicatedSubscriptionSnapshotCache {
      * Signal that the mark-delete position on the subscription has been advanced. If there is a snapshot that
      * correspond to this position, it will returned, other it will return null.
      */
-    public synchronized ReplicatedSubscriptionsSnapshot advancedMarkDeletePosition(PositionImpl pos) {
+    public synchronized ReplicatedSubscriptionsSnapshot advancedMarkDeletePosition(Position pos) {
         ReplicatedSubscriptionsSnapshot snapshot = null;
         while (!snapshots.isEmpty()) {
-            PositionImpl first = snapshots.firstKey();
+            Position first = snapshots.firstKey();
             if (first.compareTo(pos) > 0) {
                 // Snapshot is associated which an higher position, so it cannot be used now
                 break;

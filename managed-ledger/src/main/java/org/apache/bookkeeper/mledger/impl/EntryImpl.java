@@ -26,11 +26,13 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 
 public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
-        RangeCache.ValueWithKeyValidation<PositionImpl> {
+        RangeCache.ValueWithKeyValidation<Position> {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -43,7 +45,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long timestamp;
     private long ledgerId;
     private long entryId;
-    private PositionImpl position;
+    private Position position;
     ByteBuf data;
 
     private Runnable onDeallocate;
@@ -81,7 +83,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entry;
     }
 
-    public static EntryImpl create(PositionImpl position, ByteBuf data) {
+    public static EntryImpl create(Position position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = position.getLedgerId();
@@ -152,9 +154,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     }
 
     @Override
-    public PositionImpl getPosition() {
+    public Position getPosition() {
         if (position == null) {
-            position = PositionImpl.get(ledgerId, entryId);
+            position = PositionFactory.create(ledgerId, entryId);
         }
         return position;
     }
@@ -207,7 +209,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     }
 
     @Override
-    public boolean matchesKey(PositionImpl key) {
+    public boolean matchesKey(Position key) {
         return key.compareTo(ledgerId, entryId) == 0;
     }
 }

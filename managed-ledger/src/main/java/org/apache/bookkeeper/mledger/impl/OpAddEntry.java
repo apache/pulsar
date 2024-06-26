@@ -36,6 +36,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 
 
@@ -247,7 +248,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             entry.release();
         }
 
-        PositionImpl lastEntry = PositionImpl.get(ledgerId, entryId);
+        Position lastEntry = PositionFactory.create(ledgerId, entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
@@ -288,7 +289,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
+            cb.addComplete(PositionFactory.create(lh.getId(), entryId), data.asReadOnly(), ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
             ReferenceCountUtil.release(data);
