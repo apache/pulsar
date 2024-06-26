@@ -313,8 +313,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     if (consumers.containsKey(tp.toString())) {
                         continue;
                     } else {
-                        if (topicName.getPartitionIndex() + 1 >
-                                partitionedTopics.get(topicName.getPartitionedTopicName())) {
+                        if (topicName.getPartitionIndex() + 1
+                                > partitionedTopics.get(topicName.getPartitionedTopicName())) {
                             partitionedTopics.put(topicName.getPartitionedTopicName(),
                                     topicName.getPartitionIndex() + 1);
                         }
