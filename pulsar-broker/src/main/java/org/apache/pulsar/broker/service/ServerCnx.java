@@ -34,7 +34,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.re2j.Pattern;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -370,29 +369,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.commandSender = new PulsarCommandSenderImpl(brokerInterceptor, this);
         this.service.getPulsarStats().recordConnectionCreate();
         cnxsPerThread.get().add(this);
-        // auto read has been disabled by default, handle enabling it
-        handleEnablingAutoRead(ctx);
-    }
-
-    private void handleEnablingAutoRead(ChannelHandlerContext ctx) {
-        ChannelConfig config = ctx.channel().config();
-
-        // serve local requests immediately since some services connect to the broker before it
-        // has been started. This is the case for ExtensibleLoadManager's ServiceUnitStateChannel
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(service.getPulsar())) {
-            if (ctx.channel().remoteAddress() instanceof InetSocketAddress remote) {
-                if (remote.getAddress() != null && remote.getAddress().isLoopbackAddress()) {
-                    config.setAutoRead(true);
-                }
-            }
-        }
-
-        if (!config.isAutoRead()) {
-            service.getPulsar().runWhenReadyForIncomingRequests(() -> {
-                // enable auto read after PulsarService is ready to accept incoming requests
-                config.setAutoRead(true);
-            });
-        }
+        service.getPulsar().runWhenReadyForIncomingRequests(() -> {
+            // enable auto read after PulsarService is ready to accept incoming requests
+            ctx.channel().config().setAutoRead(true);
+        });
     }
 
     @Override

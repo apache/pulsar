@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.web;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -40,7 +39,6 @@ import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -49,7 +47,6 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.ProxyConnectionFactory;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
@@ -317,17 +314,6 @@ public class WebService implements AutoCloseable {
             @Override
             public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
                     throws IOException, ServletException {
-                if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsarService)) {
-                    if (request instanceof Request jettyRequest) {
-                        InetSocketAddress remote = jettyRequest.getHttpChannel().getRemoteAddress();
-                        if (remote.getAddress() != null && remote.getAddress().isLoopbackAddress()) {
-                            // skip waiting for local requests when ExtensibleLoadManagerImpl is used
-                            // It connects to the broker before it has been started
-                            chain.doFilter(request, response);
-                            return;
-                        }
-                    }
-                }
                 try {
                     // Wait until the PulsarService is ready to serve incoming requests
                     pulsarService.waitUntilReadyForIncomingRequests();
