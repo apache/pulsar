@@ -116,6 +116,8 @@ import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTransactionCoordinatorStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTransactionPendingAckStoreStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -263,6 +265,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryConsumerStats openTelemetryConsumerStats;
     private OpenTelemetryProducerStats openTelemetryProducerStats;
     private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
+    private OpenTelemetryTransactionCoordinatorStats openTelemetryTransactionCoordinatorStats;
+    private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -684,6 +688,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
+            if (openTelemetryTransactionPendingAckStoreStats != null) {
+                openTelemetryTransactionPendingAckStoreStats.close();
+                openTelemetryTransactionPendingAckStoreStats = null;
+            }
+            if (openTelemetryTransactionCoordinatorStats != null) {
+                openTelemetryTransactionCoordinatorStats.close();
+                openTelemetryTransactionCoordinatorStats = null;
+            }
             if (openTelemetryReplicatorStats != null) {
                 openTelemetryReplicatorStats.close();
                 openTelemetryReplicatorStats = null;
@@ -996,6 +1008,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .newProvider(config.getTransactionBufferProviderClassName());
                 transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
                         .newProvider(config.getTransactionPendingAckStoreProviderClassName());
+
+                openTelemetryTransactionCoordinatorStats = new OpenTelemetryTransactionCoordinatorStats(this);
+                openTelemetryTransactionPendingAckStoreStats = new OpenTelemetryTransactionPendingAckStoreStats(this);
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
