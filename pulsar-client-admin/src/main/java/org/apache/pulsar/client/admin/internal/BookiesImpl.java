@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -28,6 +29,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
+import org.apache.pulsar.common.policies.data.ExtBookieInfo;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
@@ -81,6 +83,30 @@ public class BookiesImpl extends BaseResource implements Bookies {
         return asyncDeleteRequest(path);
     }
 
+    public void batchDeleteBookiesRackInfo(List<String> bookieAddresses) throws PulsarAdminException {
+        sync(() -> batchDeleteBookiesRackInfoAsync(bookieAddresses));
+    }
+
+    @Override
+    public CompletableFuture<Void> batchDeleteBookiesRackInfoAsync(List<String> bookieAddresses) {
+        WebTarget path = adminBookies.path("racks-info");
+        for (String bookieAddress : bookieAddresses) {
+            path = path.queryParam("bookieAddresses", bookieAddress);
+        }
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void clearAllBookiesRackInfo() throws PulsarAdminException {
+        sync(this::clearAllBookiesRackInfoAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> clearAllBookiesRackInfoAsync() {
+        WebTarget path = adminBookies.path("racks-info").queryParam("deleteAll", "true");
+        return asyncDeleteRequest(path);
+    }
+
     @Override
     public void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo)
             throws PulsarAdminException {
@@ -92,6 +118,17 @@ public class BookiesImpl extends BaseResource implements Bookies {
             String bookieAddress, String group, BookieInfo bookieInfo) {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
         return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void batchUpdateBookiesRackInfo(List<ExtBookieInfo> extBookieInfos) throws PulsarAdminException {
+        sync(() -> batchUpdateBookiesRackInfoAsync(extBookieInfos));
+    }
+
+    @Override
+    public CompletableFuture<Void> batchUpdateBookiesRackInfoAsync(List<ExtBookieInfo> extBookieInfos) {
+        WebTarget path = adminBookies.path("racks-info");
+        return asyncPostRequest(path, Entity.entity(extBookieInfos, MediaType.APPLICATION_JSON));
     }
 
 }
