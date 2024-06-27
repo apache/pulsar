@@ -19,12 +19,12 @@
 package org.apache.bookkeeper.mledger;
 
 import io.opentelemetry.api.common.Attributes;
-import lombok.Data;
+import lombok.Getter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ManagedLedgerOperationStatus;
 
-@Data
+@Getter
 public class ManagedLedgerAttributes {
 
     private final Attributes attributes;
