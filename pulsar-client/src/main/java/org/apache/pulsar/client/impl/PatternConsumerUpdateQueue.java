@@ -77,7 +77,6 @@ public class PatternConsumerUpdateQueue {
 
     /** This constructor is only for test. **/
     @VisibleForTesting
-    @SuppressWarnings("EI_EXPOSE_REP2")
     public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl patternConsumer,
                                       PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener) {
         this.patternConsumer = patternConsumer;
