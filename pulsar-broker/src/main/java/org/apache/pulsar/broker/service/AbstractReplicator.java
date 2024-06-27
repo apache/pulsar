@@ -33,9 +33,11 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -185,21 +187,39 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
-        replicationClient.getPartitionedTopicMetadata(remoteTopicName, false)
-                .thenCompose(metadata -> {
+        CompletableFuture<Void> checkPartitionsSameFuture = new CompletableFuture<>();
+        replicationClient.getPartitionedTopicMetadata(remoteTopicName, false).thenAccept(metadata -> {
             // If there is an exists partitioned topic on the remote cluster, report an error.
             if (metadata.partitions != 0) {
                 log.error("[{}] The partitions count between two clusters is not the same(remote partitions: {}),"
-                        + " the replicator can not be created successfully: {}", replicatorId, metadata.partitions,
+                                + " the replicator can not be created successfully: {}", replicatorId, metadata.partitions,
                         state);
                 // This exception will be caught below, so it can be any typed.
-                throw new RuntimeException(replicatorId + "Can not replicate data to a partitioned topic.");
+                checkPartitionsSameFuture.completeExceptionally(new RuntimeException(replicatorId
+                        + "Can not replicate data to a partitioned topic."));
+            } else {
+                checkPartitionsSameFuture.complete(null);
             }
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                // These 3 error means the topic has not been created on the remote cluster yet, and the current
+                // replicator will trigger an event to create it. So it is okay.
+                checkPartitionsSameFuture.complete(null);
+            } else {
+                log.warn("[{}] Failed to create remote producer due to get partitioned metadata failed",
+                        replicatorId, ex);
+                checkPartitionsSameFuture.completeExceptionally(ex);
+            }
+            return null;
+        });
+        checkPartitionsSameFuture.thenCompose(metadata -> {
             // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
             // the remote cluster.
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setForceOnoPartitioned(true);
-
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });
