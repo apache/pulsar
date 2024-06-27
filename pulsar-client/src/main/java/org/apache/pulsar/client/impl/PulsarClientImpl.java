@@ -388,15 +388,22 @@ public class PulsarClientImpl implements PulsarClient {
                                                                    ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+        CompletableFuture<Integer> partitionsFuture;
+        if (conf.isForceOnoPartitioned()) {
+            partitionsFuture = CompletableFuture.completedFuture(0);
+        } else {
+            partitionsFuture = getPartitionedTopicMetadata(topic, true).thenApply(metadata -> metadata.partitions);
+        }
+
+        partitionsFuture.thenAccept(partitions -> {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
+                log.debug("[{}] Received topic metadata. partitions: {}", topic, partitions);
             }
 
             ProducerBase<T> producer;
-            if (metadata.partitions > 0) {
+            if (partitions > 0) {
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
-                        metadata);
+                        partitions);
             } else {
                 producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture,
                         Optional.empty());
@@ -422,7 +429,6 @@ public class PulsarClientImpl implements PulsarClient {
      * @param schema topic schema
      * @param interceptors producer interceptors
      * @param producerCreatedFuture future for signaling completion of async producer creation
-     * @param metadata partitioned topic metadata
      * @param <T> message type class
      * @return new PartitionedProducerImpl instance
      */
@@ -432,8 +438,8 @@ public class PulsarClientImpl implements PulsarClient {
                                                                         ProducerInterceptors interceptors,
                                                                         CompletableFuture<Producer<T>>
                                                                                 producerCreatedFuture,
-                                                                        PartitionedTopicMetadata metadata) {
-        return new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                                                                        int partitions) {
+        return new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, partitions,
                 producerCreatedFuture, schema, interceptors);
     }
 
