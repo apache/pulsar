@@ -290,7 +290,7 @@ public class NamespaceStatsAggregator {
         }
 
         topic.getReplicators().forEach((cluster, replicator) -> {
-            ReplicatorStatsImpl replStats = replicator.getStats();
+            ReplicatorStatsImpl replStats = replicator.computeStats();
             AggregatedReplicationStats aggReplStats = stats.replicationStats.get(replicator.getRemoteCluster());
             if (aggReplStats == null) {
                 aggReplStats = new AggregatedReplicationStats();

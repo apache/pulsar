@@ -295,6 +295,12 @@
                     <pattern>org.apache.bookkeeper</pattern>
                     <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                   </relocation>
+                  <!-- Rename Netty native libraries to include the shaded prefix -->
+                  <relocation>
+                    <pattern>(META-INF/native/(lib)?)(netty.+\.(so|jnilib|dll))$</pattern>
+                    <shadedPattern>$1org_apache_pulsar_shade_$3</shadedPattern>
+                    <rawString>true</rawString>
+                  </relocation>
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />

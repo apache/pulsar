@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -104,6 +105,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        // disable auto read explicitly so that requests aren't served until auto read is enabled
+        // ServerCnx must enable auto read in channelActive after PulsarService is ready to accept incoming requests
+        ch.config().setAutoRead(false);
         ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (this.enableTls) {
             if (this.tlsEnabledWithKeyStore) {
@@ -128,7 +132,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = newServerCnx(pulsar, listenerName);
+        // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
+        ChannelHandler cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
     }
 

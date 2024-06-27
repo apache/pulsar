@@ -17,8 +17,10 @@
 # under the License.
 #
 
+ARG ALPINE_VERSION=3.20
+
 # First create a stage with just the Pulsar tarball and scripts
-FROM alpine as pulsar
+FROM alpine:$ALPINE_VERSION as pulsar
 
 RUN apk add zip
 
@@ -52,11 +54,9 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM alpine AS jvm
+FROM amazoncorretto:21-alpine AS jvm
 
-RUN wget -O /etc/apk/keys/amazoncorretto.rsa.pub https://apk.corretto.aws/amazoncorretto.rsa.pub
-RUN echo "https://apk.corretto.aws" >> /etc/apk/repositories
-RUN apk add --no-cache amazon-corretto-21 binutils
+RUN apk add --no-cache binutils
 
 # Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
 # This still includes all JDK modules, though in the future we could compile a list of required modules
@@ -68,7 +68,7 @@ RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.secu
 # Fix the issue when using snappy-java in x86 arch alpine
 # See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
 # We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
-FROM alpine AS snappy-java
+FROM alpine:$ALPINE_VERSION AS snappy-java
 
 ARG SNAPPY_VERSION
 RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
@@ -78,7 +78,7 @@ FROM apachepulsar/glibc-base:2.38 as glibc
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
-FROM alpine:3.19.1
+FROM alpine:$ALPINE_VERSION
 ENV LANG C.UTF-8
 
 # Install some utilities, some are required by Pulsar scripts
