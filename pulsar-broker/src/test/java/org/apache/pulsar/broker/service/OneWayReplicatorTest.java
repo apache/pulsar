@@ -1083,7 +1083,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         };
     }
 
-    enum ReplicationMode {
+    protected enum ReplicationMode {
         OneWay,
         DoubleWay;
     }
