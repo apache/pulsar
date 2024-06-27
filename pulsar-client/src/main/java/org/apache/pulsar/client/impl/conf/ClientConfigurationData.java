@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.annotations.ApiModelProperty;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.util.Secret;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
@@ -134,7 +136,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
                     + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
     )
-    private int connectionMaxIdleSeconds = 180;
+    private int connectionMaxIdleSeconds = 25;
 
     @ApiModelProperty(
             name = "useTcpNoDelay",

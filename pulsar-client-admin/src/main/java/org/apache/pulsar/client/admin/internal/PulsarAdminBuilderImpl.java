@@ -39,14 +39,17 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     private ClassLoader clientBuilderClassLoader = null;
     private boolean acceptGzipCompression = true;
+    private int connectionAcquireTimeoutMs = 60000;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression,
+                connectionAcquireTimeoutMs);
     }
 
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
+        this.conf.setConnectionsPerBroker(16);
     }
 
     private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
@@ -71,6 +74,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
                 acceptGzipCompression = (Boolean) acceptGzipCompressionObj;
             } else {
                 acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
+            }
+        }
+        // in ClientConfigurationData, the maxConnectionsPerHost maps to connectionsPerBroker
+        if (config.containsKey("maxConnectionsPerHost")) {
+            Object maxConnectionsPerHostObj = config.get("maxConnectionsPerHost");
+            if (maxConnectionsPerHostObj instanceof Integer) {
+                maxConnectionsPerHost((Integer) maxConnectionsPerHostObj);
+            } else {
+                maxConnectionsPerHost(Integer.parseInt(maxConnectionsPerHostObj.toString()));
+            }
+        }
+        if (config.containsKey("connectionAcquireTimeoutMs")) {
+            Object connectionAcquireTimeoutMsObj = config.get("connectionAcquireTimeoutMs");
+            if (connectionAcquireTimeoutMsObj instanceof Integer) {
+                connectionAcquireTimeout((Integer) connectionAcquireTimeoutMsObj, TimeUnit.MILLISECONDS);
+            } else {
+                connectionAcquireTimeout(Integer.parseInt(connectionAcquireTimeoutMsObj.toString()),
+                        TimeUnit.MILLISECONDS);
             }
         }
         return this;
@@ -243,6 +264,26 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression) {
         this.acceptGzipCompression = acceptGzipCompression;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost) {
+        // reuse the same configuration as the client, however for the admin client, the connection
+        // is usually established to a cluster address and not to a broker address
+        this.conf.setConnectionsPerBroker(maxConnectionsPerHost);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder connectionAcquireTimeout(int connectionAcquireTimeout, TimeUnit timeUnit) {
+        this.connectionAcquireTimeoutMs = Math.toIntExact(timeUnit.toMillis(connectionAcquireTimeout));
         return this;
     }
 }

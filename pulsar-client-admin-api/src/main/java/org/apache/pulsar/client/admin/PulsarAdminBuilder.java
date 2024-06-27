@@ -336,4 +336,42 @@ public interface PulsarAdminBuilder {
      *                              requests
      */
     PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression);
+
+    /**
+     * Configures the maximum number of connections that the client library will establish with a single host.
+     * <p>
+     * By default, the connection pool maintains up to 16 connections to a single host. This method allows you to
+     * modify this default behavior and limit the number of connections.
+     * <p>
+     * This setting can be useful in scenarios where you want to limit the resources used by the client library,
+     * or control the level of parallelism for operations so that a single client does not overwhelm
+     * the Pulsar cluster with too many concurrent connections.
+     *
+     * @param maxConnectionsPerHost the maximum number of connections to establish per host. Set to <= 0 to disable
+     *                             the limit.
+     * @return the PulsarAdminBuilder instance, allowing for method chaining
+     */
+    PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost);
+
+    /**
+     * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified
+     * amount of seconds, it will be released back to the connection pool.
+     * Defaults to 25 seconds.
+     *
+     * @param connectionMaxIdleSeconds the maximum idle time, in seconds, for a pooled connection
+     * @return the PulsarAdminBuilder instance
+     */
+    PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
+     * Sets the timeout for acquiring a connection from the pool. This timeout is used when all connections
+     * are busy and the pool is at its maximum size. If a connection cannot be acquired within the specified
+     * amount of time, an exception will be thrown.
+     * Defaults to 60 seconds.
+     *
+     * @param connectionAcquireTimeout the timeout value for acquiring a connection from the pool
+     * @param timeUnit the time unit for the connectionAcquireTimeout value
+     * @return the PulsarAdminBuilder instance
+     */
+    PulsarAdminBuilder connectionAcquireTimeout(int connectionAcquireTimeout, TimeUnit timeUnit);
 }
