@@ -79,9 +79,11 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -1068,5 +1070,33 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().delete(topic2, false);
         admin1.topics().delete(topic3, false);
         admin2.topics().delete(topic3, false);
+    }
+
+    @Test
+    public void test1() throws Exception {
+        String ns = defaultTenant + "/ns_2"/* + UUID.randomUUID().toString().replace("-", "")*/;
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+
+        AutoTopicCreationOverride autoTopicCreation =
+                AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                        .topicType("partitioned").defaultNumPartitions(2).build();
+        admin2.namespaces().setAutoTopicCreation(ns, autoTopicCreation);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join().getDefaultNumPartitions(), 2);
+        });
+
+        final String topic1 = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topic1);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(topic1).create();
+        p1.send("msg-1");
+        p1.close();
+
+        Thread.sleep(3 * 1000);
+
+        System.out.println(pulsar1.getBrokerService().getTopics().keys());
+        System.out.println(pulsar2.getBrokerService().getTopics().keys());
     }
 }
