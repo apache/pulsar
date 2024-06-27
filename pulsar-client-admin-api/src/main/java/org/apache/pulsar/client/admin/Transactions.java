@@ -414,4 +414,36 @@ public interface Transactions {
      * @param txnID the txnId
      */
     CompletableFuture<Void> abortTransactionAsync(TxnID txnID);
+
+    /**
+     * Get owned transactions by coordinator id.
+     * @param coordinatorId the coordinator id
+     * @param owner the owner
+     * @return the metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getOwnedTransactionsByCoordinatorIdAsync(Integer coordinatorId,
+                                                                                                 String owner);
+
+    /**
+     * Get owned transactions by coordinator id.
+     * @param coordinatorId the coordinator id
+     * @param owner the owner
+     * @return the metadata of slow transactions.
+     */
+    Map<String, TransactionMetadata> getOwnedTransactionsByCoordinatorId(Integer coordinatorId,
+                                                                         String owner) throws PulsarAdminException;
+
+    /**
+     * Get owned transactions.
+     * @param owner the owner
+     * @return the metadata of slow transactions.
+     */
+    CompletableFuture<Map<String, TransactionMetadata>> getOwnedTransactionsAsync(String owner);
+
+    /**
+     * Get owned transactions.
+     * @param owner the owner
+     * @return the metadata of slow transactions.
+     */
+    Map<String, TransactionMetadata> getOwnedTransactions(String owner) throws PulsarAdminException;
 }

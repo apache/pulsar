@@ -484,4 +484,24 @@ public class Transactions extends TransactionsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
+
+    @GET
+    @Path("/ownedTransactions/{owner}")
+    @ApiOperation(value = "Get owned transactions.", response = TransactionMetadata.class, responseContainer = "Map")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or coordinator or transaction doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic don't owner by this broker!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getOwnedTransactions(@Suspended final AsyncResponse asyncResponse,
+                                     @QueryParam("authoritative")
+                                     @DefaultValue("false") boolean authoritative,
+                                     @PathParam("owner") String owner,
+                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        checkTransactionCoordinatorEnabled();
+        internalGetOwnedTransactions(asyncResponse, authoritative, coordinatorId, owner);
+    }
 }

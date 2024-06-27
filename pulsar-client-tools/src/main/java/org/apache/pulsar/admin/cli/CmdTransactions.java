@@ -264,6 +264,24 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Command(description = "Get owned transactions.")
+    private class GetOwnedTransactions extends CliCommand {
+        @Option(names = {"-c", "--coordinator-id"}, description = "The coordinator id", required = false)
+        private Integer coordinatorId;
+
+        @Option(names = {"-o", "--owner"}, description = "The owner", required = true)
+        private String owner;
+
+        @Override
+        void run() throws Exception {
+            if (coordinatorId != null) {
+                print(getAdmin().transactions().getOwnedTransactionsByCoordinatorId(coordinatorId, owner));
+            } else {
+                print(getAdmin().transactions().getOwnedTransactions(owner));
+            }
+        }
+    }
+
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
         addCommand("coordinator-internal-stats", new GetCoordinatorInternalStats());
@@ -280,6 +298,6 @@ public class CmdTransactions extends CmdBase {
         addCommand("position-stats-in-pending-ack", new GetPositionStatsInPendingAck());
         addCommand("coordinators-list", new ListTransactionCoordinators());
         addCommand("abort-transaction", new AbortTransaction());
-
+        addCommand("owned-transactions", new GetOwnedTransactions());
     }
 }

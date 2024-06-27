@@ -2446,6 +2446,14 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("abort-transaction -m 1 -l 2"));
         verify(transactions).abortTransaction(new TxnID(1, 2));
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("owned-transactions -c 1 -o user"));
+        verify(transactions).getOwnedTransactionsByCoordinatorId(1, "user");
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("owned-transactions -o user"));
+        verify(transactions).getOwnedTransactions("user");
     }
 
     @Test

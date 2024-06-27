@@ -139,4 +139,11 @@ public interface TransactionMetadataStore {
      * @return {@link TxnMeta} the txnMetas of slow transactions
      */
     List<TxnMeta> getSlowTransactions(long timeout);
+
+    /**
+     * Get the transactions owned by the given owner
+     *
+     * @return {@link TxnMeta} the txnMetas of transactions
+     */
+    List<TxnMeta> getOwnedTransactions(String owner);
 }

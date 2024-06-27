@@ -296,4 +296,31 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public void abortTransaction(TxnID txnID) throws PulsarAdminException {
         sync(() -> abortTransactionAsync(txnID));
     }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getOwnedTransactionsByCoordinatorIdAsync(
+            Integer coordinatorId, String owner) {
+        WebTarget path = adminV3Transactions.path("ownedTransactions");
+        path = path.path(owner);
+        if (coordinatorId != null) {
+            path = path.queryParam("coordinatorId", coordinatorId);
+        }
+        return asyncGetRequest(path, new FutureCallback<Map<String, TransactionMetadata>>(){});
+    }
+
+    @Override
+    public Map<String, TransactionMetadata> getOwnedTransactionsByCoordinatorId(Integer coordinatorId, String owner)
+            throws PulsarAdminException {
+        return sync(() -> getOwnedTransactionsByCoordinatorIdAsync(coordinatorId, owner));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TransactionMetadata>> getOwnedTransactionsAsync(String owner) {
+        return getOwnedTransactionsByCoordinatorIdAsync(null, owner);
+    }
+
+    @Override
+    public Map<String, TransactionMetadata> getOwnedTransactions(String owner) throws PulsarAdminException {
+        return sync(() -> getOwnedTransactionsAsync(owner));
+    }
 }

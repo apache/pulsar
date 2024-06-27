@@ -165,4 +165,9 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     public List<TxnMeta> getSlowTransactions(long timeout) {
         return null;
     }
+
+    @Override
+    public List<TxnMeta> getOwnedTransactions(String owner) {
+        return null;
+    }
 }

@@ -577,4 +577,92 @@ public abstract class TransactionsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
+
+    protected void internalGetOwnedTransactions(AsyncResponse asyncResponse,
+                                                boolean authoritative, Integer coordinatorId, String owner) {
+        try {
+            if (coordinatorId != null) {
+                validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                        authoritative);
+                TransactionMetadataStore transactionMetadataStore = pulsar().getTransactionMetadataStoreService()
+                        .getStores().get(TransactionCoordinatorID.get(coordinatorId));
+                if (transactionMetadataStore == null) {
+                    asyncResponse.resume(new RestException(NOT_FOUND,
+                            "Transaction coordinator not found! coordinator id : " + coordinatorId));
+                    return;
+                }
+                List<TxnMeta> transactions = transactionMetadataStore.getOwnedTransactions(owner);
+                List<CompletableFuture<TransactionMetadata>> completableFutures = new ArrayList<>();
+                for (TxnMeta txnMeta : transactions) {
+                    CompletableFuture<TransactionMetadata> completableFuture = new CompletableFuture<>();
+                    getTransactionMetadata(txnMeta, completableFuture);
+                    completableFutures.add(completableFuture);
+                }
+
+                FutureUtil.waitForAll(completableFutures).whenComplete((v, e) -> {
+                    if (e != null) {
+                        asyncResponse.resume(new RestException(e.getCause()));
+                        return;
+                    }
+
+                    Map<String, TransactionMetadata> transactionMetadata = new HashMap<>();
+                    for (CompletableFuture<TransactionMetadata> future : completableFutures) {
+                        try {
+                            transactionMetadata.put(future.get().txnId, future.get());
+                        } catch (Exception exception) {
+                            asyncResponse.resume(new RestException(exception.getCause()));
+                            return;
+                        }
+                    }
+                    asyncResponse.resume(transactionMetadata);
+                });
+            } else {
+                getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        false, false).thenAccept(partitionMetadata -> {
+                    if (partitionMetadata.partitions == 0) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
+                                "Transaction coordinator not found"));
+                        return;
+                    }
+                    List<CompletableFuture<Map<String, TransactionMetadata>>> completableFutures =
+                            new ArrayList<>();
+                    for (int i = 0; i < partitionMetadata.partitions; i++) {
+                        try {
+                            completableFutures
+                                    .add(pulsar().getAdminClient().transactions()
+                                            .getOwnedTransactionsByCoordinatorIdAsync(i, owner));
+                        } catch (PulsarServerException e) {
+                            asyncResponse.resume(new RestException(e));
+                            return;
+                        }
+                    }
+                    Map<String, TransactionMetadata> transactionMetadataMaps = new HashMap<>();
+                    FutureUtil.waitForAll(completableFutures).whenComplete((result, e) -> {
+                        if (e != null) {
+                            asyncResponse.resume(new RestException(e));
+                            return;
+                        }
+
+                        for (CompletableFuture<Map<String, TransactionMetadata>> transactionMetadataMap
+                                : completableFutures) {
+                            try {
+                                transactionMetadataMaps.putAll(transactionMetadataMap.get());
+                            } catch (Exception exception) {
+                                asyncResponse.resume(new RestException(exception.getCause()));
+                                return;
+                            }
+                        }
+                        asyncResponse.resume(transactionMetadataMaps);
+                    });
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
 }
