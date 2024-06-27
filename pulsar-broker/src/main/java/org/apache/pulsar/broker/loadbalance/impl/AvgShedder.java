@@ -297,10 +297,10 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         Collections.sort(sortedBrokers);
 
         try {
-            // add random number as input of hashing function to avoid special case that,
+            // use random number as input of hashing function to avoid special case that,
             // if there is 4 brokers running in the cluster,and add broker5,and shutdown broker3,
             // then all bundles belonging to broker3 will be loaded on the same broker.
-            final long hashcode = hash(NamespaceBundle.getBundleRange(bundle.toString()) + random.nextInt());
+            final long hashcode = hash(String.valueOf(random.nextInt()));
             final int index = (int) (Math.abs(hashcode) % sortedBrokers.size());
             if (log.isDebugEnabled()) {
                 log.debug("Assignment details: brokers={}, bundle={}, hashcode={}, index={}",
