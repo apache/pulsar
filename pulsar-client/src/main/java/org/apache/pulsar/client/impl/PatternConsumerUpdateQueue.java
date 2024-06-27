@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -42,6 +43,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all
  *   the event will run in the same thread.
  */
+@SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PatternConsumerUpdateQueue {
 
     private static final Pair<UpdateSubscriptionType, Collection<String>> RECHECK_OP =
