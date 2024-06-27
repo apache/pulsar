@@ -67,16 +67,22 @@ public class TopicLookupBase extends PulsarWebResource {
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP, null))
                 .thenCompose(__ -> {
+                    // Case-1: Non-persistent topic.
                     // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists
                     // in the broker, it doesn't have metadata. If the topic is non-persistent and non-partitioned,
-                    // we'll return the true flag.
-                    CompletableFuture<Boolean> existFuture = (!topicName.isPersistent() && !topicName.isPartitioned())
-                            ? CompletableFuture.completedFuture(true)
-                            : pulsar().getNamespaceService().checkTopicExists(topicName)
-                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
-                                        : pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName));
-
-                    return existFuture;
+                    // we'll return the true flag. So either it is a partitioned topic or not, the result will be true.
+                    if (!topicName.isPersistent()) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    // Case-2: Persistent topic.
+                    return pulsar().getNamespaceService().checkTopicExists(topicName).thenCompose(info -> {
+                        boolean exists = info.isExists();
+                        info.recycle();
+                        if (exists) {
+                            return CompletableFuture.completedFuture(true);
+                        }
+                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName);
+                    });
                 })
                 .thenCompose(exist -> {
                     if (!exist) {

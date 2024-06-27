@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
@@ -94,7 +95,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -231,19 +231,35 @@ public class TransactionTest extends TransactionTestBase {
                 .build();
 
         var metrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                        .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
+                        .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
+                        .build(),
+                1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
+                Attributes.builder()
+                        .putAll(attributes)
+                        .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                        .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
+                        .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
+                        .build(),
+                1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
                         .build(),
                 1);
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
                         .build(),
                 1);
-        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_COUNTER,
                 Attributes.builder()
                         .putAll(attributes)
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")

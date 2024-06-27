@@ -439,13 +439,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.createPersistentSubscriptions();
         }));
 
-        for (ManagedCursor cursor : ledger.getCursors()) {
-            if (cursor.getName().startsWith(replicatorPrefix)) {
-                String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                futures.add(addReplicationCluster(remoteCluster, cursor, localCluster));
-            }
-        }
         return FutureUtil.waitForAll(futures).thenCompose(__ ->
             brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
@@ -476,6 +469,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getOrderedExecutor())
                 .thenCompose(ignore -> initTopicPolicy())
+                .thenCompose(ignore -> removeOrphanReplicationCursors())
                 .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
@@ -551,6 +545,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
         }
         checkReplicatedSubscriptionControllerState();
+    }
+
+    private CompletableFuture<Void> removeOrphanReplicationCursors() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
+        for (ManagedCursor cursor : ledger.getCursors()) {
+            if (cursor.getName().startsWith(replicatorPrefix)) {
+                String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
+                if (!replicationClusters.contains(remoteCluster)) {
+                    log.warn("Remove the orphan replicator because the cluster '{}' does not exist", remoteCluster);
+                    futures.add(removeReplicator(remoteCluster));
+                }
+            }
+        }
+        return FutureUtil.waitForAll(futures);
     }
 
     /**
@@ -1467,7 +1476,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(
                             new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
                 } else if (failIfHasBacklogs) {
-                    if (hasBacklogs()) {
+                    if (hasBacklogs(false)) {
                         List<String> backlogSubs =
                                 subscriptions.values().stream()
                                         .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
@@ -1869,52 +1878,78 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (log.isDebugEnabled()) {
             log.debug("[{}] Checking replication status", name);
         }
-
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
         if (CollectionUtils.isEmpty(configuredClusters)) {
             log.warn("[{}] No replication clusters configured", name);
             return CompletableFuture.completedFuture(null);
         }
 
-        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
-
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-        // because pulsar doesn't serve global topic without local repl-cluster configured.
-        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-            log.info("Deleting topic [{}] because local cluster is not part of "
-                    + " global namespace repl list {}", topic, configuredClusters);
-            return deleteForcefully();
-        }
-
-        removeTerminatedReplicators(replicators);
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-        // Check for missing replicators
-        for (String cluster : configuredClusters) {
-            if (cluster.equals(localCluster)) {
-                continue;
+        return checkAllowedCluster(localCluster).thenCompose(success -> {
+            if (!success) {
+                // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
+                // because pulsar doesn't serve global topic without local repl-cluster configured.
+                return deleteForcefully();
             }
-            if (!replicators.containsKey(cluster)) {
-                futures.add(startReplicator(cluster));
-            }
-        }
 
-        // Check for replicators to be stopped
-        replicators.forEach((cluster, replicator) -> {
-            // Update message TTL
-            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
-            if (!cluster.equals(localCluster)) {
-                if (!configuredClusters.contains(cluster)) {
-                    futures.add(removeReplicator(cluster));
+            int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+
+            removeTerminatedReplicators(replicators);
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+            // The replication clusters at namespace level will get local cluster when creating a namespace.
+            // If there are only one cluster in the replication clusters, it means the replication is not enabled.
+            // If the cluster 1 and cluster 2 use the same configuration store and the namespace is created in cluster1
+            // without enabling geo-replication, then the replication clusters always has cluster1.
+            //
+            // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
+            // remote cluster and start geo-replication. This check is to avoid the above case.
+            if (!(configuredClusters.size() == 1 && replicators.isEmpty())) {
+                // Check for missing replicators
+                for (String cluster : configuredClusters) {
+                    if (cluster.equals(localCluster)) {
+                        continue;
+                    }
+                    if (!replicators.containsKey(cluster)) {
+                        futures.add(startReplicator(cluster));
+                    }
                 }
+                // Check for replicators to be stopped
+                replicators.forEach((cluster, replicator) -> {
+                    // Update message TTL
+                    ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
+                    if (!cluster.equals(localCluster)) {
+                        if (!configuredClusters.contains(cluster)) {
+                            futures.add(removeReplicator(cluster));
+                        }
+                    }
+                });
             }
+
+            futures.add(checkShadowReplication());
+
+            return FutureUtil.waitForAll(futures);
         });
+    }
 
-        futures.add(checkShadowReplication());
-
-        return FutureUtil.waitForAll(futures);
+    private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
+        List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject()).thenCompose(policiesOptional -> {
+                    Set<String> allowedClusters = Set.of();
+                    if (policiesOptional.isPresent()) {
+                        allowedClusters = policiesOptional.get().allowed_clusters;
+                    }
+                    if (TopicName.get(topic).isGlobal() && !replicationClusters.contains(localCluster)
+                            && !allowedClusters.contains(localCluster)) {
+                        log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
+                                localCluster, replicationClusters, allowedClusters);
+                        return CompletableFuture.completedFuture(false);
+                    } else {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                });
     }
 
     private CompletableFuture<Void> checkShadowReplication() {
@@ -2032,7 +2067,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
-        ledger.asyncOpenCursor(name, new OpenCursorCallback() {
+        final InitialPosition initialPosition;
+        if (MessageId.earliest.toString()
+                .equalsIgnoreCase(getBrokerService().getPulsar().getConfiguration().getReplicationStartAt())) {
+            initialPosition = InitialPosition.Earliest;
+        } else {
+            initialPosition = InitialPosition.Latest;
+        }
+        ledger.asyncOpenCursor(name, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -2055,30 +2097,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
-    private CompletableFuture<Boolean> checkReplicationCluster(String remoteCluster) {
-        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenApply(optPolicies -> optPolicies.map(policies -> policies.replication_clusters)
-                        .orElse(Collections.emptySet()).contains(remoteCluster)
-                        || topicPolicies.getReplicationClusters().get().contains(remoteCluster));
-    }
-
     protected CompletableFuture<Void> addReplicationCluster(String remoteCluster, ManagedCursor cursor,
             String localCluster) {
         return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
-                .thenCompose(__ -> checkReplicationCluster(remoteCluster))
-                .thenCompose(clusterExists -> {
-                    if (!clusterExists) {
-                        log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
-                        return removeReplicator(remoteCluster).thenApply(__ -> null);
-                    }
-                    return brokerService.pulsar().getPulsarResources().getClusterResources()
-                            .getClusterAsync(remoteCluster)
-                            .thenApply(clusterData ->
-                                    brokerService.getReplicationClient(remoteCluster, clusterData));
-                })
+                .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
+                        .getClusterAsync(remoteCluster)
+                        .thenApply(clusterData ->
+                                brokerService.getReplicationClient(remoteCluster, clusterData)))
                 .thenAccept(replicationClient -> {
                     if (replicationClient == null) {
+                        log.error("[{}] Can not create replicator because the remote client can not be created."
+                                        + " remote cluster: {}. State of transferring : {}",
+                                topic, remoteCluster, transferring);
                         return;
                     }
                     lock.readLock().lock();
@@ -2168,8 +2198,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(replicationClient -> {
                     Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
                         try {
-                            return new ShadowReplicator(shadowTopic, PersistentTopic.this, cursor, brokerService,
-                                    (PulsarClientImpl) replicationClient);
+                            TopicName sourceTopicName = TopicName.get(getName());
+                            String shadowPartitionTopic = shadowTopic;
+                            if (sourceTopicName.isPartitioned()) {
+                                shadowPartitionTopic += "-partition-" + sourceTopicName.getPartitionIndex();
+                            }
+                            return new ShadowReplicator(shadowPartitionTopic, PersistentTopic.this, cursor,
+                                    brokerService, (PulsarClientImpl) replicationClient);
                         } catch (PulsarServerException e) {
                             log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
                         }
@@ -2323,7 +2358,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             // Update replicator stats
-            ReplicatorStatsImpl rStat = replicator.getStats();
+            ReplicatorStatsImpl rStat = replicator.computeStats();
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
@@ -2606,7 +2641,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         replicators.forEach((cluster, replicator) -> {
-            ReplicatorStatsImpl replicatorStats = replicator.getStats();
+            ReplicatorStatsImpl replicatorStats = replicator.computeStats();
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
@@ -2638,12 +2673,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogQuotaLimitTime = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         TimeBasedBacklogQuotaCheckResult backlogQuotaCheckResult = timeBasedBacklogQuotaCheckResult;
-        stats.oldestBacklogMessageAgeSeconds = (backlogQuotaCheckResult == null)
-            ? (long) -1
-                : TimeUnit.MILLISECONDS.toSeconds(
-                Clock.systemUTC().millis() - backlogQuotaCheckResult.getPositionPublishTimestampInMillis());
-
+        stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
         stats.oldestBacklogMessageSubscriptionName = (backlogQuotaCheckResult == null)
+                || !hasBacklogs(getStatsOptions.isGetPreciseBacklog())
             ? null
             : backlogQuotaCheckResult.getCursorName();
 
@@ -2906,7 +2938,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
                 break;
             case delete_when_subscriptions_caught_up:
-                if (hasBacklogs()) {
+                if (hasBacklogs(false)) {
                     return true;
                 }
                 break;
@@ -2919,8 +2951,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private boolean hasBacklogs() {
-        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(false) > 0);
+    private boolean hasBacklogs(boolean getPreciseBacklog) {
+        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(getPreciseBacklog) > 0);
     }
 
     @Override
@@ -3466,6 +3498,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
+        if (!hasBacklogs(false)) {
+            return 0;
+        }
         TimeBasedBacklogQuotaCheckResult result = timeBasedBacklogQuotaCheckResult;
         if (result == null) {
             return -1;
@@ -3553,6 +3588,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+            if (!hasBacklogs(true)) {
+                return CompletableFuture.completedFuture(false);
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
@@ -3606,6 +3644,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         } else {
             try {
+                if (!hasBacklogs(false)) {
+                    return CompletableFuture.completedFuture(false);
+                }
                 EstimateTimeBasedBacklogQuotaCheckResult checkResult =
                         estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
                 if (checkResult.getEstimatedOldestUnacknowledgedMessageTimestamp() != null) {

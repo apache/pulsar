@@ -68,6 +68,9 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        // disable considering cpu usage to avoid broker2 being overloaded.
+        conf.setLoadBalancerCPUResourceWeight(0);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
     }
 
     // Test that least resource usage with weight works correctly.

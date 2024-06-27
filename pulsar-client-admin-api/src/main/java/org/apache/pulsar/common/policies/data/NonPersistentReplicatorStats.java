@@ -27,4 +27,7 @@ public interface NonPersistentReplicatorStats extends ReplicatorStats {
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
     double getMsgDropRate();
+
+    /** Total number of messages dropped by the broker for the replicator. */
+    long getMsgDropCount();
 }

@@ -88,6 +88,21 @@ public interface OpenTelemetryAttributes {
     AttributeKey<Long> PULSAR_CONSUMER_CONNECTED_SINCE = AttributeKey.longKey("pulsar.consumer.connected_since");
 
     /**
+     * The name of the Pulsar producer.
+     */
+    AttributeKey<String> PULSAR_PRODUCER_NAME = AttributeKey.stringKey("pulsar.producer.name");
+
+    /**
+     * The ID of the Pulsar producer.
+     */
+    AttributeKey<Long> PULSAR_PRODUCER_ID = AttributeKey.longKey("pulsar.producer.id");
+
+    /**
+     * The access mode of the Pulsar producer.
+     */
+    AttributeKey<String> PULSAR_PRODUCER_ACCESS_MODE = AttributeKey.stringKey("pulsar.producer.access_mode");
+
+    /**
      * The address of the Pulsar client.
      */
     AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");
@@ -102,10 +117,41 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
     enum TransactionStatus {
+        ABORTED,
         ACTIVE,
         COMMITTED,
-        ABORTED;
+        CREATED,
+        TIMEOUT;
         public final Attributes attributes = Attributes.of(PULSAR_TRANSACTION_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The status of the Pulsar transaction ack store operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.pending.ack.store.operation.status");
+    enum TransactionPendingAckOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The ID of the Pulsar transaction coordinator.
+     */
+    AttributeKey<Long> PULSAR_TRANSACTION_COORDINATOR_ID = AttributeKey.longKey("pulsar.transaction.coordinator.id");
+
+    /**
+     * The status of the Pulsar transaction buffer client operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.buffer.client.operation.status");
+    enum TransactionBufferClientOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS, name().toLowerCase());
     }
 
     /**
@@ -126,6 +172,28 @@ public interface OpenTelemetryAttributes {
         SIZE,
         TIME;
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
+    }
+
+    /**
+     * The name of the remote cluster for a Pulsar replicator.
+     */
+    AttributeKey<String> PULSAR_REPLICATION_REMOTE_CLUSTER_NAME =
+            AttributeKey.stringKey("pulsar.replication.remote.cluster.name");
+
+    AttributeKey<String> PULSAR_CONNECTION_STATUS = AttributeKey.stringKey("pulsar.connection.status");
+    enum ConnectionStatus {
+        ACTIVE,
+        OPEN,
+        CLOSE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> PULSAR_CONNECTION_CREATE_STATUS =
+            AttributeKey.stringKey("pulsar.connection.create.operation.status");
+    enum ConnectionCreateStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
     }
 
     // Managed Ledger Attributes
