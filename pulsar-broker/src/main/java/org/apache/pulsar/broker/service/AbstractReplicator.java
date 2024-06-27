@@ -184,8 +184,18 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            setProducerAndTriggerReadEntries(producer);
+        replicationClient.getPartitionedTopicMetadata(remoteTopicName, false)
+                .thenCompose(metadata -> {
+            if (metadata.partitions != 0) {
+                log.error("[{}] The partitions count between two clusters is not the same(remote partitions: {}),"
+                        + " the replicator can not be created successfully: {}", replicatorId, metadata.partitions,
+                        state);
+                // This exception will be caught below, so it can be any typed.
+                throw new RuntimeException(replicatorId + "Can not replicate data to a partitioned topic.");
+            }
+            return producerBuilder.createAsync().thenAccept(producer -> {
+                setProducerAndTriggerReadEntries(producer);
+            });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
