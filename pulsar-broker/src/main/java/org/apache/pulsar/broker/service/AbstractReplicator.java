@@ -33,10 +33,12 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -186,6 +188,7 @@ public abstract class AbstractReplicator implements Replicator {
         log.info("[{}] Starting replicator", replicatorId);
         replicationClient.getPartitionedTopicMetadata(remoteTopicName, false)
                 .thenCompose(metadata -> {
+            // If there is an exists partitioned topic on the remote cluster, report an error.
             if (metadata.partitions != 0) {
                 log.error("[{}] The partitions count between two clusters is not the same(remote partitions: {}),"
                         + " the replicator can not be created successfully: {}", replicatorId, metadata.partitions,
@@ -193,6 +196,11 @@ public abstract class AbstractReplicator implements Replicator {
                 // This exception will be caught below, so it can be any typed.
                 throw new RuntimeException(replicatorId + "Can not replicate data to a partitioned topic.");
             }
+            // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
+            // the remote cluster.
+            ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
+            builderImpl.getConf().setForceOnoPartitioned(true);
+
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });
