@@ -327,10 +327,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     final ConcurrentLinkedQueue<OpAddEntry> pendingAddEntries = new ConcurrentLinkedQueue<>();
 
-    private volatile ManagedLedgerAttributes managedLedgerAttributes;
-    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerAttributes>
-            ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
-                    ManagedLedgerImpl.class, ManagedLedgerAttributes.class, "managedLedgerAttributes");
+    @Getter
+    private final ManagedLedgerAttributes managedLedgerAttributes;
 
     /**
      * This variable is used for testing the tests.
@@ -344,6 +342,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final String name) {
         this(factory, bookKeeper, store, config, scheduledExecutor, name, null);
     }
+
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
@@ -379,6 +378,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.minBacklogCursorsForCaching = config.getMinimumBacklogCursorsForCaching();
         this.minBacklogEntriesForCaching = config.getMinimumBacklogEntriesForCaching();
         this.maxBacklogBetweenCursorsForCaching = config.getMaxBacklogBetweenCursorsForCaching();
+        this.managedLedgerAttributes = new ManagedLedgerAttributes(this);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -4570,14 +4570,5 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return theSlowestNonDurableReadPosition;
-    }
-
-    @Override
-    public ManagedLedgerAttributes getManagedLedgerAttributes() {
-        if (managedLedgerAttributes != null) {
-            return managedLedgerAttributes;
-        }
-        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
-                old -> old != null ? old : new ManagedLedgerAttributes(this));
     }
 }
