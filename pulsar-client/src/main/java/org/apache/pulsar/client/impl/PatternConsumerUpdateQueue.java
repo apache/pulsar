@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -43,6 +44,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all
  *   the event will run in the same thread.
  */
+@Slf4j
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PatternConsumerUpdateQueue {
 
@@ -132,7 +134,7 @@ public class PatternConsumerUpdateQueue {
             return;
         }
 
-        Pair<UpdateSubscriptionType, Collection<String>> task = pendingTasks.poll();
+        final Pair<UpdateSubscriptionType, Collection<String>> task = pendingTasks.poll();
 
         // No pending task.
         if (task == null) {
@@ -167,7 +169,10 @@ public class PatternConsumerUpdateQueue {
                 throw new RuntimeException("Un-support UpdateSubscriptionType");
             }
         }
-
+        if (log.isDebugEnabled()) {
+            log.debug("[{} {}] Pattern consumer [{}] update subscriptions", task.getLeft(),
+                    task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
+        }
         // Trigger next pending task.
         taskInProgress = newTaskFuture;
         newTaskFuture.thenAccept(ignore -> {
@@ -178,7 +183,8 @@ public class PatternConsumerUpdateQueue {
              * - Skip if there is already a recheck task in queue.
              * - Skip if the last recheck task has been executed after the current time.
              */
-            // TODO log.
+            log.error("[{} {}] Pattern consumer [{}] failed to update subscriptions", task.getLeft(), task.getRight(),
+                    patternConsumer.getSubscription(), ex);
             // Skip if there is already a recheck task in queue.
             synchronized (PatternConsumerUpdateQueue.this) {
                 if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {
@@ -187,11 +193,12 @@ public class PatternConsumerUpdateQueue {
             }
             // Skip if the last recheck task has been executed after the current time.
             long failedTime = System.currentTimeMillis();
-            patternConsumer.client.timer().newTimeout(timeout -> {
+            patternConsumer.getClient().timer().newTimeout(timeout -> {
                 if (lastRecheckTaskStartingTimestamp <= failedTime) {
                     appendRecheckOp();
                 }
-            }, 30, TimeUnit.SECONDS);
+            }, 10, TimeUnit.SECONDS);
+            triggerNextTask();
             return null;
         });
     }
