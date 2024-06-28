@@ -2438,8 +2438,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
             doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
-            + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load evenly" +
-                    " between the highest and lowest brokers."
+                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
+                    + "evenly between the highest and lowest brokers."
     )
     private double maxUnloadPercentage = 0.2;
 
