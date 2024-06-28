@@ -2976,7 +2976,6 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
-
     @POST
     @Path("/{tenant}/{namespace}/allowedClusters")
     @ApiOperation(value = "Set the allowed clusters for a namespace.")
