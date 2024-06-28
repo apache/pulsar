@@ -130,7 +130,7 @@ public class AvgShedderTest {
         // AvgShedder will distribute the load evenly between the highest and lowest brokers
         conf.setMaxUnloadPercentage(0.5);
 
-        // Set the high threshold to 40% and hit count high threshold to 2
+        // Set the low threshold to 20% and hit count low threshold to 6
         int hitCountForLowThreshold = 6;
         conf.setLoadBalancerAvgShedderLowThreshold(20);
         conf.setLoadBalancerAvgShedderHitCountLowThreshold(hitCountForLowThreshold);
