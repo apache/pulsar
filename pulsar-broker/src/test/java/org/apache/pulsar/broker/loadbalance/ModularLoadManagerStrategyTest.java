@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.AvgShedder;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
@@ -46,6 +47,22 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
+
+    public void testAvgShedder() throws Exception{
+        ModularLoadManagerStrategy strategy = new AvgShedder();
+        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
+        field.setAccessible(true);
+        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
+        BundleData bundleData = new BundleData();
+        // assign bundle broker1 in bundleBrokerMap.
+        bundleBrokerMap.put(bundleData, "1");
+        assertEquals(strategy.selectBroker(Set.of("1", "2", "3"), bundleData, null, null), Optional.of("1"));
+        assertEquals(bundleBrokerMap.get(bundleData), "1");
+
+        // remove broker1 in candidates, only broker2 is candidate.
+        assertEquals(strategy.selectBroker(Set.of("2"), bundleData, null, null), Optional.of("2"));
+        assertEquals(bundleBrokerMap.get(bundleData), "2");
+    }
 
     // Test that least long term message rate works correctly.
     public void testLeastLongTermMessageRate() {

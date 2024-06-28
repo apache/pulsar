@@ -38,7 +38,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -50,12 +49,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private static Logger log = LoggerFactory.getLogger(AvgShedder.class);
 
     // map bundle to broker.
-    Map<BundleData, String> bundleBrokerMap = new HashMap<>();
+    private Map<BundleData, String> bundleBrokerMap = new HashMap<>();
     // map broker to Scores. scores:0-100
-    Map<String, Double> brokerScoreMap = new HashMap<>();
+    private Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
-    Map<String, Integer> brokerHitCountForHigh = new HashMap<>();
-    Map<String, Integer> brokerHitCountForLow = new HashMap<>();
+    private Map<String, Integer> brokerHitCountForHigh = new HashMap<>();
+    private Map<String, Integer> brokerHitCountForLow = new HashMap<>();
 
     // result returned by shedding, map broker to bundles.
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
@@ -64,9 +63,6 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private static final Random random = new Random();
 
     public AvgShedder() {
-    }
-
-    public AvgShedder(final ServiceConfiguration conf) {
     }
 
     @Override
@@ -269,7 +265,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-                                         ServiceConfiguration conf){
+                                         ServiceConfiguration conf) {
         if (!bundleBrokerMap.containsKey(bundleToAssign) || !candidates.contains(bundleBrokerMap.get(bundleToAssign))) {
             // cluster initializing or broker is shutdown
             if (log.isDebugEnabled()) {
