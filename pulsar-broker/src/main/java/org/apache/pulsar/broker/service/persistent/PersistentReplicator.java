@@ -33,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -215,15 +217,31 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
+    @Data
+    @AllArgsConstructor
+    private static class AvailablePermits {
+        private int messages;
+        private long bytes;
+
+        /**
+         * messages, bytes
+         * 0, O:  Producer queue is full, no permits.
+         * -1, -1:  Rate Limiter reaches limit.
+         * >0, >0:  available permits for read entries.
+         */
+        public boolean isExceeded() {
+            return messages == -1 && bytes == -1;
+        }
+
+        public boolean isReadable() {
+            return messages > 0 && bytes > 0;
+        }
+    }
+
     /**
      * Calculate available permits for read entries.
-     *
-     * @return
-     *   0:  Producer queue is full, no permits.
-     *  -1:  Rate Limiter reaches limit.
-     *  >0:  available permits for read entries.
      */
-    private int getAvailablePermits() {
+    private AvailablePermits getAvailablePermits() {
         int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
 
         // return 0, if Producer queue is full, it will pause read entries.
@@ -232,14 +250,20 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.debug("[{}] Producer queue is full, availablePermits: {}, pause reading",
                         replicatorId, availablePermits);
             }
-            return 0;
+            return new AvailablePermits(0, 0);
         }
+
+        long availablePermitsOnMsg = -1;
+        long availablePermitsOnByte = -1;
 
         // handle rate limit
         if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
             DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
+            // if dispatch-rate is in msg then read only msg according to available permit
+            availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+            availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
             // no permits from rate limit
-            if (!rateLimiter.hasMessageDispatchPermit()) {
+            if (availablePermitsOnByte == 0 || availablePermitsOnMsg == 0) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] message-read exceeded topic replicator message-rate {}/{},"
                                     + " schedule after a {}",
@@ -248,17 +272,18 @@ public abstract class PersistentReplicator extends AbstractReplicator
                             rateLimiter.getDispatchRateOnByte(),
                             MESSAGE_RATE_BACKOFF_MS);
                 }
-                return -1;
-            }
-
-            // if dispatch-rate is in msg then read only msg according to available permit
-            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
-            if (availablePermitsOnMsg > 0) {
-                availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
+                return new AvailablePermits(-1, -1);
             }
         }
 
-        return availablePermits;
+        availablePermitsOnMsg =
+                availablePermitsOnMsg == -1 ? availablePermits : Math.min(availablePermits, availablePermitsOnMsg);
+        availablePermitsOnMsg = Math.min(availablePermitsOnMsg, readBatchSize);
+
+        availablePermitsOnByte =
+                availablePermitsOnByte == -1 ? readMaxSizeBytes : Math.min(readMaxSizeBytes, availablePermitsOnByte);
+
+        return new AvailablePermits((int) availablePermitsOnMsg, availablePermitsOnByte);
     }
 
     protected void readMoreEntries() {
@@ -266,10 +291,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.info("[{}] Skip the reading due to new detected schema", replicatorId);
             return;
         }
-        int availablePermits = getAvailablePermits();
-
-        if (availablePermits > 0) {
-            int messagesToRead = Math.min(availablePermits, readBatchSize);
+        AvailablePermits availablePermits = getAvailablePermits();
+        if (availablePermits.isReadable()) {
+            int messagesToRead = availablePermits.getMessages();
+            long bytesToRead = availablePermits.getBytes();
             if (!isWritable()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Throttling replication traffic because producer is not writable", replicatorId);
@@ -277,9 +302,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 // Minimize the read size if the producer is disconnected or the window is already full
                 messagesToRead = 1;
             }
-
-            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-            messagesToRead = Math.max(messagesToRead, 1);
 
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
@@ -289,17 +311,18 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     return;
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
+                    log.debug("[{}] Schedule read of {} messages or {} bytes", replicatorId, messagesToRead,
+                            bytesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
+                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
                         null, topic.getMaxReadPosition());
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}",
-                            replicatorId, messagesToRead);
+                    log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}, Bytes To Read {}",
+                            replicatorId, messagesToRead, bytesToRead);
                 }
             }
-        } else if (availablePermits == -1) {
+        } else if (availablePermits.isExceeded()) {
             // no permits from rate limit
             topic.getBrokerService().executor().schedule(
                 () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -543,6 +544,65 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testReplicatorRateLimiterByBytes() throws Exception {
+        final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/RateLimiterByBytes";
+
+        admin1.namespaces().createNamespace(namespace);
+        // 0. set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        final int byteRate = 400;
+        final int payloadSize = 100;
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(360)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent()));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), byteRate);
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .build();
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        @Cleanup
+        Consumer<byte[]> ignored = client2.newConsumer().topic(topicName).subscriptionName("sub2-in-cluster2")
+                .messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
+
+        // The total bytes is 5 times the rate limit value.
+        int numMessages = byteRate / payloadSize * 5;
+        for (int i = 0; i < numMessages * payloadSize; i++) {
+            producer.send(new byte[payloadSize]);
+        }
+
+        Awaitility.await().pollDelay(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    // The rate limit occurs in the next reading cycle, so a value fault tolerance needs to be added.
+                    assertThat(totalReceived.get()).isLessThan((byteRate / payloadSize) + 2);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorRateLimiterTest.class);
