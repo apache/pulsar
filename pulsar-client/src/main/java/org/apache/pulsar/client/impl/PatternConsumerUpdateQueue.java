@@ -107,6 +107,10 @@ public class PatternConsumerUpdateQueue {
     }
 
     synchronized void doAppend(Pair<UpdateSubscriptionType, Collection<String>> task) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{} {}] Pattern consumer [{}] try to append task", task.getLeft(),
+                    task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
+        }
         // Once there is a recheck task in queue, it means other tasks can be skipped.
         if (recheckTaskInQueue) {
             return;
@@ -170,7 +174,7 @@ public class PatternConsumerUpdateQueue {
             }
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{} {}] Pattern consumer [{}] update subscriptions", task.getLeft(),
+            log.debug("[{} {}] Pattern consumer [{}] updating subscriptions", task.getLeft(),
                     task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
         }
         // Trigger next pending task.
