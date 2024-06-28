@@ -235,7 +235,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             ).forEach(e -> {
                 Map.Entry<String, BundleData> bundle = e.getLeft();
                 double traffic = e.getRight();
-                if (traffic > 0 && traffic < trafficMarkedToOffload.getValue()) {
+                if (traffic > 0 && traffic <= trafficMarkedToOffload.getValue()) {
                     selectedBundlesCache.put(overloadedBroker, bundle.getKey());
                     bundleBrokerMap.put(bundle.getValue(), underloadedBroker);
                     trafficMarkedToOffload.add(-traffic);
