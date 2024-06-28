@@ -49,12 +49,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private static Logger log = LoggerFactory.getLogger(AvgShedder.class);
 
     // map bundle to broker.
-    private Map<BundleData, String> bundleBrokerMap = new HashMap<>();
+    private final Map<BundleData, String> bundleBrokerMap = new HashMap<>();
     // map broker to Scores. scores:0-100
-    private Map<String, Double> brokerScoreMap = new HashMap<>();
+    private final Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
-    private Map<String, Integer> brokerHitCountForHigh = new HashMap<>();
-    private Map<String, Integer> brokerHitCountForLow = new HashMap<>();
+    private final Map<String, Integer> brokerHitCountForHigh = new HashMap<>();
+    private final Map<String, Integer> brokerHitCountForLow = new HashMap<>();
 
     // result returned by shedding, map broker to bundles.
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
