@@ -22,6 +22,8 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.Hashing;
+
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -285,7 +287,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     }
 
     private static long hash(String key) {
-        return Hashing.crc32().hashString(key, Charsets.UTF_8).padToLong();
+        return Hashing.crc32().hashString(key, StandardCharsets.UTF_8).padToLong();
     }
 
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {
