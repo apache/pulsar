@@ -96,6 +96,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -123,6 +124,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "topicDomain")
+    public static Object[] topicDomain() {
+        return new Object[] { "persistent://", "non-persistent://" };
     }
 
     @Test
@@ -1336,19 +1342,19 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
      *       the new consumer to register new schema. But before we can solve this problem, we need to modify
      *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
      */
-    @Test
-    public void testAutoProduceAndSpecifiedConsumer() throws Exception {
+    @Test(dataProvider = "topicDomain")
+    public void testAutoProduceAndSpecifiedConsumer(String domain) throws Exception {
         final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
-        final String topicName = "persistent://" + namespace + "/tp_" + randomName(16);
+        final String topicName = domain + namespace + "/tp_" + randomName(16);
         admin.topics().createNonPartitionedTopic(topicName);
 
         Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
         try {
             pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
-            fail("Should throw ex: Topic does not have schema to check");
+            fail("Should throw ex: Failed to add schema to an active topic with empty(BYTES) schema");
         } catch (Exception ex){
-            assertTrue(ex.getMessage().contains("Topic does not have schema to check"));
+            assertTrue(ex.getMessage().contains("Failed to add schema to an active topic with empty(BYTES) schema"));
         }
 
         // Cleanup.
