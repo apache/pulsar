@@ -33,10 +33,9 @@ public class ManagedLedgerAttributes {
 
     public ManagedLedgerAttributes(ManagedLedger ml) {
         var mlName = ml.getName();
-        var topicName = TopicName.get(TopicName.fromPersistenceNamingEncoding(mlName));
         attributes = Attributes.of(
                 OpenTelemetryAttributes.ML_NAME, mlName,
-                OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace()
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, getNamespace(mlName)
         );
         attributesOperationSucceed = Attributes.builder()
                 .putAll(attributes)
@@ -46,5 +45,13 @@ public class ManagedLedgerAttributes {
                 .putAll(attributes)
                 .putAll(ManagedLedgerOperationStatus.FAILURE.attributes)
                 .build();
+    }
+
+    private static String getNamespace(String mlName) {
+        try {
+            return TopicName.get(TopicName.fromPersistenceNamingEncoding(mlName)).getNamespace();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }
