@@ -36,6 +36,7 @@ class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
     private final AsyncLogWriter writer;
+    private final byte[] readBuffer = new byte[8192];
     private long offset = 0L;
 
     private DLOutputStream(DistributedLogManager distributedLogManager, AsyncLogWriter writer) {
@@ -49,7 +50,6 @@ class DLOutputStream {
     }
 
     private void writeAsyncHelper(InputStream is, CompletableFuture<DLOutputStream> result) {
-        byte[] readBuffer = new byte[8192];
         try {
             int read = is.read(readBuffer);
             if (read != -1) {
@@ -75,7 +75,7 @@ class DLOutputStream {
      * Write all input stream data to the distribute log.
      *
      * @param inputStream the data we need to write
-     * @return
+     * @return CompletableFuture<DLOutputStream>
      */
     CompletableFuture<DLOutputStream> writeAsync(InputStream inputStream) {
         CompletableFuture<DLOutputStream> result = new CompletableFuture<>();
