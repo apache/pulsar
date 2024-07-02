@@ -1471,7 +1471,10 @@ public class NamespaceService implements AutoCloseable {
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
                                 "No broker was available to own " + topicName));
                     }
-                    return pulsarClient.getLookup(lookupResult.get().getLookupData().getBrokerUrl())
+                    LookupData lookupData = lookupResult.get().getLookupData();
+                    String brokerUrl = lookupData.getBrokerUrlTls().isEmpty() ? lookupData.getBrokerUrl()
+                                                                              : lookupData.getBrokerUrlTls();
+                    return pulsarClient.getLookup(brokerUrl)
                         .getPartitionedTopicMetadata(topicName, false)
                         .thenApply(metadata -> true)
                         .exceptionallyCompose(ex -> {
