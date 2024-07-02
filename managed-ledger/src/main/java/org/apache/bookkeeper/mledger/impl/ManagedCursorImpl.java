@@ -336,7 +336,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public boolean isCursorDataFullyPersistable() {
-        return individualDeletedMessages.size() <= getConfig().getMaxUnackedRangesToPersist();
+        lock.readLock().lock();
+        try {
+            return individualDeletedMessages.size() <= getConfig().getMaxUnackedRangesToPersist();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
@@ -1099,7 +1104,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public int getTotalNonContiguousDeletedMessagesRange() {
-        return individualDeletedMessages.size();
+        lock.readLock().lock();
+        try {
+            return individualDeletedMessages.size();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
@@ -2383,8 +2393,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.deleteFailed(getManagedLedgerException(e), ctx);
             return;
         } finally {
+            boolean empty = individualDeletedMessages.isEmpty();
             lock.writeLock().unlock();
-            if (individualDeletedMessages.isEmpty()) {
+            if (empty) {
                 callback.deleteComplete(ctx);
             }
         }
@@ -2661,10 +2672,15 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private boolean shouldPersistUnackRangesToLedger() {
-        return cursorLedger != null
-                && !isCursorLedgerReadOnly
-                && getConfig().getMaxUnackedRangesToPersist() > 0
-                && individualDeletedMessages.size() > getConfig().getMaxUnackedRangesToPersistInMetadataStore();
+        lock.readLock().lock();
+        try {
+            return cursorLedger != null
+                    && !isCursorLedgerReadOnly
+                    && getConfig().getMaxUnackedRangesToPersist() > 0
+                    && individualDeletedMessages.size() > getConfig().getMaxUnackedRangesToPersistInMetadataStore();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
@@ -3023,7 +3039,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private List<MLDataFormats.MessageRange> buildIndividualDeletedMessageRanges() {
-        lock.readLock().lock();
+        lock.writeLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
                 this.individualDeletedMessagesSerializedSize = 0;
@@ -3065,7 +3081,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             individualDeletedMessages.resetDirtyKeys();
             return rangeList;
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
     }
 
@@ -3451,8 +3467,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public boolean isMessageDeleted(Position position) {
-        return position.compareTo(markDeletePosition) <= 0
-                || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+        lock.readLock().lock();
+        try {
+            return position.compareTo(markDeletePosition) <= 0
+                    || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     //this method will return a copy of the position's ack set
@@ -3477,13 +3498,19 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @return next available position
      */
     public Position getNextAvailablePosition(Position position) {
-        Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
-                position.getEntryId());
-        if (range != null) {
-            Position nextPosition = range.upperEndpoint().getNext();
-            return (nextPosition != null && nextPosition.compareTo(position) > 0) ? nextPosition : position.getNext();
+        lock.readLock().lock();
+        try {
+            Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
+                    position.getEntryId());
+            if (range != null) {
+                Position nextPosition = range.upperEndpoint().getNext();
+                return (nextPosition != null && nextPosition.compareTo(position) > 0)
+                        ? nextPosition : position.getNext();
+            }
+            return position.getNext();
+        } finally {
+            lock.readLock().unlock();
         }
-        return position.getNext();
     }
 
     public Position getNextLedgerPosition(long currentLedgerId) {
@@ -3534,7 +3561,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public Range<Position> getLastIndividualDeletedRange() {
-        return individualDeletedMessages.lastRange();
+        lock.readLock().lock();
+        try {
+            return individualDeletedMessages.lastRange();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
@@ -3664,15 +3696,20 @@ public class ManagedCursorImpl implements ManagedCursor {
     public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
         NonDurableCursorImpl newNonDurableCursor =
                 (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
-        if (individualDeletedMessages != null) {
-            this.individualDeletedMessages.forEach(range -> {
-                newNonDurableCursor.individualDeletedMessages.addOpenClosed(
-                        range.lowerEndpoint().getLedgerId(),
-                        range.lowerEndpoint().getEntryId(),
-                        range.upperEndpoint().getLedgerId(),
-                        range.upperEndpoint().getEntryId());
-                return true;
-            });
+        lock.readLock().lock();
+        try {
+            if (individualDeletedMessages != null) {
+                this.individualDeletedMessages.forEach(range -> {
+                    newNonDurableCursor.individualDeletedMessages.addOpenClosed(
+                            range.lowerEndpoint().getLedgerId(),
+                            range.lowerEndpoint().getEntryId(),
+                            range.upperEndpoint().getLedgerId(),
+                            range.upperEndpoint().getEntryId());
+                    return true;
+                });
+            }
+        } finally {
+            lock.readLock().unlock();
         }
         if (batchDeletedIndexes != null) {
             for (Map.Entry<Position, BitSetRecyclable> entry : this.batchDeletedIndexes.entrySet()) {

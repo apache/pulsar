@@ -33,7 +33,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -282,7 +282,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * should use {@link OpenLongPairRangeSet} to store unacked ranges.
      * @return
      */
     public boolean isUnackedRangesOpenCacheSetEnabled() {
