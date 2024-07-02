@@ -424,6 +424,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
+            // when disable transaction, update ml.maxReadPosition to PositionImpl.LATEST
+            this.ledger.updateMaxReadPosition(PositionFactory.LATEST);
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), true);
         if (ledger instanceof ShadowManagedLedgerImpl) {
@@ -511,6 +513,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
+            // when disable transaction, update ml.maxReadPosition to PositionImpl.LATEST
+            this.ledger.updateMaxReadPosition(PositionFactory.LATEST);
         }
         shadowSourceTopic = null;
     }

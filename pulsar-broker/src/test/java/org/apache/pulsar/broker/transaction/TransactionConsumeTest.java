@@ -35,6 +35,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -414,5 +415,127 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         Assert.assertEquals(admin.topics().getStats(CONSUME_TOPIC).getSubscriptions().get(subName)
                 .getUnackedMessages(), 0);
+    }
+
+    @Test
+    public void testConsumeWhenUpdateMaxReadPosition() throws Exception {
+        int messageCntBeforeTxn = 10;
+        int transactionMessageCnt = 10;
+        int messageCntAfterTxn = 10;
+        int commitTime = 0;
+        int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(CONSUME_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("exclusive-test")
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("shared-test")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Awaitility.await().until(exclusiveConsumer::isConnected);
+        Awaitility.await().until(sharedConsumer::isConnected);
+
+        long mostSigBits = 2L;
+        long leastSigBits = 5L;
+        TxnID txnID = new TxnID(mostSigBits, leastSigBits);
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(CONSUME_TOPIC, false).get().get();
+        log.info("transactionBuffer init finish.");
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("maxReadPosition");
+        field.setAccessible(true);
+
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
+                field.get(persistentTopic.getManagedLedger()));
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition().getEntryId(), -1L);
+
+        // send normal message
+        // ml.maxReadPosition = tb.maxReadPosition = ml.lastConfirmedEntry
+        List<String> sendMessageList = new ArrayList<>();
+        sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
+                field.get(persistentTopic.getManagedLedger()));
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition().getEntryId(),
+                messageCntBeforeTxn - 1);
+        Assert.assertEquals(persistentTopic.getManagedLedger().getLastConfirmedEntry().getEntryId(),
+                messageCntBeforeTxn - 1);
+
+        // send txn message and normal message
+        // ml.maxReadPosition = tb.maxReadPosition < ml.lastConfirmedEntry
+        appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+        sendNormalMessages(producer, 0, messageCntAfterTxn, sendMessageList);
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
+                field.get(persistentTopic.getManagedLedger()));
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition().getEntryId(),
+                messageCntBeforeTxn - 1);
+        Assert.assertEquals(persistentTopic.getManagedLedger().getLastConfirmedEntry().getEntryId(),
+                totalMsgCnt - 1);
+
+
+        Message<byte[]> message;
+        for (int i = 0; i < totalMsgCnt; i++) {
+            if (i < messageCntBeforeTxn) {
+                // receive normal messages successfully
+                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                log.info("Receive exclusive normal msg: {}" + new String(message.getData(), UTF_8));
+                message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
+            } else {
+                // can't receive transaction messages before commit
+                message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
+                Assert.assertNull(message);
+                log.info("exclusive consumer can't receive message before commit.");
+                message = sharedConsumer.receive(500, TimeUnit.MILLISECONDS);
+                Assert.assertNull(message);
+                log.info("shared consumer can't receive message before commit.");
+            }
+        }
+
+        // commit txn, ml.maxReadPosition = tb.maxReadPosition = ml.lastConfirmedEntry
+        // maxReadPosition and lastConfirmedEntry are 30, actually has 30 messages and 1 commitmarker
+        persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
+        log.info("Commit txn.");
+        commitTime++;
+
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
+                field.get(persistentTopic.getManagedLedger()));
+        Assert.assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition().getEntryId(),
+                totalMsgCnt - 1 + commitTime);
+        Assert.assertEquals(persistentTopic.getManagedLedger().getLastConfirmedEntry().getEntryId(),
+                totalMsgCnt - 1 + commitTime);
+
+        // receive transaction messages successfully after commit
+        for (int i = 0; i < transactionMessageCnt + messageCntAfterTxn; i++) {
+            message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+
+            message = sharedConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+        }
+
+
+        message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
+        Assert.assertNull(message);
+        log.info("exclusive consumer can't receive the 31th message.");
+
+        message = sharedConsumer.receive(500, TimeUnit.MILLISECONDS);
+        Assert.assertNull(message);
+        log.info("shared consumer can't receive the 31th message.");
     }
 }

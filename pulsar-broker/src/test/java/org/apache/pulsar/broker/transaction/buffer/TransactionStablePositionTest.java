@@ -21,14 +21,17 @@ package org.apache.pulsar.broker.transaction.buffer;
 import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState.State.NoSnapshot;
 import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState.State.Ready;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -198,10 +201,19 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(TopicName.get(topicName).toString(), false).get().get();
 
+        ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+        Field field1 = ManagedLedgerImpl.class.getDeclaredField("maxReadPosition");
+        field1.setAccessible(true);
+
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
 
         // wait topic transaction buffer recover success
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
+
+        // since topic transaction buffer recover success,
+        // ml.maxReadPosition would be updated to lastConfirmedEntry
+        Position mlMaxReadPosition1 = (Position) field1.get(managedLedger);
+        assertEquals(mlMaxReadPosition1, managedLedger.getLastConfirmedEntry());
 
         Field field = TopicTransactionBufferState.class.getDeclaredField("state");
         field.setAccessible(true);
@@ -216,6 +228,13 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         // send normal message can't change MaxReadPosition when state is None or Initializing
         position = topicTransactionBuffer.getMaxReadPosition();
         assertEquals(position, PositionFactory.EARLIEST);
+        // send normal message can't change ml.maxReadPosition when state is None or Initializing
+        // but ml.lastConfirmedEntry would be changed
+        Position mlMaxReadPosition2 = (Position) field1.get(managedLedger);
+        assertEquals(mlMaxReadPosition2, mlMaxReadPosition1);
+        assertEquals(managedLedger.getLastConfirmedEntry(),
+                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()));
+        assertNotEquals(mlMaxReadPosition2, managedLedger.getLastConfirmedEntry());
 
         // change to None state can recover
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
@@ -231,6 +250,10 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         // change MaxReadPosition to normal message position
         assertEquals(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                 topicTransactionBuffer.getMaxReadPosition());
+        // change ml.maxReadPosition to normal message position
+        Position mlMaxReadPosition3 = (Position) field1.get(managedLedger);
+        assertEquals(mlMaxReadPosition3,
+                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()));
     }
 
     private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
