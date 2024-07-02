@@ -333,4 +333,62 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         assertCounterValue(metrics, "pulsar.client.consumer.closed", 1, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.connection.closed", 1, Attributes.empty());
     }
+    @Test
+    public void testConsumerAvailablePermitsMetrics() throws Exception {
+        String topic = newTopicName();
+        final int recvQueueSize = 100;
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(otel)
+                .build();
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(recvQueueSize)
+                .subscribe();
+
+        for (int i = 0; i < recvQueueSize; i++) {
+            producer.send("Hello");
+        }
+
+        Thread.sleep(1000);
+
+        Attributes nsAttrs = Attributes.builder()
+                .put("pulsar.tenant", "my-property")
+                .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.subscription", "my-sub")
+                .build();
+        var metrics = collectMetrics();
+
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.remaining", recvQueueSize/2, nsAttrs);
+
+        Message<String> msg1 = consumer.receive();
+        metrics = collectMetrics();
+        consumer.acknowledge(msg1);
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 1, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.remaining", recvQueueSize/2-1, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.consumer.permit.limit", recvQueueSize/2, nsAttrs);
+
+        // clear the queue
+        while (true) {
+            Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+        }
+        metrics = collectMetrics();
+        assertCounterValue(metrics, "pulsar.client.consumer.available_permits", 0, nsAttrs);
+
+        client.close();
+    }
 }
