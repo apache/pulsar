@@ -16,26 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+package org.apache.pulsar.opentelemetry;
 
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleStatsImpl;
+/**
+ * Common OpenTelemetry constants to be used by Pulsar components.
+ */
+public interface Constants {
 
-public interface PendingAckHandleStats {
+    String BROKER_INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.broker";
 
-    void recordCommitTxn(boolean success, long nanos);
-
-    void recordAbortTxn(boolean success);
-
-    void close();
-
-    long getCommitSuccessCount();
-    long getCommitFailedCount();
-    long getAbortSuccessCount();
-    long getAbortFailedCount();
-
-    PendingAckHandleAttributes getAttributes();
-
-    static PendingAckHandleStats create(String topic, String subName, boolean exposeTopicLevelMetrics) {
-        return new PendingAckHandleStatsImpl(topic, subName, exposeTopicLevelMetrics);
-    }
 }

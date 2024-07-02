@@ -26,6 +26,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
@@ -88,6 +89,11 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
+        return null;
+    }
+
+    @Override
+    public PendingAckHandleStats getPendingAckHandleStats() {
         return null;
     }
 

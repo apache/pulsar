@@ -16,26 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+package org.apache.pulsar.broker.service.schema.exceptions;
 
-import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleStatsImpl;
+/**
+ * Exception is thrown when an schema not exist.
+ */
+public class NotExistSchemaException extends SchemaException {
 
-public interface PendingAckHandleStats {
+    private static final long serialVersionUID = -8342983749283749283L;
 
-    void recordCommitTxn(boolean success, long nanos);
+    public NotExistSchemaException() {
+        super("The schema does not exist");
+    }
 
-    void recordAbortTxn(boolean success);
+    public NotExistSchemaException(String message) {
+        super(message);
+    }
 
-    void close();
+    public NotExistSchemaException(String message, Throwable e) {
+        super(message, e);
+    }
 
-    long getCommitSuccessCount();
-    long getCommitFailedCount();
-    long getAbortSuccessCount();
-    long getAbortFailedCount();
-
-    PendingAckHandleAttributes getAttributes();
-
-    static PendingAckHandleStats create(String topic, String subName, boolean exposeTopicLevelMetrics) {
-        return new PendingAckHandleStatsImpl(topic, subName, exposeTopicLevelMetrics);
+    public NotExistSchemaException(Throwable e) {
+        super(e);
     }
 }

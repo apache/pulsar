@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -128,6 +129,7 @@ public class PersistentSubscription extends AbstractSubscription {
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Map.of();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
+    @Getter
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
@@ -1437,11 +1439,6 @@ public class PersistentSubscription extends AbstractSubscription {
     @VisibleForTesting
     public ManagedCursor getCursor() {
         return cursor;
-    }
-
-    @VisibleForTesting
-    public PendingAckHandle getPendingAckHandle() {
-        return pendingAckHandle;
     }
 
     public void syncBatchPositionBitSetForPendingAck(Position position) {
