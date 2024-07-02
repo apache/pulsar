@@ -72,22 +72,28 @@ public class PulsarCluster {
      * @return the built pulsar cluster
      */
     public static PulsarCluster forSpec(PulsarClusterSpec spec) {
+        return forSpec(spec, Network.newNetwork());
+    }
+
+    public static PulsarCluster forSpec(PulsarClusterSpec spec, Network network) {
+        checkArgument(network != null, "Network should not be null");
         CSContainer csContainer = null;
         if (!spec.enableOxia) {
             csContainer = new CSContainer(spec.clusterName)
-                    .withNetwork(Network.newNetwork())
+                    .withNetwork(network)
                     .withNetworkAliases(CSContainer.NAME);
         }
-        return new PulsarCluster(spec, csContainer, false);
+        return new PulsarCluster(spec, network, csContainer, false);
     }
 
     public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
-        return new PulsarCluster(spec, csContainer, true);
+        return new PulsarCluster(spec, csContainer.getNetwork(), csContainer, true);
     }
 
     @Getter
     private final PulsarClusterSpec spec;
 
+    public boolean closeNetworkOnExit = true;
     @Getter
     private final String clusterName;
     private final Network network;
@@ -108,18 +114,17 @@ public class PulsarCluster {
     private final String metadataStoreUrl;
     private final String configurationMetadataStoreUrl;
 
-    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
-
+    private PulsarCluster(PulsarClusterSpec spec, Network network, CSContainer csContainer, boolean sharedCsContainer) {
         this.spec = spec;
         this.sharedCsContainer = sharedCsContainer;
         this.clusterName = spec.clusterName();
-        if (csContainer != null ) {
+        if (network != null) {
+            this.network = network;
+        } else if (csContainer != null) {
             this.network = csContainer.getNetwork();
         } else {
             this.network = Network.newNetwork();
         }
-
-
 
         if (spec.enableOxia) {
             this.zkContainer = null;
@@ -203,7 +208,9 @@ public class PulsarCluster {
                             .withEnv("PULSAR_PREFIX_diskUsageWarnThreshold", "0.95")
                             .withEnv("diskUsageThreshold", "0.99")
                             .withEnv("PULSAR_PREFIX_diskUsageLwmThreshold", "0.97")
-                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize));
+                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize))
+                            .withEnv("ledgerDirectories", "data/bookkeeper/" + name + "/ledgers")
+                            .withEnv("journalDirectory", "data/bookkeeper/" + name + "/journal");
                     if (spec.bookkeeperEnvs != null) {
                         bookieContainer.withEnv(spec.bookkeeperEnvs);
                     }
@@ -262,9 +269,26 @@ public class PulsarCluster {
                         }
                 ));
 
+        if (spec.dataContainer != null) {
+            if (!sharedCsContainer && csContainer != null) {
+                csContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+            }
+            if (zkContainer != null) {
+                zkContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+            }
+            proxyContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+
+            bookieContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+        }
+
         spec.classPathVolumeMounts.forEach((key, value) -> {
             if (zkContainer != null) {
                 zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            }
+            if (!sharedCsContainer && csContainer != null) {
+                csContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
             }
             proxyContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
 
@@ -323,6 +347,10 @@ public class PulsarCluster {
     }
 
     public void start() throws Exception {
+        start(true);
+    }
+
+    public void start(boolean doInit) throws Exception {
 
         if (!spec.enableOxia) {
             // start the local zookeeper
@@ -338,7 +366,7 @@ public class PulsarCluster {
             oxiaContainer.start();
         }
 
-        {
+        if (doInit) {
             // Run cluster metadata initialization
             @Cleanup
             PulsarInitMetadataContainer init = new PulsarInitMetadataContainer(
@@ -453,10 +481,12 @@ public class PulsarCluster {
             oxiaContainer.stop();
         }
 
-        try {
-            network.close();
-        } catch (Exception e) {
-            log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
+        if (closeNetworkOnExit) {
+            try {
+                network.close();
+            } catch (Exception e) {
+                log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
+            }
         }
     }
 
