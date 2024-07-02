@@ -598,6 +598,8 @@ public class PulsarClientImpl implements PulsarClient {
                    topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), pattern);
                 }
                 conf.getTopicNames().addAll(topicsList);
+                // Pattern consumer has his unique check mechanism, so do not need the feature "autoUpdatePartitions".
+                conf.setAutoUpdatePartitions(false);
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(pattern,
                         getTopicsResult.getTopicsHash(),
                         PulsarClientImpl.this,
