@@ -371,5 +371,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return recheckPatternTimeout;
     }
 
+    protected void handleSubscribeOneTopicError(String topicName,
+                                                Throwable error,
+                                                CompletableFuture<Void> subscribeFuture) {
+        subscribeFuture.completeExceptionally(error);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PatternMultiTopicsConsumerImpl.class);
 }
