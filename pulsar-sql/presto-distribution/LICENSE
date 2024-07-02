@@ -272,7 +272,7 @@ The Apache Software License, Version 2.0
     - grpc-stub-1.55.3.jar
     - grpc-util-1.60.0.jar
   * JEtcd - shaded
-    - jetcd-core-shaded-3.1.4.3-shaded.jar
+    - jetcd-core-shaded-3.1.4.4-SNAPSHOT-shaded.jar
   * Vertx - shaded
  * Joda Time
     - joda-time-2.10.10.jar
