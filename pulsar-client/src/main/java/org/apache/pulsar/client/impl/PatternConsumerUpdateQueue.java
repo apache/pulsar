@@ -61,7 +61,7 @@ public class PatternConsumerUpdateQueue {
      * Whether there is a task is in progress, this variable is used to confirm whether a next-task triggering is
      * needed.
      */
-    private CompletableFuture<Void> taskInProgress = null;
+    private Pair<UpdateSubscriptionType, CompletableFuture<Void>> taskInProgress = null;
 
     /**
      * Whether there is a recheck task in queue.
@@ -86,6 +86,9 @@ public class PatternConsumerUpdateQueue {
         this.patternConsumer = patternConsumer;
         this.topicsChangeListener = topicsChangeListener;
         this.pendingTasks = new LinkedBlockingQueue<>();
+        // To avoid subscribing and topics changed events execute concurrently, let the change events starts after the
+        // subscribing task.
+        doAppend(Pair.of(UpdateSubscriptionType.CONSUMER_INIT, null));
     }
 
     synchronized void appendTopicsAddedOp(Collection<String> topics) {
@@ -155,6 +158,21 @@ public class PatternConsumerUpdateQueue {
         // Execute pending task.
         CompletableFuture<Void> newTaskFuture = null;
         switch (task.getLeft()) {
+            case CONSUMER_INIT: {
+                newTaskFuture = patternConsumer.getSubscribeFuture().thenAccept(__ -> {}).exceptionally(ex -> {
+                    // If the subscribe future was failed, the consumer will be closed.
+                    synchronized (PatternConsumerUpdateQueue.this) {
+                        this.closed = true;
+                        patternConsumer.closeAsync().exceptionally(ex2 -> {
+                            log.error("Pattern consumer failed to close, this error may left orphan consumers."
+                                    + " Subscription: {}", patternConsumer.getSubscription());
+                            return null;
+                        });
+                    }
+                    return null;
+                });
+                break;
+            }
             case TOPICS_ADDED: {
                 newTaskFuture = topicsChangeListener.onTopicsAdded(task.getRight());
                 break;
@@ -178,7 +196,7 @@ public class PatternConsumerUpdateQueue {
                     task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
         }
         // Trigger next pending task.
-        taskInProgress = newTaskFuture;
+        taskInProgress = Pair.of(task.getLeft(), newTaskFuture);
         newTaskFuture.thenAccept(ignore -> {
            triggerNextTask();
         }).exceptionally(ex -> {
@@ -212,10 +230,16 @@ public class PatternConsumerUpdateQueue {
         if (taskInProgress == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return taskInProgress.thenAccept(__ -> {}).exceptionally(ex -> null);
+        // If the in-progress task is consumer init task, it means nothing is in-progress.
+        if (taskInProgress.getLeft().equals(UpdateSubscriptionType.CONSUMER_INIT)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return taskInProgress.getRight().thenAccept(__ -> {}).exceptionally(ex -> null);
     }
 
     private enum UpdateSubscriptionType {
+        /** A marker that indicates the consumer's subscribe task.**/
+        CONSUMER_INIT,
         /** Triggered by {@link PatternMultiTopicsConsumerImpl#topicsChangeListener}.**/
         TOPICS_ADDED,
         /** Triggered by {@link PatternMultiTopicsConsumerImpl#topicsChangeListener}.**/

@@ -41,12 +41,15 @@ import org.testng.annotations.Test;
 public class PatternConsumerUpdateQueueTest {
 
     private QueueInstance createInstance(CompletableFuture<Void> customizedRecheckFuture,
-                                         CompletableFuture<Void> customizedPartialUpdateFuture) {
-        return createInstance(customizedRecheckFuture, customizedPartialUpdateFuture, null, null);
+                                         CompletableFuture<Void> customizedPartialUpdateFuture,
+                                         CompletableFuture<Void> customizedConsumerInitFuture) {
+        return createInstance(customizedRecheckFuture, customizedPartialUpdateFuture, customizedConsumerInitFuture,
+                null, null);
     }
 
     private QueueInstance createInstance(CompletableFuture<Void> customizedRecheckFuture,
                                          CompletableFuture<Void> customizedPartialUpdateFuture,
+                                         CompletableFuture<Void> customizedConsumerInitFuture,
                                          Collection<String> successTopics,
                                          Collection<String> errorTopics) {
         HashedWheelTimer timer = new HashedWheelTimer(new ExecutorProvider.ExtendedThreadFactory("timer-x",
@@ -57,6 +60,11 @@ public class PatternConsumerUpdateQueueTest {
         PatternMultiTopicsConsumerImpl patternConsumer = mock(PatternMultiTopicsConsumerImpl.class);
         when(patternConsumer.recheckTopicsChange()).thenReturn(customizedRecheckFuture);
         when(patternConsumer.getClient()).thenReturn(client);
+        if (customizedConsumerInitFuture != null) {
+            when(patternConsumer.getSubscribeFuture()).thenReturn(customizedConsumerInitFuture);
+        } else {
+            when(patternConsumer.getSubscribeFuture()).thenReturn(CompletableFuture.completedFuture(null));
+        }
 
         PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener =
                 mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
@@ -77,7 +85,7 @@ public class PatternConsumerUpdateQueueTest {
 
     private QueueInstance createInstance() {
         CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
-        return createInstance(completedFuture, completedFuture);
+        return createInstance(completedFuture, completedFuture, completedFuture);
     }
 
     @AllArgsConstructor
@@ -130,7 +138,8 @@ public class PatternConsumerUpdateQueueTest {
     public void testDelayedRecheckTask() {
         CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
         CompletableFuture<Void> partialUpdateFuture = CompletableFuture.completedFuture(null);
-        QueueInstance instance = createInstance(recheckFuture, partialUpdateFuture);
+        CompletableFuture<Void> consumerInitFuture = CompletableFuture.completedFuture(null);
+        QueueInstance instance = createInstance(recheckFuture, partialUpdateFuture, consumerInitFuture);
 
         for (int i = 0; i < 10; i++) {
             instance.queue.appendRecheckOp();
@@ -153,7 +162,8 @@ public class PatternConsumerUpdateQueueTest {
     public void testCompositeTasks() {
         CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
         CompletableFuture<Void> partialUpdateFuture = CompletableFuture.completedFuture(null);
-        QueueInstance instance = createInstance(recheckFuture, partialUpdateFuture);
+        CompletableFuture<Void> consumerInitFuture = CompletableFuture.completedFuture(null);
+        QueueInstance instance = createInstance(recheckFuture, partialUpdateFuture, consumerInitFuture);
 
         Collection<String> topics = Arrays.asList("a");
         for (int i = 0; i < 10; i++) {
@@ -185,8 +195,8 @@ public class PatternConsumerUpdateQueueTest {
         CompletableFuture<Void> immediatelyCompleteFuture = CompletableFuture.completedFuture(null);
         Collection<String> successTopics = Arrays.asList("a");
         Collection<String> errorTopics = Arrays.asList(UUID.randomUUID().toString());
-        QueueInstance instance = createInstance(immediatelyCompleteFuture, immediatelyCompleteFuture, successTopics,
-                errorTopics);
+        QueueInstance instance = createInstance(immediatelyCompleteFuture, immediatelyCompleteFuture,
+                immediatelyCompleteFuture, successTopics, errorTopics);
 
         instance.queue.appendTopicsAddedOp(successTopics);
         instance.queue.appendTopicsRemovedOp(successTopics);
@@ -200,6 +210,35 @@ public class PatternConsumerUpdateQueueTest {
             verify(instance.mockedListener, times(1)).onTopicsAdded(errorTopics);
             // After an error task will push a recheck task to offset.
             verify(instance.mockedConsumer, times(1)).recheckTopicsChange();
+        });
+
+        // cleanup.
+        instance.close();
+    }
+
+    @Test
+    public void testFailedSubscribe() {
+        CompletableFuture<Void> immediatelyCompleteFuture = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> consumerInitFuture = new CompletableFuture<>();
+        Collection<String> successTopics = Arrays.asList("a");
+        Collection<String> errorTopics = Arrays.asList(UUID.randomUUID().toString());
+        QueueInstance instance = createInstance(immediatelyCompleteFuture, immediatelyCompleteFuture,
+                consumerInitFuture, successTopics, errorTopics);
+
+        instance.queue.appendTopicsAddedOp(successTopics);
+        instance.queue.appendTopicsRemovedOp(successTopics);
+        instance.queue.appendTopicsAddedOp(errorTopics);
+        instance.queue.appendTopicsAddedOp(successTopics);
+        instance.queue.appendTopicsRemovedOp(successTopics);
+
+        // Consumer init failed after multi topics changes.
+        // All the topics changes events should be skipped.
+        consumerInitFuture.completeExceptionally(new RuntimeException("mocked ex"));
+        Awaitility.await().untilAsserted(() -> {
+            verify(instance.mockedListener, times(0)).onTopicsAdded(successTopics);
+            verify(instance.mockedListener, times(0)).onTopicsRemoved(successTopics);
+            verify(instance.mockedListener, times(0)).onTopicsAdded(errorTopics);
+            verify(instance.mockedConsumer, times(0)).recheckTopicsChange();
         });
 
         // cleanup.

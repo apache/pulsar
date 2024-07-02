@@ -1167,7 +1167,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .exceptionally(ex -> {
                 log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName,
                         ex.getMessage());
-                subscribeResult.completeExceptionally(ex);
+                handleSubscribeOneTopicError(topicName, ex, subscribeResult);
                 return null;
             });
     }
@@ -1190,7 +1190,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
-    private void handleSubscribeOneTopicError(String topicName,
+    protected void handleSubscribeOneTopicError(String topicName,
                                               Throwable error,
                                               CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
