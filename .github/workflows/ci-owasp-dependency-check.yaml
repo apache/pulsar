@@ -78,7 +78,7 @@ jobs:
           java-version: ${{ matrix.jdk || '17' }}
 
       - name: run install by skip tests
-        run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true -DnarPluginPhase=none
+        run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true -DnarPluginPhase=none -pl '!distribution/io,!distribution/offloaders'
 
       - name: OWASP cache key weeknum
         id: get-weeknum
