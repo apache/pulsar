@@ -2192,6 +2192,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
         </plugin>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>${dependency-check-maven.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <extensions>
@@ -2639,7 +2644,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <configuration>
               <suppressionFiles>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
@@ -2674,7 +2678,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <reportSets>
               <reportSet>
                 <reports>
