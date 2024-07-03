@@ -111,8 +111,8 @@ public class PatternConsumerUpdateQueue {
 
     synchronized void doAppend(Pair<UpdateSubscriptionType, Collection<String>> task) {
         if (log.isDebugEnabled()) {
-            log.debug("[{} {}] Pattern consumer [{}] try to append task", task.getLeft(),
-                    task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
+            log.debug("Pattern consumer [{}] try to append task. {} {}", patternConsumer.getSubscription(),
+                    task.getLeft(), task.getRight() == null ? "" : task.getRight());
         }
         // Once there is a recheck task in queue, it means other tasks can be skipped.
         if (recheckTaskInQueue) {
@@ -192,21 +192,25 @@ public class PatternConsumerUpdateQueue {
             }
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{} {}] Pattern consumer [{}] updating subscriptions", task.getLeft(),
-                    task.getRight() == null ? "" : task.getRight(), patternConsumer.getSubscription());
+            log.debug("Pattern consumer [{}] starting task. {} {} ", patternConsumer.getSubscription(),
+                    task.getLeft(), task.getRight() == null ? "" : task.getRight());
         }
         // Trigger next pending task.
         taskInProgress = Pair.of(task.getLeft(), newTaskFuture);
         newTaskFuture.thenAccept(ignore -> {
-           triggerNextTask();
+            if (log.isDebugEnabled()) {
+                log.debug("Pattern consumer [{}] task finished. {} {} ", patternConsumer.getSubscription(),
+                        task.getLeft(), task.getRight() == null ? "" : task.getRight());
+            }
+            triggerNextTask();
         }).exceptionally(ex -> {
             /**
              * Once a updating fails, trigger a delayed new recheck task to guarantee all things is correct.
              * - Skip if there is already a recheck task in queue.
              * - Skip if the last recheck task has been executed after the current time.
              */
-            log.error("[{} {}] Pattern consumer [{}] failed to update subscriptions", task.getLeft(), task.getRight(),
-                    patternConsumer.getSubscription(), ex);
+            log.error("Pattern consumer [{}] task finished. {} {}. But it failed", patternConsumer.getSubscription(),
+                    task.getLeft(), task.getRight() == null ? "" : task.getRight(), ex);
             // Skip if there is already a recheck task in queue.
             synchronized (PatternConsumerUpdateQueue.this) {
                 if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {
