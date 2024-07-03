@@ -193,6 +193,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         pulsar2.getOpenTelemetryTopicStats().close();
         pulsar2.getOpenTelemetryConsumerStats().close();
         pulsar2.getOpenTelemetryProducerStats().close();
+        pulsar2.getOpenTelemetryReplicatorStats().close();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
         var lookupRequestSemaphoreField = BrokerService.class.getDeclaredField("lookupRequestSemaphore");

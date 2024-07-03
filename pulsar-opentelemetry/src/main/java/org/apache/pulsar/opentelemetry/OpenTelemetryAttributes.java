@@ -117,10 +117,41 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
     enum TransactionStatus {
+        ABORTED,
         ACTIVE,
         COMMITTED,
-        ABORTED;
+        CREATED,
+        TIMEOUT;
         public final Attributes attributes = Attributes.of(PULSAR_TRANSACTION_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The status of the Pulsar transaction ack store operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.pending.ack.store.operation.status");
+    enum TransactionPendingAckOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_ACK_STORE_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The ID of the Pulsar transaction coordinator.
+     */
+    AttributeKey<Long> PULSAR_TRANSACTION_COORDINATOR_ID = AttributeKey.longKey("pulsar.transaction.coordinator.id");
+
+    /**
+     * The status of the Pulsar transaction buffer client operation.
+     */
+    AttributeKey<String> PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.transaction.buffer.client.operation.status");
+    enum TransactionBufferClientOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_TRANSACTION_BUFFER_CLIENT_OPERATION_STATUS, name().toLowerCase());
     }
 
     /**
@@ -143,6 +174,12 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
     }
 
+    /**
+     * The name of the remote cluster for a Pulsar replicator.
+     */
+    AttributeKey<String> PULSAR_REPLICATION_REMOTE_CLUSTER_NAME =
+            AttributeKey.stringKey("pulsar.replication.remote.cluster.name");
+
     AttributeKey<String> PULSAR_CONNECTION_STATUS = AttributeKey.stringKey("pulsar.connection.status");
     enum ConnectionStatus {
         ACTIVE,
@@ -157,5 +194,49 @@ public interface OpenTelemetryAttributes {
         SUCCESS,
         FAILURE;
         public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The type of the pool arena.
+     */
+    AttributeKey<String> ML_POOL_ARENA_TYPE = AttributeKey.stringKey("pulsar.managed_ledger.pool.arena.type");
+    enum PoolArenaType {
+        SMALL,
+        NORMAL,
+        HUGE;
+        public final Attributes attributes = Attributes.of(ML_POOL_ARENA_TYPE, name().toLowerCase());
+    }
+
+    /**
+     * The type of the pool chunk allocation.
+     */
+    AttributeKey<String> ML_POOL_CHUNK_ALLOCATION_TYPE =
+            AttributeKey.stringKey("pulsar.managed_ledger.pool.chunk.allocation.type");
+    enum PoolChunkAllocationType {
+        ALLOCATED,
+        USED;
+        public final Attributes attributes = Attributes.of(ML_POOL_CHUNK_ALLOCATION_TYPE, name().toLowerCase());
+    }
+
+    /**
+     * The status of the cache entry.
+     */
+    AttributeKey<String> ML_CACHE_ENTRY_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.cache.entry.status");
+    enum CacheEntryStatus {
+        ACTIVE,
+        EVICTED,
+        INSERTED;
+        public final Attributes attributes = Attributes.of(ML_CACHE_ENTRY_STATUS, name().toLowerCase());
+    }
+
+    /**
+     * The result of the cache operation.
+     */
+    AttributeKey<String> ML_CACHE_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.managed_ledger.cache.operation.status");
+    enum CacheOperationStatus {
+        HIT,
+        MISS;
+        public final Attributes attributes = Attributes.of(ML_CACHE_OPERATION_STATUS, name().toLowerCase());
     }
 }

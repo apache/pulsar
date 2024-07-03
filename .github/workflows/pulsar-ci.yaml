@@ -1319,7 +1319,7 @@ jobs:
 
   macos-build:
     name: Build Pulsar on MacOS
-    runs-on: macos-11
+    runs-on: macos-latest
     timeout-minutes: 120
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}

@@ -36,6 +36,11 @@ public class PersistentTopicAttributes extends TopicAttributes {
     private final Attributes transactionCommittedAttributes;
     private final Attributes transactionAbortedAttributes;
 
+    private final Attributes transactionBufferClientCommitSucceededAttributes;
+    private final Attributes transactionBufferClientCommitFailedAttributes;
+    private final Attributes transactionBufferClientAbortSucceededAttributes;
+    private final Attributes transactionBufferClientAbortFailedAttributes;
+
     public PersistentTopicAttributes(TopicName topicName) {
         super(topicName);
 
@@ -59,6 +64,31 @@ public class PersistentTopicAttributes extends TopicAttributes {
         transactionAbortedAttributes =  Attributes.builder()
                 .putAll(commonAttributes)
                 .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
+                .build();
+
+        transactionBufferClientCommitSucceededAttributes = Attributes.builder()
+                .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
+                .build();
+        transactionBufferClientCommitFailedAttributes = Attributes.builder()
+                .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
+                .build();
+        transactionBufferClientAbortSucceededAttributes = Attributes.builder()
+                .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
+                .build();
+        transactionBufferClientAbortFailedAttributes = Attributes.builder()
+                .putAll(commonAttributes)
+                .remove(OpenTelemetryAttributes.PULSAR_DOMAIN)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
                 .build();
 
         compactionSuccessAttributes = Attributes.builder()
