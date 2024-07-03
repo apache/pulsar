@@ -48,6 +48,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -398,7 +399,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     return checkCompatibilityWithAll(schemaId, schemaData, strategy);
                 }
             } else {
-                return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
+                return FutureUtil.failedFuture(new NotExistSchemaException("Topic does not have schema to check"));
             }
         });
     }
