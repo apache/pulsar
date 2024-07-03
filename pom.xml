@@ -2198,7 +2198,8 @@ flexible messaging model and an intuitive client API.</description>
           <version>${dependency-check-maven.version}</version>
           <configuration>
             <nvdApiKeyEnvironmentVariable>NIST_NVD_API_KEY</nvdApiKeyEnvironmentVariable>
-            <nvdDatafeedUrl>https://jeremylong.github.io/DependencyCheck/hb_nvd/</nvdDatafeedUrl>
+            <!-- Uncomment the following to use the NVD data feed provided by the Dependency-Check project -->
+            <!-- <nvdDatafeedUrl>https://jeremylong.github.io/DependencyCheck/hb_nvd/</nvdDatafeedUrl> -->
           </configuration>
         </plugin>
       </plugins>
