@@ -72,6 +72,7 @@ public class TopicListWatcherTest {
 
         CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
         PatternMultiTopicsConsumerImpl patternConsumer = mock(PatternMultiTopicsConsumerImpl.class);
+        when(patternConsumer.getSubscribeFuture()).thenReturn(completedFuture);
         when(patternConsumer.recheckTopicsChange()).thenReturn(completedFuture);
         when(listener.onTopicsAdded(anyCollection())).thenReturn(completedFuture);
         when(listener.onTopicsRemoved(anyCollection())).thenReturn(completedFuture);
