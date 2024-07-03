@@ -40,7 +40,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
 public class OpenTelemetrySanityTest {
 
     // Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
