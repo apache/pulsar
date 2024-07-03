@@ -1479,7 +1479,7 @@ jobs:
 
       - name: Restore OWASP Dependency Check data
         id: restore-owasp-dependency-check-data
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data

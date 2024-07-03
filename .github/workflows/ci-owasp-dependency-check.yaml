@@ -85,7 +85,7 @@ jobs:
 
       - name: Restore OWASP Dependency Check data
         id: restore-owasp-dependency-check-data
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
@@ -101,7 +101,7 @@ jobs:
 
       - name: Save OWASP Dependency Check data
         if: ${{ steps.update-owasp-dependency-check-data.outcome == 'success' }}
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
