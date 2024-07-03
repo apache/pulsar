@@ -2196,6 +2196,9 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
           <version>${dependency-check-maven.version}</version>
+          <configuration>
+            <nvdApiKeyEnvironmentVariable>NIST_NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
