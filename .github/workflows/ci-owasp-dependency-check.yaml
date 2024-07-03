@@ -43,12 +43,9 @@ jobs:
       matrix:
         include:
           - branch: master
+          - branch: branch-3.3
           - branch: branch-3.2
-          - branch: branch-3.1
           - branch: branch-3.0
-          - branch: branch-2.11
-          - branch: branch-2.10
-            jdk: 11
 
     steps:
       - name: checkout
