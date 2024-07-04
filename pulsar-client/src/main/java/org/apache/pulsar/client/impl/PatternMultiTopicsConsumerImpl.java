@@ -245,22 +245,23 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             Set<String> partialRemoved = new HashSet<>(removedTopics.size());
             Set<String> partialRemovedForLog = new HashSet<>(removedTopics.size());
             for (String tp : removedTopics) {
-                ConsumerImpl<T> consumer = consumers.get(tp);
+                TopicName topicName = TopicName.get(tp);
+                ConsumerImpl<T> consumer = consumers.get(topicName.toString());
                 if (consumer != null) {
                     CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
                     consumer.closeAsync().whenComplete((__, ex) -> {
                         if (ex != null) {
                             log.error("Pattern consumer [{}] failed to unsubscribe from topics: {}",
-                                    PatternMultiTopicsConsumerImpl.this.getSubscription(), tp, ex);
+                                    PatternMultiTopicsConsumerImpl.this.getSubscription(), topicName.toString(), ex);
                             unsubscribeFuture.completeExceptionally(ex);
                         } else {
-                            consumers.remove(tp, consumer);
+                            consumers.remove(topicName.toString(), consumer);
                             unsubscribeFuture.complete(null);
                         }
                     });
                     unsubscribeList.add(unsubscribeFuture);
-                    partialRemoved.add(TopicName.get(tp).getPartitionedTopicName());
-                    partialRemovedForLog.add(TopicName.get(tp).toString());
+                    partialRemoved.add(topicName.getPartitionedTopicName());
+                    partialRemovedForLog.add(topicName.toString());
                 }
             }
             log.info("Pattern consumer [{}] remove topics. {}", PatternMultiTopicsConsumerImpl.this.getSubscription(),
@@ -304,11 +305,17 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(addedTopics.size());
             /**
-             * Three cases:
+             * Three normal cases:
              *  1. Expand partitions.
              *  2. Non-partitioned topic, but has been subscribing.
              *  3. Non-partitioned topic or Partitioned topic, but has not been subscribing.
-             *  Note: The events that triggered by {@link TopicsPartitionChangedListener} after expanding partitions has
+             * Two unexpected cases:
+             *   Error-1: Received adding non-partitioned topic event, but has subscribed a partitioned topic with the
+             *     same name.
+             *   Error-2: Received adding partitioned topic event, but has subscribed a non-partitioned topic with the
+             *     same name.
+             *
+             * Note: The events that triggered by {@link TopicsPartitionChangedListener} after expanding partitions has
              *    been disabled through "conf.setAutoUpdatePartitions(false)" when creating
              *    {@link PatternMultiTopicsConsumerImpl}.
              */
@@ -322,31 +329,46 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 TopicName topicName = TopicName.get(tp);
                 // Case 1: Expand partitions.
                 if (partitionedTopics.containsKey(topicName.getPartitionedTopicName())) {
-                    if (consumers.containsKey(tp.toString())) {
-                        continue;
+                    if (consumers.containsKey(topicName.toString())) {
+                        // Already subscribed.
+                    } else if (topicName.getPartitionIndex() < 0) {
+                        // Error-1: Received adding non-partitioned topic event, but has subscribed a partitioned topic
+                        // with the same name.
+                        log.error("Pattern consumer [{}] skip to subscribe to the non-partitioned topic {}, because has"
+                                + "subscribed a partitioned topic with the same name",
+                                PatternMultiTopicsConsumerImpl.this.getSubscription(), topicName.toString());
                     } else {
                         if (topicName.getPartitionIndex() + 1
                                 > partitionedTopics.get(topicName.getPartitionedTopicName())) {
                             partitionedTopics.put(topicName.getPartitionedTopicName(),
                                     topicName.getPartitionIndex() + 1);
                         }
-                        expendPartitionsForLog.add(tp);
-                        CompletableFuture consumerFuture = subscribeAsync(tp, PartitionedTopicMetadata.NON_PARTITIONED);
+                        expendPartitionsForLog.add(topicName.toString());
+                        CompletableFuture consumerFuture = subscribeAsync(topicName.toString(),
+                                PartitionedTopicMetadata.NON_PARTITIONED);
                         consumerFuture.whenComplete((__, ex) -> {
                             if (ex != null) {
                                 log.warn("Pattern consumer [{}] Failed to subscribe to topics: {}",
-                                        PatternMultiTopicsConsumerImpl.this.getSubscription(), tp, ex);
+                                        PatternMultiTopicsConsumerImpl.this.getSubscription(), topicName, ex);
                             }
                         });
                         futures.add(consumerFuture);
                     }
                     groupedTopics.remove(topicName.getPartitionedTopicName());
-                } else if (consumers.containsKey(tp.toString())) {
+                } else if (consumers.containsKey(topicName.toString())) {
                     // Case-2: Non-partitioned topic, but has been subscribing.
+                    groupedTopics.remove(topicName.getPartitionedTopicName());
+                } else if (consumers.containsKey(topicName.getPartitionedTopicName())
+                        && topicName.getPartitionIndex() >= 0) {
+                    // Error-2: Received adding partitioned topic event, but has subscribed a non-partitioned topic
+                    // with the same name.
+                    log.error("Pattern consumer [{}] skip to subscribe to the partitioned topic {}, because has"
+                                    + "subscribed a non-partitioned topic with the same name",
+                            PatternMultiTopicsConsumerImpl.this.getSubscription(), topicName);
                     groupedTopics.remove(topicName.getPartitionedTopicName());
                 }
             }
-            // Case 3: Non-partitioned topic or Partitioned topic, but has not been subscribing.
+            // Case 3: Non-partitioned topic or Partitioned topic, which has not been subscribed.
             for (String partitionedTopic : groupedTopics) {
                 CompletableFuture consumerFuture = subscribeAsync(partitionedTopic, false);
                 consumerFuture.whenComplete((__, ex) -> {
