@@ -197,14 +197,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         final List<CompletableFuture<?>> listenersCallback = new ArrayList<>(2);
         Set<String> topicsAdded = TopicList.minus(newTopics, oldTopics);
         Set<String> topicsRemoved = TopicList.minus(oldTopics, newTopics);
-        log.info("Pattern consumer [{}] Recheck pattern consumer's topics. topicsAdded: {}, topicsRemoved: []",
+        log.info("Pattern consumer [{}] Recheck pattern consumer's topics. topicsAdded: {}, topicsRemoved: {}",
                 subscriptionForLog, topicsAdded, topicsRemoved);
-        if (!topicsAdded.isEmpty()) {
-            listenersCallback.add(topicsChangedListener.onTopicsAdded(topicsAdded));
-        }
-        if (!topicsRemoved.isEmpty()) {
-            listenersCallback.add(topicsChangedListener.onTopicsRemoved(topicsRemoved));
-        }
+        listenersCallback.add(topicsChangedListener.onTopicsAdded(topicsAdded));
+        listenersCallback.add(topicsChangedListener.onTopicsRemoved(topicsRemoved));
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
