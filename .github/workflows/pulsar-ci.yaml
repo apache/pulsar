@@ -1250,6 +1250,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      NIST_NVD_API_KEY: ${{ secrets.NIST_NVD_API_KEY }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1265,16 +1266,14 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
+      - name: Restore Maven repository cache
+        uses: actions/cache/restore@v4
         timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-            !~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          lookup-only: true
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
       - name: Set up JDK ${{ matrix.jdk || '17' }}
