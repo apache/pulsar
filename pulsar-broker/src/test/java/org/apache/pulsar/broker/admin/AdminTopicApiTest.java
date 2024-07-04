@@ -42,12 +42,14 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -74,17 +76,59 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testAttemptDeleteNonPartitionedForPartitioned() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        admin.topics().createPartitionedTopic(topic, 2);
+    public void testDeleteNonExistTopic() throws Exception {
+        // Case 1: call delete for a partitioned topic.
+        final String topic1 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createPartitionedTopic(topic1, 2);
+        admin.schemas().createSchemaAsync(topic1, Schema.STRING.getSchemaInfo());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+        });
         try {
-            admin.topics().delete(topic);
+            admin.topics().delete(topic1);
             fail("expected a 409 error");
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("please call delete-partitioned-topic instead"));
         }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+        });
         // cleanup.
-        admin.topics().deletePartitionedTopic(topic, false);
+        admin.topics().deletePartitionedTopic(topic1, false);
+
+        // Case 2: call delete-partitioned-topi for a non-partitioned topic.
+        final String topic2 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(topic2);
+        admin.schemas().createSchemaAsync(topic2, Schema.STRING.getSchemaInfo());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+        });
+        try {
+            admin.topics().deletePartitionedTopic(topic2);
+            fail("expected a 409 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Instead of calling delete-partitioned-topic please call delete"));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+        });
+        // cleanup.
+        admin.topics().delete(topic2, false);
+
+        // Case 3: delete topic does not exist.
+        final String topic3 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        try {
+            admin.topics().delete(topic3);
+            fail("expected a 404 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("not found"));
+        }
+        try {
+            admin.topics().deletePartitionedTopic(topic3);
+            fail("expected a 404 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("not found"));
+        }
     }
 
     @Test

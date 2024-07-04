@@ -1169,47 +1169,37 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopicAsync(authoritative, force)
-            .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
-            .exceptionally(ex -> {
-                final Throwable t = FutureUtil.unwrapCompletionException(ex);
-                Consumer<Throwable> exHandler = error -> {
-                    Throwable restException = error;
-                    if (!force && (error instanceof BrokerServiceException.TopicBusyException)) {
-                        restException = new RestException(Response.Status.PRECONDITION_FAILED,
-                                error.getMessage());
+
+        getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExistsAsync(topicName).thenAccept(exists -> {
+            if (exists) {
+                RestException restException = new RestException(Response.Status.CONFLICT,
+                        String.format("%s is a partitioned topic, please call delete-partitioned-topic"
+                                + " instead.", topicName));
+                resumeAsyncResponseExceptionally(asyncResponse, restException);
+                return;
+            }
+            internalDeleteTopicAsync(authoritative, force)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
+                        ex = new RestException(Response.Status.PRECONDITION_FAILED,
+                                t.getMessage());
                     }
-                    if (error instanceof IllegalStateException){
-                        restException = new RestException(422/* Unprocessable entity*/, error.getMessage());
-                    } else if (isManagedLedgerNotFoundException(error)) {
-                        restException = new RestException(Response.Status.NOT_FOUND,
+                    if (t instanceof IllegalStateException){
+                        ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
+                    } else if (isManagedLedgerNotFoundException(t)) {
+                        ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
-                    } else if (isNot307And404Exception(error)) {
-                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, error);
+                    } else if (isNot307And404Exception(ex)) {
+                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
                     }
-                    resumeAsyncResponseExceptionally(asyncResponse, restException);
-                };
-                if (t instanceof ManagedLedgerException.MetadataNotFoundException) {
-                    pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                        .partitionedTopicExistsAsync(topicName).thenApply(exists -> {
-                            if (exists) {
-                                RestException restException = new RestException(Response.Status.CONFLICT,
-                                        String.format("%s is a partitioned topic, please call delete-partitioned-topic"
-                                        + " instead.", topicName));
-                                resumeAsyncResponseExceptionally(asyncResponse, restException);
-                            } else {
-                                exHandler.accept(t);
-                            }
-                            return null;
-                        }).exceptionally(exIgnore -> {
-                            exHandler.accept(t);
-                            return null;
-                        });
-                } else {
-                    exHandler.accept(t);
-                }
-                return null;
-            });
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+        });
+
     }
 
     @GET
