@@ -1250,6 +1250,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      NIST_NVD_API_KEY: ${{ secrets.NIST_NVD_API_KEY }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -1265,8 +1266,8 @@ jobs:
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v3
+      - name: Restore Maven repository cache
+        uses: actions/cache/restore@v4
         timeout-minutes: 5
         with:
           path: |
