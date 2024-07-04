@@ -197,8 +197,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         final List<CompletableFuture<?>> listenersCallback = new ArrayList<>(2);
         Set<String> topicsAdded = TopicList.minus(newTopics, oldTopics);
         Set<String> topicsRemoved = TopicList.minus(oldTopics, newTopics);
-        log.info("Pattern consumer [{}] Recheck pattern consumer's topics. topicsAdded: {}, topicsRemoved: {}",
-                subscriptionForLog, topicsAdded, topicsRemoved);
+        if (log.isDebugEnabled()) {
+            log.debug("Pattern consumer [{}] Recheck pattern consumer's topics. topicsAdded: {}, topicsRemoved: {}",
+                    subscriptionForLog, topicsAdded, topicsRemoved);
+        }
         listenersCallback.add(topicsChangedListener.onTopicsAdded(topicsAdded));
         listenersCallback.add(topicsChangedListener.onTopicsRemoved(topicsRemoved));
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
@@ -264,8 +266,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     partialRemovedForLog.add(topicName.toString());
                 }
             }
-            log.info("Pattern consumer [{}] remove topics. {}", PatternMultiTopicsConsumerImpl.this.getSubscription(),
-                    partialRemovedForLog);
+            if (log.isDebugEnabled()) {
+                log.debug("Pattern consumer [{}] remove topics. {}",
+                        PatternMultiTopicsConsumerImpl.this.getSubscription(),
+                        partialRemovedForLog);
+            }
 
             // Remove partitioned topics in memory.
             return FutureUtil.waitForAll(unsubscribeList).handle((__, ex) -> {
@@ -288,9 +293,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                         }
                     }
                 }
-                log.info("Pattern consumer [{}] remove partitioned topics because all partitions have been removed. {}",
-                        PatternMultiTopicsConsumerImpl.this.getSubscription(),
-                        removedPartitionedTopicsForLog);
+                if (log.isDebugEnabled()) {
+                    log.debug("Pattern consumer [{}] remove partitioned topics because all partitions have been removed."
+                            + " {}", PatternMultiTopicsConsumerImpl.this.getSubscription(),
+                            removedPartitionedTopicsForLog);
+                }
                 return null;
             });
         }
@@ -379,8 +386,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 });
                 futures.add(consumerFuture);
             }
-            log.info("Pattern consumer [{}] add topics. expend partitions {}, new subscribing {}",
-                    PatternMultiTopicsConsumerImpl.this.getSubscription(), expendPartitionsForLog, groupedTopics);
+            if (log.isDebugEnabled()) {
+                log.debug("Pattern consumer [{}] add topics. expend partitions {}, new subscribing {}",
+                        PatternMultiTopicsConsumerImpl.this.getSubscription(), expendPartitionsForLog, groupedTopics);
+            }
             return FutureUtil.waitForAll(futures);
         }
     }

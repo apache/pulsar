@@ -600,8 +600,8 @@ public class PulsarClientImpl implements PulsarClient {
                 }
                 conf.getTopicNames().addAll(topicsList);
 
-                if (log.isInfoEnabled()) {
-                    log.info("Pattern consumer [{}] initialize topics. {}", conf.getSubscriptionName(),
+                if (log.isDebugEnabled()) {
+                    log.debug("Pattern consumer [{}] initialize topics. {}", conf.getSubscriptionName(),
                             getTopicsResult.getNonPartitionedOrPartitionTopics());
                 }
 
