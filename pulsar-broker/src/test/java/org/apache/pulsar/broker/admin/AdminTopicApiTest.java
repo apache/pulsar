@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -69,6 +71,20 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testAttemptDeleteNonPartitionedForPartitioned() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createPartitionedTopic(topic, 2);
+        try {
+            admin.topics().delete(topic);
+            fail("expected a 409 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("please call delete-partitioned-topic instead"));
+        }
+        // cleanup.
+        admin.topics().deletePartitionedTopic(topic, false);
     }
 
     @Test
