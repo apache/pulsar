@@ -108,8 +108,8 @@ public class LookupServiceTest extends ProducerConsumerBase {
         // Verify the new method "GetTopicsResult.nonPartitionedOrPartitionTopics" works as expected.
         Collection<String> nonPartitionedOrPartitionTopics =
                 lookupService.getTopicsUnderNamespace(NamespaceName.get("public/default"),
-                                Mode.PERSISTENT, "public/default/.*", null).join()
-                        .getNonPartitionedOrPartitionTopics();
+                Mode.PERSISTENT, "public/default/.*", null).join()
+                .getNonPartitionedOrPartitionTopics();
         assertTrue(nonPartitionedOrPartitionTopics.contains(nonPartitionedTopic));
         assertFalse(nonPartitionedOrPartitionTopics.contains(partitionedTopic));
         assertFalse(nonPartitionedOrPartitionTopics.contains(nonPersistentTopic));
