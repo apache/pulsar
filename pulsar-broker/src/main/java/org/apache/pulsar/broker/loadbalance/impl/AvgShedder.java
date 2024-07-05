@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -45,9 +47,8 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrategy {
-    private static Logger log = LoggerFactory.getLogger(AvgShedder.class);
-
     // map bundle to broker.
     private final Map<BundleData, String> bundleBrokerMap = new HashMap<>();
     // map broker to Scores. scores:0-100
@@ -84,14 +85,14 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                     minMsgThreshold, minThroughputThreshold);
         }
 
-        List<String> brokers = new LinkedList<>();
+        List<String> brokers = new ArrayList<>(loadData.getBrokerData().size());
         brokerScoreMap.clear();
         // calculate scores of brokers.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             LocalBrokerData localBrokerData = entry.getValue().getLocalData();
             String broker = entry.getKey();
             brokers.add(broker);
-            Double score = calculateScores(broker, localBrokerData, conf);
+            Double score = calculateScores(localBrokerData, conf);
             brokerScoreMap.put(broker, score);
             // collect data to analyze the relations between scores and throughput and messageRate.
             log.info("broker:{}, scores:{}, throughput:{}, messageRate:{}", broker, score,
@@ -283,10 +284,6 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         }
     }
 
-    private static long hash(String key) {
-        return Hashing.crc32().hashString(key, StandardCharsets.UTF_8).padToLong();
-    }
-
     private static String getExpectedBroker(Collection<String> brokers, BundleData bundle) {
         List<String> sortedBrokers = new ArrayList<>(brokers);
         Collections.sort(sortedBrokers);
@@ -295,7 +292,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             // use random number as input of hashing function to avoid special case that,
             // if there is 4 brokers running in the cluster,and add broker5,and shutdown broker3,
             // then all bundles belonging to broker3 will be loaded on the same broker.
-            final long hashcode = hash(String.valueOf(random.nextInt()));
+            final long hashcode = Hashing.crc32().hashString(String.valueOf(random.nextInt()),
+                    StandardCharsets.UTF_8).padToLong();
             final int index = (int) (Math.abs(hashcode) % sortedBrokers.size());
             if (log.isDebugEnabled()) {
                 log.debug("Assignment details: brokers={}, bundle={}, hashcode={}, index={}",
