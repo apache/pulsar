@@ -25,7 +25,9 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +56,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
     private volatile List<InetSocketAddress> healthyAddress;
+    private volatile Set<InetSocketAddress> removedAddresses;
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -118,6 +121,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         }
         this.addressList = addresses;
         this.healthyAddress = addresses;
+        this.removedAddresses = new HashSet<>();
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
@@ -143,6 +147,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             future.cancel(true);
             healthCheckScheduled.set(false);
             healthCheckFuture.set(null);
+            log.info("PulsarServiceNameResolver is closed, so cancel the health check task.");
         }
     }
 
@@ -155,12 +160,26 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (list != null && !list.isEmpty()) {
             List<InetSocketAddress> healthy = new ArrayList<>(list.size());
             for (InetSocketAddress address : list) {
-                for (int i = 0; i < 3; i++){
+                boolean healthyAddress = false;
+                for (int i = 0; i < 3; i++) {
                     if (checkAddress(address)) {
-                        healthy.add(address);
+                        healthyAddress = true;
                         break;
                     } else {
                         Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+                    }
+                }
+
+                if (healthyAddress) {
+                    if (removedAddresses.contains(address)) {
+                        removedAddresses.remove(address);
+                        log.info("Health check success for address {}, recover it!", address);
+                    }
+                    healthy.add(address);
+                } else {
+                    if (!removedAddresses.contains(address)) {
+                        removedAddresses.add(address);
+                        log.error("Health check failed for address {}, remove it!", address);
                     }
                 }
             }
@@ -176,10 +195,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private static boolean checkAddress(InetSocketAddress address) {
         try (Socket socket = new Socket()) {
-            socket.connect(address, 5000);
+            socket.connect(new InetSocketAddress(address.getHostName(), address.getPort()), 5000);
             return true;
         } catch (Exception e) {
-            log.error("[health check]Failed to connect to {}, error:{}", address, e.getMessage());
+            log.error("Health check error, failed to connect to {}, error:{}", address, e.getMessage());
             return false;
         }
     }
