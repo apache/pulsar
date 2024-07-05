@@ -877,4 +877,12 @@ public interface ManagedCursor {
         return false;
     }
 
+    /**
+     * Get the attributes associated with the cursor.
+     *
+     * @return the attributes associated with the cursor
+     */
+    default ManagedCursorAttributes getManagedCursorAttributes() {
+        return new ManagedCursorAttributes(this);
+    }
 }
