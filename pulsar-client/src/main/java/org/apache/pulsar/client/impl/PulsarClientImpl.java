@@ -389,7 +389,7 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         CompletableFuture<Integer> partitionsFuture;
-        if (conf.isForceOnoPartitioned()) {
+        if (conf.isForceNoPartitioned()) {
             partitionsFuture = CompletableFuture.completedFuture(0);
         } else {
             partitionsFuture = getPartitionedTopicMetadata(topic, true).thenApply(metadata -> metadata.partitions);

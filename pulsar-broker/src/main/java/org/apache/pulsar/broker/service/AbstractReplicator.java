@@ -219,7 +219,7 @@ public abstract class AbstractReplicator implements Replicator {
             // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
             // the remote cluster.
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
-            builderImpl.getConf().setForceOnoPartitioned(true);
+            builderImpl.getConf().setForceNoPartitioned(true);
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });

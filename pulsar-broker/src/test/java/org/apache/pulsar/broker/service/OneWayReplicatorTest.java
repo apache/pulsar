@@ -1090,7 +1090,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     @Test(dataProvider = "replicationModes")
     public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
-        String ns = defaultTenant + "/ns_2"/* + UUID.randomUUID().toString().replace("-", "")*/;
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
         admin1.namespaces().createNamespace(ns);
         admin2.namespaces().createNamespace(ns);
 
