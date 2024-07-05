@@ -77,6 +77,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorAttributes;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -285,6 +286,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected volatile State state = null;
 
     protected final ManagedCursorMXBean mbean;
+
+    private volatile ManagedCursorAttributes managedCursorAttributes;
+    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, ManagedCursorAttributes> ATTRIBUTES_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, ManagedCursorAttributes.class,
+                    "managedCursorAttributes");
 
     @SuppressWarnings("checkstyle:javadoctype")
     public interface VoidCallback {
@@ -3718,5 +3724,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
         return newNonDurableCursor;
+    }
+
+    @Override
+    public ManagedCursorAttributes getManagedCursorAttributes() {
+        if (managedCursorAttributes != null) {
+            return managedCursorAttributes;
+        }
+        return ATTRIBUTES_UPDATER.updateAndGet(this, old -> old != null ? old : new ManagedCursorAttributes(this));
     }
 }

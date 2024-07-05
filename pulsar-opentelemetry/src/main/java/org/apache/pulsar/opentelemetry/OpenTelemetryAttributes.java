@@ -116,6 +116,7 @@ public interface OpenTelemetryAttributes {
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
+
     enum TransactionStatus {
         ABORTED,
         ACTIVE,
@@ -172,6 +173,28 @@ public interface OpenTelemetryAttributes {
         SIZE,
         TIME;
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
+    }
+
+    // Managed Ledger Attributes
+    /**
+     * The name of the managed ledger.
+     */
+    AttributeKey<String> ML_LEDGER_NAME = AttributeKey.stringKey("pulsar.managed_ledger.name");
+
+    /**
+     * The name of the managed cursor.
+     */
+    AttributeKey<String> ML_CURSOR_NAME = AttributeKey.stringKey("pulsar.managed_ledger.cursor.name");
+
+    /**
+     * The status of the managed cursor operation.
+     */
+    AttributeKey<String> ML_CURSOR_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.managed_ledger.cursor.operation.status");
+    enum ManagedCursorOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(ML_CURSOR_OPERATION_STATUS, name().toLowerCase());
     }
 
     /**
