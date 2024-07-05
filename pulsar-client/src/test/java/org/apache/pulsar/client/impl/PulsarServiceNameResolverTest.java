@@ -183,5 +183,6 @@ public class PulsarServiceNameResolverTest {
     @AfterMethod
     public void close() throws IOException {
         serverSocket.close();
+        resolver.close();
     }
 }
