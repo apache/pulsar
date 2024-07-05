@@ -271,6 +271,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 });
 
         if (placementStrategy instanceof LoadSheddingStrategy) {
+            // if the placement strategy is also a load shedding strategy
+            // we need to check two strategies are the same
+            if (!conf.getLoadBalancerLoadSheddingStrategy().equals(
+                    conf.getLoadBalancerPlacementStrategy())) {
+                throw new IllegalArgumentException("The load shedding strategy: "
+                        + conf.getLoadBalancerLoadSheddingStrategy()
+                        + " can't work with the placement strategy: "
+                        + conf.getLoadBalancerPlacementStrategy());
+            }
             // bind the load shedding strategy and the placement strategy
             loadSheddingStrategy = (LoadSheddingStrategy) placementStrategy;
         } else {
