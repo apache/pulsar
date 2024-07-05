@@ -205,7 +205,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                 log.warn("HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
                                 + "No Load Shedding will be done on this broker",
                         maxLocalBrokerData.getBundles().iterator().next(), pair.getRight());
-            } else if (maxLocalBrokerData.getBundles().size() == 0) {
+            } else if (maxLocalBrokerData.getBundles().isEmpty()) {
                 log.warn("Broker {} is overloaded despite having no bundles", pair.getRight());
             }
 
