@@ -100,7 +100,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         }
 
         // sort brokers by scores.
-        Collections.sort(brokers, (e1, e2) -> (int) (brokerScoreMap.get(e1) - brokerScoreMap.get(e2)));
+        brokers.sort((e1, e2) -> (int) (brokerScoreMap.get(e1) - brokerScoreMap.get(e2)));
         if (log.isDebugEnabled()) {
             log.debug("sorted broker list:{}", brokers);
         }
