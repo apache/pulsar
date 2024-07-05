@@ -294,8 +294,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     }
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("Pattern consumer [{}] remove partitioned topics because all partitions have been removed."
-                            + " {}", PatternMultiTopicsConsumerImpl.this.getSubscription(),
+                    log.debug("Pattern consumer [{}] remove partitioned topics because all partitions have been"
+                                    + " removed. {}", PatternMultiTopicsConsumerImpl.this.getSubscription(),
                             removedPartitionedTopicsForLog);
                 }
                 return null;
