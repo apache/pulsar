@@ -254,13 +254,12 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         LoadSheddingStrategy.super.onActiveBrokersChange(activeBrokers);
     }
 
-    private Double calculateScores(String broker, LocalBrokerData localBrokerData, final ServiceConfiguration conf) {
-        double score = localBrokerData.getMaxResourceUsageWithWeight(
+    private Double calculateScores(LocalBrokerData localBrokerData, final ServiceConfiguration conf) {
+        return localBrokerData.getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight()) * 100;
-        return score;
     }
 
     @Override
