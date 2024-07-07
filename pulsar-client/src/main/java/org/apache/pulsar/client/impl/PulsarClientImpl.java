@@ -49,9 +49,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -382,33 +384,61 @@ public class PulsarClientImpl implements PulsarClient {
 
     }
 
+    private CompletableFuture<Integer> checkPartitions(String topic, boolean forceNoPartitioned,
+                                                       @Nullable String producerNameForLog) {
+        CompletableFuture<Integer> checkPartitions = new CompletableFuture<>();
+        getPartitionedTopicMetadata(topic, !forceNoPartitioned).thenAccept(metadata -> {
+            if (forceNoPartitioned && metadata.partitions > 0) {
+                String errorMsg = String.format("Can not create the producer[{}] for the topic[{}] that contains {}"
+                                + " partitions, but the producer does not support for a partitioned topic.",
+                        producerNameForLog, topic, metadata.partitions);
+                checkPartitions.completeExceptionally(
+                        new PulsarClientException.NotConnectedException(errorMsg));
+            } else {
+                checkPartitions.complete(metadata.partitions);
+            }
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (forceNoPartitioned && actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                checkPartitions.complete(0);
+            } else {
+                checkPartitions.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return checkPartitions;
+    }
+
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
                                                                    ProducerConfigurationData conf,
                                                                    Schema<T> schema,
                                                                    ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
-        CompletableFuture<Integer> partitionsFuture;
-        if (conf.isForceNoPartitioned()) {
-            partitionsFuture = CompletableFuture.completedFuture(0);
-        } else {
-            partitionsFuture = getPartitionedTopicMetadata(topic, true).thenApply(metadata -> metadata.partitions);
-        }
 
-        partitionsFuture.thenAccept(partitions -> {
+
+        checkPartitions(topic, conf.isForceNoPartitioned(), conf.getProducerName()).thenAccept(partitions -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, partitions);
             }
 
             ProducerBase<T> producer;
             if (partitions > 0) {
+                if (conf.isForceNoPartitioned()) {
+                    String errorMsg = String.format("Can not create the producer[{}] for the topic[{}] that contains {}"
+                            + " partitions, but the producer does not support for a partitioned topic.",
+                            conf.getProducerName(), topic, partitions);
+                    producerCreatedFuture.completeExceptionally(
+                            new PulsarClientException.NotConnectedException(errorMsg));
+                }
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
                         partitions);
             } else {
                 producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture,
                         Optional.empty());
             }
-
             producers.add(producer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
