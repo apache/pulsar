@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableDouble;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -51,8 +52,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     // map broker to Scores. scores:0-100
     private final Map<String, Double> brokerScoreMap = new HashMap<>();
     // map broker hit count for high threshold/low threshold
-    private final Map<String, Integer> brokerHitCountForHigh = new HashMap<>();
-    private final Map<String, Integer> brokerHitCountForLow = new HashMap<>();
+    private final Map<String, MutableInt> brokerHitCountForHigh = new HashMap<>();
+    private final Map<String, MutableInt> brokerHitCountForLow = new HashMap<>();
 
     // result returned by shedding, map broker to bundles.
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
@@ -99,10 +100,14 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             String underloadedBroker = pair.getLeft();
 
             // check hit count for high threshold and low threshold.
-            if (!(brokerHitCountForHigh.getOrDefault(underloadedBroker, 0) >= hitCountHighThreshold)
-                    && !(brokerHitCountForHigh.getOrDefault(overloadedBroker, 0) >= hitCountHighThreshold)
-                    && !(brokerHitCountForLow.getOrDefault(underloadedBroker, 0) >= hitCountLowThreshold)
-                    && !(brokerHitCountForLow.getOrDefault(overloadedBroker, 0) >= hitCountLowThreshold)) {
+            if (!(brokerHitCountForHigh.computeIfAbsent(underloadedBroker, __ -> new MutableInt(0))
+                    .intValue() >= hitCountHighThreshold)
+                    && !(brokerHitCountForHigh.computeIfAbsent(overloadedBroker, __ -> new MutableInt(0))
+                    .intValue() >= hitCountHighThreshold)
+                    && !(brokerHitCountForLow.computeIfAbsent(underloadedBroker, __ -> new MutableInt(0))
+                    .intValue() >= hitCountLowThreshold)
+                    && !(brokerHitCountForLow.computeIfAbsent(overloadedBroker, __ -> new MutableInt(0))
+                    .intValue() >= hitCountLowThreshold)) {
                 continue;
             }
 
@@ -248,17 +253,17 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             } else {
                 pairs.add(Pair.of(minBroker, maxBroker));
                 if (brokerScoreMap.get(maxBroker) - brokerScoreMap.get(minBroker) < highThreshold) {
-                    brokerHitCountForLow.put(minBroker, brokerHitCountForLow.getOrDefault(minBroker, 0) + 1);
-                    brokerHitCountForLow.put(maxBroker, brokerHitCountForLow.getOrDefault(maxBroker, 0) + 1);
+                    brokerHitCountForLow.computeIfAbsent(minBroker, k -> new MutableInt(0)).increment();
+                    brokerHitCountForLow.computeIfAbsent(maxBroker, k -> new MutableInt(0)).increment();
 
                     brokerHitCountForHigh.remove(maxBroker);
                     brokerHitCountForHigh.remove(minBroker);
                 } else {
-                    brokerHitCountForLow.put(minBroker, brokerHitCountForLow.getOrDefault(minBroker, 0) + 1);
-                    brokerHitCountForLow.put(maxBroker, brokerHitCountForLow.getOrDefault(maxBroker, 0) + 1);
+                    brokerHitCountForLow.computeIfAbsent(minBroker, k -> new MutableInt(0)).increment();
+                    brokerHitCountForLow.computeIfAbsent(maxBroker, k -> new MutableInt(0)).increment();
 
-                    brokerHitCountForHigh.put(minBroker, brokerHitCountForHigh.getOrDefault(minBroker, 0) + 1);
-                    brokerHitCountForHigh.put(maxBroker, brokerHitCountForHigh.getOrDefault(maxBroker, 0) + 1);
+                    brokerHitCountForHigh.computeIfAbsent(minBroker, k -> new MutableInt(0)).increment();
+                    brokerHitCountForHigh.computeIfAbsent(maxBroker, k -> new MutableInt(0)).increment();
                 }
             }
             i++;
