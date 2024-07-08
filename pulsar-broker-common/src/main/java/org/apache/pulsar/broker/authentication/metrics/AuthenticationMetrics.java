@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.authentication.metrics;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.Counter;
 
 public class AuthenticationMetrics {
@@ -36,15 +36,7 @@ public class AuthenticationMetrics {
             .labelNames("provider_name", "auth_method", "reason")
             .register();
 
-    /**
-     * Log authenticate success event to the authentication metrics.
-     * @param providerName The short class name of the provider
-     * @param authMethod Authentication method name
-     */
-    @Deprecated
-    public static void authenticateSuccess(String providerName, String authMethod) {
-        authSuccessMetrics.labels(providerName, authMethod).inc();
-    }
+    public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authentication";
 
     /**
      * Log authenticate failure event to the authentication metrics.
@@ -72,7 +64,7 @@ public class AuthenticationMetrics {
         authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
     }
 
-    public static final String AUTHENTICATION_COUNTER_METRIC_NAME = "pulsar.authentication.count";
+    public static final String AUTHENTICATION_COUNTER_METRIC_NAME = "pulsar.authentication.operation.count";
     private final LongCounter authenticationCounter;
 
     private static final AttributeKey<String> PROVIDER_KEY = AttributeKey.stringKey("pulsar.authentication.provider");
@@ -80,15 +72,16 @@ public class AuthenticationMetrics {
     private static final AttributeKey<String> AUTH_RESULT_KEY = AttributeKey.stringKey("pulsar.authentication.result");
     private static final AttributeKey<String> ERROR_CODE_KEY = AttributeKey.stringKey("pulsar.authentication.error");
 
-    public AuthenticationMetrics(Meter meter) {
+    public AuthenticationMetrics(OpenTelemetry openTelemetry) {
+        var meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
         authenticationCounter = meter.counterBuilder(AUTHENTICATION_COUNTER_METRIC_NAME)
-                .setDescription("Number of authentication operations")
+                .setDescription("The number of authentication operations")
                 .setUnit("{operation}")
                 .build();
     }
 
     public void recordSuccess(String providerName, String authMethod) {
-        authenticateSuccess(providerName, authMethod);
+        authSuccessMetrics.labels(providerName, authMethod).inc();
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, "success");

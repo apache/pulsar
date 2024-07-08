@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import org.apache.commons.codec.digest.Crypt;
 import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.url.URL;
 
 public class AuthenticationProviderBasic extends AuthenticationProviderBase {
@@ -72,8 +74,8 @@ public class AuthenticationProviderBasic extends AuthenticationProviderBase {
     }
 
     @Override
-    public void initialize(InitParameters initParameters) throws IOException {
-        var config = initParameters.getConfig();
+    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
+        initializeMetrics(openTelemetry);
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
         if (StringUtils.isEmpty(data)) {
             data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);

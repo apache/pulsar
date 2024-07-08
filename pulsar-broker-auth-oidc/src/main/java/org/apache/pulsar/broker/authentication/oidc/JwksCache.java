@@ -63,7 +63,8 @@ public class JwksCache {
     private final OpenidApi openidApi;
     private final AuthenticationProviderBase authenticationProvider;
 
-    JwksCache(AuthenticationProviderBase authenticationProvider, ServiceConfiguration config, AsyncHttpClient httpClient, ApiClient apiClient) throws IOException {
+    JwksCache(AuthenticationProviderBase authenticationProvider, ServiceConfiguration config,
+              AsyncHttpClient httpClient, ApiClient apiClient) throws IOException {
         this.authenticationProvider = authenticationProvider;
         // Store the clients
         this.httpClient = httpClient;

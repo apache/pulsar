@@ -18,22 +18,24 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
+import lombok.NonNull;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public abstract class AuthenticationProviderBase implements AuthenticationProvider {
+
     private AuthenticationMetrics authenticationMetrics;
 
     @Override
     @Deprecated
     public final void initialize(ServiceConfiguration config) throws IOException {
-        throw new UnsupportedOperationException("This method is deprecated and should not be used");
+        initialize(config, OpenTelemetry.noop());
     }
 
-    @Override
-    public void initialize(InitParameters params) throws IOException {
-        authenticationMetrics = params.getAuthenticationMetrics();
+    protected final void initializeMetrics(@NonNull OpenTelemetry openTelemetry) {
+        authenticationMetrics = new AuthenticationMetrics(openTelemetry);
     }
 
     @Override

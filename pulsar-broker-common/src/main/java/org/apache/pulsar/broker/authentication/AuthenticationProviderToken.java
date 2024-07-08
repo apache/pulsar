@@ -31,6 +31,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
@@ -47,6 +48,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.stats.MetricsUtil;
@@ -82,17 +84,21 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
 
     static final String TOKEN = "token";
 
+    @Deprecated
     private static final Counter expiredTokenMetrics = Counter.build()
             .name("pulsar_expired_token_total")
             .help("Pulsar expired token")
             .register();
+    public static final String EXPIRED_TOKEN_COUNTER_METRIC_NAME = "pulsar.authentication.token.expired.count";
     private LongCounter expiredTokensCounter;
 
+    @Deprecated
     private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
             .name("pulsar_expiring_token_minutes")
             .help("The remaining time of expiring token in minutes")
             .buckets(5, 10, 60, 240)
             .register();
+    public static final String EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME = "pulsar.authentication.token.expiry.duration";
     private DoubleHistogram expiringTokenSeconds;
 
     private Key validationKey;
@@ -129,18 +135,19 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
     }
 
     @Override
-    public void initialize(InitParameters initParameters) throws IOException, IllegalArgumentException {
-        super.initialize(initParameters);
-
-        var meter = initParameters.getOpenTelemetry().getMeter("org.apache.pulsar.authentication");
-        expiredTokensCounter = meter.counterBuilder("pulsar.token.expired.count")
+    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry)
+            throws IOException, IllegalArgumentException {
+        initializeMetrics(openTelemetry);
+        var meter = openTelemetry.getMeter(AuthenticationMetrics.INSTRUMENTATION_SCOPE_NAME);
+        expiredTokensCounter = meter.counterBuilder(EXPIRED_TOKEN_COUNTER_METRIC_NAME)
+                .setDescription("The total number of expired tokens")
                 .setUnit("{token}")
                 .build();
-        expiringTokenSeconds = meter.histogramBuilder("pulsar.token.duration")
+        expiringTokenSeconds = meter.histogramBuilder(EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME)
+                .setDescription("The remaining time of expiring token in seconds")
                 .setUnit("s")
                 .build();
 
-        var config = initParameters.getConfig();
         String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -284,6 +291,8 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
                 var durationMs = expiration.getTime() - new Date().getTime();
                 expiringTokenMinutesMetrics.observe(durationMs / 60_000.0d);
                 expiringTokenSeconds.record(MetricsUtil.convertToSeconds(durationMs, TimeUnit.MILLISECONDS));
+            } else {
+                expiringTokenSeconds.record(Double.POSITIVE_INFINITY);
             }
             return jwt;
         } catch (JwtException e) {

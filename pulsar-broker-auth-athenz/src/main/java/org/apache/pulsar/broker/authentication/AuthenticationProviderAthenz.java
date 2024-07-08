@@ -22,12 +22,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.yahoo.athenz.auth.token.RoleToken;
 import com.yahoo.athenz.zpe.AuthZpeClient;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,10 +53,8 @@ public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
     }
 
     @Override
-    public void initialize(InitParameters initParameters) throws IOException {
-        super.initialize(initParameters);
-
-        var config = initParameters.getConfig();
+    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
+        initializeMetrics(openTelemetry);
         String domainNames;
         if (config.getProperty(DOMAIN_NAME_LIST) != null) {
             domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);

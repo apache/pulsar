@@ -29,13 +29,11 @@ import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -70,17 +68,11 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
         var properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
 
-        var authenticationMetrics = WhiteboxImpl.getByNameAndType(pulsar.getBrokerService(), "authenticationMetrics", AuthenticationMetrics.class);
-
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        var initParameters = AuthenticationProvider.InitParameters.builder()
-                .config(conf)
-                .authenticationMetrics(authenticationMetrics)
-                .build();
-        provider.initialize(initParameters);
+        provider.initialize(conf, pulsar.getOpenTelemetry().getOpenTelemetry());
 
-        // Authentication should fail if not credentials passed.
+        // Authentication should fail if credentials not passed.
         assertThatThrownBy(() -> provider.authenticate(new AuthenticationDataSource() {}))
                 .isInstanceOf(AuthenticationException.class);
         assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),

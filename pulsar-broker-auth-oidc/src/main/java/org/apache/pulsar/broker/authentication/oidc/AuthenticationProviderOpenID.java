@@ -41,6 +41,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -54,12 +55,12 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import okhttp3.OkHttpClient;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBase;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -147,10 +148,8 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
     private ApiClient k8sApiClient;
 
     @Override
-    public void initialize(InitParameters initParameters) throws IOException {
-        super.initialize(initParameters);
-
-        var config = initParameters.getConfig();
+    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
+        initializeMetrics(openTelemetry);
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
         this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);

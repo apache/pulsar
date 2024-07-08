@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -213,9 +215,9 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     }
 
     @Override
-    public void initialize(InitParameters parameters) throws IOException {
+    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
         for (AuthenticationProvider ap : providers) {
-            ap.initialize(parameters);
+            ap.initialize(config, openTelemetry);
         }
     }
 
