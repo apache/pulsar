@@ -88,17 +88,16 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             brokers.add(broker);
             Double score = calculateScores(localBrokerData, conf);
             brokerScoreMap.put(broker, score);
-            // collect data to analyze the relations between scores and throughput and messageRate.
-            log.info("broker:{}, scores:{}, throughput:{}, messageRate:{}", broker, score,
-                    localBrokerData.getMsgThroughputIn() + localBrokerData.getMsgThroughputOut(),
-                    localBrokerData.getMsgRateIn() + localBrokerData.getMsgRateOut());
+            if (log.isDebugEnabled()) {
+                log.info("broker:{}, scores:{}, throughput:{}, messageRate:{}", broker, score,
+                        localBrokerData.getMsgThroughputIn() + localBrokerData.getMsgThroughputOut(),
+                        localBrokerData.getMsgRateIn() + localBrokerData.getMsgRateOut());
+            }
         }
 
         // sort brokers by scores.
         brokers.sort((e1, e2) -> (int) (brokerScoreMap.get(e1) - brokerScoreMap.get(e2)));
-        if (log.isDebugEnabled()) {
-            log.debug("sorted broker list:{}", brokers);
-        }
+        log.info("sorted broker list:{}", brokers);
 
         // find broker pairs for shedding.
         List<Pair<String, String>> pairs = new LinkedList<>();
