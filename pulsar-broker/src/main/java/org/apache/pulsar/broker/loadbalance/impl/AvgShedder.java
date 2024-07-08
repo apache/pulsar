@@ -66,8 +66,6 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         final double minThroughputThreshold = conf.getMinUnloadMessageThroughput();
         final double minMsgThreshold = conf.getMinUnloadMessage();
         final double maxUnloadPercentage = conf.getMaxUnloadPercentage();
-
-        final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         final double lowThreshold = conf.getLoadBalancerAvgShedderLowThreshold();
         final double highThreshold = conf.getLoadBalancerAvgShedderHighThreshold();
         final int hitCountHighThreshold = conf.getLoadBalancerAvgShedderHitCountHighThreshold();
@@ -80,7 +78,135 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         }
 
         List<String> brokers = new ArrayList<>(loadData.getBrokerData().size());
+        calculateScoresAndSort(loadData, conf, brokers);
+        log.info("sorted broker list:{}", brokers);
+
+        // find broker pairs for shedding.
+        List<Pair<String, String>> pairs = findBrokerPairs(brokers, lowThreshold, highThreshold);
+        log.info("brokerHitCountForHigh:{}, brokerHitCountForLow:{}", brokerHitCountForHigh, brokerHitCountForLow);
+        if (pairs.isEmpty()) {
+            if (log.isDebugEnabled()) {
+                log.debug("there is no any overload broker, no need to shedding bundles.");
+            }
+            brokerHitCountForHigh.clear();
+            brokerHitCountForLow.clear();
+            return selectedBundlesCache;
+        }
+
+        // choosing bundles to unload.
+        for (Pair<String, String> pair : pairs) {
+            String overloadedBroker = pair.getRight();
+            String underloadedBroker = pair.getLeft();
+
+            // check hit count for high threshold and low threshold.
+            if (!(brokerHitCountForHigh.getOrDefault(underloadedBroker, 0) >= hitCountHighThreshold)
+                    && !(brokerHitCountForHigh.getOrDefault(overloadedBroker, 0) >= hitCountHighThreshold)
+                    && !(brokerHitCountForLow.getOrDefault(underloadedBroker, 0) >= hitCountLowThreshold)
+                    && !(brokerHitCountForLow.getOrDefault(overloadedBroker, 0) >= hitCountLowThreshold)) {
+                continue;
+            }
+
+            // if hit, remove entry.
+            brokerHitCountForHigh.remove(underloadedBroker);
+            brokerHitCountForHigh.remove(overloadedBroker);
+            brokerHitCountForLow.remove(underloadedBroker);
+            brokerHitCountForLow.remove(overloadedBroker);
+
+            // select bundle for unloading.
+            selectBundleForUnloading(loadData, overloadedBroker, underloadedBroker, minThroughputThreshold,
+                    minMsgThreshold, maxUnloadPercentage);
+        }
+        return selectedBundlesCache;
+    }
+
+    private void selectBundleForUnloading(LoadData loadData, String overloadedBroker, String underloadedBroker,
+                                          double minThroughputThreshold, double minMsgThreshold, double maxUnloadPercentage) {
+        // calculate how much throughput to unload.
+        LocalBrokerData minLocalBrokerData = loadData.getBrokerData().get(underloadedBroker).getLocalData();
+        LocalBrokerData maxLocalBrokerData = loadData.getBrokerData().get(overloadedBroker).getLocalData();
+
+        double minMsgRate = minLocalBrokerData.getMsgRateIn() + minLocalBrokerData.getMsgRateOut();
+        double maxMsgRate = maxLocalBrokerData.getMsgRateIn() + maxLocalBrokerData.getMsgRateOut();
+
+        double minThroughput = minLocalBrokerData.getMsgThroughputIn() + minLocalBrokerData.getMsgThroughputOut();
+        double maxThroughput = maxLocalBrokerData.getMsgThroughputIn() + maxLocalBrokerData.getMsgThroughputOut();
+
+        double msgRequiredFromUnloadedBundles = (maxMsgRate - minMsgRate) * maxUnloadPercentage;
+        double throughputRequiredFromUnloadedBundles = (maxThroughput - minThroughput) * maxUnloadPercentage;
+
+        boolean isMsgRateToOffload;
+        MutableDouble trafficMarkedToOffload = new MutableDouble(0);
+
+        if (msgRequiredFromUnloadedBundles > minMsgThreshold) {
+            isMsgRateToOffload = true;
+            trafficMarkedToOffload.setValue(msgRequiredFromUnloadedBundles);
+        } else if (throughputRequiredFromUnloadedBundles > minThroughputThreshold) {
+            isMsgRateToOffload = false;
+            trafficMarkedToOffload.setValue(throughputRequiredFromUnloadedBundles);
+        } else {
+            log.info(
+                    "broker:[{}] is planning to shed bundles to broker:[{}],but the throughput {} MByte/s is "
+                            + "less than minimumThroughputThreshold {} MByte/s, and the msgRate {} rate/s"
+                            + " is also less than minimumMsgRateThreshold {} rate/s, skipping bundle unload.",
+                    overloadedBroker, underloadedBroker, throughputRequiredFromUnloadedBundles / MB,
+                    minThroughputThreshold / MB, msgRequiredFromUnloadedBundles, minMsgThreshold);
+            return;
+        }
+
+        if (maxLocalBrokerData.getBundles().size() == 1) {
+            log.warn("HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                            + "No Load Shedding will be done on this broker",
+                    maxLocalBrokerData.getBundles().iterator().next(), overloadedBroker);
+        } else if (maxLocalBrokerData.getBundles().isEmpty()) {
+            log.warn("Broker {} is overloaded despite having no bundles", overloadedBroker);
+        }
+
+        // do shedding
+        log.info(
+                "broker:[{}] is planning to shed bundles to broker:[{}]. "
+                        + "maxBroker stat:scores:{}, throughput:{}, msgRate:{}. "
+                        + "minBroker stat:scores:{}, throughput:{}, msgRate:{}. "
+                        + "isMsgRateToOffload:{},  trafficMarkedToOffload:{}",
+                overloadedBroker, underloadedBroker, brokerScoreMap.get(overloadedBroker), maxThroughput,
+                maxMsgRate, brokerScoreMap.get(underloadedBroker), minThroughput, minMsgRate,
+                isMsgRateToOffload, trafficMarkedToOffload);
+
+        loadData.getBundleDataForLoadShedding().entrySet().stream().filter(e ->
+                maxLocalBrokerData.getBundles().contains(e.getKey())
+        ).filter(e ->
+                !loadData.getRecentlyUnloadedBundles().containsKey(e.getKey())
+        ).map((e) -> {
+            BundleData bundleData = e.getValue();
+            TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+            double traffic = isMsgRateToOffload
+                    ? shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut()
+                    : shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+            return Pair.of(e, traffic);
+        }).sorted((e1, e2) ->
+                Double.compare(e2.getRight(), e1.getRight())
+        ).forEach(e -> {
+            Map.Entry<String, BundleData> bundle = e.getLeft();
+            double traffic = e.getRight();
+            if (traffic > 0 && traffic <= trafficMarkedToOffload.getValue()) {
+                selectedBundlesCache.put(overloadedBroker, bundle.getKey());
+                bundleBrokerMap.put(bundle.getValue(), underloadedBroker);
+                trafficMarkedToOffload.add(-traffic);
+                if (log.isDebugEnabled()) {
+                    log.debug("Found bundle to unload:{}, isMsgRateToOffload:{}, traffic:{}",
+                            bundle, isMsgRateToOffload, traffic);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onActiveBrokersChange(Set<String> activeBrokers) {
+        LoadSheddingStrategy.super.onActiveBrokersChange(activeBrokers);
+    }
+
+    private void calculateScoresAndSort(LoadData loadData, ServiceConfiguration conf, List<String> brokers) {
         brokerScoreMap.clear();
+
         // calculate scores of brokers.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             LocalBrokerData localBrokerData = entry.getValue().getLocalData();
@@ -97,9 +223,17 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
         // sort brokers by scores.
         brokers.sort((e1, e2) -> (int) (brokerScoreMap.get(e1) - brokerScoreMap.get(e2)));
-        log.info("sorted broker list:{}", brokers);
+    }
 
-        // find broker pairs for shedding.
+    private Double calculateScores(LocalBrokerData localBrokerData, final ServiceConfiguration conf) {
+        return localBrokerData.getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight()) * 100;
+    }
+
+    private List<Pair<String, String>> findBrokerPairs(List<String> brokers, double lowThreshold, double highThreshold) {
         List<Pair<String, String>> pairs = new LinkedList<>();
         int i = 0, j = brokers.size() - 1;
         while (i <= j) {
@@ -130,130 +264,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             i++;
             j--;
         }
-
-        log.info("brokerHitCountForHigh:{}, brokerHitCountForLow:{}",
-                brokerHitCountForHigh, brokerHitCountForLow);
-
-        if (pairs.isEmpty()) {
-            if (log.isDebugEnabled()) {
-                log.debug("there is no any overload broker.no need to shedding bundles.");
-            }
-            brokerHitCountForHigh.clear();
-            brokerHitCountForLow.clear();
-            return selectedBundlesCache;
-        }
-
-        // choosing bundles to unload.
-        for (Pair<String, String> pair : pairs) {
-            String overloadedBroker = pair.getRight();
-            String underloadedBroker = pair.getLeft();
-
-            // check hit count for high threshold and low threshold.
-            if (!(brokerHitCountForHigh.getOrDefault(underloadedBroker, 0) >= hitCountHighThreshold)
-                    && !(brokerHitCountForHigh.getOrDefault(overloadedBroker, 0) >= hitCountHighThreshold)
-                    && !(brokerHitCountForLow.getOrDefault(underloadedBroker, 0) >= hitCountLowThreshold)
-                    && !(brokerHitCountForLow.getOrDefault(overloadedBroker, 0) >= hitCountLowThreshold)) {
-                continue;
-            }
-
-            // if hit, remove entry.
-            brokerHitCountForHigh.remove(underloadedBroker);
-            brokerHitCountForHigh.remove(overloadedBroker);
-
-            brokerHitCountForLow.remove(underloadedBroker);
-            brokerHitCountForLow.remove(overloadedBroker);
-
-            // calculate how much throughput to unload.
-            LocalBrokerData minLocalBrokerData = loadData.getBrokerData().get(underloadedBroker).getLocalData();
-            LocalBrokerData maxLocalBrokerData = loadData.getBrokerData().get(overloadedBroker).getLocalData();
-
-            double minMsgRate = minLocalBrokerData.getMsgRateIn() + minLocalBrokerData.getMsgRateOut();
-            double maxMsgRate = maxLocalBrokerData.getMsgRateIn() + maxLocalBrokerData.getMsgRateOut();
-
-            double minThroughput = minLocalBrokerData.getMsgThroughputIn() + minLocalBrokerData.getMsgThroughputOut();
-            double maxThroughput = maxLocalBrokerData.getMsgThroughputIn() + maxLocalBrokerData.getMsgThroughputOut();
-
-            double msgRequiredFromUnloadedBundles = (maxMsgRate - minMsgRate) * maxUnloadPercentage;
-            double throughputRequiredFromUnloadedBundles = (maxThroughput - minThroughput) * maxUnloadPercentage;
-
-            boolean isMsgRateToOffload;
-            MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-
-            if (msgRequiredFromUnloadedBundles > minMsgThreshold) {
-                isMsgRateToOffload = true;
-                trafficMarkedToOffload.setValue(msgRequiredFromUnloadedBundles);
-            } else if (throughputRequiredFromUnloadedBundles > minThroughputThreshold) {
-                isMsgRateToOffload = false;
-                trafficMarkedToOffload.setValue(throughputRequiredFromUnloadedBundles);
-            } else {
-                log.info(
-                        "broker:[{}] is planning to shed bundles to broker:[{}],but the throughput {} MByte/s is "
-                                + "less than minimumThroughputThreshold {} MByte/s, and the msgRate {} rate/s"
-                                + " is also less than minimumMsgRateThreshold {} rate/s, skipping bundle unload.",
-                        overloadedBroker, underloadedBroker, throughputRequiredFromUnloadedBundles / MB,
-                        minThroughputThreshold / MB, msgRequiredFromUnloadedBundles, minMsgThreshold);
-                continue;
-            }
-
-            if (maxLocalBrokerData.getBundles().size() == 1) {
-                log.warn("HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shedding will be done on this broker",
-                        maxLocalBrokerData.getBundles().iterator().next(), pair.getRight());
-            } else if (maxLocalBrokerData.getBundles().isEmpty()) {
-                log.warn("Broker {} is overloaded despite having no bundles", pair.getRight());
-            }
-
-            // do shedding
-            log.info(
-                    "broker:[{}] is planning to shed bundles to broker:[{}]. "
-                            + "maxBroker stat:scores:{}, throughput:{}, msgRate:{}. "
-                            + "minBroker stat:scores:{}, throughput:{}, msgRate:{}. "
-                            + "isMsgRateToOffload:{},  trafficMarkedToOffload:{}",
-                    overloadedBroker, underloadedBroker, brokerScoreMap.get(overloadedBroker), maxThroughput,
-                    maxMsgRate, brokerScoreMap.get(underloadedBroker), minThroughput, minMsgRate,
-                    isMsgRateToOffload, trafficMarkedToOffload);
-
-            loadData.getBundleDataForLoadShedding().entrySet().stream().filter(e ->
-                    maxLocalBrokerData.getBundles().contains(e.getKey())
-            ).filter(e ->
-                    !recentlyUnloadedBundles.containsKey(e.getKey())
-            ).map((e) -> {
-                BundleData bundleData = e.getValue();
-                TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                double traffic = isMsgRateToOffload
-                        ? shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut()
-                        : shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                return Pair.of(e, traffic);
-            }).sorted((e1, e2) ->
-                    Double.compare(e2.getRight(), e1.getRight())
-            ).forEach(e -> {
-                Map.Entry<String, BundleData> bundle = e.getLeft();
-                double traffic = e.getRight();
-                if (traffic > 0 && traffic <= trafficMarkedToOffload.getValue()) {
-                    selectedBundlesCache.put(overloadedBroker, bundle.getKey());
-                    bundleBrokerMap.put(bundle.getValue(), underloadedBroker);
-                    trafficMarkedToOffload.add(-traffic);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Found bundle to unload:{}, isMsgRateToOffload:{}, traffic:{}",
-                                bundle, isMsgRateToOffload, traffic);
-                    }
-                }
-            });
-        }
-        return selectedBundlesCache;
-    }
-
-    @Override
-    public void onActiveBrokersChange(Set<String> activeBrokers) {
-        LoadSheddingStrategy.super.onActiveBrokersChange(activeBrokers);
-    }
-
-    private Double calculateScores(LocalBrokerData localBrokerData, final ServiceConfiguration conf) {
-        return localBrokerData.getMaxResourceUsageWithWeight(
-                conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwidthInResourceWeight(),
-                conf.getLoadBalancerBandwidthOutResourceWeight()) * 100;
+        return pairs;
     }
 
     @Override
