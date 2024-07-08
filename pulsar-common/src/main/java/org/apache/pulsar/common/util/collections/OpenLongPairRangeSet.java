@@ -28,9 +28,9 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.roaringbitmap.RoaringBitSet;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -48,6 +48,7 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
 
     protected final NavigableMap<Long, BitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
     private final LongPairConsumer<T> consumer;
+    private final Supplier<BitSet> bitSetSupplier;
 
     // caching place-holder for cpu-optimization to avoid calculating ranges again
     private volatile int cachedSize = 0;
@@ -56,7 +57,12 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     private volatile boolean updatedAfterCachedForToString = true;
 
     public OpenLongPairRangeSet(LongPairConsumer<T> consumer) {
+        this(consumer, BitSet::new);
+    }
+
+    public OpenLongPairRangeSet(LongPairConsumer<T> consumer, Supplier<BitSet> bitSetSupplier) {
         this.consumer = consumer;
+        this.bitSetSupplier = bitSetSupplier;
     }
 
     /**
@@ -405,7 +411,7 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     }
 
     private BitSet createNewBitSet() {
-        return new RoaringBitSet();
+        return bitSetSupplier.get();
     }
 
 }
