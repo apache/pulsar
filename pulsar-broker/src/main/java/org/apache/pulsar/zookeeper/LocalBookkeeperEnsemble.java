@@ -360,7 +360,7 @@ public class LocalBookkeeperEnsemble {
         // create a default namespace
         try (StorageAdminClient admin = StorageClientBuilder.newBuilder()
              .withSettings(StorageClientSettings.newBuilder()
-                 .serviceUri("bk://localhost:4181")
+                 .serviceUri("bk://localhost:" + streamStoragePort)
                  .backoffPolicy(Backoff.Jitter.of(
                      Type.EXPONENTIAL,
                      1000,
