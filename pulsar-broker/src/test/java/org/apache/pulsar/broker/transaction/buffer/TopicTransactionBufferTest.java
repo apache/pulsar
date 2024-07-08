@@ -343,6 +343,48 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         assertGetLastMessageId(consumer, expectedLastMessageID1);
     }
 
+    @Test
+    public void testNormalProductionNoSnapshot() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testNormalProductionNoSnapshot";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        PersistentTopic topicRef = null;
+        for (int i = 0; i < pulsarServiceList.size(); i++) {
+            try {
+                topicRef = (PersistentTopic) pulsarServiceList.get(i)
+                        .getBrokerService().getTopic(topic, true).get().get();
+                break;
+            } catch (Exception e) {
+            }
+        }
+        TopicTransactionBuffer transactionBuffer = (TopicTransactionBuffer) topicRef.getTransactionBuffer();
+
+        // check the transaction buffer state is NoSnapshot
+        Assert.assertEquals(transactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+
+        // send 5 original messages.
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().send();
+        }
+
+        // check the transaction buffer state is NoSnapshot
+        Assert.assertEquals(transactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+
+        // create consumer to get last message id, trigger the snapshot
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        consumer.getLastMessageIds();
+
+        // check the transaction buffer state is Ready
+        Assert.assertEquals(transactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+    }
+
     /**
      * produce 3 messages and then trigger a ledger switch,
      * then create a transaction and send a transactional message.

@@ -219,19 +219,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             transactionBufferFuture.thenRun(() -> {
-                if (checkIfNoSnapshot()) {
-                    snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).thenRun(() -> {
-                        if (changeToReadyStateFromNoSnapshot()) {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                        }
-                        completableFuture.complete(null);
-                    }).exceptionally(exception -> {
-                        log.error("Topic {} failed to take snapshot", this.topic.getName());
-                        completableFuture.completeExceptionally(exception);
-                        return null;
-                    });
-                } else {
+                if (checkIfNoSnapshot() || checkIfReady()) {
                     completableFuture.complete(null);
                 }
             }).exceptionally(exception -> {
@@ -436,17 +424,26 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    private void takeAbortedTxnSnapshot(Position maxReadPosition) {
+        this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition)
+                .thenRun(() -> {
+                    if (checkIfNoSnapshot()) {
+                        changeToReadyStateFromNoSnapshot();
+                    }
+                });
+    }
+
     private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionCount.get() >= takeSnapshotIntervalNumber) {
             this.changeMaxReadPositionCount.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
+            takeAbortedTxnSnapshot(this.maxReadPosition);
         }
     }
 
     private void takeSnapshotByTimeout() {
         if (changeMaxReadPositionCount.get() > 0) {
             this.changeMaxReadPositionCount.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
+            takeAbortedTxnSnapshot(this.maxReadPosition);
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
