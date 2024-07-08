@@ -60,9 +60,6 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     private static final double MB = 1024 * 1024;
     private static final Random random = new Random();
 
-    public AvgShedder() {
-    }
-
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
         selectedBundlesCache.clear();
