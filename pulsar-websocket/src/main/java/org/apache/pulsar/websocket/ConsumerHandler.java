@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
@@ -429,6 +430,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             checkArgument(Enums.getIfPresent(SubscriptionMode.class, queryParams.get("subscriptionMode")).isPresent(),
                     "Invalid subscriptionMode %s", queryParams.get("subscriptionMode"));
             builder.subscriptionMode(SubscriptionMode.valueOf(queryParams.get("subscriptionMode")));
+        }
+
+        if (queryParams.containsKey("subscriptionInitialPosition")) {
+            checkArgument(Enums.getIfPresent(SubscriptionInitialPosition.class, queryParams.get("subscriptionInitialPosition")).isPresent(),
+                    "Invalid subscriptionInitialPosition %s", queryParams.get("subscriptionInitialPosition"));
+            builder.subscriptionInitialPosition(SubscriptionInitialPosition.valueOf(queryParams.get("subscriptionInitialPosition")));
         }
 
         if (queryParams.containsKey("receiverQueueSize")) {
