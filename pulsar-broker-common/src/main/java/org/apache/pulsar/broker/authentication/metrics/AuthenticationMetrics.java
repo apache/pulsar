@@ -67,10 +67,14 @@ public class AuthenticationMetrics {
     public static final String AUTHENTICATION_COUNTER_METRIC_NAME = "pulsar.authentication.operation.count";
     private final LongCounter authenticationCounter;
 
-    private static final AttributeKey<String> PROVIDER_KEY = AttributeKey.stringKey("pulsar.authentication.provider");
-    private static final AttributeKey<String> AUTH_METHOD_KEY = AttributeKey.stringKey("pulsar.authentication.method");
-    private static final AttributeKey<String> AUTH_RESULT_KEY = AttributeKey.stringKey("pulsar.authentication.result");
-    private static final AttributeKey<String> ERROR_CODE_KEY = AttributeKey.stringKey("pulsar.authentication.error");
+    public static final AttributeKey<String> PROVIDER_KEY = AttributeKey.stringKey("pulsar.authentication.provider");
+    public static final AttributeKey<String> AUTH_METHOD_KEY = AttributeKey.stringKey("pulsar.authentication.method");
+    public static final AttributeKey<String> ERROR_CODE_KEY = AttributeKey.stringKey("pulsar.authentication.error");
+    public static final AttributeKey<String> AUTH_RESULT_KEY = AttributeKey.stringKey("pulsar.authentication.result");
+    public enum AuthenticationResult {
+        SUCCESS,
+        FAILURE;
+    }
 
     public AuthenticationMetrics(OpenTelemetry openTelemetry) {
         var meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
@@ -84,7 +88,7 @@ public class AuthenticationMetrics {
         authSuccessMetrics.labels(providerName, authMethod).inc();
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
-                AUTH_RESULT_KEY, "success");
+                AUTH_RESULT_KEY, AuthenticationResult.SUCCESS.name().toLowerCase());
         authenticationCounter.add(1, attributes);
     }
 
@@ -92,9 +96,8 @@ public class AuthenticationMetrics {
         authenticateFailure(providerName, authMethod, errorCode);
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
-                AUTH_RESULT_KEY, "failure",
+                AUTH_RESULT_KEY, AuthenticationResult.FAILURE.name().toLowerCase(),
                 ERROR_CODE_KEY, errorCode.name().toLowerCase());
         authenticationCounter.add(1, attributes);
     }
-
 }
