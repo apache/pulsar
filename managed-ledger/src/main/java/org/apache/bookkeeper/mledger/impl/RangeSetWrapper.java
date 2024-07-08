@@ -27,6 +27,7 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
+import org.roaringbitmap.RoaringBitSet;
 
 /**
  * Wraps other Range classes, and adds LRU, marking dirty data and other features on this basis.
@@ -55,7 +56,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         this.config = managedCursor.getManagedLedger().getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new OpenLongPairRangeSet<>(4096, rangeConverter)
+                ? new OpenLongPairRangeSet<>(rangeConverter, RoaringBitSet::new)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
         this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
     }

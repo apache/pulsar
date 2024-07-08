@@ -28,6 +28,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -46,9 +47,8 @@ import org.apache.commons.lang.mutable.MutableInt;
 public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
     protected final NavigableMap<Long, BitSet> rangeBitSetMap = new ConcurrentSkipListMap<>();
-    private boolean threadSafe = true;
-    private final int bitSetSize;
     private final LongPairConsumer<T> consumer;
+    private final Supplier<BitSet> bitSetSupplier;
 
     // caching place-holder for cpu-optimization to avoid calculating ranges again
     private volatile int cachedSize = 0;
@@ -57,17 +57,12 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     private volatile boolean updatedAfterCachedForToString = true;
 
     public OpenLongPairRangeSet(LongPairConsumer<T> consumer) {
-        this(1024, true, consumer);
+        this(consumer, BitSet::new);
     }
 
-    public OpenLongPairRangeSet(int size, LongPairConsumer<T> consumer) {
-        this(size, true, consumer);
-    }
-
-    public OpenLongPairRangeSet(int size, boolean threadSafe, LongPairConsumer<T> consumer) {
-        this.threadSafe = threadSafe;
-        this.bitSetSize = size;
+    public OpenLongPairRangeSet(LongPairConsumer<T> consumer, Supplier<BitSet> bitSetSupplier) {
         this.consumer = consumer;
+        this.bitSetSupplier = bitSetSupplier;
     }
 
     /**
@@ -416,7 +411,7 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
     }
 
     private BitSet createNewBitSet() {
-        return this.threadSafe ? new ConcurrentBitSet(bitSetSize) : new BitSet(bitSetSize);
+        return bitSetSupplier.get();
     }
 
 }
