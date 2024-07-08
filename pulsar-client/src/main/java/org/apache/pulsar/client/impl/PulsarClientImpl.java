@@ -419,14 +419,14 @@ public class PulsarClientImpl implements PulsarClient {
 
 
 
-        checkPartitions(topic, conf.isForceNoPartitioned(), conf.getProducerName()).thenAccept(partitions -> {
+        checkPartitions(topic, conf.isNonPartitionedTopicExpected(), conf.getProducerName()).thenAccept(partitions -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, partitions);
             }
 
             ProducerBase<T> producer;
             if (partitions > 0) {
-                if (conf.isForceNoPartitioned()) {
+                if (conf.isNonPartitionedTopicExpected()) {
                     String errorMsg = String.format("Can not create the producer[{}] for the topic[{}] that contains {}"
                             + " partitions, but the producer does not support for a partitioned topic.",
                             conf.getProducerName(), topic, partitions);

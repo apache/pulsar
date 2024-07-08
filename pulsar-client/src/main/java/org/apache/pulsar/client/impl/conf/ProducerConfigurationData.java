@@ -204,7 +204,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
-    private boolean forceNoPartitioned;
+    private boolean isNonPartitionedTopicExpected;
 
     @ApiModelProperty(
             name = "initialSubscriptionName",
