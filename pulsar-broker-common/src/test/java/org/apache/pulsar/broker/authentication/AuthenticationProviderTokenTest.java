@@ -37,6 +37,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -486,6 +487,7 @@ public class AuthenticationProviderTokenTest {
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initializeMetrics(OpenTelemetry.noop());
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public boolean hasDataFromCommand() {
@@ -502,6 +504,7 @@ public class AuthenticationProviderTokenTest {
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenAuthorizationHeaderNotExist() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initializeMetrics(OpenTelemetry.noop());
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -518,6 +521,7 @@ public class AuthenticationProviderTokenTest {
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initializeMetrics(OpenTelemetry.noop());
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -534,6 +538,7 @@ public class AuthenticationProviderTokenTest {
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenJwtIsBlank() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        provider.initializeMetrics(OpenTelemetry.noop());
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
