@@ -1172,8 +1172,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .partitionedTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 RestException restException = new RestException(Response.Status.CONFLICT,
-                        String.format("%s is a partitioned topic, please call delete-partitioned-topic"
-                                + " instead.", topicName));
+                        String.format("%s is a partitioned topic, instead of calling delete topic, please call"
+                                + " delete-partitioned-topic.", topicName));
                 resumeAsyncResponseExceptionally(asyncResponse, restException);
                 return;
             }
