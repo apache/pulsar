@@ -57,9 +57,9 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderBase;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
  * Supported algorithms are: RS256, RS384, RS512, ES256, ES384, ES512 where the naming conventions follow
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
-public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
+public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
 
     // Must match the value used by the OAuth2 Client Plugin.
@@ -146,6 +146,8 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
     private String[] allowedAudiences;
     private ApiClient k8sApiClient;
 
+    private AuthenticationMetrics authenticationMetrics;
+
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         initialize(Context.builder().config(config).build());
@@ -153,7 +155,8 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
 
     @Override
     public void initialize(Context context) throws IOException {
-        initializeMetrics(context.getOpenTelemetry());
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
         var config = context.getConfig();
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
@@ -195,6 +198,11 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
         return AUTH_METHOD_NAME;
     }
 
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
+    }
+
     /**
      * Authenticate the parameterized {@link AuthenticationDataSource} by verifying the issuer is an allowed issuer,
      * then retrieving the JWKS URI from the issuer, then retrieving the Public key from the JWKS URI, and finally
@@ -224,7 +232,7 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
         return authenticateToken(token)
                 .whenComplete((jwt, e) -> {
                     if (jwt != null) {
-                        incrementSuccessMetric();
+                        authenticationMetrics.recordSuccess();
                     }
                     // Failure metrics are incremented within methods above
                 });

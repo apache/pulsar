@@ -36,7 +36,9 @@ import org.apache.pulsar.common.api.AuthData;
  * An authentication provider wraps a list of auth providers.
  */
 @Slf4j
-public class AuthenticationProviderList extends AuthenticationProviderBase {
+public class AuthenticationProviderList implements AuthenticationProvider {
+
+    private AuthenticationMetrics authenticationMetrics;
 
     private interface AuthProcessor<T, W> {
 
@@ -222,7 +224,8 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
 
     @Override
     public void initialize(Context context) throws IOException {
-        initializeMetrics(context.getOpenTelemetry());
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
         for (AuthenticationProvider ap : providers) {
             ap.initialize(context);
         }
@@ -231,6 +234,11 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     @Override
     public String getAuthMethodName() {
         return providers.get(0).getAuthMethodName();
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -248,7 +256,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
             if (previousException == null) {
                 previousException = new AuthenticationException("Authentication required");
             }
-            getAuthenticationMetrics().recordFailure(AuthenticationProvider.class.getSimpleName(),
+            authenticationMetrics.recordFailure(AuthenticationProvider.class.getSimpleName(),
                     "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             roleFuture.completeExceptionally(previousException);
             return;
@@ -271,7 +279,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         return applyAuthProcessor(
             providers,
-            getAuthenticationMetrics(),
+            authenticationMetrics,
             provider -> provider.authenticate(authData)
         );
     }
@@ -302,7 +310,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
                 throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
             }
         } else {
-            return new AuthenticationListState(states, getAuthenticationMetrics());
+            return new AuthenticationListState(states, authenticationMetrics);
         }
     }
 
@@ -333,7 +341,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
                         "Failed to initialize a new http auth state from " + request.getRemoteHost());
             }
         } else {
-            return new AuthenticationListState(states, getAuthenticationMetrics());
+            return new AuthenticationListState(states, authenticationMetrics);
         }
     }
 
@@ -341,7 +349,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         Boolean authenticated = applyAuthProcessor(
             providers,
-            getAuthenticationMetrics(),
+            authenticationMetrics,
             provider -> {
                 try {
                     return provider.authenticateHttpRequest(request, response);

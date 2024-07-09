@@ -49,7 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderBase;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.asynchttpclient.AsyncHttpClient;
 
 public class JwksCache {
@@ -61,9 +61,9 @@ public class JwksCache {
     private final ObjectReader reader = new ObjectMapper().readerFor(HashMap.class);
     private final AsyncHttpClient httpClient;
     private final OpenidApi openidApi;
-    private final AuthenticationProviderBase authenticationProvider;
+    private final AuthenticationProvider authenticationProvider;
 
-    JwksCache(AuthenticationProviderBase authenticationProvider, ServiceConfiguration config,
+    JwksCache(AuthenticationProvider authenticationProvider, ServiceConfiguration config,
               AsyncHttpClient httpClient, ApiClient apiClient) throws IOException {
         this.authenticationProvider = authenticationProvider;
         // Store the clients

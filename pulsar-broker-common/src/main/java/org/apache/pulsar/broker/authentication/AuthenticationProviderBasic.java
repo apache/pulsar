@@ -37,13 +37,16 @@ import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
-public class AuthenticationProviderBasic extends AuthenticationProviderBase {
+public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
+
+    private AuthenticationMetrics authenticationMetrics;
 
     private enum ErrorCode {
         UNKNOWN,
@@ -79,7 +82,8 @@ public class AuthenticationProviderBasic extends AuthenticationProviderBase {
 
     @Override
     public void initialize(Context context) throws IOException {
-        initializeMetrics(context.getOpenTelemetry());
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
         var config = context.getConfig();
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
         if (StringUtils.isEmpty(data)) {
@@ -110,6 +114,11 @@ public class AuthenticationProviderBasic extends AuthenticationProviderBase {
     @Override
     public String getAuthMethodName() {
         return "basic";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -144,7 +153,7 @@ public class AuthenticationProviderBasic extends AuthenticationProviderBase {
             incrementFailureMetric(errorCode);
             throw exception;
         }
-        incrementSuccessMetric();
+        authenticationMetrics.recordSuccess();
         return userId;
     }
 

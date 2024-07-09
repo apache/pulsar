@@ -25,11 +25,13 @@ import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 
 public class AuthenticationMetrics {
+    @Deprecated
     private static final Counter authSuccessMetrics = Counter.build()
             .name("pulsar_authentication_success_total")
             .help("Pulsar authentication success")
             .labelNames("provider_name", "auth_method")
             .register();
+    @Deprecated
     private static final Counter authFailuresMetrics = Counter.build()
             .name("pulsar_authentication_failures_total")
             .help("Pulsar authentication failures")
@@ -98,7 +100,7 @@ public class AuthenticationMetrics {
     }
 
     public void recordFailure(Enum<?> errorCode) {
-        recordFailure(providerName, authMethod, errorCode);
+        recordFailure(providerName, authMethod, errorCode.name());
     }
 
     public void recordFailure(String providerName, String authMethod, Enum<?> errorCode) {

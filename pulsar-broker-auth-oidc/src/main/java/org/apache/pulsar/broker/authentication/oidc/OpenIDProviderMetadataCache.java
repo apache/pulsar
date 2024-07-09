@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderBase;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.asynchttpclient.AsyncHttpClient;
 
 /**
@@ -52,14 +52,14 @@ import org.asynchttpclient.AsyncHttpClient;
 class OpenIDProviderMetadataCache {
 
     private final ObjectReader reader = new ObjectMapper().readerFor(OpenIDProviderMetadata.class);
-    private final AuthenticationProviderBase authenticationProvider;
+    private final AuthenticationProvider authenticationProvider;
     private final AsyncHttpClient httpClient;
     private final WellKnownApi wellKnownApi;
     private final AsyncLoadingCache<Optional<String>, OpenIDProviderMetadata> cache;
     private static final String WELL_KNOWN_OPENID_CONFIG = ".well-known/openid-configuration";
     private static final String SLASH_WELL_KNOWN_OPENID_CONFIG = "/" + WELL_KNOWN_OPENID_CONFIG;
 
-    OpenIDProviderMetadataCache(AuthenticationProviderBase authenticationProvider, ServiceConfiguration config,
+    OpenIDProviderMetadataCache(AuthenticationProvider authenticationProvider, ServiceConfiguration config,
                                 AsyncHttpClient httpClient, ApiClient apiClient) {
         this.authenticationProvider = authenticationProvider;
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);

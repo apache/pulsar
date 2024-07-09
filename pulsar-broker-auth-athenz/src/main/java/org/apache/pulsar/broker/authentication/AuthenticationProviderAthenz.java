@@ -29,10 +29,11 @@ import java.util.List;
 import javax.naming.AuthenticationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
+public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";
 
@@ -41,6 +42,8 @@ public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
 
     private List<String> domainNameList = null;
     private int allowedOffset = 30;
+
+    private AuthenticationMetrics authenticationMetrics;
 
     public enum ErrorCode {
         UNKNOWN,
@@ -58,7 +61,8 @@ public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
 
     @Override
     public void initialize(Context context) throws IOException {
-        initializeMetrics(context.getOpenTelemetry());
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
         var config = context.getConfig();
         String domainNames;
         if (config.getProperty(DOMAIN_NAME_LIST) != null) {
@@ -90,6 +94,11 @@ public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
     @Override
     public String getAuthMethodName() {
         return "athenz";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -147,7 +156,7 @@ public class AuthenticationProviderAthenz extends AuthenticationProviderBase {
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
                     log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
-                    incrementSuccessMetric();
+                    authenticationMetrics.recordSuccess();
                     return token.getPrincipal();
                 } else {
                     errorCode = ErrorCode.INVALID_TOKEN;

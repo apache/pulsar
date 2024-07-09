@@ -23,8 +23,11 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
-public class AuthenticationProviderTls extends AuthenticationProviderBase {
+public class AuthenticationProviderTls implements AuthenticationProvider {
+
+    private AuthenticationMetrics authenticationMetrics;
 
     private enum ErrorCode {
         UNKNOWN,
@@ -38,18 +41,24 @@ public class AuthenticationProviderTls extends AuthenticationProviderBase {
     }
 
     @Override
-    public String getAuthMethodName() {
-        return "tls";
-    }
-
-    @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         initialize(Context.builder().config(config).build());
     }
 
     @Override
     public void initialize(Context context) throws IOException {
-        initializeMetrics(context.getOpenTelemetry());
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+    }
+
+    @Override
+    public String getAuthMethodName() {
+        return "tls";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -100,7 +109,7 @@ public class AuthenticationProviderTls extends AuthenticationProviderBase {
                 errorCode = ErrorCode.INVALID_CN;
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            incrementSuccessMetric();
+            authenticationMetrics.recordSuccess();
         } catch (AuthenticationException exception) {
             incrementFailureMetric(errorCode);
             throw exception;
