@@ -20,12 +20,14 @@ package org.apache.pulsar.broker.authentication;
 
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
+import lombok.Getter;
 import lombok.NonNull;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public abstract class AuthenticationProviderBase implements AuthenticationProvider {
 
+    @Getter
     private AuthenticationMetrics authenticationMetrics;
 
     @Override

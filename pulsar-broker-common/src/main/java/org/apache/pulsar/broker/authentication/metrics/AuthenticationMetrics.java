@@ -93,11 +93,15 @@ public class AuthenticationMetrics {
     }
 
     public void recordFailure(String providerName, String authMethod, Enum<?> errorCode) {
+        recordFailure(providerName, authMethod, errorCode.name());
+    }
+
+    public void recordFailure(String providerName, String authMethod, String errorCode) {
         authenticateFailure(providerName, authMethod, errorCode);
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, AuthenticationResult.FAILURE.name().toLowerCase(),
-                ERROR_CODE_KEY, errorCode.name().toLowerCase());
+                ERROR_CODE_KEY, errorCode);
         authenticationCounter.add(1, attributes);
     }
 }

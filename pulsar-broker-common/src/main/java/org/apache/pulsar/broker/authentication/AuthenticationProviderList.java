@@ -50,7 +50,8 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
         AUTH_REQUIRED,
     }
 
-    static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
+    private static <T, W> T applyAuthProcessor(List<W> processors, AuthenticationMetrics metrics,
+                                               AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
         String errorCode = ErrorCode.UNKNOWN.name();
@@ -68,30 +69,29 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
         }
 
         if (null == authenticationException) {
-            AuthenticationMetrics.authenticateFailure(
-                    AuthenticationProviderList.class.getSimpleName(),
+            metrics.recordFailure(AuthenticationProviderList.class.getSimpleName(),
                     "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             throw new AuthenticationException("Authentication required");
         } else {
-            AuthenticationMetrics.authenticateFailure(
-                    AuthenticationProviderList.class.getSimpleName(),
+            metrics.recordFailure(AuthenticationProviderList.class.getSimpleName(),
                     "authentication-provider-list", errorCode);
             throw authenticationException;
         }
-
     }
 
     private static class AuthenticationListState implements AuthenticationState {
 
         private final List<AuthenticationState> states;
         private volatile AuthenticationState authState;
+        private final AuthenticationMetrics metrics;
 
-        AuthenticationListState(List<AuthenticationState> states) {
+        AuthenticationListState(List<AuthenticationState> states, AuthenticationMetrics metrics) {
             if (states == null || states.isEmpty()) {
                 throw new IllegalArgumentException("Authentication state requires at least one state");
             }
             this.states = states;
             this.authState = states.get(0);
+            this.metrics = metrics;
         }
 
         private AuthenticationState getAuthState() throws AuthenticationException {
@@ -135,8 +135,9 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
                 if (previousException == null) {
                     previousException = new AuthenticationException("Authentication required");
                 }
-                AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                        "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
+                metrics.recordFailure(AuthenticationProviderList.class.getSimpleName(),
+                        "authentication-provider-list",
+                        ErrorCode.AUTH_REQUIRED);
                 authChallengeFuture.completeExceptionally(previousException);
                 return;
             }
@@ -166,6 +167,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             return applyAuthProcessor(
                 states,
+                metrics,
                 as -> {
                     AuthData ad = as.authenticate(authData);
                     AuthenticationListState.this.authState = as;
@@ -216,6 +218,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
 
     @Override
     public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
+        initializeMetrics(openTelemetry);
         for (AuthenticationProvider ap : providers) {
             ap.initialize(config, openTelemetry);
         }
@@ -241,7 +244,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
             if (previousException == null) {
                 previousException = new AuthenticationException("Authentication required");
             }
-            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+            getAuthenticationMetrics().recordFailure(AuthenticationProvider.class.getSimpleName(),
                     "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             roleFuture.completeExceptionally(previousException);
             return;
@@ -264,6 +267,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         return applyAuthProcessor(
             providers,
+            getAuthenticationMetrics(),
             provider -> provider.authenticate(authData)
         );
     }
@@ -294,7 +298,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
                 throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
             }
         } else {
-            return new AuthenticationListState(states);
+            return new AuthenticationListState(states, getAuthenticationMetrics());
         }
     }
 
@@ -325,7 +329,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
                         "Failed to initialize a new http auth state from " + request.getRemoteHost());
             }
         } else {
-            return new AuthenticationListState(states);
+            return new AuthenticationListState(states, getAuthenticationMetrics());
         }
     }
 
@@ -333,6 +337,7 @@ public class AuthenticationProviderList extends AuthenticationProviderBase {
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         Boolean authenticated = applyAuthProcessor(
             providers,
+            getAuthenticationMetrics(),
             provider -> {
                 try {
                     return provider.authenticateHttpRequest(request, response);
