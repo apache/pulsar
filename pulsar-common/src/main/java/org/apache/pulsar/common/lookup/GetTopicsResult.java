@@ -20,7 +20,10 @@ package org.apache.pulsar.common.lookup;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -118,5 +121,26 @@ public class GetTopicsResult {
             topics = grouped;
             return topics;
         }
+    }
+
+    public GetTopicsResult filterTopics(Pattern topicsPattern) {
+        List<String> topicsFiltered = TopicList.filterTopics(getTopics(), topicsPattern);
+        // If nothing changed.
+        if (topicsFiltered.equals(getTopics())) {
+            GetTopicsResult newObj = new GetTopicsResult(nonPartitionedOrPartitionTopics, null, true, true);
+            newObj.topics = topics;
+            return newObj;
+        }
+        // Filtered some topics.
+        Set<String> topicsFilteredSet = new HashSet<>(topicsFiltered);
+        List<String> newTps = new ArrayList<>();
+        for (String tp: nonPartitionedOrPartitionTopics) {
+            if (topicsFilteredSet.contains(TopicName.get(tp).getPartitionedTopicName())) {
+                newTps.add(tp);
+            }
+        }
+        GetTopicsResult newObj = new GetTopicsResult(newTps, null, true, true);
+        newObj.topics = topicsFiltered;
+        return newObj;
     }
 }

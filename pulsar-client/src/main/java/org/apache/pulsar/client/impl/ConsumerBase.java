@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -1273,6 +1274,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     public boolean hasBatchReceiveTimeout() {
         return batchReceiveTimeout != null;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Consumer<T>> getSubscribeFuture() {
+        return subscribeFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);
