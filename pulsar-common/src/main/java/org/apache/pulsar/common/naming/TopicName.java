@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
@@ -100,6 +101,14 @@ public class TopicName implements ServiceUnitId {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static String getPartitionPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
+    }
+
+    public static String getPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "$";
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
