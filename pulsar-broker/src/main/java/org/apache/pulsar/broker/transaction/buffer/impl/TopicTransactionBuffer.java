@@ -256,6 +256,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     + "Please use a new transaction to send message."));
             return completableFuture;
         }
+        if (checkIfNoSnapshot()) {
+            takeAbortedTxnSnapshot(this.maxReadPosition);
+        }
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
