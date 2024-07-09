@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -60,7 +61,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
 
     @Test(timeOut = 60 * 1000)
     public void testTopicUnloadAfterSessionRebuild() throws Exception {
-        final String topicName = "persistent://" + defaultNamespace + "/testPartitionKey";
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
 
