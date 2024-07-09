@@ -76,7 +76,12 @@ public class AuthenticationMetrics {
         FAILURE;
     }
 
-    public AuthenticationMetrics(OpenTelemetry openTelemetry) {
+    private final String providerName;
+    private final String authMethod;
+
+    public AuthenticationMetrics(OpenTelemetry openTelemetry, String providerName, String authMethod) {
+        this.providerName = providerName;
+        this.authMethod = authMethod;
         var meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
         authenticationCounter = meter.counterBuilder(AUTHENTICATION_COUNTER_METRIC_NAME)
                 .setDescription("The number of authentication operations")
@@ -84,12 +89,16 @@ public class AuthenticationMetrics {
                 .build();
     }
 
-    public void recordSuccess(String providerName, String authMethod) {
+    public void recordSuccess() {
         authSuccessMetrics.labels(providerName, authMethod).inc();
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, AuthenticationResult.SUCCESS.name().toLowerCase());
         authenticationCounter.add(1, attributes);
+    }
+
+    public void recordFailure(Enum<?> errorCode) {
+        recordFailure(providerName, authMethod, errorCode);
     }
 
     public void recordFailure(String providerName, String authMethod, Enum<?> errorCode) {

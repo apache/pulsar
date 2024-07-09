@@ -29,15 +29,16 @@ public abstract class AuthenticationProviderBase implements AuthenticationProvid
     private AuthenticationMetrics authenticationMetrics;
 
     protected final void initializeMetrics(@NonNull OpenTelemetry openTelemetry) {
-        authenticationMetrics = new AuthenticationMetrics(openTelemetry);
+        authenticationMetrics =
+                new AuthenticationMetrics(openTelemetry, getClass().getSimpleName(), getAuthMethodName());
     }
 
     @Override
     public void incrementFailureMetric(Enum<?> errorCode) {
-        authenticationMetrics.recordFailure(getClass().getSimpleName(), getAuthMethodName(), errorCode);
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     public void incrementSuccessMetric() {
-        authenticationMetrics.recordSuccess(getClass().getSimpleName(), getAuthMethodName());
+        authenticationMetrics.recordSuccess();
     }
 }
