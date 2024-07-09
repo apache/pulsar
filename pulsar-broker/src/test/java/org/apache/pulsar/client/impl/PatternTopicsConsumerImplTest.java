@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -35,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-import io.netty.util.Timeout;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
@@ -52,6 +50,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -1023,17 +1022,17 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. remove producer 1,3; verify only consumer 2 left
         // seems no direct way to verify auto-unsubscribe, because this patternConsumer also referenced the topic.
-        List<String> topicNames = Lists.newArrayList(topicName2);
+        String tp2p0 = TopicName.get(topicName2).getPartition(0).toString();
+        String tp2p1 = TopicName.get(topicName2).getPartition(1).toString();
+        List<String> topicNames = Lists.newArrayList(tp2p0, tp2p1);
         NamespaceService nss = pulsar.getNamespaceService();
         doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
                 .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to unsubscribe topic 1,3, verify topics number: 2=6-1-3
         log.debug("recheck topics change");
-        PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
-        Timeout recheckPatternTimeout = spy(consumer1.getRecheckPatternTimeout());
-        doReturn(false).when(recheckPatternTimeout).isCancelled();
-        consumer1.run(recheckPatternTimeout);
+        PatternConsumerUpdateQueue taskQueue = WhiteboxImpl.getInternalState(consumer, "updateTaskQueue");
+        taskQueue.appendRecheckOp();
         Thread.sleep(100);
         assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getPartitions().size(), 2);
         assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().size(), 2);

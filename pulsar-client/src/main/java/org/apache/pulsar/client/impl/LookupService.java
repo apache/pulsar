@@ -117,7 +117,14 @@ public interface LookupService extends AutoCloseable {
     InetSocketAddress resolveHost();
 
     /**
-     * Returns all the topics name for a given namespace.
+     * Returns all the topics that matches {@param topicPattern} for a given namespace.
+     *
+     * Note: {@param topicPattern} it relate to the topic name(without the partition suffix). For example:
+     *  - There is a partitioned topic "tp-a" with two partitions.
+     *    - tp-a-partition-0
+     *    - tp-a-partition-1
+     *  - If {@param topicPattern} is "tp-a", the consumer will subscribe to the two partitions.
+     *  - if {@param topicPattern} is "tp-a-partition-0", the consumer will subscribe nothing.
      *
      * @param namespace : namespace-name
      * @return
