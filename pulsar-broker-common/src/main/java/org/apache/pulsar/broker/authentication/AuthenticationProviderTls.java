@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -45,12 +44,12 @@ public class AuthenticationProviderTls extends AuthenticationProviderBase {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        initialize(config, OpenTelemetry.noop());
+        initialize(Context.builder().config(config).build());
     }
 
     @Override
-    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
-        initializeMetrics(openTelemetry);
+    public void initialize(Context context) throws IOException {
+        initializeMetrics(context.getOpenTelemetry());
     }
 
     @Override

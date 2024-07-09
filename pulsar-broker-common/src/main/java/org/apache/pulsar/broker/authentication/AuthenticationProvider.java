@@ -30,6 +30,8 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Builder;
+import lombok.Value;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
@@ -51,18 +53,25 @@ public interface AuthenticationProvider extends Closeable {
     @Deprecated(since = "3.4.0")
     void initialize(ServiceConfiguration config) throws IOException;
 
+    @Builder
+    @Value
+    class Context {
+        ServiceConfiguration config;
+
+        @Builder.Default
+        OpenTelemetry openTelemetry = OpenTelemetry.noop();
+    }
+
     /**
      * Perform initialization for the authentication provider.
      *
-     * @param config
-     *            broker config object
-     * @param openTelemetry
-     *            the OpenTelemetry instance to use for metrics reporting
+     * @param context
+     *            the authentication provider context
      * @throws IOException
      *             if the initialization fails
      */
-    default void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
-        initialize(config);
+    default void initialize(Context context) throws IOException {
+        initialize(context.getConfig());
     }
 
     /**

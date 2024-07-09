@@ -31,7 +31,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
@@ -136,12 +135,12 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        initialize(config, OpenTelemetry.noop());
+        initialize(Context.builder().config(config).build());
     }
 
     @Override
-    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry)
-            throws IOException, IllegalArgumentException {
+    public void initialize(Context context) throws IOException {
+        var openTelemetry = context.getOpenTelemetry();
         initializeMetrics(openTelemetry);
         var meter = openTelemetry.getMeter(AuthenticationMetrics.INSTRUMENTATION_SCOPE_NAME);
         expiredTokensCounter = meter.counterBuilder(EXPIRED_TOKEN_COUNTER_METRIC_NAME)
@@ -153,6 +152,7 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
                 .setUnit("s")
                 .build();
 
+        var config = context.getConfig();
         String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";

@@ -41,7 +41,6 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.opentelemetry.api.OpenTelemetry;
 import java.io.File;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -149,12 +148,13 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        initialize(config, OpenTelemetry.noop());
+        initialize(Context.builder().config(config).build());
     }
 
     @Override
-    public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
-        initializeMetrics(openTelemetry);
+    public void initialize(Context context) throws IOException {
+        initializeMetrics(context.getOpenTelemetry());
+        var config = context.getConfig();
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
         this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);

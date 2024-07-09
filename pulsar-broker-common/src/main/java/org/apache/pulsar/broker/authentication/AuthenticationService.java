@@ -76,6 +76,10 @@ public class AuthenticationService implements Closeable {
                     providerList.add(provider);
                 }
 
+                var authenticationProviderContext = AuthenticationProvider.Context.builder()
+                        .config(conf)
+                        .openTelemetry(openTelemetry)
+                        .build();
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
                     AuthenticationProvider provider;
                     if (entry.getValue().size() == 1) {
@@ -83,7 +87,7 @@ public class AuthenticationService implements Closeable {
                     } else {
                         provider = new AuthenticationProviderList(entry.getValue());
                     }
-                    provider.initialize(conf, openTelemetry);
+                    provider.initialize(authenticationProviderContext);
                     providers.put(provider.getAuthMethodName(), provider);
                     LOG.info("[{}] has been loaded.",
                         entry.getValue().stream().map(

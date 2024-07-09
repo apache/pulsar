@@ -39,6 +39,7 @@ import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -83,7 +84,7 @@ public class AuthenticationProviderOpenIDTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
         basicProvider = new AuthenticationProviderOpenID();
-        basicProvider.initialize(conf);
+        basicProvider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @AfterClass
@@ -217,7 +218,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://localhost:8080");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build the JWT with an only recently expired token
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -244,7 +245,8 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -256,7 +258,8 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "DISABLED");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -269,7 +272,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
     }
 
     @Test
@@ -282,7 +285,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
     }
 
     @Test
@@ -292,7 +295,8 @@ public class AuthenticationProviderOpenIDTest {
         ServiceConfiguration config = new ServiceConfiguration();
         // Make sure this still defaults to null.
         assertNull(config.getProperties().get(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS));
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -303,7 +307,8 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test void ensureMissingRoleClaimReturnsNull() throws Exception {
@@ -325,7 +330,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "sub");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -345,7 +350,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -367,7 +372,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -389,7 +394,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();

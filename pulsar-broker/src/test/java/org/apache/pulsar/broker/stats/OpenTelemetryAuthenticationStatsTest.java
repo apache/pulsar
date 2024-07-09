@@ -60,9 +60,14 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
         var properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
 
-        ServiceConfiguration conf = new ServiceConfiguration();
+        var conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf, pulsar.getOpenTelemetry().getOpenTelemetry());
+
+        var authenticationProviderContext = AuthenticationProvider.Context.builder()
+                .config(conf)
+                .openTelemetry(pulsar.getOpenTelemetry().getOpenTelemetry())
+                .build();
+        provider.initialize(authenticationProviderContext);
     }
 
     @AfterMethod(alwaysRun = true)
