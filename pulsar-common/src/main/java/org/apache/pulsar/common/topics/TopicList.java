@@ -28,7 +28,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicType;
 
 @UtilityClass
 public class TopicList {
@@ -86,9 +88,18 @@ public class TopicList {
         if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
             return originalRegexp;
         }
-        String removedTopicDomain = SCHEME_SEPARATOR_PATTERN.split(originalRegexp.toString())[1];
+        String[] parts = SCHEME_SEPARATOR_PATTERN.split(originalRegexp.toString());
+        String prefix = parts[0];
+        String removedTopicDomain = parts[1];
+        if (prefix.equals(TopicDomain.persistent.value()) || prefix.equals(TopicDomain.non_persistent.value())) {
+            prefix = "";
+        } else if (prefix.endsWith(TopicDomain.persistent.value())){
+            prefix = prefix.substring(0, prefix.length() - TopicDomain.persistent.value().length());
+        } else if (prefix.endsWith(TopicDomain.non_persistent.value())) {
+            prefix = prefix.substring(0, prefix.length() - TopicDomain.non_persistent.value().length());
+        }
         if (originalRegexp.contains("^")) {
-            return String.format("^%s", removedTopicDomain);
+            return String.format("%s%s", prefix, removedTopicDomain);
         } else {
             return removedTopicDomain;
         }
