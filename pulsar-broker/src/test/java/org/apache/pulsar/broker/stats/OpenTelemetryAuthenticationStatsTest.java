@@ -124,7 +124,7 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
                 Attributes.of(AuthenticationMetrics.PROVIDER_KEY, "AuthenticationProviderToken",
                         AuthenticationMetrics.AUTH_RESULT_KEY, "failure",
                         AuthenticationMetrics.AUTH_METHOD_KEY, "token",
-                        AuthenticationMetrics.ERROR_CODE_KEY, "invalid_auth_data"),
+                        AuthenticationMetrics.ERROR_CODE_KEY, "INVALID_AUTH_DATA"),
                 1);
     }
 
