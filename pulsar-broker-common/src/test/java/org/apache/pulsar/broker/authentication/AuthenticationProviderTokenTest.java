@@ -37,7 +37,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import io.opentelemetry.api.OpenTelemetry;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,7 +55,9 @@ import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.mockito.Mockito;
@@ -484,9 +485,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
+    public void testAuthenticateWhenNoJwtPassed() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initializeMetrics(OpenTelemetry.noop());
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public boolean hasDataFromCommand() {
@@ -501,9 +504,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenAuthorizationHeaderNotExist() throws AuthenticationException {
+    public void testAuthenticateWhenAuthorizationHeaderNotExist() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initializeMetrics(OpenTelemetry.noop());
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -518,9 +523,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws AuthenticationException {
+    public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initializeMetrics(OpenTelemetry.noop());
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {
@@ -535,9 +542,11 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = AuthenticationException.class)
-    public void testAuthenticateWhenJwtIsBlank() throws AuthenticationException {
+    public void testAuthenticateWhenJwtIsBlank() throws Exception {
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
-        provider.initializeMetrics(OpenTelemetry.noop());
+        FieldUtils.writeDeclaredField(
+                provider, "authenticationMetricsToken", mock(AuthenticationMetricsToken.class), true);
         provider.authenticate(new AuthenticationDataSource() {
             @Override
             public String getHttpHeader(String name) {

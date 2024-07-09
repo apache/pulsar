@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
@@ -105,7 +106,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-        AuthenticationProviderToken.resetMetrics();
+        AuthenticationMetricsToken.reset();
     }
 
     @Override

@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -106,7 +107,7 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
                 .succeedsWithin(AUTHENTICATION_TIMEOUT);
         assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
                 .anySatisfy(metric -> assertThat(metric)
-                        .hasName(AuthenticationProviderToken.EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME)
+                        .hasName(AuthenticationMetricsToken.EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME)
                         .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
                                 histogramPoint -> histogramPoint.hasCount(2).hasMax(Double.POSITIVE_INFINITY))));
     }
@@ -137,7 +138,7 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
                 .withRootCauseInstanceOf(AuthenticationException.class)
                 .withMessageContaining("JWT expired");
         assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
-                AuthenticationProviderToken.EXPIRED_TOKEN_COUNTER_METRIC_NAME, Attributes.empty(), 1);
+                AuthenticationMetricsToken.EXPIRED_TOKEN_COUNTER_METRIC_NAME, Attributes.empty(), 1);
     }
 
     private class TestAuthenticationDataSource implements AuthenticationDataSource {
