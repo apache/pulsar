@@ -2206,6 +2206,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
                 persistPositionToMetaStore(mdEntry, cb);
             } else {
+                decrementPendingMarkDeleteCount();
                 cb.operationFailed(new ManagedLedgerException("Switch new cursor ledger failed"));
             }
         } else {
