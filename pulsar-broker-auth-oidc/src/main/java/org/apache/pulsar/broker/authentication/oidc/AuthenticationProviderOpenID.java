@@ -148,6 +148,11 @@ public class AuthenticationProviderOpenID extends AuthenticationProviderBase {
     private ApiClient k8sApiClient;
 
     @Override
+    public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(config, OpenTelemetry.noop());
+    }
+
+    @Override
     public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
         initializeMetrics(openTelemetry);
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));

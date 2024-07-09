@@ -135,6 +135,11 @@ public class AuthenticationProviderToken extends AuthenticationProviderBase {
     }
 
     @Override
+    public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(config, OpenTelemetry.noop());
+    }
+
+    @Override
     public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry)
             throws IOException, IllegalArgumentException {
         initializeMetrics(openTelemetry);

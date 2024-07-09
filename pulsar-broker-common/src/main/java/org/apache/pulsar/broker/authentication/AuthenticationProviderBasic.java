@@ -74,6 +74,11 @@ public class AuthenticationProviderBasic extends AuthenticationProviderBase {
     }
 
     @Override
+    public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(config, OpenTelemetry.noop());
+    }
+
+    @Override
     public void initialize(ServiceConfiguration config, OpenTelemetry openTelemetry) throws IOException {
         initializeMetrics(openTelemetry);
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
