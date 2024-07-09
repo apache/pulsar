@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -88,9 +89,9 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
             admin.topics().delete(topic1);
             fail("expected a 409 error");
         } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("please call delete-partitioned-topic instead"));
+            assertTrue(ex.getMessage().contains("please call delete-partitioned-topic"));
         }
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
             assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
         });
         // cleanup.
@@ -109,7 +110,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("Instead of calling delete-partitioned-topic please call delete"));
         }
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
             assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
         });
         // cleanup.
