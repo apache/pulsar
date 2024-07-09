@@ -42,7 +42,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             AtomicLongFieldUpdater
                     .newUpdater(TopicListWatcher.class, "createWatcherDeadline");
 
-    private final PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener;
+    private final PatternConsumerUpdateQueue patternConsumerUpdateQueue;
     private final String name;
     private final ConnectionHandler connectionHandler;
     private final Pattern topicsPattern;
@@ -62,13 +62,13 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
-    public TopicListWatcher(PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
+    public TopicListWatcher(PatternConsumerUpdateQueue patternConsumerUpdateQueue,
                             PulsarClientImpl client, Pattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
                             CompletableFuture<TopicListWatcher> watcherFuture,
                             Runnable recheckTopicsChangeAfterReconnect) {
         super(client, topicsPattern.pattern());
-        this.topicsChangeListener = topicsChangeListener;
+        this.patternConsumerUpdateQueue = patternConsumerUpdateQueue;
         this.name = "Watcher(" + topicsPattern + ")";
         this.connectionHandler = new ConnectionHandler(this,
                 new BackoffBuilder()
@@ -276,13 +276,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate update) {
-        List<String> deleted = update.getDeletedTopicsList();
-        if (!deleted.isEmpty()) {
-            topicsChangeListener.onTopicsRemoved(deleted);
-        }
-        List<String> added = update.getNewTopicsList();
-        if (!added.isEmpty()) {
-            topicsChangeListener.onTopicsAdded(added);
-        }
+        patternConsumerUpdateQueue.appendTopicsRemovedOp(update.getDeletedTopicsList());
+        patternConsumerUpdateQueue.appendTopicsAddedOp(update.getNewTopicsList());
     }
 }
