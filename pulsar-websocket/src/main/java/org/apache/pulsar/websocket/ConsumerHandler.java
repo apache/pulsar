@@ -433,9 +433,11 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("subscriptionInitialPosition")) {
-            checkArgument(Enums.getIfPresent(SubscriptionInitialPosition.class, queryParams.get("subscriptionInitialPosition")).isPresent(),
-                    "Invalid subscriptionInitialPosition %s", queryParams.get("subscriptionInitialPosition"));
-            builder.subscriptionInitialPosition(SubscriptionInitialPosition.valueOf(queryParams.get("subscriptionInitialPosition")));
+            final String subscriptionInitialPosition = queryParams.get("subscriptionInitialPosition");
+            checkArgument(
+                    Enums.getIfPresent(SubscriptionInitialPosition.class, subscriptionInitialPosition).isPresent(),
+                    "Invalid subscriptionInitialPosition %s", subscriptionInitialPosition);
+            builder.subscriptionInitialPosition(SubscriptionInitialPosition.valueOf(subscriptionInitialPosition));
         }
 
         if (queryParams.containsKey("receiverQueueSize")) {
