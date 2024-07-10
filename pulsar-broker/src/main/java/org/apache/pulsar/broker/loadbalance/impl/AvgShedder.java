@@ -125,7 +125,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     }
 
     private void selectBundleForUnloading(LoadData loadData, String overloadedBroker, String underloadedBroker,
-                                          double minThroughputThreshold, double minMsgThreshold, double maxUnloadPercentage) {
+                                          double minThroughputThreshold, double minMsgThreshold,
+                                          double maxUnloadPercentage) {
         // calculate how much throughput to unload.
         LocalBrokerData minLocalBrokerData = loadData.getBrokerData().get(underloadedBroker).getLocalData();
         LocalBrokerData maxLocalBrokerData = loadData.getBrokerData().get(overloadedBroker).getLocalData();
@@ -238,7 +239,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                 conf.getLoadBalancerBandwidthOutResourceWeight()) * 100;
     }
 
-    private List<Pair<String, String>> findBrokerPairs(List<String> brokers, double lowThreshold, double highThreshold) {
+    private List<Pair<String, String>> findBrokerPairs(List<String> brokers,
+                                                       double lowThreshold, double highThreshold) {
         List<Pair<String, String>> pairs = new LinkedList<>();
         int i = 0, j = brokers.size() - 1;
         while (i <= j) {
