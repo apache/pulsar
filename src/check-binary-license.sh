@@ -96,7 +96,7 @@ done
 
 if [ "$NO_PRESTO" -ne 1 ]; then
   # check pulsar sql jars
-  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'trino/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | grep -v jetcd-core-shaded | sed 's!.*/!!' | sort)
+  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'trino/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
   if [ -n "$JARS" ]; then
     LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/trino\/LICENSE/')
     LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
