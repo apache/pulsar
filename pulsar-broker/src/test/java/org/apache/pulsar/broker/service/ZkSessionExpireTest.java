@@ -50,7 +50,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         super.cleanup();
     }
 
-    public void setupWithSettings(java.util.function.Consumer<ServiceConfiguration> settings) throws Exception {
+    private void setupWithSettings(java.util.function.Consumer<ServiceConfiguration> settings) throws Exception {
         this.settings = settings;
         super.setup();
     }
