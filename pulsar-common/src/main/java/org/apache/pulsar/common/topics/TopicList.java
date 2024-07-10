@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.topics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -30,7 +31,6 @@ import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicType;
 
 @UtilityClass
 public class TopicList {
@@ -84,7 +84,8 @@ public class TopicList {
         return s1;
     }
 
-    private static String removeTopicDomainScheme(String originalRegexp) {
+    @VisibleForTesting
+    static String removeTopicDomainScheme(String originalRegexp) {
         if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
             return originalRegexp;
         }
@@ -93,15 +94,13 @@ public class TopicList {
         String removedTopicDomain = parts[1];
         if (prefix.equals(TopicDomain.persistent.value()) || prefix.equals(TopicDomain.non_persistent.value())) {
             prefix = "";
-        } else if (prefix.endsWith(TopicDomain.persistent.value())){
-            prefix = prefix.substring(0, prefix.length() - TopicDomain.persistent.value().length());
         } else if (prefix.endsWith(TopicDomain.non_persistent.value())) {
             prefix = prefix.substring(0, prefix.length() - TopicDomain.non_persistent.value().length());
-        }
-        if (originalRegexp.contains("^")) {
-            return String.format("%s%s", prefix, removedTopicDomain);
+        } else if (prefix.endsWith(TopicDomain.persistent.value())){
+            prefix = prefix.substring(0, prefix.length() - TopicDomain.persistent.value().length());
         } else {
-            return removedTopicDomain;
+            throw new IllegalArgumentException("Does not support topic domain: " + prefix);
         }
+        return String.format("%s%s", prefix, removedTopicDomain);
     }
 }
