@@ -24,24 +24,29 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.reflect.WhiteboxImpl;
 
 @Slf4j
 public abstract class NetworkErrorTestBase extends TestRetrySupport {
@@ -93,6 +98,8 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         broker2 = pulsar2.getBrokerService();
         url2 = new URL(pulsar2.getWebServiceAddress());
         urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+
+        log.info("broker-1: {}, broker-2: {}", broker1.getListenPort(), broker2.getListenPort());
     }
 
     protected int getOneFreePort() throws IOException {
@@ -167,7 +174,7 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
         config.setForceDeleteNamespaceAllowed(true);
-        config.setLoadManagerClassName(PreferBrokerLoadManager.class.getName());
+        config.setLoadManagerClassName(PreferBrokerModularLoadManager.class.getName());
         config.setMetadataStoreSessionTimeoutMillis(5000);
     }
 
@@ -225,9 +232,8 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         return clientBuilder.build();
     }
 
-    private static class PreferBrokerLoadManager extends ModularLoadManagerImpl {
+    protected static class PreferBrokerModularLoadManager extends ModularLoadManagerImpl {
 
-        // namespace: broker.
         @Override
         public String setNamespaceBundleAffinity(String bundle, String broker) {
             if (StringUtils.isNotBlank(broker)) {
@@ -239,6 +245,22 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
                 return prefer;
             } else {
                 return null;
+            }
+        }
+    }
+
+    protected static class PreferExtensibleLoadManager extends ExtensibleLoadManagerImpl {
+
+        @Override
+        public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
+                                                               Set<String> excludeBrokerSet,
+                                                               LookupOptions options) {
+            Set<String> availableBrokers = NetworkErrorTestBase.getAvailableBrokers(super.pulsar);
+            String prefer = preferBroker.get();
+            if (availableBrokers.contains(prefer)) {
+                return CompletableFuture.completedFuture(Optional.of(prefer));
+            } else {
+                return super.selectAsync(bundle, excludeBrokerSet, options);
             }
         }
     }
@@ -257,9 +279,16 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
     }
 
     public static Set<String> getAvailableBrokers(PulsarService pulsar) {
-        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
-        PreferBrokerLoadManager loadManager = (PreferBrokerLoadManager) loadManagerWrapper.getLoadManager();
-        return loadManager.getAvailableBrokers();
+        Object loadManagerWrapper = pulsar.getLoadManager().get();
+        Object loadManager = WhiteboxImpl.getInternalState(loadManagerWrapper, "loadManager");
+        if (loadManager instanceof ModularLoadManagerImpl) {
+            return ((ModularLoadManagerImpl) loadManager).getAvailableBrokers();
+        } else if (loadManager instanceof ExtensibleLoadManagerImpl) {
+            return new HashSet<>(((ExtensibleLoadManagerImpl) loadManager).getBrokerRegistry()
+                    .getAvailableBrokersAsync().join());
+        } else {
+            throw new RuntimeException("Not support for the load manager: " + loadManager.getClass().getName());
+        }
     }
 
     public void clearPreferBroker() {

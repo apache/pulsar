@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,20 +32,17 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
 public class ZkSessionExpireTest extends NetworkErrorTestBase {
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.setup();
-    }
+    private java.util.function.Consumer<ServiceConfiguration> settings;
 
     @AfterMethod(alwaysRun = true)
     @Override
@@ -52,15 +50,39 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         super.cleanup();
     }
 
-    protected void setConfigDefaults(ServiceConfiguration config, String clusterName, int zkPort) {
-        super.setConfigDefaults(config, clusterName, zkPort);
-        config.setSystemTopicEnabled(false);
-        config.setTopicLevelPoliciesEnabled(false);
-        config.setManagedLedgerMaxEntriesPerLedger(1);
+    public void setupWithSettings(java.util.function.Consumer<ServiceConfiguration> settings) throws Exception {
+        this.settings = settings;
+        super.setup();
     }
 
-    @Test(timeOut = 60 * 1000)
-    public void testTopicUnloadAfterSessionRebuild() throws Exception {
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName, int zkPort) {
+        super.setConfigDefaults(config, clusterName, zkPort);
+        settings.accept(config);
+    }
+
+    @DataProvider(name = "settings")
+    public Object[][] settings() {
+        return new Object[][]{
+            {false, NetworkErrorTestBase.PreferBrokerModularLoadManager.class},
+            {true, NetworkErrorTestBase.PreferBrokerModularLoadManager.class}
+            // Create a separate PR to add this test case.
+            // {true, NetworkErrorTestBase.PreferExtensibleLoadManager.class}.
+        };
+    }
+
+    @Test(timeOut = 600 * 1000, dataProvider = "settings")
+    public void testTopicUnloadAfterSessionRebuild(boolean enableSystemTopic, Class loadManager) throws Exception {
+        // Setup.
+        setupWithSettings(config -> {
+            config.setManagedLedgerMaxEntriesPerLedger(1);
+            config.setSystemTopicEnabled(enableSystemTopic);
+            config.setTopicLevelPoliciesEnabled(enableSystemTopic);
+            if (loadManager != null) {
+                config.setLoadManagerClassName(loadManager.getName());
+            }
+        });
+
+        // Init topic.
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp");
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
@@ -78,10 +100,11 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         });
 
         // Load up a topic, and it will be assigned to broker1.
-        Producer<String> p1 = client2.newProducer(Schema.STRING).topic(topicName)
+        ProducerImpl<String> p1 = (ProducerImpl<String>) client1.newProducer(Schema.STRING).topic(topicName)
                 .sendTimeout(10, TimeUnit.SECONDS).create();
         Topic broker1Topic1 = pulsar1.getBrokerService().getTopic(topicName, false).join().get();
         assertNotNull(broker1Topic1);
+        clearPreferBroker();
 
         // Inject a ZK session expire error, and wait for broker1 to offline.
         metadataZKProxy.rejectAllConnections();
@@ -118,6 +141,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         try {
             broker1Send1.join();
             broker1Send2.join();
+            p1.getClientCnx();
             fail("expected a publish error");
         } catch (Exception ex) {
             // Expected.
@@ -134,7 +158,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
 
         // Verify: the topic on broker-1 will be unloaded.
         // Verify: the topic on broker-2 is fine.
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicName, false);
             assertTrue(future == null || future.isCompletedExceptionally());
         });
