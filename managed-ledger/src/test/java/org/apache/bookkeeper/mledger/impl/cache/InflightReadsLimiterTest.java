@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
+import io.opentelemetry.api.OpenTelemetry;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
@@ -31,19 +31,19 @@ public class InflightReadsLimiterTest {
     @Test
     public void testDisabled() throws Exception {
 
-        InflightReadsLimiter limiter = new InflightReadsLimiter(0);
+        InflightReadsLimiter limiter = new InflightReadsLimiter(0, OpenTelemetry.noop());
         assertTrue(limiter.isDisabled());
 
-        limiter = new InflightReadsLimiter(-1);
+        limiter = new InflightReadsLimiter(-1, OpenTelemetry.noop());
         assertTrue(limiter.isDisabled());
 
-        limiter = new InflightReadsLimiter(1);
+        limiter = new InflightReadsLimiter(1, OpenTelemetry.noop());
         assertFalse(limiter.isDisabled());
     }
 
     @Test
     public void testBasicAcquireRelease() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100);
+        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
         InflightReadsLimiter.Handle handle = limiter.acquire(100, null);
         assertEquals(0, limiter.getRemainingBytes());
@@ -56,7 +56,7 @@ public class InflightReadsLimiterTest {
 
     @Test
     public void testNotEnoughPermits() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100);
+        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
         InflightReadsLimiter.Handle handle = limiter.acquire(100, null);
         assertEquals(0, limiter.getRemainingBytes());
@@ -86,7 +86,7 @@ public class InflightReadsLimiterTest {
 
     @Test
     public void testPartialAcquire() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100);
+        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
 
         InflightReadsLimiter.Handle handle = limiter.acquire(30, null);
@@ -116,7 +116,7 @@ public class InflightReadsLimiterTest {
 
     @Test
     public void testTooManyTrials() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100);
+        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
 
         InflightReadsLimiter.Handle handle = limiter.acquire(30, null);
