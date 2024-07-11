@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_DURATION_METRIC_NAME;
+import static org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -26,7 +30,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-
+import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +49,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats.SnapshotOperationState;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -141,7 +146,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 producer.send(body.getBytes(StandardCharsets.UTF_8));
                 sentMessages.add(body);
             }
-            producer.close();
         }
 
         Set<String> receivedMessages = new LinkedHashSet<>();
@@ -170,6 +174,17 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         // assert that all messages have been received
         assertEquals(new ArrayList<>(sentMessages), new ArrayList<>(receivedMessages), "Sent and received " +
                 "messages don't match.");
+
+        var metrics1 = metricReader1.collectAllMetrics();
+        assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
+                SnapshotOperationState.START.attributes, value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
+                SnapshotOperationState.END.attributes, value -> assertThat(value).isPositive());
+        assertThat(metrics1)
+                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                        .hasName(SNAPSHOT_DURATION_METRIC_NAME)
+                        .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                                histogramPoint -> histogramPoint.hasSumGreaterThan(0.0))));
     }
 
     /**
