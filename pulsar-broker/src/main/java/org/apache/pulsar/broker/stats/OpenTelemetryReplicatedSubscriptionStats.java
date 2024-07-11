@@ -31,8 +31,8 @@ public class OpenTelemetryReplicatedSubscriptionStats {
     public static final AttributeKey<String> SNAPSHOT_OPERATION_STATE =
             AttributeKey.stringKey("pulsar.replication.subscription.snapshot.operation.state");
     public enum SnapshotOperationState {
-        START,
-        END;
+        STARTED,
+        COMPLETED;
         public final Attributes attributes = Attributes.of(SNAPSHOT_OPERATION_STATE, this.name().toLowerCase());
     }
 
@@ -51,17 +51,17 @@ public class OpenTelemetryReplicatedSubscriptionStats {
                 .setUnit("{operation}")
                 .build();
         snapshotDuration = meter.histogramBuilder(SNAPSHOT_DURATION_METRIC_NAME)
-                .setDescription("Duration of snapshot build operations")
+                .setDescription("Time taken to create a consistent snapshot across clusters")
                 .setUnit("s")
                 .build();
     }
 
     public void recordSnapshotStarted() {
-        snapshotOperationCounter.add(1, SnapshotOperationState.START.attributes);
+        snapshotOperationCounter.add(1, SnapshotOperationState.STARTED.attributes);
     }
 
-    public void recordSnapshotEnded() {
-        snapshotOperationCounter.add(1, SnapshotOperationState.END.attributes);
+    public void recordSnapshotCompleted() {
+        snapshotOperationCounter.add(1, SnapshotOperationState.COMPLETED.attributes);
     }
 
     public void recordSnapshotDuration(long duration, TimeUnit timeUnit) {

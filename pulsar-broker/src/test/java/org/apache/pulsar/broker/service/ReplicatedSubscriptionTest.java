@@ -177,9 +177,9 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         var metrics1 = metricReader1.collectAllMetrics();
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
-                SnapshotOperationState.START.attributes, value -> assertThat(value).isPositive());
+                SnapshotOperationState.STARTED.attributes, value -> assertThat(value).isPositive());
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
-                SnapshotOperationState.END.attributes, value -> assertThat(value).isPositive());
+                SnapshotOperationState.COMPLETED.attributes, value -> assertThat(value).isPositive());
         assertThat(metrics1)
                 .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
                         .hasName(SNAPSHOT_DURATION_METRIC_NAME)

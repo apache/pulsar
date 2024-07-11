@@ -264,7 +264,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 }
 
                 pendingSnapshotsMetric.dec();
-                stats.recordSnapshotEnded();
+                stats.recordSnapshotCompleted();
                 it.remove();
             }
         }
@@ -273,7 +273,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     void snapshotCompleted(String snapshotId) {
         ReplicatedSubscriptionsSnapshotBuilder snapshot = pendingSnapshots.remove(snapshotId);
         pendingSnapshotsMetric.dec();
-        stats.recordSnapshotEnded();
+        stats.recordSnapshotCompleted();
         lastCompletedSnapshotId = snapshotId;
 
         if (snapshot != null) {
