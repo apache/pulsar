@@ -56,7 +56,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_DURATION_METRIC_NAME)
     @Deprecated
-    public static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
+    public static final Summary SNAPSHOT_METRIC = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,

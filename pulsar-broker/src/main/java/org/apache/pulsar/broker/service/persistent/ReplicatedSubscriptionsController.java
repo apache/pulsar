@@ -278,7 +278,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
             pendingSnapshotsMetric.dec();
             var latencyMillis = snapshot.getDurationMillis();
-            ReplicatedSubscriptionsSnapshotBuilder.snapshotMetric.observe(latencyMillis);
+            ReplicatedSubscriptionsSnapshotBuilder.SNAPSHOT_METRIC.observe(latencyMillis);
             stats.recordSnapshotCompleted(latencyMillis);
         }
     }
