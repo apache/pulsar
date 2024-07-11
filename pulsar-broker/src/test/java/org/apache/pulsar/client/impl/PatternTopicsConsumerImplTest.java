@@ -27,6 +27,8 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1043,5 +1046,58 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         assertEquals(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-1").join(), Optional.empty());
         assertTrue(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-2").join().isPresent());
+    }
+
+    @Test(dataProvider = "partitioned")
+    public void testPatternQuote(boolean partitioned) throws Exception {
+        final NamespaceName namespace = NamespaceName.get("public/default");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+        final LookupService lookup = client.getLookup();
+        List<String> expectedRes = new ArrayList<>();
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topicName, 2);
+            expectedRes.add(TopicName.get(topicName).getPartition(0).toString());
+            expectedRes.add(TopicName.get(topicName).getPartition(1).toString());
+            Collections.sort(expectedRes);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+            expectedRes.add(topicName);
+        }
+
+        // Verify 1: "java.util.regex.Pattern.quote".
+        String pattern1 = java.util.regex.Pattern.quote(topicName);
+        List<String> res1 = lookup.getTopicsUnderNamespace(namespace, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                        pattern1, null).join().getNonPartitionedOrPartitionTopics();
+        Collections.sort(res1);
+        assertEquals(res1, expectedRes);
+
+        // Verify 2: "com.google.re2j.Pattern.quote"
+        String pattern2 = com.google.re2j.Pattern.quote(topicName);
+        List<String> res2 = lookup.getTopicsUnderNamespace(namespace, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                pattern2, null).join().getNonPartitionedOrPartitionTopics();
+        Collections.sort(res2);
+        assertEquals(res2, expectedRes);
+
+        // Verify 3: "java.util.regex.Pattern.quote" & "^$"
+        String pattern3 = "^" + java.util.regex.Pattern.quote(topicName) + "$";
+        List<String> res3 = lookup.getTopicsUnderNamespace(namespace, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                pattern3, null).join().getNonPartitionedOrPartitionTopics();
+        Collections.sort(res3);
+        assertEquals(res3, expectedRes);
+
+        // Verify 4: "com.google.re2j.Pattern.quote" & "^$"
+        String pattern4 = "^" + com.google.re2j.Pattern.quote(topicName) + "$";
+        List<String> res4 = lookup.getTopicsUnderNamespace(namespace, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                pattern4, null).join().getNonPartitionedOrPartitionTopics();
+        Collections.sort(res4);
+        assertEquals(res4, expectedRes);
+
+        // cleanup.
+        if (partitioned) {
+            admin.topics().deletePartitionedTopic(topicName, false);
+        } else {
+            admin.topics().delete(topicName, false);
+        }
     }
 }

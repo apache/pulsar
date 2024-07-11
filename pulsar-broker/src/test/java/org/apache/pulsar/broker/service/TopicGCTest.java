@@ -38,8 +38,8 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -197,8 +197,8 @@ public class TopicGCTest extends ProducerConsumerBase {
             Message<String> msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg, "Expected at least received 2 messages.");
             log.info("received msg[{}]: {}", i, msg.getValue());
-            MessageIdImpl messageId = (MessageIdImpl) msg.getMessageId();
-            if (messageId.getPartitionIndex() == 1) {
+            TopicMessageIdImpl messageId = (TopicMessageIdImpl) msg.getMessageId();
+            if (messageId.getTopicPartitionName().equals(partition1)) {
                 consumer1.acknowledgeAsync(msg);
             }
         }

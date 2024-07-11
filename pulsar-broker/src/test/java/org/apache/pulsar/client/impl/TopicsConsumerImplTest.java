@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1269,19 +1270,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .topicsPattern(topicName)
                 .subscriptionName("sub-issue-9585")
                 .subscribe();
+        PatternConsumerUpdateQueue taskQueue = WhiteboxImpl.getInternalState(consumer, "updateTaskQueue");
 
         Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 3);
         Assert.assertEquals(consumer.getConsumers().size(), 3);
 
         admin.topics().deletePartitionedTopic(topicName, true);
-        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        taskQueue.appendRecheckOp();
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
             Assert.assertEquals(consumer.getConsumers().size(), 0);
         });
 
         admin.topics().createPartitionedTopic(topicName, 7);
-        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        taskQueue.appendRecheckOp();
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
             Assert.assertEquals(consumer.getConsumers().size(), 7);
