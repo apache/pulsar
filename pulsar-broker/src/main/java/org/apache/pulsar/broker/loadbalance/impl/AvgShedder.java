@@ -276,7 +276,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
-        if (!bundleBrokerMap.containsKey(bundleToAssign) || !candidates.contains(bundleBrokerMap.get(bundleToAssign))) {
+        final var brokerToUnload = bundleBrokerMap.getOrDefault(bundleToAssign, null);
+        if (brokerToUnload == null || !candidates.contains(bundleBrokerMap.get(bundleToAssign))) {
             // cluster initializing or broker is shutdown
             if (log.isDebugEnabled()) {
                 if (!bundleBrokerMap.containsKey(bundleToAssign)) {
@@ -290,7 +291,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             bundleBrokerMap.put(bundleToAssign, broker);
             return Optional.of(broker);
         } else {
-            return Optional.of(bundleBrokerMap.get(bundleToAssign));
+            return Optional.of(brokerToUnload);
         }
     }
 
