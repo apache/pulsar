@@ -22,6 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
@@ -30,6 +33,11 @@ public class InflightReadsLimiterTest {
 
     @Test
     public void testDisabled() throws Exception {
+        @Cleanup
+        var reader = InMemoryMetricReader.create();
+
+        @Cleanup
+        var openTelemetry = OpenTelemetrySdk.builder().build();
 
         InflightReadsLimiter limiter = new InflightReadsLimiter(0, OpenTelemetry.noop());
         assertTrue(limiter.isDisabled());
