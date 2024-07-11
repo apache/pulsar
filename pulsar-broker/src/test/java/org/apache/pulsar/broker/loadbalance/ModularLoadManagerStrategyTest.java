@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -48,13 +49,13 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
 
-    public void testAvgShedder() throws Exception{
+    public void testAvgShedderWithPreassignedBroker() throws Exception {
         ModularLoadManagerStrategy strategy = new AvgShedder();
         Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
         field.setAccessible(true);
         Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
         BundleData bundleData = new BundleData();
-        // assign bundle broker1 in bundleBrokerMap.
+        // assign bundle to broker1 in bundleBrokerMap.
         bundleBrokerMap.put(bundleData, "1");
         assertEquals(strategy.selectBroker(Set.of("1", "2", "3"), bundleData, null, null), Optional.of("1"));
         assertEquals(bundleBrokerMap.get(bundleData), "1");
@@ -62,6 +63,31 @@ public class ModularLoadManagerStrategyTest {
         // remove broker1 in candidates, only broker2 is candidate.
         assertEquals(strategy.selectBroker(Set.of("2"), bundleData, null, null), Optional.of("2"));
         assertEquals(bundleBrokerMap.get(bundleData), "2");
+    }
+
+    public void testAvgShedderWithoutPreassignedBroker() throws Exception {
+        ModularLoadManagerStrategy strategy = new AvgShedder();
+        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
+        field.setAccessible(true);
+        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
+        BundleData bundleData = new BundleData();
+        Set<String> candidates = new HashSet<>();
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
+
+        // select broker from candidates randomly.
+        Optional<String> selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
+        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
+
+        // remove original broker in candidates
+        candidates.remove(selectedBroker.get());
+        selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
+        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
     }
 
     // Test that least long term message rate works correctly.
