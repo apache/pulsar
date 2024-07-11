@@ -37,9 +37,8 @@ public class InflightReadsLimiter implements AutoCloseable {
             AttributeKey.stringKey("pulsar.managed_ledger.inflight.read.utilization");
     public enum InflightReadLimiterUtilization {
         USED,
-        FREE,
-        TOTAL;
-        private final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
+        FREE;
+        public final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
     }
 
     public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME = "pulsar_ml_reads_inflight_bytes";
