@@ -30,6 +30,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -49,7 +50,6 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
-import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats.SnapshotOperationState;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -177,9 +177,9 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         var metrics1 = metricReader1.collectAllMetrics();
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
-                SnapshotOperationState.STARTED.attributes, value -> assertThat(value).isPositive());
+                Attributes.empty(),value -> assertThat(value).isPositive());
         assertMetricLongSumValue(metrics1, SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
-                SnapshotOperationState.COMPLETED.attributes, value -> assertThat(value).isPositive());
+                Attributes.empty(), value -> assertThat(value).isPositive());
         assertThat(metrics1)
                 .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
                         .hasName(SNAPSHOT_DURATION_METRIC_NAME)

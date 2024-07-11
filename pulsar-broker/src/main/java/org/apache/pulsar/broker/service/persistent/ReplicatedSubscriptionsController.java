@@ -33,7 +33,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -81,7 +80,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     "Counter of currently pending snapshots")
             .register();
 
-    @Getter
     private final OpenTelemetryReplicatedSubscriptionStats stats;
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
@@ -264,7 +262,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 }
 
                 pendingSnapshotsMetric.dec();
-                stats.recordSnapshotCompleted();
+                var latencyMillis = entry.getValue().getDurationMillis();
+                stats.recordSnapshotTimedOut(latencyMillis);
                 it.remove();
             }
         }
@@ -272,12 +271,15 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     void snapshotCompleted(String snapshotId) {
         ReplicatedSubscriptionsSnapshotBuilder snapshot = pendingSnapshots.remove(snapshotId);
-        pendingSnapshotsMetric.dec();
-        stats.recordSnapshotCompleted();
         lastCompletedSnapshotId = snapshotId;
 
         if (snapshot != null) {
             lastCompletedSnapshotStartTime = snapshot.getStartTimeMillis();
+
+            pendingSnapshotsMetric.dec();
+            var latencyMillis = snapshot.getDurationMillis();
+            ReplicatedSubscriptionsSnapshotBuilder.snapshotMetric.observe(latencyMillis);
+            stats.recordSnapshotCompleted(latencyMillis);
         }
     }
 

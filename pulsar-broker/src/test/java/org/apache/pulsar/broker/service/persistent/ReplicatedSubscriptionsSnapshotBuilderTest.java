@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.ByteBuf;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -34,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
@@ -73,8 +71,6 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         })
                 .when(controller)
                 .writeMarker(any(ByteBuf.class));
-        when(controller.getStats())
-                .thenReturn(mock(OpenTelemetryReplicatedSubscriptionStats.class));
     }
 
     @Test

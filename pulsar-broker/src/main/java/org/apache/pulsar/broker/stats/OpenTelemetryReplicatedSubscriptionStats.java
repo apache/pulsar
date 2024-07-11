@@ -28,12 +28,12 @@ import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class OpenTelemetryReplicatedSubscriptionStats {
 
-    public static final AttributeKey<String> SNAPSHOT_OPERATION_STATE =
-            AttributeKey.stringKey("pulsar.replication.subscription.snapshot.operation.state");
-    public enum SnapshotOperationState {
-        STARTED,
-        COMPLETED;
-        public final Attributes attributes = Attributes.of(SNAPSHOT_OPERATION_STATE, this.name().toLowerCase());
+    public static final AttributeKey<String> SNAPSHOT_OPERATION_RESULT =
+            AttributeKey.stringKey("pulsar.replication.subscription.snapshot.operation.result");
+    public enum SnapshotOperationResult {
+        SUCCESS,
+        TIMEOUT;
+        private final Attributes attributes = Attributes.of(SNAPSHOT_OPERATION_RESULT, name().toLowerCase());
     }
 
     public static final String SNAPSHOT_OPERATION_COUNT_METRIC_NAME =
@@ -41,30 +41,32 @@ public class OpenTelemetryReplicatedSubscriptionStats {
     private final LongCounter snapshotOperationCounter;
 
     public static final String SNAPSHOT_DURATION_METRIC_NAME =
-            "pulsar.broker.replication.subscription.snapshot.duration";
+            "pulsar.broker.replication.subscription.snapshot.operation.duration";
     private final DoubleHistogram snapshotDuration;
 
     public OpenTelemetryReplicatedSubscriptionStats(PulsarService pulsar) {
         var meter = pulsar.getOpenTelemetry().getMeter();
         snapshotOperationCounter = meter.counterBuilder(SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
-                .setDescription("Number of snapshot operations")
+                .setDescription("The number of snapshot operations attempted")
                 .setUnit("{operation}")
                 .build();
         snapshotDuration = meter.histogramBuilder(SNAPSHOT_DURATION_METRIC_NAME)
-                .setDescription("Time taken to create a consistent snapshot across clusters")
+                .setDescription("Time taken to complete a consistent snapshot operation across clusters")
                 .setUnit("s")
                 .build();
     }
 
     public void recordSnapshotStarted() {
-        snapshotOperationCounter.add(1, SnapshotOperationState.STARTED.attributes);
+        snapshotOperationCounter.add(1);
     }
 
-    public void recordSnapshotCompleted() {
-        snapshotOperationCounter.add(1, SnapshotOperationState.COMPLETED.attributes);
+    public void recordSnapshotTimedOut(long durationMs) {
+        snapshotDuration.record(MetricsUtil.convertToSeconds(durationMs, TimeUnit.MILLISECONDS),
+                SnapshotOperationResult.TIMEOUT.attributes);
     }
 
-    public void recordSnapshotDuration(long duration, TimeUnit timeUnit) {
-        snapshotDuration.record(MetricsUtil.convertToSeconds(duration, timeUnit));
+    public void recordSnapshotCompleted(long durationMs) {
+        snapshotDuration.record(MetricsUtil.convertToSeconds(durationMs, TimeUnit.MILLISECONDS),
+                SnapshotOperationResult.SUCCESS.attributes);
     }
 }
