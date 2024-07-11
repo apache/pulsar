@@ -33,12 +33,14 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -49,6 +51,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
  * Encapsulate all the logic of replicated subscriptions tracking for a given topic.
@@ -70,19 +73,26 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
             new ConcurrentHashMap<>();
 
+    @PulsarDeprecatedMetric(
+            newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
+    @Deprecated
     private static final Gauge pendingSnapshotsMetric = Gauge
             .build("pulsar_replicated_subscriptions_pending_snapshots",
                     "Counter of currently pending snapshots")
             .register();
 
+    @Getter
+    private final OpenTelemetryReplicatedSubscriptionStats stats;
+
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
-        timer = topic.getBrokerService().pulsar().getExecutor()
+        var pulsar = topic.getBrokerService().pulsar();
+        timer = pulsar.getExecutor()
                 .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
-                        topic.getBrokerService().pulsar().getConfiguration()
-                                .getReplicatedSubscriptionsSnapshotFrequencyMillis(),
+                        pulsar.getConfiguration().getReplicatedSubscriptionsSnapshotFrequencyMillis(),
                         TimeUnit.MILLISECONDS);
+        stats = pulsar.getOpenTelemetryReplicatedSubscriptionStats();
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
@@ -233,11 +243,11 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         pendingSnapshotsMetric.inc();
+        stats.recordSnapshotStarted();
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
                 topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
         pendingSnapshots.put(builder.getSnapshotId(), builder);
         builder.start();
-
     }
 
     public Optional<String> getLastCompletedSnapshotId() {
@@ -254,6 +264,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 }
 
                 pendingSnapshotsMetric.dec();
+                stats.recordSnapshotEnded();
                 it.remove();
             }
         }
@@ -262,6 +273,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     void snapshotCompleted(String snapshotId) {
         ReplicatedSubscriptionsSnapshotBuilder snapshot = pendingSnapshots.remove(snapshotId);
         pendingSnapshotsMetric.dec();
+        stats.recordSnapshotEnded();
         lastCompletedSnapshotId = snapshotId;
 
         if (snapshot != null) {
