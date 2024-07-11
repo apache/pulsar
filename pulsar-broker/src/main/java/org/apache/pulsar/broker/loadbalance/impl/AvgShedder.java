@@ -57,9 +57,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
     // result returned by shedding, map broker to bundles.
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
-
     private static final double MB = 1024 * 1024;
-    private static final Random random = new Random();
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
@@ -303,7 +301,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             // use random number as input of hashing function to avoid special case that,
             // if there is 4 brokers running in the cluster,and add broker5,and shutdown broker3,
             // then all bundles belonging to broker3 will be loaded on the same broker.
-            final long hashcode = Hashing.crc32().hashString(String.valueOf(random.nextInt()),
+            final long hashcode = Hashing.crc32().hashString(String.valueOf(new Random().nextInt()),
                     StandardCharsets.UTF_8).padToLong();
             final int index = (int) (Math.abs(hashcode) % sortedBrokers.size());
             if (log.isDebugEnabled()) {
