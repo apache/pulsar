@@ -78,8 +78,7 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                     minMsgThreshold, minThroughputThreshold);
         }
 
-        List<String> brokers = new ArrayList<>(loadData.getBrokerData().size());
-        calculateScoresAndSort(loadData, conf, brokers);
+        List<String> brokers = calculateScoresAndSort(loadData, conf);
         log.info("sorted broker list:{}", brokers);
 
         // find broker pairs for shedding.
@@ -210,14 +209,13 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         LoadSheddingStrategy.super.onActiveBrokersChange(activeBrokers);
     }
 
-    private void calculateScoresAndSort(LoadData loadData, ServiceConfiguration conf, List<String> brokers) {
+    private List<String> calculateScoresAndSort(LoadData loadData, ServiceConfiguration conf) {
         brokerScoreMap.clear();
 
         // calculate scores of brokers.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             LocalBrokerData localBrokerData = entry.getValue().getLocalData();
             String broker = entry.getKey();
-            brokers.add(broker);
             Double score = calculateScores(localBrokerData, conf);
             brokerScoreMap.put(broker, score);
             if (log.isDebugEnabled()) {
@@ -228,7 +226,8 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         }
 
         // sort brokers by scores.
-        brokers.sort((e1, e2) -> (int) (brokerScoreMap.get(e1) - brokerScoreMap.get(e2)));
+        return brokerScoreMap.entrySet().stream().sorted((o1, o2) -> (int) (o1.getValue() - o2.getValue()))
+                .map(Map.Entry::getKey).toList();
     }
 
     private Double calculateScores(LocalBrokerData localBrokerData, final ServiceConfiguration conf) {
