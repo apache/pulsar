@@ -54,14 +54,14 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
     // map broker hit count for high threshold/low threshold
     private final Map<String, MutableInt> brokerHitCountForHigh = new HashMap<>();
     private final Map<String, MutableInt> brokerHitCountForLow = new HashMap<>();
-
-    // result returned by shedding, map broker to bundles.
-    private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
     private static final double MB = 1024 * 1024;
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
-        selectedBundlesCache.clear();
+        // result returned by shedding, map broker to bundles.
+        Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
+
+        // configuration for shedding.
         final double minThroughputThreshold = conf.getMinUnloadMessageThroughput();
         final double minMsgThreshold = conf.getMinUnloadMessage();
         final double maxUnloadPercentage = conf.getMaxUnloadPercentage();
@@ -116,14 +116,14 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
 
             // select bundle for unloading.
             selectBundleForUnloading(loadData, overloadedBroker, underloadedBroker, minThroughputThreshold,
-                    minMsgThreshold, maxUnloadPercentage);
+                    minMsgThreshold, maxUnloadPercentage, selectedBundlesCache);
         }
         return selectedBundlesCache;
     }
 
     private void selectBundleForUnloading(LoadData loadData, String overloadedBroker, String underloadedBroker,
                                           double minThroughputThreshold, double minMsgThreshold,
-                                          double maxUnloadPercentage) {
+                                          double maxUnloadPercentage, Multimap<String, String> selectedBundlesCache) {
         // calculate how much throughput to unload.
         LocalBrokerData minLocalBrokerData = loadData.getBrokerData().get(underloadedBroker).getLocalData();
         LocalBrokerData maxLocalBrokerData = loadData.getBrokerData().get(overloadedBroker).getLocalData();
