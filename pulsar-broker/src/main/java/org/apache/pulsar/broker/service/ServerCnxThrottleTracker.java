@@ -123,6 +123,7 @@ final class ServerCnxThrottleTracker {
                 throttledConnections.dec();
             }
             serverCnx.getBrokerService().updateThrottledConnectionCount(throttlingEnabled);
+            throw new RuntimeException("DMISCA: backtrace");
         }
     }
 
