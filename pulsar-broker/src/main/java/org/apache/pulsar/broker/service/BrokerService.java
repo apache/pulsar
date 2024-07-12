@@ -182,6 +182,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionRateLimitState;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -258,6 +259,11 @@ public class BrokerService implements Closeable {
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
+    private final LongAdder pausedConnections = new LongAdder();
+    private final LongAdder throttledConnections = new LongAdder();
+    public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
+    private final ObservableLongUpDownCounter throttledConnectionsCounter;
+
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
@@ -301,7 +307,6 @@ public class BrokerService implements Closeable {
     private Channel listenChannelTls;
 
     private boolean preciseTopicPublishRateLimitingEnable;
-    private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
     private final EntryFilterProvider entryFilterProvider;
     private TopicFactory topicFactory;
@@ -455,6 +460,15 @@ public class BrokerService implements Closeable {
                 .setUnit("{operation}")
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
+
+        this.throttledConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
+                .setDescription("The number of connections currently impacted by rate-limiting.")
+                .setUnit("{connection}")
+                .buildWithCallback(measurement -> {
+                    measurement.record(getThrottledConnections(), ConnectionRateLimitState.THROTTLED.attributes);
+                    measurement.record(getPausedConnections(), ConnectionRateLimitState.PAUSED.attributes);
+                });
 
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
@@ -3701,6 +3715,14 @@ public class BrokerService implements Closeable {
 
     public long getPausedConnections() {
         return pausedConnections.longValue();
+    }
+
+    public void updateThrottledConnectionCount(boolean throttled) {
+        throttledConnections.add(throttled ? 1 : -1);
+    }
+
+    public long getThrottledConnections() {
+        return throttledConnections.sum();
     }
 
     @SuppressWarnings("unchecked")

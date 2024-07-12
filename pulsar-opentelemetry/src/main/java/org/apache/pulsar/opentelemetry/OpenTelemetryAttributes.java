@@ -112,6 +112,14 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
+    AttributeKey<String> PULSAR_CONNECTION_RATE_LIMIT_STATE =
+            AttributeKey.stringKey("pulsar.connection.rate_limit.state");
+    enum ConnectionRateLimitState {
+        PAUSED,
+        THROTTLED;
+        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_STATE, name().toLowerCase());
+    }
+
     /**
      * The status of the Pulsar transaction.
      */

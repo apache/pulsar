@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import io.prometheus.client.Gauge;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
  * Tracks the state of throttling for a connection. The throttling happens by pausing reads by setting
@@ -38,10 +39,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 final class ServerCnxThrottleTracker {
-    private static final Gauge throttledConnections = Gauge.build()
-            .name("pulsar_broker_throttled_connections")
-            .help("Counter of connections throttled because of per-connection limit")
-            .register();
 
     private static final AtomicIntegerFieldUpdater<ServerCnxThrottleTracker> THROTTLE_COUNT_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(
@@ -54,14 +51,21 @@ final class ServerCnxThrottleTracker {
     private static final AtomicIntegerFieldUpdater<ServerCnxThrottleTracker> PUBLISH_BUFFER_LIMITING_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(
                     ServerCnxThrottleTracker.class, "publishBufferLimiting");
+
     private final ServerCnx serverCnx;
     private volatile int throttleCount;
     private volatile int pendingSendRequestsExceeded;
     private volatile int publishBufferLimiting;
 
+    @PulsarDeprecatedMetric(newMetricName = BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
+    @Deprecated
+    private static final Gauge throttledConnections = Gauge.build()
+            .name("pulsar_broker_throttled_connections")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
+
     public ServerCnxThrottleTracker(ServerCnx serverCnx) {
         this.serverCnx = serverCnx;
-
     }
 
     /**
@@ -118,6 +122,7 @@ final class ServerCnxThrottleTracker {
             } else {
                 throttledConnections.dec();
             }
+            serverCnx.getBrokerService().updateThrottledConnectionCount(throttlingEnabled);
         }
     }
 
