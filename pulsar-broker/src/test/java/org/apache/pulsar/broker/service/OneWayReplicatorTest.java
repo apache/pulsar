@@ -31,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -58,6 +59,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -75,10 +77,14 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.CacheGetResult;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
@@ -945,6 +951,32 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     protected void disableReplication(String topic) throws Exception {
         admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
+    }
+
+    @Test
+    public void testCreateRemoteAdminFailed() throws Exception {
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String randomClusterName = "c_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName(ns1 + "/tp");
+        admin1.namespaces().createNamespace(ns1);
+        admin1.topics().createNonPartitionedTopic(topic);
+
+        // Inject a wrong cluster data which with empty fields.
+        String clusterPath = "/admin/clusters/" + randomClusterName;
+        ClusterResources clusterResources = broker1.getPulsar().getPulsarResources().getClusterResources();
+        MetadataCache<ClusterData> cache = WhiteboxImpl.getInternalState(clusterResources, "cache");
+        AsyncLoadingCache<String, Optional<CacheGetResult<ClusterData>>> objCache =
+                WhiteboxImpl.getInternalState(cache, "objCache");
+        CacheGetResult cacheGetResult = new CacheGetResult(ClusterData.builder().build(),
+                new Stat(clusterPath, 0L, 0L, 0L, true, true));
+        objCache.put(clusterPath, CompletableFuture.completedFuture(Optional.of(cacheGetResult)));
+
+        try {
+            admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, randomClusterName));
+            fail("Expected a error due to empty fields");
+        } catch (Exception ex) {
+            // Expected an error.
+        }
     }
 
     @Test
