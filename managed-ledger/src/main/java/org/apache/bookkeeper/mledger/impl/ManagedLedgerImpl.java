@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -114,6 +115,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
@@ -128,15 +130,19 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.LazyLoadableValue;
@@ -285,10 +291,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    // define boundaries for position based seeks and searches
-    public enum PositionBound {
-        startIncluded, startExcluded
-    }
+
 
     protected static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
@@ -1247,7 +1250,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return getEarliestMessagePublishTimeOfPos(pos);
     }
 
-    public CompletableFuture<Long> getEarliestMessagePublishTimeOfPos(Position pos) {
+    private CompletableFuture<Long> getEarliestMessagePublishTimeOfPos(Position pos) {
         CompletableFuture<Long> future = new CompletableFuture<>();
         if (pos == null) {
             future.complete(0L);
@@ -1920,6 +1923,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
     public CompletableFuture<String> getLedgerMetadata(long ledgerId) {
         LedgerHandle currentLedger = this.currentLedger;
         if (currentLedger != null && ledgerId == currentLedger.getId()) {
@@ -2031,6 +2035,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
     public void asyncReadEntry(Position position, ReadEntryCallback callback, Object ctx) {
         LedgerHandle currentLedger = this.currentLedger;
         if (log.isDebugEnabled()) {
@@ -3544,6 +3549,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *            specifies whether to include the start position in calculating the distance
      * @return the new position that is n entries ahead
      */
+    @Override
     public Position getPositionAfterN(final Position startPosition, long n, PositionBound startRange) {
         long entriesToSkip = n;
         long currentLedgerId;
@@ -3720,9 +3726,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers.ceilingKey(ledgerId + 1);
     }
 
+    @Override
     public Position getNextValidPosition(final Position position) {
         return getValidPositionAfterSkippedEntries(position, 1);
     }
+
     public Position getValidPositionAfterSkippedEntries(final Position position, int skippedEntryNum) {
         Position skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
         while (!isValidPosition(skippedPosition)) {
@@ -3739,6 +3747,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return skippedPosition;
     }
 
+    @Override
     public Position getFirstPosition() {
         Long ledgerId = ledgers.firstKey();
         if (ledgerId == null) {
@@ -3872,8 +3881,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Lists.newArrayList(ledgers.values());
     }
 
+    @Override
     public NavigableMap<Long, LedgerInfo> getLedgersInfo() {
-        return ledgers;
+        return new TreeMap<>(ledgers);
     }
 
     protected ManagedLedgerInfo getManagedLedgerInfo() {
@@ -3985,6 +3995,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return waitingCursors.size();
     }
 
+    @Override
     public int getPendingAddEntriesCount() {
         return pendingAddEntries.size();
     }
@@ -3998,6 +4009,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return STATE_UPDATER.get(this);
     }
 
+    @Override
     public long getCacheSize() {
         return entryCache.getSize();
     }
@@ -4570,5 +4582,38 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return theSlowestNonDurableReadPosition;
+    }
+
+    @Override
+    public ManagedLedgerInternalStats getInternalStats() {
+        ManagedLedgerInternalStats internalStats = new ManagedLedgerInternalStats();
+        internalStats.entriesAddedCounter = getEntriesAddedCounter();
+        internalStats.numberOfEntries = getNumberOfEntries();
+        internalStats.totalSize = getTotalSize();
+        internalStats.currentLedgerEntries = getCurrentLedgerEntries();
+        internalStats.currentLedgerSize = getCurrentLedgerSize();
+        internalStats.lastLedgerCreatedTimestamp = DateFormatter.format(getLastLedgerCreatedTimestamp());
+        if (getLastLedgerCreationFailureTimestamp() != 0) {
+            internalStats.lastLedgerCreationFailureTimestamp =
+                    DateFormatter.format(getLastLedgerCreationFailureTimestamp());
+        }
+        internalStats.waitingCursorsCount = getWaitingCursorsCount();
+        internalStats.pendingAddEntriesCount = getPendingAddEntriesCount();
+        internalStats.lastConfirmedEntry = getLastConfirmedEntry().toString();
+        internalStats.state = getState().toString();
+        return internalStats;
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getLedgerLocations(long ledgerId) {
+        return getEnsemblesAsync(ledgerId).thenApply(
+                bookieIds -> bookieIds.stream().map(BookieId::toString).collect(Collectors.toSet()));
+    }
+
+    @Override
+    public CompletableFuture<Position> getLastDispatchablePosition(final Predicate<Entry> predicate,
+                                                                   final Position startPosition) {
+        return ManagedLedgerImplUtils
+                .asyncGetLastValidPosition(this, predicate, startPosition);
     }
 }

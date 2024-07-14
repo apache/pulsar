@@ -86,9 +86,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
@@ -98,6 +98,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -1769,7 +1771,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         asyncMarkDelete(ledger.getPositionAfterN(markDeletePosition, numEntriesToSkip + numDeletedMessages,
-                ManagedLedgerImpl.PositionBound.startExcluded), new MarkDeleteCallback() {
+                PositionBound.startExcluded), new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
                         callback.skipEntriesComplete(ctx);
@@ -3472,6 +3474,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return individualDeletedMessages;
     }
 
+    @Override
     public boolean isMessageDeleted(Position position) {
         lock.readLock().lock();
         try {
@@ -3699,6 +3702,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     /***
      * Create a non-durable cursor and copy the ack stats.
      */
+    @Override
     public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
         NonDurableCursorImpl newNonDurableCursor =
                 (NonDurableCursorImpl) ledger.newNonDurableCursor(getMarkDeletedPosition(), nonDurableCursorName);
@@ -3732,5 +3736,25 @@ public class ManagedCursorImpl implements ManagedCursor {
             return managedCursorAttributes;
         }
         return ATTRIBUTES_UPDATER.updateAndGet(this, old -> old != null ? old : new ManagedCursorAttributes(this));
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        ManagedLedgerInternalStats.CursorStats cs = new ManagedLedgerInternalStats.CursorStats();
+        cs.markDeletePosition = getMarkDeletedPosition().toString();
+        cs.readPosition = getReadPosition().toString();
+        cs.waitingReadOp = hasPendingReadRequest();
+        cs.pendingReadOps = getPendingReadOpsCount();
+        cs.messagesConsumedCounter = getMessagesConsumedCounter();
+        cs.cursorLedger = getCursorLedger();
+        cs.cursorLedgerLastEntry = getCursorLedgerLastEntry();
+        cs.individuallyDeletedMessages = getIndividuallyDeletedMessages();
+        cs.lastLedgerSwitchTimestamp = DateFormatter.format(getLastLedgerSwitchTimestamp());
+        cs.state = getState();
+        cs.active = isActive();
+        cs.numberOfEntriesSinceFirstNotAckedMessage = getNumberOfEntriesSinceFirstNotAckedMessage();
+        cs.totalNonContiguousDeletedMessagesRange = getTotalNonContiguousDeletedMessagesRange();
+        cs.properties = getProperties();
+        return cs;
     }
 }

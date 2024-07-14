@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
@@ -884,5 +885,17 @@ public interface ManagedCursor {
      */
     default ManagedCursorAttributes getManagedCursorAttributes() {
         return new ManagedCursorAttributes(this);
+    }
+
+    default ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        return new ManagedLedgerInternalStats.CursorStats();
+    }
+
+    default boolean isMessageDeleted(Position position) {
+        return false;
+    }
+
+    default ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+        return null;
     }
 }

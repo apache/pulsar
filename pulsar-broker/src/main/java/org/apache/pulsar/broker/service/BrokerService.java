@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -275,6 +276,7 @@ public class BrokerService implements Closeable {
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
     private final AuthenticationService authenticationService;
+    private final Clock clock;
 
     public static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
@@ -314,6 +316,7 @@ public class BrokerService implements Closeable {
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
+        this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicSnapshotClock());
         this.preciseTopicPublishRateLimitingEnable =

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +28,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -47,6 +48,7 @@ public class BacklogQuotaManager {
     @Getter
     private final BacklogQuotaImpl defaultQuota;
     private final NamespaceResources namespaceResources;
+    private final Clock clock;
 
     public BacklogQuotaManager(PulsarService pulsar) {
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
@@ -57,6 +59,7 @@ public class BacklogQuotaManager {
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
         this.namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
+        this.clock = pulsar.getClock();
     }
 
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
@@ -132,7 +135,7 @@ public class BacklogQuotaManager {
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.
-        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger mLedger = persistentTopic.getManagedLedger();
         long backlogSize = mLedger.getEstimatedBacklogSize();
 
         if (log.isDebugEnabled()) {
@@ -214,8 +217,8 @@ public class BacklogQuotaManager {
             );
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
-            long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
-            ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            long currentMillis = clock.millis();
+            ManagedLedger mLedger = persistentTopic.getManagedLedger();
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
@@ -224,10 +227,12 @@ public class BacklogQuotaManager {
                         log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
                                 slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
                     }
-                    ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    Long nextValidLedger = getNextValidLedger(mLedger, oldestPosition.getLedgerId());
+                    ManagedLedgerInfo.LedgerInfo ledgerInfo =
+                            mLedger.getLedgerInfo(nextValidLedger).get();
                     if (ledgerInfo == null) {
                         Position nextPosition =
-                                PositionFactory.create(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                                PositionFactory.create(nextValidLedger, -1);
                         slowestConsumer.markDelete(nextPosition);
                         continue;
                     }
@@ -236,7 +241,7 @@ public class BacklogQuotaManager {
                             && currentMillis - ledgerInfo.getTimestamp() > SECONDS.toMillis(quota.getLimitTime())) {
                         // skip whole ledger for the slowest cursor
                         Position nextPosition =
-                                PositionFactory.create(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
+                                PositionFactory.create(nextValidLedger, -1);
                         if (!nextPosition.equals(oldestPosition)) {
                             slowestConsumer.markDelete(nextPosition);
                             continue;
@@ -249,6 +254,10 @@ public class BacklogQuotaManager {
                         mLedger.getSlowestConsumer().getName(), e);
             }
         }
+    }
+
+    private Long getNextValidLedger(ManagedLedger ledger, long ledgerId) {
+        return ledger.getLedgersInfo().ceilingKey(ledgerId + 1);
     }
 
     /**
@@ -285,7 +294,7 @@ public class BacklogQuotaManager {
      */
     private boolean advanceSlowestSystemCursor(PersistentTopic persistentTopic) {
 
-        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger mLedger = persistentTopic.getManagedLedger();
         ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
         if (slowestConsumer == null) {
             return false;

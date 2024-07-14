@@ -211,4 +211,11 @@ public class ManagedLedgerException extends Exception {
         // Disable stack traces to be filled in
         return null;
     }
+
+    public static class NotSupportOperationException extends ManagedLedgerException {
+
+        public NotSupportOperationException() {
+            super("Not support operation");
+        }
+    }
 }

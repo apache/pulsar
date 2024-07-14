@@ -19,8 +19,13 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -32,6 +37,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -703,4 +709,64 @@ public interface ManagedLedger {
     default ManagedLedgerAttributes getManagedLedgerAttributes() {
         return new ManagedLedgerAttributes(this);
     }
+
+    /**
+     *
+     * @param position
+     * @param callback
+     * @param ctx
+     */
+    default void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+        callback.readEntryFailed(new ManagedLedgerException.NotSupportOperationException(), ctx);
+    }
+
+    /**
+     * Get all the managed ledgers.
+     */
+    default NavigableMap<Long, LedgerInfo> getLedgersInfo() {
+        return new TreeMap<>();
+    }
+
+    default Position getNextValidPosition(final Position position) {
+        return PositionFactory.EARLIEST;
+    }
+
+    default long getEstimatedBacklogSize(final Position position) {
+        return 0;
+    }
+
+    default Position getFirstPosition() {
+        return PositionFactory.EARLIEST;
+    }
+
+    default Position getPositionAfterN(final Position startPosition, long n,
+                                       final PositionBound startRange) {
+        return PositionFactory.EARLIEST;
+    }
+
+    default int getPendingAddEntriesCount() {
+        return 0;
+    }
+
+    default long getCacheSize() {
+        return 0;
+    }
+
+    default CompletableFuture<String> getLedgerMetadata(long ledgerId) {
+        return CompletableFuture.completedFuture("");
+    }
+
+    default ManagedLedgerInternalStats getInternalStats() {
+        return new ManagedLedgerInternalStats();
+    }
+
+    default CompletableFuture<Set<String>> getLedgerLocations(long ledgerId) {
+        return CompletableFuture.completedFuture(Collections.emptySet());
+    }
+
+    default CompletableFuture<Position> getLastDispatchablePosition(final Predicate<Entry> predicate,
+                                                                    final Position startPosition) {
+        return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+    }
+
 }

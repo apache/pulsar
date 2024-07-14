@@ -79,15 +79,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTermina
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
-import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
-import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -165,6 +162,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -693,32 +691,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
-        if (ledger instanceof ManagedLedgerImpl) {
-            ((ManagedLedgerImpl) ledger).asyncReadEntry(position, callback, ctx);
-        } else {
-            callback.readEntryFailed(new ManagedLedgerException(
-                    "Unexpected managedledger implementation, doesn't support "
-                            + "direct read entry operation."), ctx);
-        }
+        ledger.asyncReadEntry(position, callback, ctx);
     }
 
     public Position getPositionAfterN(Position startPosition, long n) throws ManagedLedgerException {
-        if (ledger instanceof ManagedLedgerImpl) {
-            return ((ManagedLedgerImpl) ledger).getPositionAfterN(startPosition, n,
-                    ManagedLedgerImpl.PositionBound.startExcluded);
-        } else {
-            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support "
-                    + "getPositionAfterN operation.");
-        }
+        return ledger.getPositionAfterN(startPosition, n, PositionBound.startExcluded);
     }
 
     public Position getFirstPosition() throws ManagedLedgerException {
-        if (ledger instanceof ManagedLedgerImpl) {
-            return ((ManagedLedgerImpl) ledger).getFirstPosition();
-        } else {
-            throw new ManagedLedgerException("Unexpected managedledger implementation, doesn't support "
-                    + "getFirstPosition operation.");
-        }
+        return ledger.getFirstPosition();
     }
 
     public long getNumberOfEntries() {
@@ -2519,7 +2500,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
         topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
-        topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
+        topicStatsStream.writePair("pendingAddEntriesCount", ledger.getPendingAddEntriesCount());
         topicStatsStream.writePair("filteredEntriesCount", getFilteredEntriesCount());
 
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
@@ -2532,7 +2513,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         bundleStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         bundleStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        bundleStats.cacheSize += ((ManagedLedgerImpl) ledger).getCacheSize();
+        bundleStats.cacheSize += ledger.getCacheSize();
 
         // Close topic object
         topicStatsStream.endObject();
@@ -2727,24 +2708,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
-
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) ledger;
-        stats.entriesAddedCounter = ml.getEntriesAddedCounter();
-        stats.numberOfEntries = ml.getNumberOfEntries();
-        stats.totalSize = ml.getTotalSize();
-        stats.currentLedgerEntries = ml.getCurrentLedgerEntries();
-        stats.currentLedgerSize = ml.getCurrentLedgerSize();
-        stats.lastLedgerCreatedTimestamp = DateFormatter.format(ml.getLastLedgerCreatedTimestamp());
-        if (ml.getLastLedgerCreationFailureTimestamp() != 0) {
-            stats.lastLedgerCreationFailureTimestamp = DateFormatter.format(ml.getLastLedgerCreationFailureTimestamp());
-        }
-
-        stats.waitingCursorsCount = ml.getWaitingCursorsCount();
-        stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
-
-        stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState().toString();
-
+        ManagedLedgerInternalStats ledgerInternalStats = ledger.getInternalStats();
+        stats.entriesAddedCounter = ledgerInternalStats.getEntriesAddedCounter();
+        stats.numberOfEntries = ledgerInternalStats.getNumberOfEntries();
+        stats.totalSize = ledgerInternalStats.getTotalSize();
+        stats.currentLedgerEntries = ledgerInternalStats.getCurrentLedgerEntries();
+        stats.currentLedgerSize = ledgerInternalStats.getCurrentLedgerSize();
+        stats.lastLedgerCreatedTimestamp = ledgerInternalStats.getLastLedgerCreatedTimestamp();
+        stats.lastLedgerCreationFailureTimestamp = ledgerInternalStats.getLastLedgerCreationFailureTimestamp();
+        stats.waitingCursorsCount = ledgerInternalStats.getWaitingCursorsCount();
+        stats.pendingAddEntriesCount = ledgerInternalStats.getPendingAddEntriesCount();
+        stats.lastConfirmedEntry = ledgerInternalStats.getLastConfirmedEntry();
+        stats.state = ledgerInternalStats.getState();
         stats.ledgers = new ArrayList<>();
         Set<CompletableFuture<?>> futures = Sets.newConcurrentHashSet();
         CompletableFuture<Set<String>> availableBookiesFuture =
@@ -2756,7 +2731,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         log.error("[{}] Failed to fetch available bookies.", topic, e);
                         statFuture.completeExceptionally(e);
                     } else {
-                        ml.getLedgersInfo().forEach((id, li) -> {
+                        ledger.getLedgersInfo().forEach((id, li) -> {
                             LedgerInfo info = new LedgerInfo();
                             info.ledgerId = li.getLedgerId();
                             info.entries = li.getEntries();
@@ -2764,17 +2739,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
                             stats.ledgers.add(info);
                             if (includeLedgerMetadata) {
-                                futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                                futures.add(ledger.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
                                     if (ex == null) {
                                         info.metadata = lMetadata;
                                     }
                                     return null;
                                 }));
-                                futures.add(ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
+                                futures.add(ledger.getLedgerLocations(li.getLedgerId()).handle((locations, ex) -> {
                                     if (ex == null) {
                                         info.underReplicated =
-                                            !bookies.containsAll(ensembles.stream().map(BookieId::toString)
-                                                .collect(Collectors.toList()));
+                                            !bookies.containsAll(locations);
                                     }
                                     return null;
                                 }));
@@ -2801,23 +2775,24 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.compactedLedger = info;
 
         stats.cursors = new HashMap<>();
-        ml.getCursors().forEach(c -> {
-            ManagedCursorImpl cursor = (ManagedCursorImpl) c;
+        ledger.getCursors().forEach(c -> {
             CursorStats cs = new CursorStats();
-            cs.markDeletePosition = cursor.getMarkDeletedPosition().toString();
-            cs.readPosition = cursor.getReadPosition().toString();
-            cs.waitingReadOp = cursor.hasPendingReadRequest();
-            cs.pendingReadOps = cursor.getPendingReadOpsCount();
-            cs.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
-            cs.cursorLedger = cursor.getCursorLedger();
-            cs.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
-            cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
-            cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
-            cs.state = cursor.getState();
-            cs.active = cursor.isActive();
-            cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
-            cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
-            cs.properties = cursor.getProperties();
+
+            CursorStats cursorInternalStats = c.getCursorStats();
+            cs.markDeletePosition = cursorInternalStats.getMarkDeletePosition();
+            cs.readPosition = cursorInternalStats.getReadPosition();
+            cs.waitingReadOp = cursorInternalStats.isWaitingReadOp();
+            cs.pendingReadOps = cursorInternalStats.getPendingReadOps();
+            cs.messagesConsumedCounter = cursorInternalStats.getMessagesConsumedCounter();
+            cs.cursorLedger = cursorInternalStats.getCursorLedger();
+            cs.cursorLedgerLastEntry = cursorInternalStats.getCursorLedgerLastEntry();
+            cs.individuallyDeletedMessages = cursorInternalStats.getIndividuallyDeletedMessages();
+            cs.lastLedgerSwitchTimestamp = cursorInternalStats.getLastLedgerSwitchTimestamp();
+            cs.state = cursorInternalStats.getState();
+            cs.active = cursorInternalStats.isActive();
+            cs.numberOfEntriesSinceFirstNotAckedMessage = cursorInternalStats.getNumberOfEntriesSinceFirstNotAckedMessage();
+            cs.totalNonContiguousDeletedMessagesRange = cursorInternalStats.getTotalNonContiguousDeletedMessagesRange();
+            cs.properties = cursorInternalStats.getProperties();
             // subscription metrics
             PersistentSubscription sub = subscriptions.get(Codec.decode(c.getName()));
             if (sub != null) {
@@ -2832,7 +2807,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
                 }
             }
-            stats.cursors.put(cursor.getName(), cs);
+            stats.cursors.put(c.getName(), cs);
         });
 
         //Schema store ledgers
@@ -3596,8 +3571,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
-            Position position = ((ManagedLedgerImpl) ledger).getNextValidPosition(oldestMarkDeletePosition);
-            ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
+            Position position = ledger.getNextValidPosition(oldestMarkDeletePosition);
+            ledger.asyncReadEntry(position,
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryComplete(Entry entry, Object ctx) {
@@ -3672,11 +3647,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             Position markDeletePosition)
             throws ExecutionException, InterruptedException {
         int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) ledger;
 
         // The ledger timestamp is only known when ledger is closed, hence when the mark-delete
         // is at active ledger (open) we can't estimate it.
-        if (managedLedger.getLedgersInfo().lastKey().equals(markDeletePosition.getLedgerId())) {
+        if (ledger.getLedgersInfo().lastKey().equals(markDeletePosition.getLedgerId())) {
             return new EstimateTimeBasedBacklogQuotaCheckResult(false, null);
         }
 
@@ -3689,14 +3663,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // if the mark-delete position is the last entry it means all entries for
         // that ledger are acknowledged
         if (markDeletePosition.getEntryId() == markDeletePositionLedgerInfo.getEntries() - 1) {
-            Position positionToCheck = managedLedger.getNextValidPosition(markDeletePosition);
+            Position positionToCheck = ledger.getNextValidPosition(markDeletePosition);
             positionToCheckLedgerInfo = ledger.getLedgerInfo(positionToCheck.getLedgerId()).get();
         }
 
         if (positionToCheckLedgerInfo != null
                 && positionToCheckLedgerInfo.hasTimestamp()
                 && positionToCheckLedgerInfo.getTimestamp() > 0) {
-            long estimateMsgAgeMs = managedLedger.getClock().millis() - positionToCheckLedgerInfo.getTimestamp();
+            long estimateMsgAgeMs = clock.millis() - positionToCheckLedgerInfo.getTimestamp();
             boolean shouldTruncateBacklog = estimateMsgAgeMs > SECONDS.toMillis(backlogQuotaLimitInSecond);
             if (log.isDebugEnabled()) {
                 log.debug("Time based backlog quota exceeded, quota {}[ms], age of ledger "
@@ -3848,24 +3822,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (lastDispatchablePosition != null) {
             return CompletableFuture.completedFuture(lastDispatchablePosition);
         }
-        return ManagedLedgerImplUtils
-                .asyncGetLastValidPosition((ManagedLedgerImpl) ledger, entry -> {
-                    MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
-                    if (Markers.isServerOnlyMarker(md)) {
-                        return false;
-                    } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
-                        // Filter-out transaction aborted messages.
-                        TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
-                        return !isTxnAborted(txnID, entry.getPosition());
-                    }
-                    return true;
-                }, getMaxReadPosition())
-                .thenApply(position -> {
-                    // Update lastDispatchablePosition to the given position
-                    updateLastDispatchablePosition(position);
-                    return position;
-                });
+        return ledger.getLastDispatchablePosition(entry -> {
+            MessageMetadata md = Commands.parseMessageMetadata(entry.getDataBuffer());
+            // If a messages has marker will filter by AbstractBaseDispatcher.filterEntriesForConsumer
+            if (Markers.isServerOnlyMarker(md)) {
+                return false;
+            } else if (md.hasTxnidMostBits() && md.hasTxnidLeastBits()) {
+                // Filter-out transaction aborted messages.
+                TxnID txnID = new TxnID(md.getTxnidMostBits(), md.getTxnidLeastBits());
+                return !isTxnAborted(txnID, entry.getPosition());
+            }
+            return true;
+        }, getMaxReadPosition()).thenApply(position -> {
+            // Update lastDispatchablePosition to the given position
+            updateLastDispatchablePosition(position);
+            return position;
+        });
     }
 
     /**
@@ -3910,13 +3882,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
             return completableFuture;
         }
-        ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
-        if (!ledgerImpl.ledgerExists(position.getLedgerId())) {
+
+
+        if (!ledgerExists(ledger, position.getLedgerId())) {
             completableFuture
                     .complete(MessageId.earliest);
             return completableFuture;
         }
-        ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
@@ -3940,6 +3913,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null);
         return completableFuture;
+    }
+
+    private boolean ledgerExists(ManagedLedger ml, long ledgerId) {
+        return ml.getLedgersInfo().get(ledgerId) != null;
     }
 
     public synchronized void triggerCompaction()

@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -417,7 +416,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Position mdp = cursor.getMarkDeletedPosition();
         if (mdp != null) {
             Position nextPositionOfTheMarkDeletePosition =
-                    ((ManagedLedgerImpl) cursor.getManagedLedger()).getNextValidPosition(mdp);
+                    cursor.getManagedLedger().getNextValidPosition(mdp);
             while (itr.hasNext()) {
                 Map.Entry<Consumer, Position> entry = itr.next();
                 if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
