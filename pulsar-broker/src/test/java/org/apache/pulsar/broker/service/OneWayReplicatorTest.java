@@ -31,7 +31,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -39,8 +38,10 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -79,12 +80,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.metadata.api.CacheGetResult;
-import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
@@ -953,24 +952,24 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
     }
 
-    @Test
+    @Test(timeOut = 30 * 1000)
     public void testCreateRemoteAdminFailed() throws Exception {
+        final TenantInfo tenantInfo = admin1.tenants().getTenantInfo(defaultTenant);
         final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
         final String randomClusterName = "c_" + UUID.randomUUID().toString().replace("-", "");
         final String topic = BrokerTestUtil.newUniqueName(ns1 + "/tp");
         admin1.namespaces().createNamespace(ns1);
-        admin1.topics().createNonPartitionedTopic(topic);
+        admin1.topics().createPartitionedTopic(topic, 2);
 
         // Inject a wrong cluster data which with empty fields.
-        String clusterPath = "/admin/clusters/" + randomClusterName;
         ClusterResources clusterResources = broker1.getPulsar().getPulsarResources().getClusterResources();
-        MetadataCache<ClusterData> cache = WhiteboxImpl.getInternalState(clusterResources, "cache");
-        AsyncLoadingCache<String, Optional<CacheGetResult<ClusterData>>> objCache =
-                WhiteboxImpl.getInternalState(cache, "objCache");
-        CacheGetResult cacheGetResult = new CacheGetResult(ClusterData.builder().build(),
-                new Stat(clusterPath, 0L, 0L, 0L, true, true));
-        objCache.put(clusterPath, CompletableFuture.completedFuture(Optional.of(cacheGetResult)));
+        clusterResources.createCluster(randomClusterName, ClusterData.builder().build());
+        Set<String> allowedClusters = new HashSet<>(tenantInfo.getAllowedClusters());
+        allowedClusters.add(randomClusterName);
+        admin1.tenants().updateTenant(defaultTenant, TenantInfo.builder().adminRoles(tenantInfo.getAdminRoles())
+                .allowedClusters(allowedClusters).build());
 
+        // Verify.
         try {
             admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, randomClusterName));
             fail("Expected a error due to empty fields");
