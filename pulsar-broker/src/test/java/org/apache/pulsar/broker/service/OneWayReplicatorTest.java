@@ -976,6 +976,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         } catch (Exception ex) {
             // Expected an error.
         }
+
+        // cleanup.
+        admin1.topics().deletePartitionedTopic(topic);
+        admin1.tenants().updateTenant(defaultTenant, tenantInfo);
     }
 
     @Test
