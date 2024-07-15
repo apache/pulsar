@@ -263,6 +263,9 @@ public class BrokerService implements Closeable {
     private final LongAdder throttledConnections = new LongAdder();
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final ObservableLongUpDownCounter throttledConnectionsCounter;
+    @PulsarDeprecatedMetric(newMetricName = CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
+    @Deprecated
+    private final ObserverGauge throttledConnectionsGauge;
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -469,6 +472,11 @@ public class BrokerService implements Closeable {
                     measurement.record(getThrottledConnections(), ConnectionRateLimitState.THROTTLED.attributes);
                     measurement.record(getPausedConnections(), ConnectionRateLimitState.PAUSED.attributes);
                 });
+        this.throttledConnectionsGauge = ObserverGauge.build()
+                .name("pulsar_broker_throttled_connections")
+                .help("Counter of connections throttled because of per-connection limit")
+                .supplier(this::getThrottledConnections)
+                .register();
 
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
@@ -3717,8 +3725,9 @@ public class BrokerService implements Closeable {
         return pausedConnections.longValue();
     }
 
-    public void updateThrottledConnectionCount(boolean throttled) {
-        throttledConnections.add(throttled ? 1 : -1);
+    public void updateThrottledConnectionCount(long count) {
+        throttledConnections.add(count);
+        throw new RuntimeException("DMISCA: backtrace");
     }
 
     public long getThrottledConnections() {
