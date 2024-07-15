@@ -250,7 +250,8 @@ public class WebService implements AutoCloseable {
 
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
+                                pulsarService.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry())));
             }
 
             // wait until the PulsarService is ready to serve incoming requests

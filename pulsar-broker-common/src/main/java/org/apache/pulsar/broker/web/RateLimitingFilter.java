@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.util.concurrent.RateLimiter;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 import java.io.IOException;
 import javax.servlet.Filter;
@@ -33,14 +35,23 @@ public class RateLimitingFilter implements Filter {
 
     private final RateLimiter limiter;
 
-    public RateLimitingFilter(double rateLimit) {
-        limiter = RateLimiter.create(rateLimit);
-    }
+    public static final String HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME = "pulsar.broker.http.rejected_requests";
+    private final LongCounter httpRejectedRequestsCounter;
 
+    @Deprecated
     private static final Counter httpRejectedRequests = Counter.build()
             .name("pulsar_broker_http_rejected_requests")
             .help("Counter of HTTP requests rejected by rate limiting")
             .register();
+
+    public RateLimitingFilter(double rateLimit, OpenTelemetry openTelemetry) {
+        limiter = RateLimiter.create(rateLimit);
+        var meter = openTelemetry.getMeter("org.apache.pulsar");
+        httpRejectedRequestsCounter = meter.counterBuilder(HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME)
+                .setDescription("Counter of HTTP requests rejected by rate limiting")
+                .setUnit("{request}")
+                .build();
+    }
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -53,6 +64,7 @@ public class RateLimitingFilter implements Filter {
             chain.doFilter(request, response);
         } else {
             httpRejectedRequests.inc();
+            httpRejectedRequestsCounter.add(1);
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.sendError(429, "Too Many Requests");
         }
