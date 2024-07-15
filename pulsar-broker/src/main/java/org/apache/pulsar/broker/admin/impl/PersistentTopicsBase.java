@@ -742,7 +742,17 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(partitionedMeta -> {
                             final int numPartitions = partitionedMeta.partitions;
                             if (numPartitions < 1) {
-                                return CompletableFuture.completedFuture(null);
+                                return pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
+                                        .thenApply(exists -> {
+                                    if (exists) {
+                                        throw new RestException(Response.Status.CONFLICT,
+                                                String.format("%s is a non-partitioned topic. Instead of calling"
+                                                        + " delete-partitioned-topic please call delete.", topicName));
+                                    } else {
+                                        throw new RestException(Status.NOT_FOUND,
+                                                String.format("Topic %s not found.", topicName));
+                                    }
+                                });
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync()
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));

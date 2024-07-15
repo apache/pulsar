@@ -470,7 +470,8 @@ public class MessageDeduplication {
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                log.warn("[{}] Failed to store new deduplication snapshot at {}",
+                        topic.getName(), position, exception);
                 snapshotTaking.set(false);
                 future.completeExceptionally(exception);
             }
