@@ -392,6 +392,7 @@ public class PulsarClientImpl implements PulsarClient {
                 String errorMsg = String.format("Can not create the producer[{}] for the topic[{}] that contains {}"
                                 + " partitions, but the producer does not support for a partitioned topic.",
                         producerNameForLog, topic, metadata.partitions);
+                log.error(errorMsg);
                 checkPartitions.completeExceptionally(
                         new PulsarClientException.NotConnectedException(errorMsg));
             } else {
@@ -426,14 +427,6 @@ public class PulsarClientImpl implements PulsarClient {
 
             ProducerBase<T> producer;
             if (partitions > 0) {
-                if (conf.isNonPartitionedTopicExpected()) {
-                    String errorMsg = String.format("Can not create the producer[{}] for the topic[{}] that contains {}"
-                            + " partitions, but the producer does not support for a partitioned topic.",
-                            conf.getProducerName(), topic, partitions);
-                    producerCreatedFuture.completeExceptionally(
-                            new PulsarClientException.NotConnectedException(errorMsg));
-                    return;
-                }
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
                         partitions);
             } else {
