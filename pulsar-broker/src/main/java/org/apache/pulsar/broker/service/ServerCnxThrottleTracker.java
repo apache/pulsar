@@ -90,10 +90,10 @@ final class ServerCnxThrottleTracker {
         }
         // update the metrics that track throttling
         if (autoRead) {
-            serverCnx.getBrokerService().resumedConnections(1);
+            serverCnx.getBrokerService().recordConnectionResumed();
         } else if (isChannelActive()) {
             serverCnx.increasePublishLimitedTimesForTopics();
-            serverCnx.getBrokerService().pausedConnections(1);
+            serverCnx.getBrokerService().recordConnectionPaused();
         }
     }
 
@@ -109,7 +109,11 @@ final class ServerCnxThrottleTracker {
         boolean changed = changeThrottlingFlag(PENDING_SEND_REQUESTS_EXCEEDED_UPDATER, throttlingEnabled);
         if (changed) {
             // update the metrics that track throttling due to pending send requests
-            serverCnx.getBrokerService().updateThrottledConnectionCount(throttlingEnabled ? 1 : -1);
+            if (throttlingEnabled) {
+                serverCnx.getBrokerService().recordConnectionThrottled();
+            } else {
+                serverCnx.getBrokerService().recordConnectionUnthrottled();
+            }
         }
     }
 

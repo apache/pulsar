@@ -116,7 +116,9 @@ public interface OpenTelemetryAttributes {
             AttributeKey.stringKey("pulsar.connection.rate_limit.state");
     enum ConnectionRateLimitState {
         PAUSED,
-        THROTTLED;
+        RESUMED,
+        THROTTLED,
+        UNTHROTTLED;
         public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_STATE, name().toLowerCase());
     }
 

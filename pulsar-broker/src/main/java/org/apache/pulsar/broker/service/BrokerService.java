@@ -40,7 +40,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.io.IOException;
@@ -182,7 +184,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionRateLimitState;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -259,13 +261,14 @@ public class BrokerService implements Closeable {
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
-    private final LongAdder pausedConnections = new LongAdder();
-    private final LongAdder throttledConnections = new LongAdder();
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
-    private final ObservableLongUpDownCounter throttledConnectionsCounter;
+    private final LongCounter rateLimitedConnectionsCounter;
     @PulsarDeprecatedMetric(newMetricName = CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
     @Deprecated
-    private final ObserverGauge throttledConnectionsGauge;
+    private static final Gauge throttledConnectionsGauge = Gauge.build()
+            .name("pulsar_broker_throttled_connections")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
@@ -464,19 +467,11 @@ public class BrokerService implements Closeable {
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
 
-        this.throttledConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
-                .upDownCounterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
-                .setDescription("The number of connections currently impacted by rate-limiting.")
-                .setUnit("{connection}")
-                .buildWithCallback(measurement -> {
-                    measurement.record(getThrottledConnections(), ConnectionRateLimitState.THROTTLED.attributes);
-                    measurement.record(getPausedConnections(), ConnectionRateLimitState.PAUSED.attributes);
-                });
-        this.throttledConnectionsGauge = ObserverGauge.build()
-                .name("pulsar_broker_throttled_connections")
-                .help("Counter of connections throttled because of per-connection limit")
-                .supplier(this::getThrottledConnections)
-                .register();
+        this.rateLimitedConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
+                .setDescription("The number of times a connection has been rate limited.")
+                .setUnit("{operation}")
+                .build();
 
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
@@ -858,7 +853,6 @@ public class BrokerService implements Closeable {
                                 pulsarStats.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
-                                throttledConnectionsCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                 } catch (Exception e) {
@@ -3714,25 +3708,22 @@ public class BrokerService implements Closeable {
         return !brokerEntryPayloadProcessors.isEmpty();
     }
 
-    public void pausedConnections(int numberOfConnections) {
-        pausedConnections.add(numberOfConnections);
+    public void recordConnectionPaused() {
+        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.PAUSED.attributes);
     }
 
-    public void resumedConnections(int numberOfConnections) {
-        pausedConnections.add(-numberOfConnections);
+    public void recordConnectionResumed() {
+        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.RESUMED.attributes);
     }
 
-    public long getPausedConnections() {
-        return pausedConnections.longValue();
+    public void recordConnectionThrottled() {
+        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.THROTTLED.attributes);
+        throttledConnectionsGauge.inc();
     }
 
-    public void updateThrottledConnectionCount(long count) {
-        throttledConnections.add(count);
-        throw new RuntimeException("DMISCA: backtrace");
-    }
-
-    public long getThrottledConnections() {
-        return throttledConnections.sum();
+    public void recordConnectionUnthrottled() {
+        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.UNTHROTTLED.attributes);
+        throttledConnectionsGauge.dec();
     }
 
     @SuppressWarnings("unchecked")
