@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -165,6 +166,10 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
+        // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
+        // the remote cluster.
+        ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
+        builderImpl.getConf().setNonPartitionedTopicExpected(true);
         producerBuilder.createAsync().thenAccept(producer -> {
             setProducerAndTriggerReadEntries(producer);
         }).exceptionally(ex -> {
