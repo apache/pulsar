@@ -432,6 +432,7 @@ public class PulsarClientImpl implements PulsarClient {
                             conf.getProducerName(), topic, partitions);
                     producerCreatedFuture.completeExceptionally(
                             new PulsarClientException.NotConnectedException(errorMsg));
+                    return;
                 }
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
                         partitions);
