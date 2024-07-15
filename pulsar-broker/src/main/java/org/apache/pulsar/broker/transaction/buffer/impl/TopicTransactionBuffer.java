@@ -260,7 +260,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             return completableFuture;
         }
         if (checkIfNoSnapshot()) {
-            takeAbortedTxnSnapshot(this.maxReadPosition);
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
+                    .thenRun(() -> changeToReadyStateFromNoSnapshot()).join();
         }
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
@@ -430,26 +431,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    private void takeAbortedTxnSnapshot(Position maxReadPosition) {
-        this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
-                .thenRun(() -> {
-                    if (checkIfNoSnapshot()) {
-                        changeToReadyStateFromNoSnapshot();
-                    }
-                });
-    }
-
     private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionCount.get() >= takeSnapshotIntervalNumber) {
             this.changeMaxReadPositionCount.set(0);
-            takeAbortedTxnSnapshot(this.maxReadPosition);
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
     }
 
     private void takeSnapshotByTimeout() {
         if (changeMaxReadPositionCount.get() > 0) {
             this.changeMaxReadPositionCount.set(0);
-            takeAbortedTxnSnapshot(this.maxReadPosition);
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
