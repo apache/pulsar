@@ -1140,8 +1140,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 if (rc == BKException.Code.OK) {
                                     MLDataFormats.ManagedLedgerInfo.LedgerInfo info =
                                             MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                                                    .newBuilder().setLedgerId(id).setEntries(lh.getLastAddConfirmed() + 1)
-                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis()).build();
+                                                    .newBuilder().setLedgerId(id)
+                                                    .setEntries(lh.getLastAddConfirmed() + 1)
+                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis())
+                                                    .build();
                                     ledgers.put(id, info);
                                     mlMetaCounter.countDown();
                                 } else if (Errors.isNoSuchLedgerExistsException(rc)) {
@@ -1284,8 +1286,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
                                         } catch (InvalidProtocolBufferException e) {
                                             log.warn(
-                                                    "[{}] Error reading position from metadata ledger {} for cursor {}: {}",
-                                                    managedLedgerName, ledgerId, cursorName, e);
+                                                    "[{}] Error reading position from metadata ledger {} for cursor "
+                                                            + "{}: {}", managedLedgerName, ledgerId, cursorName, e);
                                             offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
                                                     lh.getId());
                                             return;
