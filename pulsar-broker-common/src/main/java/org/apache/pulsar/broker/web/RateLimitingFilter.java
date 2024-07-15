@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.util.concurrent.RateLimiter;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.Counter;
 import java.io.IOException;
 import javax.servlet.Filter;
@@ -44,9 +44,8 @@ public class RateLimitingFilter implements Filter {
             .help("Counter of HTTP requests rejected by rate limiting")
             .register();
 
-    public RateLimitingFilter(double rateLimit, OpenTelemetry openTelemetry) {
+    public RateLimitingFilter(double rateLimit, Meter meter) {
         limiter = RateLimiter.create(rateLimit);
-        var meter = openTelemetry.getMeter("org.apache.pulsar");
         httpRejectedRequestsCounter = meter.counterBuilder(HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME)
                 .setDescription("Counter of HTTP requests rejected by rate limiting")
                 .setUnit("{request}")
