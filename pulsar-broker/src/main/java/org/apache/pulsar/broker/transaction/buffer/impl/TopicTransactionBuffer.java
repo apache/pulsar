@@ -221,6 +221,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             transactionBufferFuture.thenRun(() -> {
                 if (checkIfNoSnapshot() || checkIfReady()) {
                     completableFuture.complete(null);
+                } else {
+                    completableFuture.completeExceptionally(new BrokerServiceException
+                            .ServiceUnitNotReadyException("TransactionBuffer recover failed"));
                 }
             }).exceptionally(exception -> {
                 log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
@@ -428,7 +431,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void takeAbortedTxnSnapshot(Position maxReadPosition) {
-        this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition)
+        this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
                 .thenRun(() -> {
                     if (checkIfNoSnapshot()) {
                         changeToReadyStateFromNoSnapshot();
