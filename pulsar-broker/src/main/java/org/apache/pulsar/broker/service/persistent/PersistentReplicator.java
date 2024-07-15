@@ -150,6 +150,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
         Pair<Boolean, State> changeStateRes;
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
+            if (!(producer instanceof ProducerImpl)) {
+                log.error("[{}] The partitions count between two clusters is not the same, the replicator can not be"
+                        + " created successfully: {}", replicatorId, state);
+                doCloseProducerAsync(producer, () -> {});
+                throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
+            }
             this.producer = (ProducerImpl) producer;
             HAVE_PENDING_READ_UPDATER.set(this, FALSE);
             // Trigger a new read.
