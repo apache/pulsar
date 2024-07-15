@@ -1157,5 +1157,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
         admin1.topics().delete(tp, false);
         admin2.topics().delete(tp, false);
+        admin1.namespaces().deleteNamespace(ns);
+        admin2.namespaces().deleteNamespace(ns);
     }
 }
