@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -241,7 +242,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
                         .map(ledgerInfo -> PositionFactory.create(failedLedgerId, ledgerInfo.getEntries() - 1))
                         .orElseGet(() -> {
-                            Long nextExistingLedger = getNextValidLedger(ledger, failedReadPosition.get().getLedgerId());
+                            Long nextExistingLedger =
+                                    ManagedLedgerUtils.getNextValidLedger(ledger, failedReadPosition.get().getLedgerId());
                             if (nextExistingLedger == null) {
                                 log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
                                                 + "entry failed {}", ledger.getName(), ledger.getName(),
@@ -261,9 +263,5 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         }
         expirationCheckInProgress = FALSE;
         updateRates();
-    }
-
-    private Long getNextValidLedger(ManagedLedger ledger, long ledgerId) {
-        return ledger.getLedgersInfo().ceilingKey(ledgerId + 1);
     }
 }

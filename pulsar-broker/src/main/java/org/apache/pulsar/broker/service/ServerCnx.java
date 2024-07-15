@@ -69,6 +69,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -2272,7 +2273,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (lastPosition.getEntryId() == -1 || !ledgerExists(ml, lastPosition.getLedgerId())) {
+            if (lastPosition.getEntryId() == -1 || !ManagedLedgerUtils.ledgerExists(ml, lastPosition.getLedgerId())) {
                 // there is no entry in the original topic
                 if (compactionHorizon != null) {
                     // if readCompacted is true, we need to read the last entry from compacted topic
@@ -2346,10 +2347,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             });
         });
-    }
-
-    private boolean ledgerExists(ManagedLedger ml, long ledgerId) {
-        return ml.getLedgersInfo().get(ledgerId) != null;
     }
 
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,

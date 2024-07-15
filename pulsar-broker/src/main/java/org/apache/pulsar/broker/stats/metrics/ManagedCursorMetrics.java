@@ -25,9 +25,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -55,13 +54,12 @@ public class ManagedCursorMetrics extends AbstractMetrics {
      */
     private List<Metrics> aggregate() {
         metricsCollection.clear();
-        for (Map.Entry<String, ManagedLedgerImpl> e : getManagedLedgers().entrySet()) {
+        for (Map.Entry<String, ManagedLedger> e : getManagedLedgers().entrySet()) {
             String ledgerName = e.getKey();
-            ManagedLedgerImpl ledger = e.getValue();
+            ManagedLedger ledger = e.getValue();
             String namespace = parseNamespaceFromLedgerName(ledgerName);
 
-            ManagedCursorContainer cursorContainer = ledger.getCursors();
-            Iterator<ManagedCursor> cursorIterator = cursorContainer.iterator();
+            Iterator<ManagedCursor> cursorIterator = ledger.getCursors().iterator();
 
             while (cursorIterator.hasNext()) {
                 ManagedCursorImpl cursor = (ManagedCursorImpl) cursorIterator.next();

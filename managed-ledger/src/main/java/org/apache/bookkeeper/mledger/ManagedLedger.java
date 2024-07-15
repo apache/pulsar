@@ -735,10 +735,6 @@ public interface ManagedLedger {
         return 0;
     }
 
-    default Position getFirstPosition() {
-        return PositionFactory.EARLIEST;
-    }
-
     default Position getPositionAfterN(final Position startPosition, long n,
                                        final PositionBound startRange) {
         return PositionFactory.EARLIEST;
@@ -768,5 +764,7 @@ public interface ManagedLedger {
                                                                     final Position startPosition) {
         return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
     }
+
+
 
 }

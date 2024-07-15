@@ -38,8 +38,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -190,8 +190,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
         List<Position> positionsNeedToDelete = new ArrayList<>();
-        while (!segmentIndex.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
-                .ledgerExists(segmentIndex.firstKey().getLedgerId())) {
+        while (!segmentIndex.isEmpty() && !ManagedLedgerUtils.ledgerExists(topic.getManagedLedger(),
+                segmentIndex.firstKey().getLedgerId())) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Topic transaction buffer clear aborted transactions, maxReadPosition : {}",
                         topic.getName(), segmentIndex.firstKey());
@@ -318,8 +318,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                   the segment can not be read according to the index.
                                                   We update index again if there are invalid indexes.
                                                  */
-                                                if (((ManagedLedgerImpl) topic.getManagedLedger())
-                                                        .ledgerExists(index.getAbortedMarkLedgerID())) {
+                                                if (ManagedLedgerUtils.ledgerExists(topic.getManagedLedger(),
+                                                            index.getAbortedMarkLedgerID())) {
                                                     log.error("[{}] Failed to read snapshot segment [{}:{}]",
                                                             topic.getName(), index.segmentLedgerID,
                                                             index.segmentEntryID, exception);

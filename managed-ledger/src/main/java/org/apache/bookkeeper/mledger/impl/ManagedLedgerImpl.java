@@ -3744,7 +3744,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return skippedPosition;
     }
 
-    @Override
     public Position getFirstPosition() {
         Long ledgerId = ledgers.firstKey();
         if (ledgerId == null) {

@@ -85,6 +85,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -699,7 +700,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public Position getFirstPosition() throws ManagedLedgerException {
-        return ledger.getFirstPosition();
+        return ManagedLedgerUtils.getFirstPosition(ledger);
     }
 
     public long getNumberOfEntries() {
@@ -3884,7 +3885,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
 
-        if (!ledgerExists(ledger, position.getLedgerId())) {
+        if (!ManagedLedgerUtils.ledgerExists(ledger, position.getLedgerId())) {
             completableFuture
                     .complete(MessageId.earliest);
             return completableFuture;
@@ -3913,10 +3914,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }, null);
         return completableFuture;
-    }
-
-    private boolean ledgerExists(ManagedLedger ml, long ledgerId) {
-        return ml.getLedgersInfo().get(ledgerId) != null;
     }
 
     public synchronized void triggerCompaction()

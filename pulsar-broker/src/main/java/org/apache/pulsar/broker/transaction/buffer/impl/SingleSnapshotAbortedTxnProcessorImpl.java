@@ -26,7 +26,7 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
@@ -76,8 +76,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     //In this implementation we clear the invalid aborted txn ID one by one.
     @Override
     public void trimExpiredAbortedTxns() {
-        while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
-                .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
+        while (!aborts.isEmpty() && !ManagedLedgerUtils.ledgerExists(topic.getManagedLedger(),
+                aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
                         topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));

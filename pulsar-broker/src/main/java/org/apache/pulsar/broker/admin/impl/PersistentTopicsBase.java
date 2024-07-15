@@ -65,7 +65,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -3167,7 +3166,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 try {
                                     PersistentOfflineTopicStats estimateOfflineTopicStats =
                                             offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(),
+                                                    pulsar().getManagedLedgerFactory(),
                                                     topicName);
                                     pulsar().getBrokerService()
                                             .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
