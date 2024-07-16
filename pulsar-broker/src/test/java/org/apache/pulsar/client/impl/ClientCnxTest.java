@@ -23,14 +23,19 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -123,5 +128,45 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testCnxReceiveSendError() throws Exception {
+        final String topicOne = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-one";
+        final String topicTwo = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-two";
+
+        Producer<String> producerOne = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicOne)
+                .create();
+        Producer<String> producerTwo = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicTwo)
+                .create();
+        ClientCnx cnxOne = ((ProducerImpl<?>) producerOne).getClientCnx();
+        ClientCnx cnxTwo = ((ProducerImpl<?>) producerTwo).getClientCnx();
+
+        // simulate a sending error
+        cnxOne.handleSendError(Commands.newSendErrorCommand(((ProducerImpl<?>) producerOne).producerId,
+                10, ServerError.PersistenceError, "persistent error").getSendError());
+
+        // two producer use the same producer
+        Assert.assertEquals(cnxOne, cnxTwo);
+
+        // the cnx will not change
+        try {
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                    !cnxOne.equals(((ProducerImpl<?>) producerOne).getClientCnx())
+                            || !cnxTwo.equals(((ProducerImpl<?>) producerOne).getClientCnx()));
+            Assert.fail();
+        } catch (Throwable e) {
+            Assert.assertTrue(e instanceof ConditionTimeoutException);
+        }
+
+        Assert.assertEquals(cnxOne, cnxTwo);
+
+        // producer also can send message
+        producerOne.send("test");
+        producerTwo.send("test");
+        producerTwo.close();
+        producerOne.close();
     }
 }
