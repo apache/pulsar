@@ -524,15 +524,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         zkClient.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
 
-        Awaitility.await().untilAsserted(() -> {
-            AtomicReference<ZooKeeper> zk =
-                    (AtomicReference<ZooKeeper>) FieldUtils.readDeclaredField(zkClient, "zk", true);
-            assertNotNull(zk.get());
-        });
-        AtomicReference<ZooKeeper> zk =
-                (AtomicReference<ZooKeeper>) FieldUtils.readDeclaredField(zkClient, "zk", true);
-        assertNotNull(zk.get());
-        ZooKeeper zooKeeper = zk.get();
+        var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
+        var zooKeeper = Awaitility.await().until(zooKeeperRef::get, Objects::nonNull);
         assertFalse(zooKeeper.getClientConfig().isSaslClientEnabled());
     }
 
