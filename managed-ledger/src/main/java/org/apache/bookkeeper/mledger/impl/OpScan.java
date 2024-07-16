@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 
 @Slf4j
@@ -88,7 +89,7 @@ class OpScan implements ReadEntriesCallback {
                 }
             }
             searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
-                    ManagedLedgerImpl.PositionBound.startExcluded);
+                    PositionBound.startExcluded);
             if (log.isDebugEnabled()) {
                 log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
             }

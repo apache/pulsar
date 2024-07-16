@@ -81,6 +81,8 @@ import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedgerImplWrapper;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -482,7 +484,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                         config.getBookKeeperEnsemblePlacementPolicyProperties()))
                 .thenCompose(bk -> {
-                    ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this, bk,
+                    ReadOnlyManagedLedgerImplWrapper roManagedLedger = new ReadOnlyManagedLedgerImplWrapper(this, bk,
                             store, config, scheduledExecutor, managedLedgerName);
                     return roManagedLedger.initialize().thenApply(v -> roManagedLedger);
                 }).thenAccept(roManagedLedger -> {
@@ -537,7 +539,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
-            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
                 callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
                         createReadOnlyCursor(startPosition), ctx);
             }

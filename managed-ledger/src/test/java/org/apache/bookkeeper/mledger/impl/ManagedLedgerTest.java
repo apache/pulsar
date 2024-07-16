@@ -123,6 +123,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -2595,11 +2596,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Position startPosition = PositionFactory.create(firstLedger, 0);
 
-        Position targetPosition = managedLedger.getPositionAfterN(startPosition, 1, ManagedLedgerImpl.PositionBound.startExcluded);
+        Position targetPosition = managedLedger.getPositionAfterN(startPosition, 1, PositionBound.startExcluded);
         assertEquals(targetPosition.getLedgerId(), firstLedger);
         assertEquals(targetPosition.getEntryId(), 1);
 
-        targetPosition = managedLedger.getPositionAfterN(startPosition, 4, ManagedLedgerImpl.PositionBound.startExcluded);
+        targetPosition = managedLedger.getPositionAfterN(startPosition, 4, PositionBound.startExcluded);
         assertEquals(targetPosition.getLedgerId(), firstLedger);
         assertEquals(targetPosition.getEntryId(), 4);
 
@@ -2607,25 +2608,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Position searchPosition = managedLedger.getNextValidPosition(managedCursor.getMarkDeletedPosition());
         long length = managedCursor.getNumberOfEntriesInStorage();
         // return the last confirm entry position if searchPosition is exceed the last confirm entry
-        targetPosition = managedLedger.getPositionAfterN(searchPosition, length, ManagedLedgerImpl.PositionBound.startExcluded);
+        targetPosition = managedLedger.getPositionAfterN(searchPosition, length, PositionBound.startExcluded);
         log.info("Target position is {}", targetPosition);
         assertEquals(targetPosition.getLedgerId(), secondLedger);
         assertEquals(targetPosition.getEntryId(), 4);
 
         // test for n > NumberOfEntriesInStorage
         searchPosition = PositionFactory.create(secondLedger, 0);
-        targetPosition = managedLedger.getPositionAfterN(searchPosition, 100, ManagedLedgerImpl.PositionBound.startIncluded);
+        targetPosition = managedLedger.getPositionAfterN(searchPosition, 100, PositionBound.startIncluded);
         assertEquals(targetPosition.getLedgerId(), secondLedger);
         assertEquals(targetPosition.getEntryId(), 4);
 
         // test for startPosition > current ledger
         searchPosition = PositionFactory.create(999, 0);
-        targetPosition = managedLedger.getPositionAfterN(searchPosition, 0, ManagedLedgerImpl.PositionBound.startIncluded);
+        targetPosition = managedLedger.getPositionAfterN(searchPosition, 0, PositionBound.startIncluded);
         assertEquals(targetPosition.getLedgerId(), secondLedger);
         assertEquals(targetPosition.getEntryId(), 4);
 
         searchPosition = PositionFactory.create(999, 0);
-        targetPosition = managedLedger.getPositionAfterN(searchPosition, 10, ManagedLedgerImpl.PositionBound.startExcluded);
+        targetPosition = managedLedger.getPositionAfterN(searchPosition, 10, PositionBound.startExcluded);
         assertEquals(targetPosition.getLedgerId(), secondLedger);
         assertEquals(targetPosition.getEntryId(), 4);
     }

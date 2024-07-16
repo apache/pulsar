@@ -48,7 +48,7 @@ public interface AsyncCallbacks {
     }
 
     interface OpenReadOnlyManagedLedgerCallback {
-        void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger, Object ctx);
+        void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger, Object ctx);
 
         void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
