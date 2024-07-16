@@ -159,13 +159,14 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         try {
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
                     !cnxOne.equals(((ProducerImpl<?>) producerOne).getClientCnx())
-                            || !cnxTwo.equals(((ProducerImpl<?>) producerOne).getClientCnx()));
+                            || !cnxTwo.equals(((ProducerImpl<?>) producerTwo).getClientCnx()));
             Assert.fail();
         } catch (Throwable e) {
             Assert.assertTrue(e instanceof ConditionTimeoutException);
         }
 
-        Assert.assertEquals(cnxOne, cnxTwo);
+        Assert.assertEquals(((ProducerImpl<?>) producerTwo).getClientCnx(),
+                ((ProducerImpl<?>) producerOne).getClientCnx());
 
         // producer also can send message
         producerOne.send("test");

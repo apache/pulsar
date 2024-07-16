@@ -784,7 +784,7 @@ public class ClientCnx extends PulsarHandler {
             producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
         default:
-//            // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
+            // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
             producers.get(producerId).connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }
