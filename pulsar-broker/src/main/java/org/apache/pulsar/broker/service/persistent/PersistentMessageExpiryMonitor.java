@@ -243,7 +243,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                         .map(ledgerInfo -> PositionFactory.create(failedLedgerId, ledgerInfo.getEntries() - 1))
                         .orElseGet(() -> {
                             Long nextExistingLedger =
-                                    ManagedLedgerUtils.getNextValidLedger(ledger, failedReadPosition.get().getLedgerId());
+                                    ManagedLedgerUtils.getNextValidLedger(ledger,
+                                            failedReadPosition.get().getLedgerId());
                             if (nextExistingLedger == null) {
                                 log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
                                                 + "entry failed {}", ledger.getName(), ledger.getName(),

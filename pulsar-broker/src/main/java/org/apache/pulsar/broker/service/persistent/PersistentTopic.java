@@ -53,7 +53,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Value;
@@ -188,7 +187,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopicContext;
@@ -2791,7 +2789,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.lastLedgerSwitchTimestamp = cursorInternalStats.getLastLedgerSwitchTimestamp();
             cs.state = cursorInternalStats.getState();
             cs.active = cursorInternalStats.isActive();
-            cs.numberOfEntriesSinceFirstNotAckedMessage = cursorInternalStats.getNumberOfEntriesSinceFirstNotAckedMessage();
+            cs.numberOfEntriesSinceFirstNotAckedMessage =
+                    cursorInternalStats.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursorInternalStats.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursorInternalStats.getProperties();
             // subscription metrics
