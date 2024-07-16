@@ -32,9 +32,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -121,15 +121,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                             managedLedger.getLedgersInfo().lastKey(), true);
             MLDataFormats.ManagedLedgerInfo.LedgerInfo info = null;
             for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
-                if (!ledgerInfo.hasTimestamp() || !MessageImpl.isEntryExpired(messageTTLInSeconds,
-                        ledgerInfo.getTimestamp())) {
+                if (!ledgerInfo.hasTimestamp() || ledgerInfo.getTimestamp() == 0L
+                        || !MessageImpl.isEntryExpired(messageTTLInSeconds, ledgerInfo.getTimestamp())) {
                     break;
                 }
                 info = ledgerInfo;
             }
             if (info != null && info.getLedgerId() > -1) {
-                PositionImpl position = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
-                if (((PositionImpl) managedLedger.getLastConfirmedEntry()).compareTo(position) < 0) {
+                Position position = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
+                if (managedLedger.getLastConfirmedEntry().compareTo(position) < 0) {
                     findEntryComplete(managedLedger.getLastConfirmedEntry(), null);
                 } else {
                     findEntryComplete(position, null);
@@ -141,8 +141,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     @Override
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
-        PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();
-        if (topicLastPosition.compareTo((PositionImpl) messagePosition) < 0) {
+        Position topicLastPosition = this.topic.getLastPosition();
+        if (topicLastPosition.compareTo(messagePosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
                                 + "current topic's last position {}", topicName, subName, messagePosition,
@@ -157,7 +157,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
                     // If given position larger than entry position.
-                    return ((PositionImpl) entry.getPosition()).compareTo((PositionImpl) messagePosition) <= 0;
+                    return entry.getPosition().compareTo(messagePosition) <= 0;
                 } finally {
                     entry.release();
                 }
@@ -242,16 +242,16 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 long failedLedgerId = failedReadPosition.get().getLedgerId();
                 ManagedLedgerImpl ledger = ((ManagedLedgerImpl) cursor.getManagedLedger());
                 Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
-                        .map(ledgerInfo -> PositionImpl.get(failedLedgerId, ledgerInfo.getEntries() - 1))
+                        .map(ledgerInfo -> PositionFactory.create(failedLedgerId, ledgerInfo.getEntries() - 1))
                         .orElseGet(() -> {
                             Long nextExistingLedger = ledger.getNextValidLedger(failedReadPosition.get().getLedgerId());
                             if (nextExistingLedger == null) {
                                 log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
                                                 + "entry failed {}", ledger.getName(), ledger.getName(),
                                         failedReadPosition);
-                                return (PositionImpl) failedReadPosition.get();
+                                return failedReadPosition.get();
                             } else {
-                                return PositionImpl.get(nextExistingLedger, -1);
+                                return PositionFactory.create(nextExistingLedger, -1);
                             }
                         });
                 log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"

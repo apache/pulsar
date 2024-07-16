@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import com.beust.jcommander.ParameterException;
+import static org.testng.Assert.assertFalse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.Closeable;
@@ -38,6 +38,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.admin.cli.CmdSinks.LocalSinkRunner;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sinks;
@@ -61,6 +62,7 @@ public class TestCmdSinks {
     private static final String CLASS_NAME = "SomeRandomClassName";
     private static final String INPUTS = "test-src1,test-src2";
     private static final List<String> INPUTS_LIST;
+
     static {
         INPUTS_LIST = new LinkedList<>();
         INPUTS_LIST.add("test-src1");
@@ -282,7 +284,8 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = CliCommand.ParameterException.class,
+            expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -502,7 +505,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
+    @Test(expectedExceptions = CliCommand.ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specified")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);
@@ -522,8 +525,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Invalid sink type 'foo' " +
-            "-- Available sinks are: \\[\\]")
+    @Test(expectedExceptions = CliCommand.ParameterException.class, expectedExceptionsMessageRegExp = "Invalid sink type 'foo' -- Available sinks are: \\[\\]")
     public void testCmdSinkConfigFileInvalidSinkType() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         // sinkType is prior than archive
@@ -807,5 +809,15 @@ public class TestCmdSinks {
         Assert.assertEquals(config.get("float"), 1000.0);
         Assert.assertEquals(config.get("float_string"), "1000.0");
         Assert.assertEquals(config.get("created_at"), "Mon Jul 02 00:33:15 +0000 2018");
+    }
+
+    @Test
+    public void testExcludeDeprecatedOptions() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        LocalSinkRunner localSinkRunner = spy(new CmdSinks(() -> pulsarAdmin)).getLocalSinkRunner();
+        localSinkRunner.sinkConfig = testSinkConfig;
+        localSinkRunner.deprecatedBrokerServiceUrl = "pulsar://localhost:6650";
+        List<String> localRunArgs = localSinkRunner.getLocalRunArgs();
+        assertFalse(String.join(",", localRunArgs).contains("--deprecated"));
     }
 }

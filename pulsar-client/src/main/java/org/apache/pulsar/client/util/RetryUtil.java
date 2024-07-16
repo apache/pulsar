@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.util.Backoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

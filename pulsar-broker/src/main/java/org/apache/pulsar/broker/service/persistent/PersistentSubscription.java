@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -53,11 +54,11 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -96,7 +97,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription extends AbstractSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -128,6 +129,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Map.of();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
+    @Getter
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
@@ -157,7 +159,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(TopicName.get(topicName))) {
+                && !isEventSystemTopic(TopicName.get(topicName))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topicName)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -306,7 +309,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
-            topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
@@ -336,11 +338,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     if (!isResetCursor) {
                         try {
                             topic.getManagedLedger().deleteCursor(cursor.getName());
+                            topic.getManagedLedger().removeWaitingCursor(cursor);
                         } catch (InterruptedException | ManagedLedgerException e) {
                             log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                         }
                     }
                 });
+            } else {
+                topic.getManagedLedger().removeWaitingCursor(cursor);
             }
         }
 
@@ -407,7 +412,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
                 ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
-                        .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
+                        .advancedMarkDeletePosition(cursor.getMarkDeletedPosition());
                 if (snapshot != null) {
                     topic.getReplicatedSubscriptionController()
                             .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
@@ -425,19 +430,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
             TxnID txnId,
-            List<MutablePair<PositionImpl, Integer>> positions) {
+            List<MutablePair<Position, Integer>> positions) {
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
-    public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
+    public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<Position> positions) {
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
         @Override
         public void markDeleteComplete(Object ctx) {
-            PositionImpl oldMD = (PositionImpl) ctx;
-            PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+            Position oldMD = (Position) ctx;
+            Position newMD = cursor.getMarkDeletedPosition();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted messages to position {} from position {}",
                         topicName, subName, newMD, oldMD);
@@ -474,7 +479,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             if (dispatcher != null) {
                 dispatcher.afterAckMessages(null, context);
             }
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) context);
+            notifyTheMarkDeletePositionMoveForwardIfNeeded((Position) context);
         }
 
         @Override
@@ -488,8 +493,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     };
 
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
-        PositionImpl oldMD = (PositionImpl) oldPosition;
-        PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+        Position oldMD = oldPosition;
+        Position newMD = cursor.getMarkDeletedPosition();
         if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
             dispatcher.markDeletePositionMoveForward();
         }
@@ -833,7 +838,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 forceReset.complete(false);
             } else {
                 topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
-                    PositionImpl resetTo = (PositionImpl) finalPosition;
+                    Position resetTo = finalPosition;
                     if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
                             lastCompactedPosition.getEntryId()) <= 0) {
                         forceReset.complete(true);
@@ -1264,14 +1269,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
-                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+                    .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
         } else {
             subStats.backlogSize = -1;
         }
         if (getStatsOptions.isGetEarliestTimeInBacklog()) {
             if (subStats.msgBacklog > 0) {
                 ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-                PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
+                Position markDeletedPosition = cursor.getMarkDeletedPosition();
                 long result = 0;
                 try {
                     result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
@@ -1296,7 +1301,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
 
-            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = keySharedDispatcher
+            LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
                     .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
@@ -1319,16 +1324,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         Dispatcher dispatcher = getDispatcher();
         if (dispatcher != null) {
             dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
         }
     }
 
-    private void trimByMarkDeletePosition(List<PositionImpl> positions) {
+    private void trimByMarkDeletePosition(List<Position> positions) {
         positions.removeIf(position -> cursor.getMarkDeletedPosition() != null
-                && position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0);
+                && position.compareTo(cursor.getMarkDeletedPosition()) <= 0);
     }
 
     @Override
@@ -1371,7 +1376,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return subscriptionProperties;
     }
 
-    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+    public Position getPositionInPendingAck(Position position) {
         return pendingAckHandle.getPositionInPendingAck(position);
     }
     @Override
@@ -1436,16 +1441,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor;
     }
 
-    @VisibleForTesting
-    public PendingAckHandle getPendingAckHandle() {
-        return pendingAckHandle;
-    }
-
-    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
+    public void syncBatchPositionBitSetForPendingAck(Position position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 
-    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(Position position) {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
@@ -1473,7 +1473,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
     }
 
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex) {
         return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
 

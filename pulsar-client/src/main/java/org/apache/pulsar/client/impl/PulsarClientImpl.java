@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.re2j.Pattern;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -32,6 +33,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +72,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -86,6 +89,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -149,6 +154,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final Clock clientClock;
 
+    private final InstrumentProvider instrumentProvider;
+
     @Getter
     private TransactionCoordinatorClientImpl tcClient;
 
@@ -176,6 +183,7 @@ public class PulsarClientImpl implements PulsarClient {
                              Timer timer, ExecutorProvider externalExecutorProvider,
                              ExecutorProvider internalExecutorProvider,
                              ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
+
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -193,10 +201,12 @@ public class PulsarClientImpl implements PulsarClient {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
             this.conf = conf;
+            this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             connectionPoolReference =
-                    connectionPool != null ? connectionPool : new ConnectionPool(conf, this.eventLoopGroup);
+                    connectionPool != null ? connectionPool :
+                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup);
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
@@ -205,7 +215,7 @@ public class PulsarClientImpl implements PulsarClient {
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
-                lookup = new HttpLookupService(conf, this.eventLoopGroup);
+                lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
                         conf.isUseTls(), this.scheduledExecutorProvider.getExecutor());
@@ -378,7 +388,7 @@ public class PulsarClientImpl implements PulsarClient {
                                                                    ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -520,7 +530,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         String topic = conf.getSingleTopic();
 
-        getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -569,25 +579,35 @@ public class PulsarClientImpl implements PulsarClient {
         Mode subscriptionMode = convertRegexSubscriptionMode(conf.getRegexSubscriptionMode());
         TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
+        Pattern pattern = Pattern.compile(conf.getTopicsPattern().pattern());
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null)
             .thenAccept(getTopicsResult -> {
                 if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {},"
-                                    + " topicsHash: {}, changed: {}, filtered: {}",
+                    log.debug("Pattern consumer [{}] get topics under namespace {}, topics.size: {},"
+                                    + " topicsHash: {}, changed: {}, filtered: {}", conf.getSubscriptionName(),
                             namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
                             getTopicsResult.isChanged(), getTopicsResult.isFiltered());
                     getTopicsResult.getTopics().forEach(topicName ->
-                        log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
+                        log.debug("Pattern consumer [{}] get topics under namespace {}, topic: {}",
+                                conf.getSubscriptionName(), namespaceName, topicName));
                 }
 
                 List<String> topicsList = getTopicsResult.getTopics();
                 if (!getTopicsResult.isFiltered()) {
-                   topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), conf.getTopicsPattern());
+                   topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), pattern);
                 }
                 conf.getTopicNames().addAll(topicsList);
-                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Pattern consumer [{}] initialize topics. {}", conf.getSubscriptionName(),
+                            getTopicsResult.getNonPartitionedOrPartitionTopics());
+                }
+
+                // Pattern consumer has his unique check mechanism, so do not need the feature "autoUpdatePartitions".
+                conf.setAutoUpdatePartitions(false);
+                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(pattern,
                         getTopicsResult.getTopicsHash(),
                         PulsarClientImpl.this,
                         conf,
@@ -660,7 +680,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -734,6 +754,21 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    private void closeUrlLookupMap() {
+        Map<String, LookupService> closedUrlLookupServices = new HashMap(urlLookupMap.size());
+        urlLookupMap.entrySet().forEach(e -> {
+            try {
+                e.getValue().close();
+            } catch (Exception ex) {
+                log.error("Error closing lookup service {}", e.getKey(), ex);
+            }
+            closedUrlLookupServices.put(e.getKey(), e.getValue());
+        });
+        closedUrlLookupServices.entrySet().forEach(e -> {
+            urlLookupMap.remove(e.getKey(), e.getValue());
+        });
+    }
+
     @Override
     public CompletableFuture<Void> closeAsync() {
         log.info("Client closing. URL: {}", lookup.getServiceUrl());
@@ -743,6 +778,8 @@ public class PulsarClientImpl implements PulsarClient {
 
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        closeUrlLookupMap();
 
         producers.forEach(p -> futures.add(p.closeAsync().handle((__, t) -> {
             if (t != null) {
@@ -972,6 +1009,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService getLookup(String serviceUrl) {
         return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
+            if (isClosed()) {
+                throw new IllegalStateException("Pulsar client has been closed, can not build LookupService when"
+                        + " calling get lookup with an url");
+            }
             try {
                 return createLookup(serviceUrl);
             } catch (PulsarClientException e) {
@@ -1053,18 +1094,15 @@ public class PulsarClientImpl implements PulsarClient {
 
     public LookupService createLookup(String url) throws PulsarClientException {
         if (url.startsWith("http")) {
-            return new HttpLookupService(conf, eventLoopGroup);
+            return new HttpLookupService(instrumentProvider, conf, eventLoopGroup);
         } else {
             return new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
                     externalExecutorProvider.getExecutor());
         }
     }
 
-    public CompletableFuture<Integer> getNumberOfPartitions(String topic) {
-        return getPartitionedTopicMetadata(topic).thenApply(metadata -> metadata.partitions);
-    }
-
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            String topic, boolean metadataAutoCreationEnabled) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
@@ -1077,7 +1115,7 @@ public class PulsarClientImpl implements PulsarClient {
                     .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs,
-                                        metadataFuture, new ArrayList<>());
+                                        metadataFuture, new ArrayList<>(), metadataAutoCreationEnabled);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
@@ -1088,15 +1126,19 @@ public class PulsarClientImpl implements PulsarClient {
                                              Backoff backoff,
                                              AtomicLong remainingTime,
                                              CompletableFuture<PartitionedTopicMetadata> future,
-                                             List<Throwable> previousExceptions) {
+                                             List<Throwable> previousExceptions,
+                                             boolean metadataAutoCreationEnabled) {
         long startTime = System.nanoTime();
-        lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
+        CompletableFuture<PartitionedTopicMetadata> queryFuture =
+                lookup.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled);
+        queryFuture.thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             // skip retry scheduler when set lookup throttle in client or server side which will lead to
             // `TooManyRequestsException`
             boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause())
-                || e.getCause() instanceof PulsarClientException.AuthenticationException;
+                || e.getCause() instanceof PulsarClientException.AuthenticationException
+                || e.getCause() instanceof PulsarClientException.NotFoundException;
             if (nextDelay <= 0 || isLookupThrottling) {
                 PulsarClientException.setPreviousExceptions(e, previousExceptions);
                 future.completeExceptionally(e);
@@ -1108,15 +1150,16 @@ public class PulsarClientImpl implements PulsarClient {
                 log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- "
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions);
+                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions,
+                        metadataAutoCreationEnabled);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });
     }
 
     @Override
-    public CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
-        return getPartitionedTopicMetadata(topic).thenApply(metadata -> {
+    public CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled) {
+        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled).thenApply(metadata -> {
             if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);
@@ -1230,6 +1273,11 @@ public class PulsarClientImpl implements PulsarClient {
     public ScheduledExecutorProvider getScheduledExecutorProvider() {
         return scheduledExecutorProvider;
     }
+
+    InstrumentProvider instrumentProvider() {
+        return instrumentProvider;
+    }
+
 
     //
     // Transaction related API

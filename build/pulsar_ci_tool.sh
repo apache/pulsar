@@ -46,57 +46,12 @@ function ci_print_thread_dumps() {
 
 # runs maven
 function _ci_mvn() {
-  mvn -B -ntp -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
-        "$@"
+  mvn -B -ntp "$@"
 }
 
 # runs OWASP Dependency Check for all projects
 function ci_dependency_check() {
   _ci_mvn -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl '!pulsar-client-tools-test' "$@"
-}
-
-# Finds fastest up-to-date ubuntu mirror based on download speed
-function ci_find_fast_ubuntu_mirror() {
-  local ubuntu_release=${1:-"$(lsb_release -c 2>/dev/null | cut -f2 || echo "jammy")"}
-  local ubuntu_arch=${2:-"$(dpkg --print-architecture 2>/dev/null || echo "amd64")"}
-  {
-    # choose mirrors that are up-to-date by checking the Last-Modified header for
-    {
-      # randomly choose up to 10 mirrors using http:// protocol
-      # (https isn't supported in docker containers that don't have ca-certificates installed)
-      curl -s http://mirrors.ubuntu.com/mirrors.txt | grep '^http://' | shuf -n 10
-      # also consider Azure's Ubuntu mirror
-      echo http://azure.archive.ubuntu.com/ubuntu/
-    } | xargs -I {} sh -c "ubuntu_release=$ubuntu_release ubuntu_arch=$ubuntu_arch;"'echo "$(curl -m 5 -sI {}dists/${ubuntu_release}/Contents-${ubuntu_arch}.gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
-  } | xargs -I {} sh -c 'echo `curl -r 0-102400 -m 5 -s -w %{speed_download} -o /dev/null {}ls-lR.gz` {}' \
-    |sort -g -r |head -1| awk '{ print $2  }'
-}
-
-function ci_pick_ubuntu_mirror() {
-  echo "Choosing fastest up-to-date ubuntu mirror based on download speed..."
-  UBUNTU_MIRROR=$(ci_find_fast_ubuntu_mirror)
-  if [ -z "$UBUNTU_MIRROR" ]; then
-      # fallback to no mirror
-      UBUNTU_MIRROR="http://archive.ubuntu.com/ubuntu/"
-      UBUNTU_SECURITY_MIRROR="http://security.ubuntu.com/ubuntu/"
-  else
-      UBUNTU_SECURITY_MIRROR="${UBUNTU_MIRROR}"
-  fi
-  OLD_MIRROR=$(cat /etc/apt/sources.list | grep '^deb ' | head -1 | awk '{ print $2 }')
-  echo "Picked '$UBUNTU_MIRROR'. Current mirror is '$OLD_MIRROR'."
-  if [[ "$OLD_MIRROR" != "$UBUNTU_MIRROR" ]]; then
-    sudo sed -i "s|$OLD_MIRROR|$UBUNTU_MIRROR|g" /etc/apt/sources.list
-    sudo apt-get update
-  fi
-  # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
-  # that can be used by docker builds
-  export UBUNTU_MIRROR
-  export UBUNTU_SECURITY_MIRROR
-  # make environment variables available for later GitHub Actions steps
-  if [ -n "$GITHUB_ENV" ]; then
-    echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
-    echo "UBUNTU_SECURITY_MIRROR=$UBUNTU_SECURITY_MIRROR" >> $GITHUB_ENV
-  fi
 }
 
 # installs a tool executable if it's not found on the PATH
@@ -108,7 +63,6 @@ function ci_install_tool() {
       echo "::group::Installing ${tool_package}"
       sudo apt-get -y install ${tool_package} >/dev/null || {
         echo "Installing the package failed. Switching the ubuntu mirror and retrying..."
-        ci_pick_ubuntu_mirror
         # retry after picking the ubuntu mirror
         sudo apt-get -y install ${tool_package}
       }
@@ -399,6 +353,7 @@ _ci_upload_coverage_files() {
                   --transform="flags=r;s|\\(/jacoco.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --transform="flags=r;s|\\(/tmp/jacocoDir/.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --exclude="*/META-INF/bundled-dependencies/*" \
+                  --exclude="*/META-INF/versions/*" \
                   $GITHUB_WORKSPACE/target/classpath_* \
                   $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco*.exec" -printf "%p\n%h/classes\n" | sort | uniq) \
                   $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
@@ -540,11 +495,11 @@ ci_create_test_coverage_report() {
     local classfilesArgs="--classfiles $({
       {
         for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E "$excludeJarsPattern" || true; }); do
-            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 2>/dev/null)" ]]; then
-              # file must be processed by removing META-INF/bundled-dependencies
+            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' 2>/dev/null)" ]]; then
+              # file must be processed by removing META-INF/bundled-dependencies and META-INF/versions
               local jartempfile=$(mktemp -t jarfile.XXXX --suffix=.jar)
               cp $classpathEntry $jartempfile
-              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' &> /dev/null
+              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' &> /dev/null
               echo $jartempfile
             else
               echo $classpathEntry
@@ -606,7 +561,7 @@ ci_create_inttest_coverage_report() {
       # remove jar file that causes duplicate classes issue
       rm /tmp/jacocoDir/pulsar_lib/org.apache.pulsar-bouncy-castle* || true
       # remove any bundled dependencies as part of .jar/.nar files
-      find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' \; |grep -E -v "Nothing to do|^$" || true
+      find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' 'META-INF/versions/*' \; |grep -E -v "Nothing to do|^$" || true
     fi
     # projects that aren't considered as production code and their own src/main/java source code shouldn't be analysed
     local excludeProjectsPattern="testmocks|testclient|buildtools"

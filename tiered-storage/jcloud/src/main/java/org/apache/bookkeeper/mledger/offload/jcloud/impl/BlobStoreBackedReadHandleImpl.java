@@ -18,8 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -30,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -47,40 +47,38 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionC
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
-    private static final int CACHE_TTL_SECONDS =
-            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
-    // this Cache is accessed only by one thread
-    private final Cache<Long, Long> entryOffsets = CacheBuilder
-            .newBuilder()
-            .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
-            .build();
+    private final OffsetsCache entryOffsetsCache;
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
         Opened,
         Closed
     }
 
-    private State state = null;
+    private volatile State state = null;
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                          BackedInputStream inputStream, ExecutorService executor) {
+                                          BackedInputStream inputStream, ExecutorService executor,
+                                          OffsetsCache entryOffsetsCache) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
+        this.entryOffsetsCache = entryOffsetsCache;
         state = State.Opened;
     }
 
@@ -96,18 +94,21 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        if (closeFuture.get() != null || !closeFuture.compareAndSet(null, new CompletableFuture<>())) {
+            return closeFuture.get();
+        }
+
+        CompletableFuture<Void> promise = closeFuture.get();
         executor.execute(() -> {
-                try {
-                    index.close();
-                    inputStream.close();
-                    entryOffsets.invalidateAll();
-                    state = State.Closed;
-                    promise.complete(null);
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+            try {
+                index.close();
+                inputStream.close();
+                state = State.Closed;
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
@@ -156,7 +157,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     long entryId = dataStream.readLong();
 
                     if (entryId == nextExpectedId) {
-                        entryOffsets.put(entryId, currentPosition);
+                        entryOffsetsCache.put(ledgerId, entryId, currentPosition);
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
@@ -195,7 +196,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             } catch (Throwable t) {
                 log.error("Failed to read entries {} - {} from the offloader in ledger {}",
                     firstEntry, lastEntry, ledgerId, t);
-                promise.completeExceptionally(t);
+                if (t instanceof KeyNotFoundException) {
+                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                } else {
+                    promise.completeExceptionally(t);
+                }
                 entries.forEach(LedgerEntry::close);
             }
         });
@@ -203,7 +208,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private void seekToEntry(long nextExpectedId) throws IOException {
-        Long knownOffset = entryOffsets.getIfPresent(nextExpectedId);
+        Long knownOffset = entryOffsetsCache.getIfPresent(ledgerId, nextExpectedId);
         if (knownOffset != null) {
             inputStream.seek(knownOffset);
         } else {
@@ -257,8 +262,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize,
-                                  LedgerOffloaderStats offloaderStats, String managedLedgerName)
-            throws IOException {
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName,
+                                  OffsetsCache entryOffsetsCache)
+            throws IOException, BKException.BKNoSuchLedgerExistsException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
@@ -271,6 +277,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         while (retryCount-- > 0) {
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
+            if (blob == null) {
+                log.error("{} not found in container {}", indexKey, bucket);
+                throw new BKException.BKNoSuchLedgerExistsException();
+            }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
             versionCheck.check(indexKey, blob);
@@ -294,10 +304,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                 versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
 
-        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor, entryOffsetsCache);
     }
 
     // for testing
+    @VisibleForTesting
     State getState() {
         return this.state;
     }

@@ -19,10 +19,10 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
-import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
+import static org.apache.pulsar.functions.utils.FunctionConfigUtils.convertProducerConfigToProducerSpec;
+import static org.apache.pulsar.functions.utils.FunctionConfigUtils.convertProducerSpecToProducerConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -39,7 +39,6 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -80,6 +79,9 @@ public class SourceConfigUtils {
         }
         if (sourceConfig.getName() != null) {
             functionDetailsBuilder.setName(sourceConfig.getName());
+        }
+        if (sourceConfig.getLogTopic() != null) {
+            functionDetailsBuilder.setLogTopic(sourceConfig.getLogTopic());
         }
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sourceConfig.getParallelism() != null) {
@@ -149,29 +151,7 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            ProducerConfig conf = sourceConfig.getProducerConfig();
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (conf.getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(conf.getMaxPendingMessages());
-            }
-            if (conf.getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (conf.getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(conf.getUseThreadLocalProducers());
-            }
-            if (conf.getCryptoConfig() != null) {
-                pbldr.setCryptoSpec(CryptoUtils.convert(conf.getCryptoConfig()));
-            }
-            if (conf.getBatchBuilder() != null) {
-                pbldr.setBatchBuilder(conf.getBatchBuilder());
-            }
-            if (conf.getCompressionType() != null) {
-                pbldr.setCompressionType(convertFromCompressionType(conf.getCompressionType()));
-            } else {
-                pbldr.setCompressionType(Function.CompressionType.LZ4);
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(convertProducerConfigToProducerSpec(sourceConfig.getProducerConfig()));
         }
 
         if (sourceConfig.getBatchBuilder() != null) {
@@ -256,23 +236,10 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
-            Function.ProducerSpec spec = sinkSpec.getProducerSpec();
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (spec.getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
-            }
-            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (spec.hasCryptoSpec()) {
-                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
-            }
-            if (spec.getBatchBuilder() != null) {
-                producerConfig.setBatchBuilder(spec.getBatchBuilder());
-            }
-            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
-            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
-            sourceConfig.setProducerConfig(producerConfig);
+            sourceConfig.setProducerConfig(convertProducerSpecToProducerConfig(sinkSpec.getProducerSpec()));
+        }
+        if (!isEmpty(functionDetails.getLogTopic())) {
+            sourceConfig.setLogTopic(functionDetails.getLogTopic());
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
@@ -307,6 +274,12 @@ public class SourceConfigUtils {
         }
         if (!isEmpty(sourceConfig.getTopicName()) && !TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
+        }
+        if (!isEmpty(sourceConfig.getLogTopic())) {
+            if (!TopicName.isValid(sourceConfig.getLogTopic())) {
+                throw new IllegalArgumentException(
+                        String.format("LogTopic topic %s is invalid", sourceConfig.getLogTopic()));
+            }
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Source parallelism must be a positive number");
@@ -433,6 +406,9 @@ public class SourceConfigUtils {
         }
         if (newConfig.getSecrets() != null) {
             mergedConfig.setSecrets(newConfig.getSecrets());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
+            mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {

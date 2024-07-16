@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -40,15 +37,17 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class PerformanceReader {
+@Command(name = "read", description = "Test pulsar reader performance.")
+public class PerformanceReader extends PerformanceTopicListArguments {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
@@ -60,62 +59,53 @@ public class PerformanceReader {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-    @Parameters(commandDescription = "Test pulsar reader performance.")
-    static class Arguments extends PerformanceTopicListArguments {
+    @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
+    public double rate = 0;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
-        public double rate = 0;
+    @Option(names = {"-m",
+            "--start-message-id"}, description = "Start message id. This can be either 'earliest', "
+            + "'latest' or a specific message id by using 'lid:eid'")
+    public String startMessageId = "earliest";
 
-        @Parameter(names = { "-m",
-                "--start-message-id" }, description = "Start message id. This can be either 'earliest', "
-                + "'latest' or a specific message id by using 'lid:eid'")
-        public String startMessageId = "earliest";
+    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
+    public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
-        public int receiverQueueSize = 1000;
+    @Option(names = {"-n",
+            "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
+            + "it will keep consuming")
+    public long numMessages = 0;
 
-        @Parameter(names = {"-n",
-                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
-                + "it will keep consuming")
-        public long numMessages = 0;
+    @Option(names = {
+            "--use-tls"}, description = "Use TLS encryption on the connection", descriptionKey = "useTls")
+    public boolean useTls;
 
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
-        public boolean useTls;
+    @Option(names = {"-time",
+            "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
+    public long testTime = 0;
+    public PerformanceReader() {
+        super("read");
+    }
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
-        public long testTime = 0;
-
-        @Override
-        public void fillArgumentsFromProperties(Properties prop) {
-            if (!useTls) {
-                useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-        }
-        @Override
-        public void validate() throws Exception {
-            super.validate();
-            if (startMessageId != "earliest" && startMessageId != "latest"
-                    && (startMessageId.split(":")).length != 2) {
-                String errMsg = String.format("invalid start message ID '%s', must be either either 'earliest', "
-                        + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
-                throw new Exception(errMsg);
-            }
+    @Override
+    public void validate() throws Exception {
+        super.validate();
+        if (startMessageId != "earliest" && startMessageId != "latest"
+                && (startMessageId.split(":")).length != 2) {
+            String errMsg = String.format("invalid start message ID '%s', must be either either 'earliest', "
+                    + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
+            throw new Exception(errMsg);
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        final Arguments arguments = new Arguments();
-        arguments.parseCLI("pulsar-perf read", args);
-
+    @Override
+    public void run() throws Exception {
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
+        log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(this));
 
-        final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
+        final RateLimiter limiter = this.rate > 0 ? RateLimiter.create(this.rate) : null;
         ReaderListener<byte[]> listener = (reader, msg) -> {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
@@ -123,9 +113,9 @@ public class PerformanceReader {
             totalMessagesReceived.increment();
             totalBytesReceived.add(msg.getData().length);
 
-            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+            if (this.numMessages > 0 && totalMessagesReceived.sum() >= this.numMessages) {
                 log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
-                        arguments.numMessages);
+                        this.numMessages);
                 PerfClientUtils.exit(0);
             }
 
@@ -140,38 +130,37 @@ public class PerformanceReader {
             }
         };
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
-                .enableTls(arguments.useTls);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
+                .enableTls(this.useTls);
 
         PulsarClient pulsarClient = clientBuilder.build();
 
         List<CompletableFuture<Reader<byte[]>>> futures = new ArrayList<>();
 
         MessageId startMessageId;
-        if ("earliest".equals(arguments.startMessageId)) {
+        if ("earliest".equals(this.startMessageId)) {
             startMessageId = MessageId.earliest;
-        } else if ("latest".equals(arguments.startMessageId)) {
+        } else if ("latest".equals(this.startMessageId)) {
             startMessageId = MessageId.latest;
         } else {
-            String[] parts = arguments.startMessageId.split(":");
+            String[] parts = this.startMessageId.split(":");
             startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
         }
 
         ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader() //
                 .readerListener(listener) //
-                .receiverQueueSize(arguments.receiverQueueSize) //
+                .receiverQueueSize(this.receiverQueueSize) //
                 .startMessageId(startMessageId);
 
-        for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topics.get(i));
+        for (int i = 0; i < this.numTopics; i++) {
+            final TopicName topicName = TopicName.get(this.topics.get(i));
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
 
         FutureUtil.waitForAll(futures).get();
 
-        log.info("Start reading from {} topics", arguments.numTopics);
+        log.info("Start reading from {} topics", this.numTopics);
 
         final long start = System.nanoTime();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -179,17 +168,17 @@ public class PerformanceReader {
             printAggregatedStats();
         }));
 
-        if (arguments.testTime > 0) {
+        if (this.testTime > 0) {
             TimerTask timoutTask = new TimerTask() {
                 @Override
                 public void run() {
                     log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
-                            + "--------------", arguments.testTime);
+                            + "--------------", testTime);
                     PerfClientUtils.exit(0);
                 }
             };
             Timer timer = new Timer();
-            timer.schedule(timoutTask, arguments.testTime * 1000);
+            timer.schedule(timoutTask, this.testTime * 1000);
         }
 
         long oldTime = System.nanoTime();
@@ -224,7 +213,6 @@ public class PerformanceReader {
 
         pulsarClient.close();
     }
-
     private static void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;

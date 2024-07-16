@@ -20,9 +20,6 @@ package org.apache.pulsar.functions;
 
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
-import com.beust.jcommander.IStringConverter;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
@@ -87,6 +84,10 @@ import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import picocli.CommandLine;
+import picocli.CommandLine.ITypeConverter;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.TypeConversionException;
 
 @Slf4j
 public class LocalRunner implements AutoCloseable {
@@ -115,95 +116,95 @@ public class LocalRunner implements AutoCloseable {
         boolean classLoaderCreated;
     }
 
-    public static class FunctionConfigConverter implements IStringConverter<FunctionConfig> {
+    public static class FunctionConfigConverter implements ITypeConverter<FunctionConfig> {
         @Override
         public FunctionConfig convert(String value) {
             try {
                 return ObjectMapperFactory.getMapper().reader().readValue(value, FunctionConfig.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to parse function config:", e);
+                throw new TypeConversionException(e.getMessage());
             }
         }
     }
 
-    public static class SourceConfigConverter implements IStringConverter<SourceConfig> {
+    public static class SourceConfigConverter implements ITypeConverter<SourceConfig> {
         @Override
         public SourceConfig convert(String value) {
             try {
                 return ObjectMapperFactory.getMapper().reader().readValue(value, SourceConfig.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to parse source config:", e);
+                throw new TypeConversionException(e.getMessage());
             }
         }
     }
 
-    public static class SinkConfigConverter implements IStringConverter<SinkConfig> {
+    public static class SinkConfigConverter implements ITypeConverter<SinkConfig> {
         @Override
         public SinkConfig convert(String value) {
             try {
                 return ObjectMapperFactory.getMapper().reader().readValue(value, SinkConfig.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to parse sink config:", e);
+                throw new TypeConversionException(e.getMessage());
             }
         }
     }
 
-    public static class RuntimeConverter implements IStringConverter<RuntimeEnv> {
+    public static class RuntimeConverter implements ITypeConverter<RuntimeEnv> {
         @Override
         public RuntimeEnv convert(String value) {
             return RuntimeEnv.valueOf(value);
         }
     }
 
-    @Parameter(names = "--functionConfig", description = "The json representation of FunctionConfig",
+    @Option(names = "--functionConfig", description = "The json representation of FunctionConfig",
             hidden = true, converter = FunctionConfigConverter.class)
     protected FunctionConfig functionConfig;
-    @Parameter(names = "--sourceConfig", description = "The json representation of SourceConfig",
+    @Option(names = "--sourceConfig", description = "The json representation of SourceConfig",
             hidden = true, converter = SourceConfigConverter.class)
     protected SourceConfig sourceConfig;
-    @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig",
+    @Option(names = "--sinkConfig", description = "The json representation of SinkConfig",
             hidden = true, converter = SinkConfigConverter.class)
     protected SinkConfig sinkConfig;
-    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class "
+    @Option(names = "--stateStorageImplClass", description = "The implemenatation class "
             + "state storage service (by default Apache BookKeeper)", hidden = true, required = false)
     protected String stateStorageImplClass;
-    @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
+    @Option(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
             + "(by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
-    @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
+    @Option(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
-    @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
+    @Option(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
     protected String webServiceUrl = null;
-    @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which "
+    @Option(names = "--clientAuthPlugin", description = "Client authentication plugin using which "
             + "function-process can connect to broker", hidden = true)
     protected String clientAuthPlugin;
-    @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
+    @Option(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
     protected String clientAuthParams;
-    @Parameter(names = "--useTls", description = "Use tls connection\n", hidden = true, arity = 1)
+    @Option(names = "--useTls", description = "Use tls connection\n", hidden = true, arity = "1")
     protected boolean useTls;
-    @Parameter(names = "--tlsAllowInsecureConnection", description = "Allow insecure tls connection\n",
-            hidden = true, arity = 1)
+    @Option(names = "--tlsAllowInsecureConnection", description = "Allow insecure tls connection\n",
+            hidden = true, arity = "1")
     protected boolean tlsAllowInsecureConnection;
-    @Parameter(names = "--tlsHostNameVerificationEnabled", description = "Enable hostname verification", hidden = true
-            , arity = 1)
+    @Option(names = "--tlsHostNameVerificationEnabled", description = "Enable hostname verification", hidden = true
+            , arity = "1")
     protected boolean tlsHostNameVerificationEnabled;
-    @Parameter(names = "--tlsTrustCertFilePath", description = "tls trust cert file path", hidden = true)
+    @Option(names = "--tlsTrustCertFilePath", description = "tls trust cert file path", hidden = true)
     protected String tlsTrustCertFilePath;
-    @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
+    @Option(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
     protected int instanceIdOffset = 0;
-    @Parameter(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true,
+    @Option(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true,
             converter = RuntimeConverter.class)
     protected RuntimeEnv runtimeEnv;
-    @Parameter(names = "--secretsProviderClassName",
+    @Option(names = "--secretsProviderClassName",
             description = "Whats the classname of secrets provider", hidden = true)
     protected String secretsProviderClassName;
-    @Parameter(names = "--secretsProviderConfig",
+    @Option(names = "--secretsProviderConfig",
             description = "Whats the config for the secrets provider", hidden = true)
     protected String secretsProviderConfig;
-    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running "
+    @Option(names = "--metricsPortStart", description = "The starting port range for metrics server. When running "
             + "instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected Integer metricsPortStart;
-    @Parameter(names = "--exitOnError", description = "The starting port range for metrics server. When running "
+    @Option(names = "--exitOnError", description = "The starting port range for metrics server. When running "
             + "instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected boolean exitOnError;
 
@@ -212,11 +213,10 @@ public class LocalRunner implements AutoCloseable {
 
     public static void main(String[] args) throws Exception {
         LocalRunner localRunner = LocalRunner.builder().build();
-        JCommander jcommander = new JCommander(localRunner);
-        jcommander.setProgramName("LocalRunner");
+        CommandLine jcommander = new CommandLine(localRunner);
+        jcommander.setCommandName("LocalRunner");
 
-        // parse args by JCommander
-        jcommander.parse(args);
+        jcommander.parseArgs(args);
         try {
             localRunner.start(true);
         } catch (Exception e) {

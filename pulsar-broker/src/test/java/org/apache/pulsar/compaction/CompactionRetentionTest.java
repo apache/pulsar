@@ -78,7 +78,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
@@ -257,9 +257,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerConfig config = pulsar.getBrokerService()
                 .getManagedLedgerConfig(TopicName.get(topicName)).get();
         Assert.assertEquals(config.getRetentionSizeInMB(), retentionPolicies.getRetentionSizeInMB());
-        Assert.assertEquals(config.getRetentionTimeMillis(), retentionPolicies.getRetentionTimeInMinutes() < 0
-                        ? retentionPolicies.getRetentionTimeInMinutes()
-                        : retentionPolicies.getRetentionTimeInMinutes() * 60000L);
+        Assert.assertEquals(config.getRetentionTimeMillis(),retentionPolicies.getRetentionTimeInMinutes() * 60000L);
     }
 
     private void testCompactionCursorRetention(String topic) throws Exception {

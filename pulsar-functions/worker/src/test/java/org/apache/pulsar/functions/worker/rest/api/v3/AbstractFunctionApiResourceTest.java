@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -59,6 +60,12 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsResourceTest {
+    @Override
+    protected void customizeWorkerConfig(WorkerConfig workerConfig, Method method) {
+        if (method.getName().contains("Upload")) {
+            workerConfig.setFunctionsWorkerEnablePackageManagement(false);
+        }
+    }
 
     @Test
     public void testListFunctionsSuccess() {

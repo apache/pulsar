@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -39,10 +38,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
+    private boolean acceptGzipCompression = true;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -55,13 +55,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder clone() {
-        return new PulsarAdminBuilderImpl(conf.clone());
+        PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone());
+        pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
+        pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
+        return pulsarAdminBuilder;
     }
 
     @Override
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
+        if (config.containsKey("acceptGzipCompression")) {
+            Object acceptGzipCompressionObj = config.get("acceptGzipCompression");
+            if (acceptGzipCompressionObj instanceof Boolean) {
+                acceptGzipCompression = (Boolean) acceptGzipCompressionObj;
+            } else {
+                acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
+            }
+        }
         return this;
     }
 
@@ -201,21 +212,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder connectionTimeout(int connectionTimeout, TimeUnit connectionTimeoutUnit) {
-        checkArgument(connectionTimeout >= 0);
         this.conf.setConnectionTimeoutMs((int) connectionTimeoutUnit.toMillis(connectionTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit) {
-        checkArgument(readTimeout >= 0);
         this.conf.setReadTimeoutMs((int) readTimeoutUnit.toMillis(readTimeout));
         return this;
     }
 
     @Override
     public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
-        checkArgument(requestTimeout >= 0);
         this.conf.setRequestTimeoutMs((int) requestTimeoutUnit.toMillis(requestTimeout));
         return this;
     }
@@ -229,6 +237,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression) {
+        this.acceptGzipCompression = acceptGzipCompression;
         return this;
     }
 }

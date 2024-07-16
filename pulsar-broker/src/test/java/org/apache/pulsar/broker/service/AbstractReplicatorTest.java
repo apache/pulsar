@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -94,7 +95,7 @@ public class AbstractReplicatorTest {
         final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
                 replicatorPrefix, broker, remoteClient);
         replicator.startProducer();
-        replicator.disconnect();
+        replicator.terminate();
 
         // Verify task will done.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -129,17 +130,37 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void readEntries(Producer<byte[]> producer) {
+        protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
 
         }
 
         @Override
         protected Position getReplicatorReadPosition() {
-            return PositionImpl.EARLIEST;
+            return PositionFactory.EARLIEST;
         }
 
         @Override
-        protected long getNumberOfEntriesInBacklog() {
+        public ReplicatorStatsImpl computeStats() {
+            return null;
+        }
+
+        @Override
+        public ReplicatorStatsImpl getStats() {
+            return null;
+        }
+
+        @Override
+        public void updateRates() {
+
+        }
+
+        @Override
+        public boolean isConnected() {
+            return false;
+        }
+
+        @Override
+        public long getNumberOfEntriesInBacklog() {
             return 0;
         }
 

@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.LinkedList;
 import java.util.List;
 import javax.ws.rs.core.Response;
@@ -57,6 +58,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -78,6 +80,13 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
     @Override
     protected void doSetup() {
         this.resource = spy(new SourcesImpl(() -> mockedWorkerService));
+    }
+
+    @Override
+    protected void customizeWorkerConfig(WorkerConfig workerConfig, Method method) {
+        if (method.getName().endsWith("UploadFailure") || method.getName().contains("BKPackage")) {
+            workerConfig.setFunctionsWorkerEnablePackageManagement(false);
+        }
     }
 
     @Override

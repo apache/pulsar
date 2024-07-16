@@ -147,11 +147,20 @@ public class LoadBalancerTest {
         log.info("--- Shutting down ---");
 
         for (int i = 0; i < BROKER_COUNT; i++) {
-            pulsarAdmins[i].close();
-            pulsarServices[i].close();
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+                pulsarAdmins[i] = null;
+            }
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+                pulsarServices[i] = null;
+            }
         }
 
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {

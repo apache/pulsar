@@ -143,7 +143,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isNotBlank(sinkPkgUrl)) {
-                    componentPackageFile = getPackageFile(sinkPkgUrl);
+                    componentPackageFile = getPackageFile(componentType, sinkPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             sinkConfig, componentPackageFile);
                 } else {
@@ -310,6 +310,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 componentPackageFile = getPackageFile(
+                        componentType,
                         sinkPkgUrl,
                         existingComponent.getPackageLocation().getPackagePath(),
                         uploadedInputStream);
@@ -421,7 +422,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         try {
             String builtin = functionDetails.getBuiltin();
             if (isBlank(builtin)) {
-                functionPackageFile = getPackageFile(transformFunction);
+                functionPackageFile =
+                        getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION, transformFunction);
             }
             Function.PackageLocationMetaData.Builder functionPackageLocation =
                     getFunctionPackageLocation(functionMetaDataBuilder.build(),
@@ -744,7 +746,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 transformFunctionPackage =
                         getBuiltinFunctionPackage(sinkConfig.getTransformFunction());
                 if (transformFunctionPackage == null) {
-                    File functionPackageFile = getPackageFile(sinkConfig.getTransformFunction());
+                    File functionPackageFile = getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION,
+                            sinkConfig.getTransformFunction());
                     transformFunctionPackage =
                             new FunctionFilePackage(functionPackageFile, workerConfig.getNarExtractionDirectory(),
                                     workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);

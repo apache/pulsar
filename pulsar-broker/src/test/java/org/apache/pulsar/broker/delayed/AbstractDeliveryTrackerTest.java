@@ -37,7 +37,7 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -82,7 +82,7 @@ public abstract class AbstractDeliveryTrackerTest {
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduled = tracker.getScheduledMessages(10);
+        Set<Position> scheduled = tracker.getScheduledMessages(10);
         assertEquals(scheduled.size(), 1);
 
         // Move time forward

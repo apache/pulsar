@@ -83,18 +83,21 @@ public class FunctionActioner {
     private final ConnectorsManager connectorsManager;
     private final FunctionsManager functionsManager;
     private final PulsarAdmin pulsarAdmin;
+    private final PackageUrlValidator packageUrlValidator;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
                             ConnectorsManager connectorsManager,
-                            FunctionsManager functionsManager, PulsarAdmin pulsarAdmin) {
+                            FunctionsManager functionsManager, PulsarAdmin pulsarAdmin,
+                            PackageUrlValidator packageUrlValidator) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.connectorsManager = connectorsManager;
         this.functionsManager = functionsManager;
         this.pulsarAdmin = pulsarAdmin;
+        this.packageUrlValidator = packageUrlValidator;
     }
 
 
@@ -152,6 +155,9 @@ public class FunctionActioner {
         boolean isPkgUrlProvided = isFunctionPackageUrlSupported(packagePath);
         String packageFile;
         if (isPkgUrlProvided && packagePath.startsWith(FILE)) {
+            if (!packageUrlValidator.isValidPackageUrl(componentType, packagePath)) {
+                throw new IllegalArgumentException("Package URL " + packagePath + " is not valid");
+            }
             URL url = new URL(packagePath);
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();
@@ -168,7 +174,7 @@ public class FunctionActioner {
                     pkgDir,
                     new File(getDownloadFileName(functionMetaData.getFunctionDetails(),
                             pkgLocation)).getName());
-            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId, pkgLocation);
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId, pkgLocation, componentType);
             packageFile = pkgFile.getAbsolutePath();
         }
         return packageFile;
@@ -227,7 +233,8 @@ public class FunctionActioner {
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData,
-                              int instanceId, Function.PackageLocationMetaData pkgLocation)
+                              int instanceId, Function.PackageLocationMetaData pkgLocation,
+                              FunctionDetails.ComponentType componentType)
             throws IOException, PulsarAdminException {
 
         FunctionDetails details = functionMetaData.getFunctionDetails();
@@ -252,6 +259,9 @@ public class FunctionActioner {
                 downloadFromHttp ? pkgLocationPath : pkgLocation);
 
         if (downloadFromHttp) {
+            if (!packageUrlValidator.isValidPackageUrl(componentType, pkgLocationPath)) {
+                throw new IllegalArgumentException("Package URL " + pkgLocationPath + " is not valid");
+            }
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
         } else if (downloadFromPackageManagementService) {
             getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());

@@ -90,6 +90,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
+    final Queue<Long> addEntryResponseDelaysMillis = new ConcurrentLinkedQueue<>();
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
     final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
 
@@ -365,8 +366,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     public synchronized void addEntryDelay(long delay, TimeUnit unit) {
-        checkArgument(delay >= 0, "The delay time must not be negative.");
         addEntryDelaysMillis.add(unit.toMillis(delay));
+    }
+
+    public synchronized void addEntryResponseDelay(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0, "The delay time must not be negative.");
+        addEntryResponseDelaysMillis.add(unit.toMillis(delay));
     }
 
     static int getExceptionCode(Throwable t) {

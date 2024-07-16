@@ -33,7 +33,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -85,6 +85,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
+    private boolean triggerOffloadOnTopicLoad = false;
 
     @Getter
     @Setter
@@ -170,7 +171,6 @@ public class ManagedLedgerConfig {
      *            the time unit
      */
     public void setMinimumRolloverTime(int minimumRolloverTime, TimeUnit unit) {
-        checkArgument(minimumRolloverTime >= 0);
         this.minimumRolloverTimeMs = (int) unit.toMillis(minimumRolloverTime);
         checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Minimum rollover time needs to be less than maximum rollover time");
@@ -196,7 +196,6 @@ public class ManagedLedgerConfig {
      *            the time unit
      */
     public void setMaximumRolloverTime(int maximumRolloverTime, TimeUnit unit) {
-        checkArgument(maximumRolloverTime >= 0);
         this.maximumRolloverTimeMs = unit.toMillis(maximumRolloverTime);
         checkArgument(maximumRolloverTimeMs >= minimumRolloverTimeMs,
                 "Maximum rollover time needs to be greater than minimum rollover time");
@@ -283,7 +282,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * should use {@link OpenLongPairRangeSet} to store unacked ranges.
      * @return
      */
     public boolean isUnackedRangesOpenCacheSetEnabled() {
@@ -413,8 +412,7 @@ public class ManagedLedgerConfig {
      *            time unit for retention time
      */
     public ManagedLedgerConfig setRetentionTime(int retentionTime, TimeUnit unit) {
-        checkArgument(retentionTime >= -1, "The retention time should be -1, 0 or value > 0");
-        this.retentionTimeMs = retentionTime != -1 ? unit.toMillis(retentionTime) : -1;
+        this.retentionTimeMs = unit.toMillis(retentionTime);
         return this;
     }
 
@@ -749,6 +747,22 @@ public class ManagedLedgerConfig {
      */
     public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
         this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Trigger offload on topic load.
+     * @return
+     */
+    public boolean isTriggerOffloadOnTopicLoad() {
+        return triggerOffloadOnTopicLoad;
+    }
+
+    /**
+     * Set trigger offload on topic load.
+     * @param triggerOffloadOnTopicLoad
+     */
+    public void setTriggerOffloadOnTopicLoad(boolean triggerOffloadOnTopicLoad) {
+        this.triggerOffloadOnTopicLoad = triggerOffloadOnTopicLoad;
     }
 
     public String getShadowSource() {

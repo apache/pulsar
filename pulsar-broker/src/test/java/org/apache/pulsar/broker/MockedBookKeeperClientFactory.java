@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -51,19 +51,19 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) throws IOException {
-        return mockedBk;
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                                EventLoopGroup eventLoopGroup,
+                                                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                                Map<String, Object> properties) {
+        return CompletableFuture.completedFuture(mockedBk);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
-        return mockedBk;
+                             Map<String, Object> properties, StatsLogger statsLogger) {
+        return CompletableFuture.completedFuture(mockedBk);
     }
 
     @Override

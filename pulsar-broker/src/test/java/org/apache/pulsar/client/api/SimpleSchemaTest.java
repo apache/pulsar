@@ -41,6 +41,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.TestNGInstanceOrder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
@@ -66,10 +67,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
+import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 @Slf4j
+@Listeners({ TestNGInstanceOrder.class })
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
     private static final String NAMESPACE = "my-property/my-ns";

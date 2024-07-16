@@ -190,6 +190,7 @@ public class Commands {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
+        flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -300,6 +301,7 @@ public class Commands {
         connected.setProtocolVersion(versionToAdvertise);
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
+        connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         return cmd;
     }
 
@@ -910,11 +912,13 @@ public class Commands {
         return serializeWithSize(newPartitionMetadataResponseCommand(error, errorMsg, requestId));
     }
 
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
+    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId,
+                                                      boolean metadataAutoCreationEnabled) {
         BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA);
         cmd.setPartitionMetadata()
                 .setTopic(topic)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setMetadataAutoCreationEnabled(metadataAutoCreationEnabled);
         return serializeWithSize(cmd);
     }
 
@@ -1705,6 +1709,7 @@ public class Commands {
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
         BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
+        brokerEntryMetadata.clear();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerEntryMetadata);
             if (numberOfMessages >= 0) {

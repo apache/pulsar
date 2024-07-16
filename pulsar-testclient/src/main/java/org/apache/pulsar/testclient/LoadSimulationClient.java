@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.re2j.Pattern;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -37,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import org.apache.pulsar.cli.converters.ByteUnitToLongConverter;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -45,15 +42,20 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * LoadSimulationClient is used to simulate client load by maintaining producers and consumers for topics. Instances of
  * this class are controlled across a network via LoadSimulationController.
  */
-public class LoadSimulationClient {
+@Command(name = "simulation-client",
+        description = "Simulate client load by maintaining producers and consumers for topics.")
+public class LoadSimulationClient extends CmdBase{
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
     // Values for command encodings.
@@ -64,7 +66,7 @@ public class LoadSimulationClient {
     public static final byte STOP_GROUP_COMMAND = 4;
     public static final byte FIND_COMMAND = 5;
 
-    private final ExecutorService executor;
+    private ExecutorService executor;
     // Map from a message size to a cached byte[] of that size.
     private final Map<Integer, byte[]> payloadCache;
 
@@ -72,12 +74,10 @@ public class LoadSimulationClient {
     private final Map<String, TradeUnit> topicsToTradeUnits;
 
     // Pulsar admin to create namespaces with.
-    private final PulsarAdmin admin;
+    private PulsarAdmin admin;
 
     // Pulsar client to create producers and consumers with.
-    private final PulsarClient client;
-
-    private final int port;
+    private PulsarClient client;
 
     // A TradeUnit is a Consumer and Producer pair. The rate of message
     // consumption as well as size may be changed at
@@ -170,22 +170,18 @@ public class LoadSimulationClient {
         }
     }
 
-    // JCommander arguments for starting a LoadSimulationClient.
-    @Parameters(commandDescription = "Simulate client load by maintaining producers and consumers for topics.")
-    private static class MainArguments {
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    // picocli arguments for starting a LoadSimulationClient.
 
-        @Parameter(names = { "--port" }, description = "Port to listen on for controller", required = true)
-        public int port;
+    @Option(names = { "--port" }, description = "Port to listen on for controller", required = true)
+    public int port;
 
-        @Parameter(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
-        public String serviceURL;
+    @Option(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
+    public String serviceURL;
 
-        @Parameter(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
-        public long memoryLimit = 0L;
-    }
+    @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
+        + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
+    public long memoryLimit = 0L;
+
 
     // Configuration class for initializing or modifying TradeUnits.
     private static class TradeConfiguration {
@@ -274,11 +270,14 @@ public class LoadSimulationClient {
             tradeConf.size = inputStream.readInt();
             tradeConf.rate = inputStream.readDouble();
             // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final Pattern groupRegex =
+                    Pattern.compile(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
+
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(groupRegex)) {
+
+                if (groupRegex.matcher(topic).matches()) {
                     unit.change(tradeConf);
                 }
             }
@@ -287,11 +286,11 @@ public class LoadSimulationClient {
             // Stop all topics belonging to a group.
             decodeGroupOptions(tradeConf, inputStream);
             // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final Pattern regex = Pattern.compile(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(regex)) {
+                if (regex.matcher(topic).matches()) {
                     unit.stop.set(true);
                 }
             }
@@ -310,54 +309,40 @@ public class LoadSimulationClient {
     private static final MessageListener<byte[]> ackListener = Consumer::acknowledgeAsync;
 
     /**
-     * Create a LoadSimulationClient with the given JCommander arguments.
+     * Create a LoadSimulationClient with the given picocli this.
      *
-     * @param arguments
-     *            Arguments to configure this from.
      */
-    public LoadSimulationClient(final MainArguments arguments) throws Exception {
+    public LoadSimulationClient() throws PulsarClientException {
+        super("simulation-client");
         payloadCache = new ConcurrentHashMap<>();
         topicsToTradeUnits = new ConcurrentHashMap<>();
-
-        admin = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.serviceURL)
-                    .build();
-        client = PulsarClient.builder()
-                    .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
-                    .serviceUrl(arguments.serviceURL)
-                    .connectionsPerBroker(4)
-                    .ioThreads(Runtime.getRuntime().availableProcessors())
-                    .statsInterval(0, TimeUnit.SECONDS)
-                    .build();
-        port = arguments.port;
-        executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
     }
 
     /**
-     * Start a client with command line arguments.
+     * Start a client with command line this.
      *
-     * @param args
-     *            Command line arguments to pass in.
      */
-    public static void main(String[] args) throws Exception {
-        final MainArguments mainArguments = new MainArguments();
-        final JCommander jc = new JCommander(mainArguments);
-        jc.setProgramName("pulsar-perf simulation-client");
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
+    @Override
+    public void run() throws Exception {
+        admin = PulsarAdmin.builder()
+                .serviceHttpUrl(this.serviceURL)
+                .build();
+        client = PulsarClient.builder()
+                .memoryLimit(this.memoryLimit, SizeUnit.BYTES)
+                .serviceUrl(this.serviceURL)
+                .connectionsPerBroker(4)
+                .ioThreads(Runtime.getRuntime().availableProcessors())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        executor = Executors.newCachedThreadPool(new DefaultThreadFactory("test-client"));
         PerfClientUtils.printJVMInformation(log);
-        (new LoadSimulationClient(mainArguments)).run();
+        this.start();
     }
 
     /**
      * Start listening for controller commands to create producers and consumers.
      */
-    public void run() throws Exception {
+    public void start() throws Exception {
         final ServerSocket serverSocket = new ServerSocket(port);
 
         while (true) {

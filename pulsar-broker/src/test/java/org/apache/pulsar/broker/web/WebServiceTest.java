@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -28,10 +30,12 @@ import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -44,6 +48,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipException;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -51,10 +57,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
+import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.UsageType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -102,8 +110,21 @@ public class WebServiceTest {
     @Test
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, false, false, false, -1, false);
+
+        var otelMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MAX.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.LIMIT_COUNTER, LimitType.MIN.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.ACTIVE.attributes,
+                value -> assertThat(value).isNotNegative());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.CURRENT.attributes,
+                value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(otelMetrics, WebExecutorThreadPoolStats.USAGE_COUNTER, UsageType.IDLE.attributes,
+                value -> assertThat(value).isNotNegative());
+
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -354,6 +375,71 @@ public class WebServiceTest {
         assertEquals(res.getResponseBody(), "ok");
     }
 
+    @Test
+    public void testCompressOutputMetricsInPrometheus() throws Exception {
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept-Encoding", "gzip");
+
+        StringBuilder content = new StringBuilder();
+
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                // Process the decompressed content
+                int data;
+                while ((data = gzipInputStream.read()) != -1) {
+                    content.append((char) data);
+                }
+            }
+
+            log.info("Response Content: {}", content);
+            assertTrue(content.toString().contains("process_cpu_seconds_total"));
+        } catch (IOException e) {
+            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            fail();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    @Test
+    public void testUnCompressOutputMetricsInPrometheus() throws Exception {
+        setupEnv(true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
+
+        URL url = new URL(metricsUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        StringBuilder content = new StringBuilder();
+
+        try (InputStream inputStream = connection.getInputStream()) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                fail();
+            } catch (IOException e) {
+                assertTrue(e instanceof ZipException);
+            }
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line + "\n");
+            }
+        } finally {
+            connection.disconnect();
+        }
+
+        log.info("Response Content: {}", content);
+
+        assertTrue(content.toString().contains("process_cpu_seconds_total"));
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {
@@ -429,6 +515,7 @@ public class WebServiceTest {
         pulsarTestContext = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(config)
+                .enableOpenTelemetry(true)
                 .build();
 
         pulsar = pulsarTestContext.getPulsarService();

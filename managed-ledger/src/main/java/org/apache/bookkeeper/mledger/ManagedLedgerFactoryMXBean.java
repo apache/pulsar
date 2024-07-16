@@ -48,9 +48,19 @@ public interface ManagedLedgerFactoryMXBean {
     double getCacheHitsRate();
 
     /**
+     * Cumulative number of cache hits.
+     */
+    long getCacheHitsTotal();
+
+    /**
      * Get the number of cache misses per second.
      */
     double getCacheMissesRate();
+
+    /**
+     * Cumulative number of cache misses.
+     */
+    long getCacheMissesTotal();
 
     /**
      * Get the amount of data is retrieved from the cache in byte/s.
@@ -58,14 +68,29 @@ public interface ManagedLedgerFactoryMXBean {
     double getCacheHitsThroughput();
 
     /**
+     * Cumulative amount of data retrieved from the cache in bytes.
+     */
+    long getCacheHitsBytesTotal();
+
+    /**
      * Get the amount of data is retrieved from the bookkeeper in byte/s.
      */
     double getCacheMissesThroughput();
 
     /**
+     * Cumulative amount of data retrieved from the bookkeeper in bytes.
+     */
+    long getCacheMissesBytesTotal();
+
+    /**
      * Get the number of cache evictions during the last minute.
      */
     long getNumberOfCacheEvictions();
+
+    /**
+     * Cumulative number of cache evictions.
+     */
+    long getNumberOfCacheEvictionsTotal();
 
     /**
      * Cumulative number of entries inserted into the cache.

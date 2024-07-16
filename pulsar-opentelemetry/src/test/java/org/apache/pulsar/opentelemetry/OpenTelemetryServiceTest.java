@@ -53,11 +53,11 @@ public class OpenTelemetryServiceTest {
     @BeforeMethod
     public void setup() throws Exception {
         reader = InMemoryMetricReader.create();
-        openTelemetryService = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(reader,
-                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))).
-                clusterName("openTelemetryServiceTestCluster").
-                build();
+        openTelemetryService = OpenTelemetryService.builder()
+                .builderCustomizer(
+                        getBuilderCustomizer(reader, Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false")))
+                .clusterName("openTelemetryServiceTestCluster")
+                .build();
         meter = openTelemetryService.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
     }
 
@@ -68,8 +68,8 @@ public class OpenTelemetryServiceTest {
     }
 
     // Customizes the SDK builder to include the MetricReader and extra properties for testing purposes.
-    private static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getSdkBuilderConsumer(MetricReader extraReader,
-                                                                                 Map<String, String> extraProperties) {
+    private static Consumer<AutoConfiguredOpenTelemetrySdkBuilder> getBuilderCustomizer(MetricReader extraReader,
+                                                                                Map<String, String> extraProperties) {
         return autoConfigurationCustomizer -> {
             if (extraReader != null) {
                 autoConfigurationCustomizer.addMeterProviderCustomizer(
@@ -97,14 +97,14 @@ public class OpenTelemetryServiceTest {
         var reader = InMemoryMetricReader.create();
 
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(reader,
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(reader,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
-                               "otel.java.disabled.resource.providers", JarServiceNameDetector.class.getName()))).
-                clusterName("testServiceNameAndVersion").
-                serviceName("openTelemetryServiceTestService").
-                serviceVersion("1.0.0").
-                build();
+                               "otel.java.disabled.resource.providers", JarServiceNameDetector.class.getName())))
+                .clusterName("testServiceNameAndVersion")
+                .serviceName("openTelemetryServiceTestService")
+                .serviceVersion("1.0.0")
+                .build();
 
         assertThat(reader.collectAllMetrics())
             .allSatisfy(metric -> assertThat(metric)
@@ -128,13 +128,13 @@ public class OpenTelemetryServiceTest {
     public void testMetricCardinalityIsSet() {
         var prometheusExporterPort = 9464;
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(null,
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(null,
                         Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                         "otel.metrics.exporter", "prometheus",
-                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort)))).
-                clusterName("openTelemetryServiceCardinalityTestCluster").
-                build();
+                        "otel.exporter.prometheus.port", Integer.toString(prometheusExporterPort))))
+                .clusterName("openTelemetryServiceCardinalityTestCluster")
+                .build();
         var meter = ots.getOpenTelemetry().getMeter("openTelemetryMetricCardinalityTest");
         var counter = meter.counterBuilder("dummyCounter").build();
         for (int i = 0; i < OpenTelemetryService.MAX_CARDINALITY_LIMIT + 100; i++) {
@@ -172,10 +172,10 @@ public class OpenTelemetryServiceTest {
         var metricReader = InMemoryMetricReader.create();
 
         @Cleanup
-        var ots = OpenTelemetryService.builder().
-                sdkBuilderConsumer(getSdkBuilderConsumer(metricReader, Map.of())).
-                clusterName("openTelemetryServiceTestCluster").
-                build();
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(metricReader, Map.of()))
+                .clusterName("openTelemetryServiceTestCluster")
+                .build();
         var meter = ots.getOpenTelemetry().getMeter("openTelemetryServiceTestInstrument");
 
         var builders = List.of(
@@ -197,5 +197,53 @@ public class OpenTelemetryServiceTest {
 
         // Validate that the callback has not being called.
         assertThat(callback).isFalse();
+    }
+
+    @Test
+    public void testJvmRuntimeMetrics() {
+        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
+        Runtime.getRuntime().gc();
+
+        var metrics = reader.collectAllMetrics();
+
+        // Process Metrics
+        // Replaces process_cpu_seconds_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.cpu.time"));
+
+        // Memory Metrics
+        // Replaces jvm_memory_bytes_used
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used"));
+        // Replaces jvm_memory_bytes_committed
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.committed"));
+        // Replaces jvm_memory_bytes_max
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.limit"));
+        // Replaces jvm_memory_bytes_init
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.init"));
+        // Replaces jvm_memory_pool_allocated_bytes_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used_after_last_gc"));
+
+        // Buffer Pool Metrics
+        // Replaces jvm_buffer_pool_used_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
+        // Replaces jvm_buffer_pool_capacity_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
+        // Replaces jvm_buffer_pool_used_buffers
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.count"));
+
+        // Garbage Collector Metrics
+        // Replaces jvm_gc_collection_seconds
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.gc.duration"));
+
+        // Thread Metrics
+        // Replaces jvm_threads_state, jvm_threads_current and jvm_threads_daemon
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.thread.count"));
+
+        // Class Loading Metrics
+        // Replaces jvm_classes_currently_loaded
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.count"));
+        // Replaces jvm_classes_loaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.loaded"));
+        // Replaces jvm_classes_unloaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.unloaded"));
     }
 }

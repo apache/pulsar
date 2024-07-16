@@ -128,15 +128,15 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
             };
             return mockPromise;
-        }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        }).when(consumerMock).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class), any(),
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
         try {
             nonpersistentDispatcher.sendMessages(entries);
         } catch (Exception e) {
             fail("Failed to sendMessages.", e);
         }
-        verify(consumerMock, times(1)).sendMessages(any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        verify(consumerMock, times(1)).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class),
+                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
     }
 
     @Test(timeOut = 10000)

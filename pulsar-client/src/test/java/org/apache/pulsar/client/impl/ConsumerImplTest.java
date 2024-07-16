@@ -49,6 +49,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -283,6 +284,7 @@ public class ConsumerImplTest {
 
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
+        consumer.seekStatus.set(ConsumerImpl.SeekStatus.NOT_STARTED);
 
         // when
         CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
@@ -290,7 +292,6 @@ public class ConsumerImplTest {
 
         clientReq.complete(null);
 
-        // then
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());

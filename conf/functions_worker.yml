@@ -27,6 +27,16 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
+# Enable or disable the use of HA proxy protocol for resolving the client IP for http/https requests.
+webServiceHaProxyProtocolEnabled: false
+
+# Trust X-Forwarded-For header for resolving the client IP for http/https requests. Default is false.
+webServiceTrustXForwardedFor: false
+
+# Add detailed client/remote and server/local addresses and ports to http/https request logging.
+# Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor is enabled.
+webServiceLogDetailedAddresses: null
+
 # The Configuration metadata store url
 # Examples:
 # * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
@@ -408,7 +418,15 @@ saslJaasServerRoleTokenSignerSecretPath:
 ########################
 
 connectorsDirectory: ./connectors
+# Whether to enable referencing connectors directory files by file url in connector (sink/source) creation
+enableReferencingConnectorDirectoryFiles: true
+# Regex patterns for enabling creation of connectors by referencing packages in matching http/https urls
+additionalEnabledConnectorUrlPatterns: []
 functionsDirectory: ./functions
+# Whether to enable referencing functions directory files by file url in functions creation
+enableReferencingFunctionsDirectoryFiles: true
+# Regex patterns for enabling creation of functions by referencing packages in matching http/https urls
+additionalEnabledFunctionsUrlPatterns: []
 
 # Enables extended validation for connector config with fine-grain annotation based validation
 # during submission. Classloading with either enableClassloadingOfExternalFiles or

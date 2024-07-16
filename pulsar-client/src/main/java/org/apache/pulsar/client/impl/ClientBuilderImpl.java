@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.opentelemetry.api.OpenTelemetry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.List;
@@ -122,6 +123,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder openTelemetry(OpenTelemetry openTelemetry) {
+        conf.setOpenTelemetry(openTelemetry);
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         conf.setAuthPluginClassName(authPluginClassName);
@@ -168,7 +175,6 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit) {
-        checkArgument(lookupTimeout >= 0, "lookupTimeout must not be negative");
         conf.setLookupTimeoutMs(unit.toMillis(lookupTimeout));
         return this;
     }
@@ -334,7 +340,6 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
-        checkArgument(duration >= 0, "connectionTimeout needs to be >= 0");
         conf.setConnectionTimeoutMs((int) unit.toMillis(duration));
         return this;
     }

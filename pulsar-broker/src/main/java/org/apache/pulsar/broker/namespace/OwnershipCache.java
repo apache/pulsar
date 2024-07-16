@@ -36,7 +36,6 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -115,8 +114,7 @@ public class OwnershipCache {
      *
      * the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory,
-                          NamespaceService namespaceService) {
+    public OwnershipCache(PulsarService pulsar, NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
         this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();

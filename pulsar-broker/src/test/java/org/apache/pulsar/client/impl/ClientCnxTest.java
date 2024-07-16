@@ -20,15 +20,19 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
 import io.netty.channel.ChannelHandlerContext;
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -153,7 +157,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
 
         // the cnx will not change
         try {
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
                     !cnxOne.equals(((ProducerImpl<?>) producerOne).getClientCnx())
                             || !cnxTwo.equals(((ProducerImpl<?>) producerOne).getClientCnx()));
             Assert.fail();
@@ -168,5 +172,44 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         producerTwo.send("test");
         producerTwo.close();
         producerOne.close();
+    }
+
+    public void testSupportsGetPartitionedMetadataWithoutAutoCreation() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName( "persistent://" + NAMESPACE + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        PulsarClientImpl clientWitBinaryLookup = (PulsarClientImpl) PulsarClient.builder()
+                .maxNumberOfRejectedRequestPerConnection(1)
+                .connectionMaxIdleSeconds(Integer.MAX_VALUE)
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .build();
+        ProducerImpl producer = (ProducerImpl) clientWitBinaryLookup.newProducer().topic(topic).create();
+
+        // Verify: the variable "isSupportsGetPartitionedMetadataWithoutAutoCreation" responded from the broker is true.
+        Awaitility.await().untilAsserted(() -> {
+            ClientCnx clientCnx = producer.getClientCnx();
+            Assert.assertNotNull(clientCnx);
+            Assert.assertTrue(clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation());
+        });
+        Assert.assertEquals(
+                clientWitBinaryLookup.getPartitionsForTopic(topic, true).get().size(), 1);
+
+        // Inject a "false" value for the variable "isSupportsGetPartitionedMetadataWithoutAutoCreation".
+        // Verify: client will get a not support error.
+        Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
+        field.setAccessible(true);
+        for (CompletableFuture<ClientCnx> clientCnxFuture : clientWitBinaryLookup.getCnxPool().getConnections()) {
+            field.set(clientCnxFuture.get(), false);
+        }
+        try {
+            clientWitBinaryLookup.getPartitionsForTopic(topic, false).join();
+            Assert.fail("Expected an error that the broker version is too old.");
+        } catch (Exception ex) {
+            Assert.assertTrue(ex.getMessage().contains("without auto-creation is not supported from the broker"));
+        }
+
+        // cleanup.
+        producer.close();
+        clientWitBinaryLookup.close();
+        admin.topics().delete(topic, false);
     }
 }
