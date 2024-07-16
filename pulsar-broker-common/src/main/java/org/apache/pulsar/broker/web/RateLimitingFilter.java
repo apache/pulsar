@@ -37,15 +37,16 @@ public class RateLimitingFilter implements Filter {
 
     private final RateLimiter limiter;
 
-    public static final String HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME = "pulsar.broker.http.rejected_requests";
-    private final LongCounter httpRejectedRequestsCounter;
+    public static final String RATE_LIMIT_REQUEST_COUNT_METRIC_NAME =
+            "pulsar.web.filter.rate_limit.request.count";
+    private final LongCounter rateLimitRequestCounter;
 
-    public static final AttributeKey<String> RATE_LIMITING_RESULT =
-            AttributeKey.stringKey("pulsar.http.rate_limiter.result");
+    public static final AttributeKey<String> RATE_LIMIT_RESULT =
+            AttributeKey.stringKey("pulsar.web.filter.rate_limit.result");
     public enum Result {
         ACCEPTED,
         REJECTED;
-        public final Attributes attributes = Attributes.of(RATE_LIMITING_RESULT, name().toLowerCase());
+        public final Attributes attributes = Attributes.of(RATE_LIMIT_RESULT, name().toLowerCase());
     }
 
     @Deprecated
@@ -56,8 +57,8 @@ public class RateLimitingFilter implements Filter {
 
     public RateLimitingFilter(double rateLimit, Meter meter) {
         limiter = RateLimiter.create(rateLimit);
-        httpRejectedRequestsCounter = meter.counterBuilder(HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME)
-                .setDescription("Counter of HTTP requests processed by rate limiting")
+        rateLimitRequestCounter = meter.counterBuilder(RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
+                .setDescription("Counter of HTTP requests processed by the rate limiting filter.")
                 .setUnit("{request}")
                 .build();
     }
@@ -70,11 +71,11 @@ public class RateLimitingFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         if (limiter.tryAcquire()) {
-            httpRejectedRequestsCounter.add(1, Result.ACCEPTED.attributes);
+            rateLimitRequestCounter.add(1, Result.ACCEPTED.attributes);
             chain.doFilter(request, response);
         } else {
             httpRejectedRequests.inc();
-            httpRejectedRequestsCounter.add(1, Result.REJECTED.attributes);
+            rateLimitRequestCounter.add(1, Result.REJECTED.attributes);
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.sendError(429, "Too Many Requests");
         }

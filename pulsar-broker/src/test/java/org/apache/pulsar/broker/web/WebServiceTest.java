@@ -273,10 +273,10 @@ public class WebServiceTest {
 
         // setupEnv makes a HTTP call to create the cluster.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME,
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.ACCEPTED.attributes, 1);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
-                .hasName(RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
                         sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
@@ -287,10 +287,10 @@ public class WebServiceTest {
         }
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME,
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.ACCEPTED.attributes, 6);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
-                .hasName(RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
                         sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
@@ -305,9 +305,9 @@ public class WebServiceTest {
         }
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME,
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
-        assertMetricLongSumValue(metrics, RateLimitingFilter.HTTP_REJECTED_REQUESTS_COUNTER_METRIC_NAME,
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
 
