@@ -112,14 +112,15 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
-    AttributeKey<String> PULSAR_CONNECTION_RATE_LIMIT_STATE =
-            AttributeKey.stringKey("pulsar.connection.rate_limit.state");
-    enum ConnectionRateLimitState {
+    AttributeKey<String> PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME =
+            AttributeKey.stringKey("pulsar.connection.rate_limit.operation.name");
+    enum ConnectionRateLimitOperationName {
         PAUSED,
         RESUMED,
         THROTTLED,
         UNTHROTTLED;
-        public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_STATE, name().toLowerCase());
+        public final Attributes attributes =
+                Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME, name().toLowerCase());
     }
 
     /**

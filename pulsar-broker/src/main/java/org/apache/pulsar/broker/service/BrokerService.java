@@ -184,7 +184,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionRateLimitOperationName;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -3709,20 +3709,20 @@ public class BrokerService implements Closeable {
     }
 
     public void recordConnectionPaused() {
-        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.PAUSED.attributes);
+        rateLimitedConnectionsCounter.add(1, ConnectionRateLimitOperationName.PAUSED.attributes);
     }
 
     public void recordConnectionResumed() {
-        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.RESUMED.attributes);
+        rateLimitedConnectionsCounter.add(1, ConnectionRateLimitOperationName.RESUMED.attributes);
     }
 
     public void recordConnectionThrottled() {
-        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.THROTTLED.attributes);
+        rateLimitedConnectionsCounter.add(1, ConnectionRateLimitOperationName.THROTTLED.attributes);
         throttledConnectionsGauge.inc();
     }
 
     public void recordConnectionUnthrottled() {
-        rateLimitedConnectionsCounter.add(1, OpenTelemetryAttributes.ConnectionRateLimitState.UNTHROTTLED.attributes);
+        rateLimitedConnectionsCounter.add(1, ConnectionRateLimitOperationName.UNTHROTTLED.attributes);
         throttledConnectionsGauge.dec();
     }
 
