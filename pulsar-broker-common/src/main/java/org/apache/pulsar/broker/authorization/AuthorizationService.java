@@ -787,12 +787,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
-            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
-                    topicName, operation, role, authData);
-            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicOperationAsync(
-                    topicName, operation, originalRole, authData);
-            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
-                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+            return allowTopicOperationAsync(topicName, operation, originalRole, authData);
         } else {
             return allowTopicOperationAsync(topicName, operation, role, authData);
         }
