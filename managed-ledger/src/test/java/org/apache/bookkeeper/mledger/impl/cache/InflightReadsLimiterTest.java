@@ -19,8 +19,8 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
-import static org.apache.bookkeeper.mledger.impl.cache.InflightReadsLimiter.InflightReadLimiterUtilization.FREE;
-import static org.apache.bookkeeper.mledger.impl.cache.InflightReadsLimiter.InflightReadLimiterUtilization.USED;
+import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization.FREE;
+import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization.USED;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 public class InflightReadsLimiterTest {
 
     @DataProvider
-    public static Object[][] isDisabled() {
+    private static Object[][] isDisabled() {
         return new Object[][] {
             {0, true},
             {-1, true},

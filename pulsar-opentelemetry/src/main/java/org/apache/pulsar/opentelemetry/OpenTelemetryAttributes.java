@@ -207,6 +207,14 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(ML_CURSOR_OPERATION_STATUS, name().toLowerCase());
     }
 
+    AttributeKey<String> MANAGED_LEDGER_READ_INFLIGHT_USAGE =
+            AttributeKey.stringKey("pulsar.managed_ledger.inflight.read.usage.state");
+    enum InflightReadLimiterUtilization {
+        USED,
+        FREE;
+        public final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
+    }
+
     /**
      * The name of the remote cluster for a Pulsar replicator.
      */

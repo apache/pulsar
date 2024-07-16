@@ -20,28 +20,20 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Gauge;
 import lombok.AllArgsConstructor;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 @Slf4j
 public class InflightReadsLimiter implements AutoCloseable {
 
-    public static final AttributeKey<String> MANAGED_LEDGER_READ_INFLIGHT_USAGE =
-            AttributeKey.stringKey("pulsar.managed_ledger.inflight.read.utilization");
-    public enum InflightReadLimiterUtilization {
-        USED,
-        FREE;
-        public final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
-    }
-
-    public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME = "pulsar_ml_reads_inflight_bytes";
+    public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME =
+            "pulsar.broker.managed_ledger.inflight.read.limit";
     private final ObservableLongCounter inflightReadsLimitCounter;
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
@@ -52,7 +44,8 @@ public class InflightReadsLimiter implements AutoCloseable {
             .help("Estimated number of bytes retained by data read from storage or cache")
             .register();
 
-    public static final String INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME = "pulsar_ml_reads_inflight_usage_bytes";
+    public static final String INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME =
+            "pulsar.broker.managed_ledger.inflight.read.usage";
     private final ObservableLongCounter inflightReadsUsageCounter;
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
@@ -77,12 +70,17 @@ public class InflightReadsLimiter implements AutoCloseable {
 
         var meter = openTelemetry.getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
         inflightReadsLimitCounter = meter.counterBuilder(INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
+                .setDescription("Maximum number of bytes that can be retained by managed ledger data read from storage "
+                        + "or cache.")
+                .setUnit("By")
                 .buildWithCallback(measurement -> {
                     if (!isDisabled()) {
                         measurement.record(maxReadsInFlightSize);
                     }
                 });
         inflightReadsUsageCounter = meter.counterBuilder(INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
+                .setDescription("Estimated number of bytes retained by managed ledger data read from storage or cache.")
+                .setUnit("By")
                 .buildWithCallback(measurement -> {
                     if (!isDisabled()) {
                         var freeBytes = getRemainingBytes();
