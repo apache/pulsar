@@ -562,9 +562,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+            doc = "Configuration file path for local metadata store."
     )
     private String metadataStoreConfigPath = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for configuration metadata store."
+    )
+    private String configurationMetadataStoreConfigPath = null;
 
     @FieldContext(
             dynamic = true,

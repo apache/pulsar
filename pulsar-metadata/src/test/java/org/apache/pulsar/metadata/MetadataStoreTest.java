@@ -36,10 +36,12 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -51,7 +53,11 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.PulsarZooKeeperClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -457,7 +463,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         MetadataStoreConfig config = builder.build();
         @Cleanup
         ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-
+        ZooKeeper zkClient = store.getZkClient();
+        assertTrue(zkClient.getClientConfig().isSaslClientEnabled());
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
@@ -498,6 +505,35 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             verify.run();
             return null;
         }).join();
+    }
+
+    @Test
+    public void testZkLoadConfigFromFile() throws Exception {
+        final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
+        MetadataStoreConfig.MetadataStoreConfigBuilder builder =
+                MetadataStoreConfig.builder().metadataStoreName(metadataStoreName);
+        builder.fsyncEnable(false);
+        builder.batchingEnabled(true);
+        builder.configFilePath("src/test/resources/zk_client_disabled_sasl.conf");
+        MetadataStoreConfig config = builder.build();
+        @Cleanup
+        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+
+        PulsarZooKeeperClient zkClient = (PulsarZooKeeperClient) store.getZkClient();
+        assertFalse(zkClient.getClientConfig().isSaslClientEnabled());
+
+        zkClient.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
+
+        Awaitility.await().untilAsserted(() -> {
+            AtomicReference<ZooKeeper> zk =
+                    (AtomicReference<ZooKeeper>) FieldUtils.readDeclaredField(zkClient, "zk", true);
+            assertNotNull(zk.get());
+        });
+        AtomicReference<ZooKeeper> zk =
+                (AtomicReference<ZooKeeper>) FieldUtils.readDeclaredField(zkClient, "zk", true);
+        assertNotNull(zk.get());
+        ZooKeeper zooKeeper = zk.get();
+        assertFalse(zooKeeper.getClientConfig().isSaslClientEnabled());
     }
 
     @Test(dataProvider = "impl")
