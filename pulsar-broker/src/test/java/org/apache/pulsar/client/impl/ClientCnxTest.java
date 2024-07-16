@@ -152,7 +152,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         cnxOne.handleSendError(Commands.newSendErrorCommand(((ProducerImpl<?>) producerOne).producerId,
                 10, ServerError.PersistenceError, "persistent error").getSendError());
 
-        // two producer use the same producer
+        // two producer use the same cnx
         Assert.assertEquals(cnxOne, cnxTwo);
 
         // the cnx will not change
@@ -165,6 +165,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e instanceof ConditionTimeoutException);
         }
 
+        // two producer use the same cnx
         Assert.assertEquals(((ProducerImpl<?>) producerTwo).getClientCnx(),
                 ((ProducerImpl<?>) producerOne).getClientCnx());
 
