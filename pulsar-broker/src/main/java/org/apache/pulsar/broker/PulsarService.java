@@ -1320,7 +1320,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (isRunning()) {
             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
                     .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
-            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config, getManagedLedgerFactory());
+            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor,
+                    config, getManagedLedgerFactory());
             loadSheddingTask.start();
             loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
