@@ -125,10 +125,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                         ZooKeeper newZk;
                         try {
                             newZk = createZooKeeper();
-                        } catch (IOException ie) {
-                            log.error("Failed to create zookeeper instance to {}", connectString, ie);
-                            throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
-                        } catch (QuorumPeerConfig.ConfigException e) {
+                        } catch (IOException | QuorumPeerConfig.ConfigException e) {
                             log.error("Failed to create zookeeper instance to {} with config path {}",
                                     connectString, configPath, e);
                             throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
