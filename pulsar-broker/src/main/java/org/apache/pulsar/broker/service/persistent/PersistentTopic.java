@@ -846,6 +846,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
+        return getTransactionBuffer().takeFirstSnapshotIfNeed();
+    }
+
+    @Override
     protected CompletableFuture<Long> incrementTopicEpoch(Optional<Long> currentEpoch) {
         long newEpoch = currentEpoch.orElse(-1L) + 1;
         return setTopicEpoch(newEpoch);

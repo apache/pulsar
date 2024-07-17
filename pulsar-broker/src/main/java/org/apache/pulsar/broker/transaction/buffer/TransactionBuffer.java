@@ -194,7 +194,11 @@ public interface TransactionBuffer {
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
 
-
+    /**
+     * Take snapshot if needed.
+     * @return a future represents the result of take snapshot operation.
+     */
+    CompletableFuture<Void> takeFirstSnapshotIfNeed();
 
     long getOngoingTxnCount();
 

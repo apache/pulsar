@@ -262,6 +262,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
+        return  CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),

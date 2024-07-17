@@ -154,6 +154,12 @@ public interface Topic {
     CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
 
     /**
+     * Take snapshot if needed.
+     * @return a future represents the result of take snapshot operation.
+     */
+    CompletableFuture<Void> takeFirstSnapshotIfNeed();
+
+    /**
      * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);

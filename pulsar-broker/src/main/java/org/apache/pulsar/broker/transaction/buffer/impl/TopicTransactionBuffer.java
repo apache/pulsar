@@ -235,6 +235,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfNoSnapshot()) {
+            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
+                    .thenRun(() -> changeToReadyStateFromNoSnapshot())
+                    .thenAccept(__ -> completableFuture.complete(null));
+        } else {
+            completableFuture.complete(null);
+        }
+        return completableFuture;
+    }
+
+    @Override
     public long getOngoingTxnCount() {
         return this.ongoingTxns.size();
     }
@@ -258,10 +271,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     .NotAllowedException("Transaction [" + txnId + "] has been ended. "
                     + "Please use a new transaction to send message."));
             return completableFuture;
-        }
-        if (checkIfNoSnapshot()) {
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
-                    .thenRun(() -> changeToReadyStateFromNoSnapshot()).join();
         }
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
