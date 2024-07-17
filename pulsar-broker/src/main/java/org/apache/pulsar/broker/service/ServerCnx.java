@@ -478,7 +478,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     originalAuthDataSource != null ? originalAuthDataSource : authDataSource);
         } else {
             isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                    topicName, operation, authRole, authDataSource);;
+                    topicName, operation, authRole, authDataSource);
         }
         return isAuthorizedFuture;
     }
