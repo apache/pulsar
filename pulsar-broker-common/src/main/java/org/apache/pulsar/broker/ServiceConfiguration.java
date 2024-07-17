@@ -570,7 +570,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Configuration file path for configuration metadata store."
     )
-    private String configurationMetadataStoreConfigPath = null;
+    private String configurationStoreConfigPath = null;
 
     @FieldContext(
             dynamic = true,
