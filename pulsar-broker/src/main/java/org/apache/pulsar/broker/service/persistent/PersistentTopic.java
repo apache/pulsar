@@ -846,8 +846,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
-        return getTransactionBuffer().takeFirstSnapshotIfNeed();
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean isTxnEnabled) {
+        return getTransactionBuffer().takeFirstSnapshotIfNeed(isTxnEnabled);
     }
 
     @Override

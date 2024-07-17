@@ -416,6 +416,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean enableTxn) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public long getOngoingTxnCount() {
         return this.buffers.values().stream()
                 .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.OPEN)

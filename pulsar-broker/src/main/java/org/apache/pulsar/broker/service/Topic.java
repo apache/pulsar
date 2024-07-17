@@ -155,9 +155,10 @@ public interface Topic {
 
     /**
      * Take snapshot if needed.
+     * @param isTxnEnabled isTxnEnabled
      * @return a future represents the result of take snapshot operation.
      */
-    CompletableFuture<Void> takeFirstSnapshotIfNeed();
+    CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean isTxnEnabled);
 
     /**
      * record add-latency.

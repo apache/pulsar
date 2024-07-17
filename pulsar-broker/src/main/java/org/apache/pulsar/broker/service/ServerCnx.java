@@ -1584,7 +1584,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
                         topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled)
-                                .thenCompose(future -> topic.takeFirstSnapshotIfNeed())
+                                .thenCompose(future -> topic.takeFirstSnapshotIfNeed(isTxnEnabled))
                                 .thenAccept(future -> {
                                     CompletionStage<Subscription> createInitSubFuture;
                                     if (!Strings.isNullOrEmpty(initialSubscriptionName)

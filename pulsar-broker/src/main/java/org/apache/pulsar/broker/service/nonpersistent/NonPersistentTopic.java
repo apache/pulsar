@@ -262,7 +262,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean enableTxn) {
         return  CompletableFuture.completedFuture(null);
     }
 

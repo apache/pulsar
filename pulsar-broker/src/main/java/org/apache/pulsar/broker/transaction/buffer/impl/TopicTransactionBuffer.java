@@ -235,9 +235,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Void> takeFirstSnapshotIfNeed() {
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean enableTxn) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (checkIfNoSnapshot()) {
+        if (enableTxn && checkIfNoSnapshot()) {
             this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition)
                     .thenRun(() -> changeToReadyStateFromNoSnapshot())
                     .thenAccept(__ -> completableFuture.complete(null));

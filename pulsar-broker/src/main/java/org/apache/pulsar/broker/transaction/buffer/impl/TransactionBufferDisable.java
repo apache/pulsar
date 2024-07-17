@@ -137,6 +137,11 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean enableTxn) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public long getOngoingTxnCount() {
         return 0;
     }

@@ -196,9 +196,10 @@ public interface TransactionBuffer {
 
     /**
      * Take snapshot if needed.
+     * @param enableTxn
      * @return a future represents the result of take snapshot operation.
      */
-    CompletableFuture<Void> takeFirstSnapshotIfNeed();
+    CompletableFuture<Void> takeFirstSnapshotIfNeed(boolean enableTxn);
 
     long getOngoingTxnCount();
 
