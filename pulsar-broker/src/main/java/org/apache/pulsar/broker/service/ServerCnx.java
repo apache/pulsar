@@ -466,31 +466,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // ////
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, TopicOperation operation,
-                    AuthenticationDataSource authDataSource, AuthenticationDataSource originalAuthDataSource) {
+                                                               AuthenticationDataSource authDataSource,
+                                                               AuthenticationDataSource originalAuthDataSource) {
         if (!service.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        CompletableFuture<Boolean> isProxyAuthorizedFuture;
+        CompletableFuture<Boolean> isAuthorizedFuture;
         if (originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
+            isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
                     topicName, operation, originalPrincipal,
                     originalAuthDataSource != null ? originalAuthDataSource : authDataSource);
         } else {
-            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+            isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
+                    topicName, operation, authRole, authDataSource);;
         }
-        CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-            topicName, operation, authRole, authDataSource);
-        return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
-            if (!isProxyAuthorized) {
-                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}",
-                        originalPrincipal, operation, topicName);
-            }
-            if (!isAuthorized) {
-                log.warn("Role {} is not authorized to perform operation {} on topic {}",
-                        authRole, operation, topicName);
-            }
-            return isProxyAuthorized && isAuthorized;
-        });
+        return isAuthorizedFuture;
     }
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, String subscriptionName,
