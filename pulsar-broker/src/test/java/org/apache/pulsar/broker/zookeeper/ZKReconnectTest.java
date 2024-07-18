@@ -49,7 +49,11 @@ public class ZKReconnectTest extends MockedPulsarServiceBaseTest {
                 .getCache().delete("/admin/partitioned-topics/public/default/persistent"
                         + "/testGetPartitionMetadataFailAlsoCanProduceMessage");
         pulsar.getNamespaceService().getOwnershipCache().invalidateLocalOwnerCache();
+
+        // autoUpdatePartitions 1 second
         TimeUnit.SECONDS.sleep(3);
+
+        // also can send message
         producer.send("test".getBytes());
         this.mockZooKeeper.unsetAlwaysFail();
         producer.send("test".getBytes());
