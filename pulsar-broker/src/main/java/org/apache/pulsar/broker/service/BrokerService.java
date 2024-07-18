@@ -625,6 +625,16 @@ public class BrokerService implements Closeable {
         this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
         this.startDeduplicationSnapshotMonitor();
+        this.startClearInvalidateTopicNameCacheTask();
+    }
+
+    protected void startClearInvalidateTopicNameCacheTask() {
+        final int maxMinutesToClearTopicNameCache = pulsar.getConfiguration().getMaxMinutesToClearTopicNameCache();
+        statsUpdater.scheduleAtFixedRate(
+            () -> TopicName.clearIfFull(pulsar.getConfiguration().getTopicNameCacheCaxCapacity()),
+            maxMinutesToClearTopicNameCache,
+            maxMinutesToClearTopicNameCache,
+            TimeUnit.MINUTES);
     }
 
     protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {

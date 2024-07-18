@@ -40,7 +40,7 @@ public class NamespaceName implements ServiceUnitId {
     private final String localName;
 
     private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
+            .expireAfterWrite(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
                 @Override
                 public NamespaceName load(String name) throws Exception {
                     return new NamespaceName(name);
