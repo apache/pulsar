@@ -114,7 +114,7 @@ public class SystemTopicNames {
         int partition = topicName.getPartitionIndex();
         String localTopicName = topicName.getLocalName();
         if (partition >= 0) {
-            int suffixLen = PARTITIONED_TOPIC_SUFFIX.length() + Integer.valueOf(partition).toString().length();
+            int suffixLen = PARTITIONED_TOPIC_SUFFIX.length() + String.valueOf(partition).length();
             if (localTopicName.length() <= suffixLen) {
                 log.error("Found an error topic name: {}", topicName);
                 throw new IllegalArgumentException("Found an error topic name: " + topicName.toString());
