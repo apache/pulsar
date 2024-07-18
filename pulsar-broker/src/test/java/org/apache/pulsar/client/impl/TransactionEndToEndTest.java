@@ -1654,23 +1654,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage(transaction)
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(7, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
         producer.flush();
 
         transaction.commit().get();
-
-        // Failover consumer will receive the messages immediately while
-        // the shared consumer will get them after the delay
-        Message<String> msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        assertNull(msg);
-
+        Message<String> msg;
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             assertEquals(msg.getValue(), "msg-" + i);
         }
+
+        // Failover consumer will receive the messages immediately while
+        // the shared consumer will get them after the delay
+        msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
+        assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {
