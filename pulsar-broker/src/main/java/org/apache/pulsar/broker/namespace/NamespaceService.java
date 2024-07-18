@@ -56,6 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -1516,8 +1517,10 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
         String key = String.format("%s://%s", mode, namespaceName);
+        final MutableBoolean initializedByCurrentThread = new MutableBoolean();
         CompletableFuture<List<String>> queryRes =
                 inProgressQueryUserTopics.computeIfAbsent(key, k -> {
+            initializedByCurrentThread.setTrue();
             CompletableFuture<List<String>> res = new CompletableFuture<>();
             // Switch thread to avoid blocking other threads who are calling the current method.
             pulsar.getExecutor().execute(() -> {
@@ -1533,9 +1536,11 @@ public class NamespaceService implements AutoCloseable {
             });
             return res;
         });
-        queryRes.whenComplete((ignore, ex) -> {
-            inProgressQueryUserTopics.remove(key, queryRes);
-        });
+        if (initializedByCurrentThread.getValue()) {
+            queryRes.whenComplete((ignore, ex) -> {
+                inProgressQueryUserTopics.remove(key, queryRes);
+            });
+        }
         return queryRes;
     }
 
