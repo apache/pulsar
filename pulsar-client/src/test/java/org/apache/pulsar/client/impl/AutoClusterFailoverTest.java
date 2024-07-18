@@ -32,6 +32,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.AutoClusterFailoverCustomProbe;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -42,6 +43,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 @Slf4j
 public class AutoClusterFailoverTest {
+    
     @Test
     public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
         String primary = "pulsar://localhost:6650";
@@ -128,8 +130,14 @@ public class AutoClusterFailoverTest {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        
+        AutoClusterFailoverCustomProbe primaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(primary, primaryProbe);
+        AutoClusterFailoverCustomProbe secondaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(secondary, secondaryProbe);
+
+        Mockito.doReturn(false).when(primaryProbe).execute(); 
+        Mockito.doReturn(true).when(secondaryProbe).execute(); 
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
@@ -140,13 +148,13 @@ public class AutoClusterFailoverTest {
             assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
             // primary cluster came back
-            Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
+            Mockito.doReturn(true).when(primaryProbe).execute();
             Awaitility.await().untilAsserted(() ->
                     assertEquals(autoClusterFailover.getServiceUrl(), primary));
             assertEquals(autoClusterFailover.getRecoverTimestamp(), -1);
             assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
-            Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
+            Mockito.doReturn(false).when(primaryProbe).execute();
         }
     }
 
@@ -173,8 +181,14 @@ public class AutoClusterFailoverTest {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        
+        AutoClusterFailoverCustomProbe primaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(primary, primaryProbe);
+        AutoClusterFailoverCustomProbe secondaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(secondary, secondaryProbe);
+        
+        Mockito.doReturn(false).when(primaryProbe).execute(); 
+        Mockito.doReturn(true).when(secondaryProbe).execute(); 
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
@@ -182,7 +196,8 @@ public class AutoClusterFailoverTest {
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), secondary));
 
         // primary cluster came back
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
+        Mockito.doReturn(true).when(primaryProbe).execute();
+//        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
     }
 
@@ -230,8 +245,13 @@ public class AutoClusterFailoverTest {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        AutoClusterFailoverCustomProbe primaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(primary, primaryProbe);
+        AutoClusterFailoverCustomProbe secondaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(secondary, secondaryProbe);
+        
+        Mockito.doReturn(false).when(primaryProbe).execute();
+        Mockito.doReturn(true).when(secondaryProbe).execute();
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
@@ -242,12 +262,11 @@ public class AutoClusterFailoverTest {
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(secondaryAuthentication);
 
         // primary cluster came back
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
+        Mockito.doReturn(true).when(primaryProbe).execute();
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(primaryAuthentication);
-
     }
 
     @Test
@@ -286,8 +305,14 @@ public class AutoClusterFailoverTest {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
+        
+        AutoClusterFailoverCustomProbe primaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(primary, primaryProbe);
+        AutoClusterFailoverCustomProbe secondaryProbe = mock(AutoClusterFailoverCustomProbe.class);
+        autoClusterFailover.getProbes().put(secondary, secondaryProbe);
+        
+        Mockito.doReturn(false).when(primaryProbe).execute();
+        Mockito.doReturn(true).when(secondaryProbe).execute();
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
 
         autoClusterFailover.initialize(pulsarClient);
@@ -297,10 +322,9 @@ public class AutoClusterFailoverTest {
                 .updateTlsTrustStorePathAndPassword(secondaryTlsTrustStorePath, secondaryTlsTrustStorePassword);
 
         // primary cluster came back
-        Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
+        Mockito.doReturn(true).when(primaryProbe).execute();
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
         Mockito.verify(pulsarClient, Mockito.atLeastOnce())
                 .updateTlsTrustStorePathAndPassword(primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
-
     }
 }
