@@ -1515,7 +1515,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
-        String key = String.format("%s://%s", mode, namespaceName)
+        String key = String.format("%s://%s", mode, namespaceName);
         CompletableFuture<List<String>> queryRes =
                 inProgressQueryUserTopics.computeIfAbsent(key, k -> {
             CompletableFuture<List<String>> res = new CompletableFuture<>();
