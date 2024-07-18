@@ -55,7 +55,7 @@ public class TopicName implements ServiceUnitId {
     private final int partitionIndex;
 
     private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
+            .expireAfterWrite(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
                 @Override
                 public TopicName load(String name) throws Exception {
                     return new TopicName(name);
