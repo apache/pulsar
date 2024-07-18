@@ -1534,7 +1534,7 @@ public class NamespaceService implements AutoCloseable {
             return res;
         });
         queryRes.whenComplete((ignore, ex) -> {
-            inProgressQueryUserTopics.remove(key);
+            inProgressQueryUserTopics.remove(key, queryRes);
         });
         return queryRes;
     }
