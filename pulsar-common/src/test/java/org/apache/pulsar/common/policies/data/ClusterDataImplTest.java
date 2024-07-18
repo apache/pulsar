@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertThrows;
 
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.testng.annotations.Test;
@@ -59,5 +60,31 @@ public class ClusterDataImplTest {
 
         assertEquals(clone, originalData, "Clones should have object equality.");
         assertNotSame(clone, originalData, "Clones should not be the same reference.");
+    }
+    
+    @Test
+    public void testBothServiceUrlsIsEmpty(){
+        ClusterDataImpl clusterData = new ClusterDataImpl();
+        clusterData.setServiceUrl("");
+        clusterData.setServiceUrlTls("");
+        clusterData.setBrokerServiceUrl("pulsar://pulsar.example.com:6650");
+        clusterData.setBrokerServiceUrlTls("pulsar+ssl://pulsar.example.com:6651");
+
+        assertThrows("At least one of ServiceUrl or ServiceUrlTls must be set.",
+            IllegalArgumentException.class, clusterData::checkPropertiesIfPresent
+        );
+    }
+
+    @Test
+    public void testBothBrokerServiceUrlsIsEmpty(){
+        ClusterDataImpl clusterData = new ClusterDataImpl();
+        clusterData.setServiceUrl("http://pulsar.example.com:8080");
+        clusterData.setServiceUrlTls("https://pulsar.example.com:8443");
+        clusterData.setBrokerServiceUrl("");
+        clusterData.setBrokerServiceUrlTls("");
+        
+        assertThrows("At least one of BrokerServiceUrl or BrokerServiceUrlTls must be set.",
+            IllegalArgumentException.class, clusterData::checkPropertiesIfPresent
+        );
     }
 }
