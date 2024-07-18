@@ -18,16 +18,13 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
  */
-@Slf4j
 public class SystemTopicNames {
 
     /**
@@ -54,12 +51,6 @@ public class SystemTopicNames {
 
     public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
-    public static final String TRANSACTION_COORDINATOR_ASSIGN_LOCAL_NAME = "transaction_coordinator_assign";
-
-    public static final String TRANSACTION_COORDINATOR_LOG_LOCAL_NAME = "__transaction_log_";
-
-    public static final String RESOURCE_USAGE_TOPIC_LOCAL_NAME = "resource-usage";
-
     /**
      * The set of all local topic names declared above.
      */
@@ -69,20 +60,16 @@ public class SystemTopicNames {
 
 
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_COORDINATOR_ASSIGN_LOCAL_NAME);
+            NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
 
     public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_COORDINATOR_LOG_LOCAL_NAME);
+            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
 
     public static final TopicName RESOURCE_USAGE_TOPIC = TopicName.get(TopicDomain.non_persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, RESOURCE_USAGE_TOPIC_LOCAL_NAME);
+            NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
 
     public static boolean isEventSystemTopic(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
-    }
-
-    public static boolean isEventSystemTopicLocalName(String localTopicName) {
-        return EVENTS_TOPIC_NAMES.contains(localTopicName);
     }
 
     public static boolean isTransactionCoordinatorAssign(TopicName topicName) {
@@ -104,23 +91,8 @@ public class SystemTopicNames {
                 || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
     }
 
-    public static boolean isTransactionInternalLocalName(String localTopicName) {
-        return TRANSACTION_COORDINATOR_ASSIGN_LOCAL_NAME.equals(localTopicName)
-                || TRANSACTION_COORDINATOR_LOG_LOCAL_NAME.equals(localTopicName)
-                || PENDING_ACK_STORE_SUFFIX.equals(localTopicName);
-    }
-
     public static boolean isSystemTopic(TopicName topicName) {
-        int partition = topicName.getPartitionIndex();
-        String localTopicName = topicName.getLocalName();
-        if (partition >= 0) {
-            int suffixLen = PARTITIONED_TOPIC_SUFFIX.length() + String.valueOf(partition).length();
-            if (localTopicName.length() <= suffixLen) {
-                log.error("Found an error topic name: {}", topicName);
-                throw new IllegalArgumentException("Found an error topic name: " + topicName.toString());
-            }
-            localTopicName = localTopicName.substring(0, localTopicName.length() - suffixLen);
-        }
-        return isEventSystemTopicLocalName(localTopicName) || isTransactionInternalLocalName(localTopicName);
+        TopicName nonPartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return isEventSystemTopic(nonPartitionedTopicName) || isTransactionInternalName(nonPartitionedTopicName);
     }
 }
