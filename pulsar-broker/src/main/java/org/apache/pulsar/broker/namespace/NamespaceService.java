@@ -1518,23 +1518,11 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
         String key = String.format("%s://%s", mode, namespaceName);
         final MutableBoolean initializedByCurrentThread = new MutableBoolean();
-        CompletableFuture<List<String>> queryRes =
-                inProgressQueryUserTopics.computeIfAbsent(key, k -> {
+        CompletableFuture<List<String>> queryRes = inProgressQueryUserTopics.computeIfAbsent(key, k -> {
             initializedByCurrentThread.setTrue();
-            CompletableFuture<List<String>> res = new CompletableFuture<>();
-            // Switch thread to avoid blocking other threads who are calling the current method.
-            pulsar.getExecutor().execute(() -> {
-                getListOfTopics(namespaceName, mode).thenApply(list -> {
-                    return TopicList.filterSystemTopic(list);
-                }).whenComplete((topics, ex) -> {
-                    if (ex != null) {
-                        res.completeExceptionally(ex);
-                    } else {
-                        res.complete(topics);
-                    }
-                });
-            });
-            return res;
+            return getListOfTopics(namespaceName, mode).thenApplyAsync(list -> {
+                return TopicList.filterSystemTopic(list);
+            }, pulsar.getExecutor());
         });
         if (initializedByCurrentThread.getValue()) {
             queryRes.whenComplete((ignore, ex) -> {
