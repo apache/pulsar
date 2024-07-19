@@ -2250,6 +2250,15 @@ public class BrokerService implements Closeable {
         topics.forEach((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
             if (serviceUnit.includes(topicName)) {
+                if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
+                        && ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Skip unloading ExtensibleLoadManager internal topics. Such internal topic "
+                                + "should be closed when shutting down the broker.", topicName);
+                    }
+                    return;
+                }
+
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
                 if (topicFuture.isCompletedExceptionally()) {
