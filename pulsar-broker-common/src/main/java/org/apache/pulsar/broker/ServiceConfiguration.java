@@ -2349,21 +2349,51 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+            doc = "The low threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderLowThreshold = 15;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The high threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderHighThreshold = 40;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the low threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountLowThreshold = 8;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the high threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountHighThreshold = 2;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum message that triggers unload."
     )
     private int minUnloadMessage = 1000;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum throughput that triggers unload."
     )
     private int minUnloadMessageThroughput = 1 * 1024 * 1024;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
+                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
+                    + "evenly between the highest and lowest brokers."
     )
     private double maxUnloadPercentage = 0.2;
 
