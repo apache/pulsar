@@ -139,10 +139,11 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         final String topicOne = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-one";
         final String topicTwo = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-two";
 
-        Producer<String> producerOne = pulsarClient.newProducer(Schema.STRING)
+        PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString()).connectionsPerBroker(1).build();
+        Producer<String> producerOne = client.newProducer(Schema.STRING)
                 .topic(topicOne)
                 .create();
-        Producer<String> producerTwo = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producerTwo = client.newProducer(Schema.STRING)
                 .topic(topicTwo)
                 .create();
         ClientCnx cnxOne = ((ProducerImpl<?>) producerOne).getClientCnx();
@@ -174,6 +175,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         producerTwo.send("test");
         producerTwo.close();
         producerOne.close();
+        client.close();
     }
 
     public void testSupportsGetPartitionedMetadataWithoutAutoCreation() throws Exception {
