@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -29,7 +26,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -37,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +49,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
@@ -62,24 +56,17 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
-import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -1109,20 +1096,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         final String topicName = "persistent://public/default/change-allow-ooo-delivery-" + UUID.randomUUID();
         final String subName = "my-sub";
 
-        final Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().setAllowOutOfOrderDelivery(true))
                 .subscribe();
-
-        @Cleanup
-        final Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-        producer.send("message".getBytes());
-        Awaitility.await().untilAsserted(() -> assertNotNull(consumer1.receive(100, TimeUnit.MILLISECONDS)));
 
         CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopicIfExists(topicName);
         assertTrue(future.isDone());
@@ -1131,18 +1110,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
                 (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
         assertTrue(dispatcher.isAllowOutOfOrderDelivery());
-        assertNull(dispatcher.getLastSentPositionField());
-        assertNull(dispatcher.getIndividuallySentPositionsField());
-        consumer1.close();
+        consumer.close();
 
-        final Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+        consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().setAllowOutOfOrderDelivery(false))
                 .subscribe();
-        producer.send("message".getBytes());
-        Awaitility.await().untilAsserted(() -> assertNotNull(consumer2.receive(100, TimeUnit.MILLISECONDS)));
 
         future = pulsar.getBrokerService().getTopicIfExists(topicName);
         assertTrue(future.isDone());
@@ -1150,9 +1125,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         topic = future.get().get();
         dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
         assertFalse(dispatcher.isAllowOutOfOrderDelivery());
-        assertNotNull(dispatcher.getLastSentPositionField());
-        assertNotNull(dispatcher.getIndividuallySentPositionsField());
-        consumer2.close();
+        consumer.close();
     }
 
     @Test(timeOut = 30_000)
@@ -1226,370 +1199,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         l.await();
     }
 
-    @DataProvider(name = "preSend")
-    private Object[][] preSendProvider() {
-        return new Object[][] { { false }, { true } };
-    }
-
-    @Test(timeOut = 30_000, dataProvider = "preSend")
-    public void testCheckBetweenSkippingAndRecentlyJoinedConsumers(boolean preSend) throws Exception {
-        conf.setSubscriptionKeySharedUseConsistentHashing(true);
-
-        final String topicName = "persistent://public/default/recently-joined-consumers-" + UUID.randomUUID();
-        final String subName = "my-sub";
-
-        @Cleanup
-        final Producer<String> p = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
-        if (preSend) {
-            // verify that the test succeeds even if the topic has a message
-            p.send("msg");
-        }
-
-        final Supplier<ConsumerBuilder<String>> cb = () -> pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange()
-                        .setAllowOutOfOrderDelivery(false));
-
-        // create 2 consumers
-        final String c1ConsumerName = "c1";
-        @Cleanup
-        final Consumer<String> c1 = cb.get().consumerName(c1ConsumerName).receiverQueueSize(1).subscribe();
-        @Cleanup
-        final Consumer<String> c2 = cb.get().consumerName("c2").receiverQueueSize(1000).subscribe();
-
-        final PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName).getDispatcher();
-        final Field recentlyJoinedConsumersField = PersistentStickyKeyDispatcherMultipleConsumers.class.getDeclaredField("recentlyJoinedConsumers");
-        recentlyJoinedConsumersField.setAccessible(true);
-        final LinkedHashMap<org.apache.pulsar.broker.service.Consumer, Position> recentlyJoinedConsumers = (LinkedHashMap<org.apache.pulsar.broker.service.Consumer, Position>) recentlyJoinedConsumersField.get(dispatcher);
-        final String keyA = "key-a";
-        final int hashA = Murmur3_32Hash.getInstance().makeHash(keyA.getBytes());
-        final Map<Integer, String> hashConsumerMap = new HashMap<>();
-        hashConsumerMap.put(hashA, c1.getConsumerName());
-
-        // enforce the selector will return c1 if keyA
-        final Field selectorField = PersistentStickyKeyDispatcherMultipleConsumers.class.getDeclaredField("selector");
-        selectorField.setAccessible(true);
-        final StickyKeyConsumerSelector selector = spy((StickyKeyConsumerSelector) selectorField.get(dispatcher));
-        selectorField.set(dispatcher, selector);
-        doAnswer((invocationOnMock -> {
-            final int hash = invocationOnMock.getArgument(0);
-            final String consumerName = hashConsumerMap.getOrDefault(hash, c2.getConsumerName());
-            return dispatcher.getConsumers().stream().filter(consumer -> consumer.consumerName().equals(consumerName)).findFirst().get();
-        })).when(selector).select(anyInt());
-
-        // send and receive
-        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getConsumers().stream().filter(c -> c.getConsumerName().equals(c1ConsumerName)).findFirst().get().getAvailablePermits(), 1));
-        final MessageIdImpl msg0Id = (MessageIdImpl) p.newMessage().key(keyA).value("msg-0").send();
-        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getConsumers().stream().filter(c -> c.getConsumerName().equals(c1ConsumerName)).findFirst().get().getAvailablePermits(), 0));
-
-        final MessageIdImpl msg1Id = (MessageIdImpl) p.newMessage().key(keyA).value("msg-1").send();
-        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgBacklog(), 2));
-
-        final Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("redeliveryMessages");
-        redeliveryMessagesField.setAccessible(true);
-        final MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField.get(dispatcher);
-
-        final Set<Position> replayMsgSet = redeliveryMessages.getMessagesToReplayNow(3);
-        assertEquals(replayMsgSet.size(), 1);
-        final Position replayMsg = replayMsgSet.stream().findAny().get();
-        assertEquals(replayMsg, PositionFactory.create(msg1Id.getLedgerId(), msg1Id.getEntryId()));
-
-        // add c3
-        final String c3ConsumerName = "c3";
-        hashConsumerMap.put(hashA, c3ConsumerName);
-        @Cleanup
-        final Consumer<String> c3 = cb.get().consumerName(c3ConsumerName).subscribe();
-        final List<Message<String>> c3Msgs = new ArrayList<>();
-        final org.apache.pulsar.broker.service.Consumer c3Broker = dispatcher.getConsumers().stream().filter(consumer -> consumer.consumerName().equals(c3ConsumerName)).findFirst().get();
-        assertEquals(recentlyJoinedConsumers.get(c3Broker), PositionFactory.create(msg0Id.getLedgerId(), msg0Id.getEntryId()));
-
-        // None of messages are sent to c3.
-        Message<String> c3Msg = c3.receive(100, TimeUnit.MILLISECONDS);
-        assertNull(c3Msg);
-
-        // Disconnect c1
-        c1.close();
-
-        c3Msg = c3.receive(100, TimeUnit.MILLISECONDS);
-        assertNotNull(c3Msg);
-        c3Msgs.add(c3Msg);
-        // The mark delete position will move forward. Then remove c3 from recentlyJoinedConsumers.
-        c3.acknowledge(c3Msg);
-        Awaitility.await().untilAsserted(() -> assertNull(recentlyJoinedConsumers.get(c3Broker)));
-        c3Msg = c3.receive(100, TimeUnit.MILLISECONDS);
-        assertNotNull(c3Msg);
-        c3Msgs.add(c3Msg);
-        c3.acknowledge(c3Msg);
-
-        // check ordering
-        assertTrue(c3Msgs.get(0).getMessageId().compareTo(c3Msgs.get(1).getMessageId()) < 0);
-    }
-
-    @Test(timeOut = 30_000)
-    public void testLastSentPositionWhenRecreatingDispatcher() throws Exception {
-        // The lastSentPosition and individuallySentPositions should be initialized
-        // by the markDeletedPosition and individuallyDeletedMessages.
-        final String topicName = "persistent://public/default/rewind-" + UUID.randomUUID();
-        final String subName = "my-sub";
-
-        final int numMessages = 9;
-        final List<String> keys = Arrays.asList("key-a", "key-b", "key-c");
-        final AtomicInteger receiveCounter = new AtomicInteger();
-        final AtomicInteger ackCounter = new AtomicInteger();
-
-        @Cleanup
-        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        final Supplier<ConsumerBuilder<Integer>> cb = () -> pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange()
-                        .setAllowOutOfOrderDelivery(false));
-
-        @Cleanup
-        final Consumer<Integer> c1 = cb.get().messageListener((c, msg) -> {
-            if (keys.get(0).equals(msg.getKey())) {
-                try {
-                    c.acknowledge(msg);
-                    ackCounter.getAndIncrement();
-                } catch (PulsarClientException e) {
-                    fail(e.getMessage());
-                }
-            }
-            receiveCounter.getAndIncrement();
-        }).subscribe();
-
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName).getDispatcher();
-        LongPairRangeSet<Position> individuallySentPositionsField = dispatcher.getIndividuallySentPositionsField();
-        final ManagedCursorImpl cursor = (ManagedCursorImpl) ((PersistentSubscription) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName)).getCursor();
-        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
-
-        MessageIdImpl msgId = null;
-        for (int i = 0; i < numMessages; i++) {
-            msgId = (MessageIdImpl) producer.newMessage().key(keys.get(i % keys.size())).value(i).send();
-        }
-
-        // wait for consumption
-        Awaitility.await().untilAsserted(() -> assertEquals(receiveCounter.get(), numMessages));
-        assertEquals(ackCounter.get(), numMessages / keys.size());
-        assertEquals(dispatcher.getLastSentPositionField(), PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId()));
-        assertTrue(individuallySentPositionsField.isEmpty());
-        receiveCounter.set(0);
-        ackCounter.set(0);
-
-        // create expected values
-        final Position expectedLastSentPosition = ledger.getNextValidPosition(cursor.getMarkDeletedPosition());
-        final ConcurrentOpenLongPairRangeSet<Position>
-                expectedIndividuallySentPositions =  new ConcurrentOpenLongPairRangeSet<>(4096, PositionFactory::create);
-        cursor.getIndividuallyDeletedMessagesSet().forEach(range -> {
-            final Position lower = range.lowerEndpoint();
-            final Position upper = range.upperEndpoint();
-            expectedIndividuallySentPositions.addOpenClosed(lower.getLedgerId(), lower.getEntryId(), upper.getLedgerId(), upper.getEntryId());
-            return true;
-        });
-
-        // modify subscription type to close current dispatcher
-        admin.topics().createSubscription(topicName, "sub-alt", MessageId.earliest);
-        c1.close();
-        @Cleanup
-        final Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
-        c2.close();
-        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getType(), SubscriptionType.Exclusive.toString());
-
-        @Cleanup
-        final Consumer<Integer> c3 = cb.get().receiverQueueSize(0).subscribe();
-        dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName).getDispatcher();
-        individuallySentPositionsField = dispatcher.getIndividuallySentPositionsField();
-
-        assertNull(dispatcher.getLastSentPositionField());
-        assertTrue(individuallySentPositionsField.isEmpty());
-
-        assertNotNull(c3.receive());
-
-        // validate the individuallySentPosition is initialized by the individuallyDeletedMessages
-        // if it is not initialized expectedly, it has sent-hole of key-c messages because key-c messages are not scheduled to be dispatched to some consumer(already acked).
-        assertEquals(dispatcher.getLastSentPositionField(), expectedLastSentPosition);
-        assertEquals(individuallySentPositionsField.toString(), expectedIndividuallySentPositions.toString());
-    }
-
-    @Test(timeOut = 30_000)
-    public void testLastSentPositionWhenResettingCursor() throws Exception {
-        // The lastSentPosition and individuallySentPositions should be cleared if reset-cursor operation is executed.
-        final String nsName = "public/default";
-        final String topicName = "persistent://" + nsName + "/reset-cursor-" + UUID.randomUUID();
-        final String subName = "my-sub";
-
-        final int numMessages = 10;
-        final List<String> keys = Arrays.asList("key-a", "key-b");
-        final AtomicInteger ackCounter = new AtomicInteger();
-
-        @Cleanup
-        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        final Supplier<ConsumerBuilder<Integer>> cb = () -> pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .receiverQueueSize(0)
-                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange()
-                        .setAllowOutOfOrderDelivery(false));
-
-        @Cleanup
-        final Consumer<Integer> c1 = cb.get().consumerName("c1").subscribe();
-        @Cleanup
-        final Consumer<Integer> c2 = cb.get().consumerName("c2").subscribe();
-
-        // set retention policy
-        admin.namespaces().setRetention(nsName, new RetentionPolicies(1, 1024 * 1024));
-
-        // enforce the selector will return c1 if keys.get(0)
-        final PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName).getDispatcher();
-        final int hashA = Murmur3_32Hash.getInstance().makeHash(keys.get(0).getBytes());
-        final Map<Integer, String> hashConsumerMap = new HashMap<>();
-        hashConsumerMap.put(hashA, c1.getConsumerName());
-        final Field selectorField = PersistentStickyKeyDispatcherMultipleConsumers.class.getDeclaredField("selector");
-        selectorField.setAccessible(true);
-        final StickyKeyConsumerSelector selector = spy((StickyKeyConsumerSelector) selectorField.get(dispatcher));
-        selectorField.set(dispatcher, selector);
-        doAnswer((invocationOnMock -> {
-            final int hash = invocationOnMock.getArgument(0);
-            final String consumerName = hashConsumerMap.getOrDefault(hash, c2.getConsumerName());
-            return dispatcher.getConsumers().stream().filter(consumer -> consumer.consumerName().equals(consumerName)).findFirst().get();
-        })).when(selector).select(anyInt());
-
-        for (int i = 0; i < numMessages; i++) {
-            producer.newMessage().key(keys.get(i % keys.size())).value(i).send();
-        }
-
-        // consume some messages
-        for (int i = 0; i < numMessages / keys.size(); i++) {
-            final Message<Integer> msg = c2.receive();
-            if (msg != null) {
-                c2.acknowledge(msg);
-                ackCounter.getAndIncrement();
-            }
-        }
-        assertEquals(ackCounter.get(), numMessages / keys.size());
-
-        // store current lastSentPosition for comparison
-        final LongPairRangeSet<Position> individuallySentPositionsField = dispatcher.getIndividuallySentPositionsField();
-        assertNotNull(dispatcher.getLastSentPositionField());
-        assertFalse(individuallySentPositionsField.isEmpty());
-
-        // reset cursor and receive a message
-        admin.topics().resetCursor(topicName, subName, MessageId.earliest, true);
-
-        // validate the lastSentPosition and individuallySentPositions are cleared after resetting cursor
-        assertNull(dispatcher.getLastSentPositionField());
-        assertTrue(individuallySentPositionsField.isEmpty());
-    }
-
-    @Test(timeOut = 30_000)
-    public void testLastSentPositionWhenSkipping() throws Exception {
-        // The lastSentPosition and individuallySentPositions should be updated if skip operation is executed.
-        // There are updated to follow the new markDeletedPosition.
-        final String topicName = "persistent://public/default/skip-" + UUID.randomUUID();
-        final String subName = "my-sub";
-
-        final int numMessages = 10;
-        final List<String> keys = Arrays.asList("key-a", "key-b");
-        final int numSkip = 2;
-        final AtomicInteger ackCounter = new AtomicInteger();
-
-        @Cleanup
-        final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        final Supplier<ConsumerBuilder<Integer>> cb = () -> pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange()
-                        .setAllowOutOfOrderDelivery(false))
-                .receiverQueueSize(0);
-
-        @Cleanup
-        final Consumer<Integer> c1 = cb.get().consumerName("c1").subscribe();
-        @Cleanup
-        final Consumer<Integer> c2 = cb.get().consumerName("c2").subscribe();
-
-        // enforce the selector will return c1 if keys.get(0)
-        final PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName).getDispatcher();
-        final int hashA = Murmur3_32Hash.getInstance().makeHash(keys.get(0).getBytes());
-        final Map<Integer, String> hashConsumerMap = new HashMap<>();
-        hashConsumerMap.put(hashA, c1.getConsumerName());
-        final Field selectorField = PersistentStickyKeyDispatcherMultipleConsumers.class.getDeclaredField("selector");
-        selectorField.setAccessible(true);
-        final StickyKeyConsumerSelector selector = spy((StickyKeyConsumerSelector) selectorField.get(dispatcher));
-        selectorField.set(dispatcher, selector);
-        doAnswer((invocationOnMock -> {
-            final int hash = invocationOnMock.getArgument(0);
-            final String consumerName = hashConsumerMap.getOrDefault(hash, c2.getConsumerName());
-            return dispatcher.getConsumers().stream().filter(consumer -> consumer.consumerName().equals(consumerName)).findFirst().get();
-        })).when(selector).select(anyInt());
-
-        final List<Position> positionList = new ArrayList<>();
-        for (int i = 0; i < numMessages; i++) {
-            final MessageIdImpl msgId = (MessageIdImpl) producer.newMessage().key(keys.get(i % keys.size())).value(i).send();
-            positionList.add(PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId()));
-        }
-
-        // consume some messages
-        for (int i = 0; i < numSkip; i++) {
-            final Message<Integer> msg = c2.receive();
-            if (msg != null) {
-                c2.acknowledge(msg);
-                ackCounter.getAndIncrement();
-            }
-        }
-        assertEquals(ackCounter.get(), numSkip);
-        final ManagedCursorImpl managedCursor = ((ManagedCursorImpl) ((PersistentSubscription) pulsar.getBrokerService().getTopicIfExists(topicName).get().get().getSubscription(subName)).getCursor());
-        Awaitility.await().untilAsserted(() -> assertEquals(managedCursor.getIndividuallyDeletedMessagesSet().size(), 2));
-
-        // store current lastSentPosition for comparison
-        final Position lastSentPositionBeforeSkip = dispatcher.getLastSentPositionField();
-        final LongPairRangeSet<Position> individuallySentPositionsField = dispatcher.getIndividuallySentPositionsField();
-        assertNotNull(lastSentPositionBeforeSkip);
-        assertFalse(individuallySentPositionsField.isEmpty());
-
-        // skip messages and receive a message
-        admin.topics().skipMessages(topicName, subName, numSkip);
-        final MessageIdImpl msgIdAfterSkip = (MessageIdImpl) c1.receive().getMessageId();
-        final Position positionAfterSkip = PositionFactory.create(msgIdAfterSkip.getLedgerId(),
-                msgIdAfterSkip.getEntryId());
-        assertEquals(positionAfterSkip, positionList.get(4));
-
-        // validate the lastSentPosition is updated to the new markDeletedPosition
-        // validate the individuallySentPositions is updated expectedly (removeAtMost the new markDeletedPosition)
-        final Position lastSentPosition = dispatcher.getLastSentPositionField();
-        assertNotNull(lastSentPosition);
-        assertTrue(lastSentPosition.compareTo(lastSentPositionBeforeSkip) > 0);
-        assertEquals(lastSentPosition, positionList.get(4));
-        assertTrue(individuallySentPositionsField.isEmpty());
-    }
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {

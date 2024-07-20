@@ -233,7 +233,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "unackedMessages",
                 "avgMessagesPerEntry",
                 "blockedConsumerOnUnackedMsgs",
-                "lastSentPositionWhenJoining",
+                "readPositionWhenJoining",
                 "lastAckedTime",
                 "lastAckedTimestamp",
                 "lastConsumedTime",

@@ -3497,7 +3497,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *            the position range
      * @return the count of entries
      */
-    public long getNumberOfEntries(Range<Position> range) {
+    long getNumberOfEntries(Range<Position> range) {
         Position fromPosition = range.lowerEndpoint();
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
         Position toPosition = range.upperEndpoint();

@@ -118,12 +118,6 @@ public interface SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
 
-    /** The last sent position of the cursor. This is for Key_Shared subscription. */
-    String getLastSentPosition();
-
-    /** Set of individually sent ranges. This is for Key_Shared subscription. */
-    String getIndividuallySentPositions();
-
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     Map<String, String> getSubscriptionProperties();
 
