@@ -51,7 +51,11 @@ public class TopicName implements ServiceUnitId {
 
     private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
 
-    public static void clearIfFull(int maxCapacity) {
+    public static void clearIfReachedMaxCapacity(int maxCapacity) {
+        if (maxCapacity < 0) {
+            // Unlimited cache.
+            return;
+        }
         if (cache.size() > maxCapacity) {
             cache.clear();
         }
@@ -74,9 +78,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
-        return cache.computeIfAbsent(topic, k -> {
-            return new TopicName(k);
-        });
+        TopicName tp = cache.get(topic);
+        if (tp != null) {
+            return tp;
+        }
+        return cache.computeIfAbsent(topic, k -> new TopicName(k));
     }
 
     public static TopicName getPartitionedTopicName(String topic) {

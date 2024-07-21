@@ -597,16 +597,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
-        doc = "Max capacity of the topic name cache"
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
     )
     private int topicNameCacheCaxCapacity = 100_000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "A Specifies the minimum number of minutes that the system stays in the memory, to avoid clear cache"
-                + " frequently when there are too many topics are in use"
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
     )
-    private int maxMinutesToClearTopicNameCache = 120;
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
