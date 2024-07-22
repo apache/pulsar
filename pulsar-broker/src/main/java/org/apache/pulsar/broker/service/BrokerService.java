@@ -988,6 +988,17 @@ public class BrokerService implements Closeable {
         try {
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
             if (topicFuture != null) {
+                if (topicFuture.isCompletedExceptionally()) {
+                    try {
+                        topicFuture.join();
+                    } catch (Exception ex) {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (actEx == FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION) {
+                            return CompletableFuture.failedFuture(new TimeoutException("The previous loading task"
+                                    + " has not finished yet even through it has timeout, please retry again."));
+                        }
+                    }
+                }
                 if (topicFuture.isCompletedExceptionally()
                         || (topicFuture.isDone() && !topicFuture.getNow(Optional.empty()).isPresent())) {
                     // Exceptional topics should be recreated.
@@ -1608,6 +1619,7 @@ public class BrokerService implements Closeable {
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
+                                                        topics.remove(topic, topicFuture);
                                                         if (ex != null) {
                                                             log.warn("[{}] Get an error when closing topic.",
                                                                     topic, ex);
@@ -1645,6 +1657,7 @@ public class BrokerService implements Closeable {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
                                 topicFuture.complete(Optional.empty());
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
