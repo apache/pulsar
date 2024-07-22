@@ -71,6 +71,8 @@ public class ServiceConfigurationTest {
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
+        assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
+        assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -322,5 +324,16 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
         }
+    }
+
+    @Test
+    public void testTopicNameCacheConfiguration() throws Exception {
+        ServiceConfiguration conf;
+        final Properties properties = new Properties();
+        properties.setProperty("maxSecondsToClearTopicNameCache", "2");
+        properties.setProperty("topicNameCacheMaxCapacity", "100");
+        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
     }
 }
