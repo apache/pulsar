@@ -589,6 +589,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean backlogQuotaCheckEnabled = true;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
+
+    @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Whether to enable precise time based backlog quota check. "
                   + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "

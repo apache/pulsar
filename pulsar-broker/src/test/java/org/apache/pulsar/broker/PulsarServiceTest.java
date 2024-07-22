@@ -56,6 +56,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.doInitConf();
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
+        conf.setTopicNameCacheMaxCapacity(5000);
+        conf.setMaxSecondsToClearTopicNameCache(5);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
