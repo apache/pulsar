@@ -2462,11 +2462,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (lookupSemaphore.tryAcquire()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
-                    getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                    getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
                         .thenAccept(topics -> {
                             boolean filterTopics = false;
                             // filter system topic
-                            List<String> filteredTopics = TopicList.filterSystemTopic(topics);
+                            List<String> filteredTopics = topics;
 
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
