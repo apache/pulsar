@@ -163,7 +163,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         } catch (Throwable e) {
             e.printStackTrace();
-            Assert.assertTrue(e instanceof ConditionTimeoutException);
+            Assert.assertFalse(e instanceof ConditionTimeoutException, e.getMessage());
         }
 
         // two producer use the same cnx
