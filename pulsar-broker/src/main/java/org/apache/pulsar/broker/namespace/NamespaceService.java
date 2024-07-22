@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -92,6 +94,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -163,6 +166,9 @@ public class NamespaceService implements AutoCloseable {
             .quantile(1.0)
             .register();
 
+
+    private ConcurrentHashMap<String, CompletableFuture<List<String>>> inProgressQueryUserTopics =
+            new ConcurrentHashMap<>();
 
     /**
      * Default constructor.
@@ -1204,6 +1210,23 @@ public class NamespaceService implements AutoCloseable {
             default:
                 return getListOfPersistentTopics(namespaceName);
         }
+    }
+
+    public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
+        String key = String.format("%s://%s", mode, namespaceName);
+        final MutableBoolean initializedByCurrentThread = new MutableBoolean();
+        CompletableFuture<List<String>> queryRes = inProgressQueryUserTopics.computeIfAbsent(key, k -> {
+            initializedByCurrentThread.setTrue();
+            return getListOfTopics(namespaceName, mode).thenApplyAsync(list -> {
+                return TopicList.filterSystemTopic(list);
+            }, pulsar.getExecutor());
+        });
+        if (initializedByCurrentThread.getValue()) {
+            queryRes.whenComplete((ignore, ex) -> {
+                inProgressQueryUserTopics.remove(key, queryRes);
+            });
+        }
+        return queryRes;
     }
 
     public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {
