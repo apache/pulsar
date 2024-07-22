@@ -1657,6 +1657,7 @@ public class BrokerService implements Closeable {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
                                 topicFuture.complete(Optional.empty());
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
