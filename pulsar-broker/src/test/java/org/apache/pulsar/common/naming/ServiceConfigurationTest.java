@@ -75,7 +75,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
-        assertEquals(config.getTopicNameCacheCaxCapacity(), 200);
+        assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -383,9 +383,9 @@ public class ServiceConfigurationTest {
         ServiceConfiguration conf;
         final Properties properties = new Properties();
         properties.setProperty("maxSecondsToClearTopicNameCache", "2");
-        properties.setProperty("topicNameCacheCaxCapacity", "100");
+        properties.setProperty("topicNameCacheMaxCapacity", "100");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
-        assertEquals(conf.getTopicNameCacheCaxCapacity(), 100);
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
     }
 }

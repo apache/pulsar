@@ -59,7 +59,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.doInitConf();
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTopicNameCacheCaxCapacity(5000);
+        conf.setTopicNameCacheMaxCapacity(5000);
         conf.setMaxSecondsToClearTopicNameCache(5);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
@@ -196,7 +196,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     public void testTopicCacheConfiguration() throws Exception {
         cleanup();
         setup();
-        assertEquals(conf.getTopicNameCacheCaxCapacity(), 5000);
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
         assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
 
         List<TopicName> topicNameCached = new ArrayList<>();
@@ -211,7 +211,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         // Update max capacity.
-        admin.brokers().updateDynamicConfiguration("topicNameCacheCaxCapacity", "10");
+        admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
 
         // Verify: the cache were cleared.
         Thread.sleep(10 * 1000);

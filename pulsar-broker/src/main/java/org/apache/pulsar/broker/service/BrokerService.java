@@ -631,7 +631,7 @@ public class BrokerService implements Closeable {
     protected void startClearInvalidateTopicNameCacheTask() {
         final int maxSecondsToClearTopicNameCache = pulsar.getConfiguration().getMaxSecondsToClearTopicNameCache();
         inactivityMonitor.scheduleAtFixedRate(
-            () -> TopicName.clearIfReachedMaxCapacity(pulsar.getConfiguration().getTopicNameCacheCaxCapacity()),
+            () -> TopicName.clearIfReachedMaxCapacity(pulsar.getConfiguration().getTopicNameCacheMaxCapacity()),
             maxSecondsToClearTopicNameCache,
             maxSecondsToClearTopicNameCache,
             TimeUnit.SECONDS);

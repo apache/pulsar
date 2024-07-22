@@ -600,7 +600,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
                 + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
     )
-    private int topicNameCacheCaxCapacity = 100_000;
+    private int topicNameCacheMaxCapacity = 100_000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
