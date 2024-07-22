@@ -133,7 +133,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+    @Test(invocationCount = 20)
     public void testCnxReceiveSendError() throws Exception {
         final String topicOne = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-one";
         final String topicTwo = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-two";
@@ -162,6 +162,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
                             || !cnxTwo.equals(((ProducerImpl<?>) producerTwo).getClientCnx()));
             Assert.fail();
         } catch (Throwable e) {
+            e.printStackTrace();
             Assert.assertTrue(e instanceof ConditionTimeoutException);
         }
 
