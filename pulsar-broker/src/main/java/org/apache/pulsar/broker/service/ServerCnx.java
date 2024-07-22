@@ -172,6 +172,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.functions.utils.Exceptions;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
@@ -627,11 +628,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
                                                 topicName, ex.getMessage(), ex);
                                         ServerError error = ServerError.ServiceNotReady;
-                                        if (ex instanceof RestException restException){
+                                        if (ex instanceof MetadataStoreException) {
+                                            error = ServerError.MetadataError;
+                                        } else if (ex instanceof RestException restException) {
                                             int responseCode = restException.getResponse().getStatus();
-                                            if (responseCode == NOT_FOUND.getStatusCode()){
+                                            if (responseCode == NOT_FOUND.getStatusCode()) {
                                                 error = ServerError.TopicNotFound;
-                                            } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
+                                            } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()) {
                                                 error = ServerError.MetadataError;
                                             }
                                         }
