@@ -26,6 +26,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -163,7 +165,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             Assert.fail();
         } catch (Throwable e) {
             e.printStackTrace();
-            Assert.assertFalse(e instanceof ConditionTimeoutException, e.getMessage());
+            Assert.assertFalse(e instanceof TimeoutException, e.getMessage());
         }
 
         // two producer use the same cnx
