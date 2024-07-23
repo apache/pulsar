@@ -148,7 +148,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             cipher = Cipher.getInstance(AESGCM, BouncyCastleProvider.PROVIDER_NAME);
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
-
+                // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
                 digest = MessageDigest.getInstance("MD5");
 
                 dataKey = null;
@@ -564,7 +564,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             if (storedSecretKey != null) {
 
                 // Taking a small performance hit here if the hash collides. When it
-                // retruns a different key, decryption fails. At this point, we would
+                // returns a different key, decryption fails. At this point, we would
                 // call decryptDataKey to refresh the cache and come here again to decrypt.
                 if (decryptData(storedSecretKey, msgMetadata, payload, targetBuffer)) {
                     // If decryption succeeded, we can already return

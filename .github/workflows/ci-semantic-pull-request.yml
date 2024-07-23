@@ -34,7 +34,7 @@ jobs:
     name: Check pull request title
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v5.0.2
+      - uses: amannn/action-semantic-pull-request@v5.5.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -53,7 +53,6 @@ jobs:
           # io      -> Pulsar Connectors
           # offload -> tiered storage
           # sec     -> security
-          # sql     -> Pulsar Trino Plugin
           # txn     -> transaction
           # ws      -> websocket
           # ml      -> managed ledger
@@ -79,7 +78,6 @@ jobs:
             schema
             sec
             site
-            sql
             storage
             test
             txn

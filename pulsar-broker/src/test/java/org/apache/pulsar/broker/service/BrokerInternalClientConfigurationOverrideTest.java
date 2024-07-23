@@ -18,17 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
+import lombok.Cleanup;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -112,4 +116,40 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         Assert.assertEquals(clientConf.getMemoryLimitBytes(), 100000);
     }
 
+    @Test
+    public void testOldNamespacePolicy() throws Exception {
+        
+        String ns = "prop/oldNsWithDefaultNonNullValues";
+        String topic = "persistent://" + ns + "/t1";
+        Policies policies = new Policies();
+        policies.max_consumers_per_subscription = -1;
+        policies.max_consumers_per_topic = -1;
+        policies.max_producers_per_topic = -1;
+        policies.max_subscriptions_per_topic = -1;
+        policies.max_topics_per_namespace = -1;
+        policies.max_unacked_messages_per_consumer = -1;
+        policies.max_unacked_messages_per_subscription = -1;
+        admin.namespaces().createNamespace(ns, policies);
+        
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).create();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        assertEquals(topicRef.topicPolicies.getMaxUnackedMessagesOnSubscription().get(),
+                conf.getMaxUnackedMessagesPerSubscription());
+        assertEquals(topicRef.topicPolicies.getMaxConsumersPerSubscription().get(),
+                conf.getMaxConsumersPerSubscription());
+        assertEquals(topicRef.topicPolicies.getMaxConsumerPerTopic().get(),
+                conf.getMaxConsumersPerTopic());
+        assertEquals(topicRef.topicPolicies.getMaxProducersPerTopic().get(),
+                conf.getMaxProducersPerTopic());
+        assertEquals(topicRef.topicPolicies.getMaxSubscriptionsPerTopic().get(),
+                conf.getMaxSubscriptionsPerTopic());
+        assertEquals(topicRef.topicPolicies.getTopicMaxMessageSize().get(),
+                conf.getMaxMessageSize());
+        assertEquals(topicRef.topicPolicies.getMaxUnackedMessagesOnConsumer().get(),
+                conf.getMaxUnackedMessagesPerConsumer());
+        
+        
+    }
 }

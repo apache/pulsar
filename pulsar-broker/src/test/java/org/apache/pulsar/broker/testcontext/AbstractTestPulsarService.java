@@ -19,7 +19,12 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
+import java.util.Optional;
+import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -27,6 +32,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -36,6 +42,8 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * {@link PulsarService} implementations for a PulsarService instance used in tests.
  * Please see {@link PulsarTestContext} for more details.
  */
+
+@Slf4j
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
 
@@ -44,8 +52,12 @@ abstract class AbstractTestPulsarService extends PulsarService {
                                      MetadataStoreExtended configurationMetadataStore,
                                      CompactionServiceFactory compactionServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
-                                     BookKeeperClientFactory bookKeeperClientFactory) {
-        super(config);
+                                     BookKeeperClientFactory bookKeeperClientFactory,
+                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+        super(config, new WorkerConfig(), Optional.empty(),
+                exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
+                openTelemetrySdkBuilderCustomizer);
+
         this.spyConfig = spyConfig;
         setLocalMetadataStore(
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
@@ -57,7 +69,8 @@ abstract class AbstractTestPulsarService extends PulsarService {
     }
 
     @Override
-    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException {
         if (synchronizer != null) {
             synchronizer.registerSyncListener(
@@ -67,7 +80,8 @@ abstract class AbstractTestPulsarService extends PulsarService {
     }
 
     @Override
-    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException, PulsarServerException {
         if (synchronizer != null) {
             synchronizer.registerSyncListener(

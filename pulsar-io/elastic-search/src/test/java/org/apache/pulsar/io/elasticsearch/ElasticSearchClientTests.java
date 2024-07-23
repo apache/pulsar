@@ -30,8 +30,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,35 +48,34 @@ import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestCl
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.apache.pulsar.io.elasticsearch.testcontainers.ElasticToxiproxiContainer;
 import org.awaitility.Awaitility;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestHighLevelClient;
 import org.testcontainers.containers.Network;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public final static String INDEX = "myindex";
 
-    static ElasticsearchContainer container;
-    static Network network;
+    private ElasticsearchContainer container;
+    private Network network;
 
     public ElasticSearchClientTests(String elasticImageName) {
         super(elasticImageName);
     }
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     public void initBeforeClass() throws IOException {
-        if (container != null) {
-            return;
-        }
         network = Network.newNetwork();
         container = createElasticsearchContainer().withNetwork(network);
         container.start();
     }
 
     @AfterClass(alwaysRun = true)
-    public static void closeAfterClass() {
+    public void closeAfterClass() {
         container.close();
         container = null;
         network.close();
@@ -113,11 +114,41 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public void testClientInstance() throws Exception {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setCompressionEnabled(true)
                 .setIndexName(INDEX), mock(SinkContext.class));) {
             if (elasticImageName.equals(OPENSEARCH) || elasticImageName.equals(ELASTICSEARCH_7)) {
                 assertTrue(client.getRestClient() instanceof OpenSearchHighLevelRestClient);
+                OpenSearchHighLevelRestClient osRestHighLevelClient = (OpenSearchHighLevelRestClient) client.getRestClient();
+                RestHighLevelClient restHighLevelClient = osRestHighLevelClient.getClient();
+                assertNotNull(restHighLevelClient);
+
+                Field field = RestHighLevelClient.class.getDeclaredField("client");
+                field.setAccessible(true);
+                RestClient restClient = (RestClient) field.get(restHighLevelClient);
+                assertNotNull(restClient);
+
+                Field compressionEnabledFiled = RestClient.class.getDeclaredField("compressionEnabled");
+                compressionEnabledFiled.setAccessible(true);
+                boolean compressionEnabled = (boolean) compressionEnabledFiled.get(restClient);
+                assertTrue(compressionEnabled);
             } else {
                 assertTrue(client.getRestClient() instanceof ElasticSearchJavaRestClient);
+                ElasticSearchJavaRestClient javaRestClient = (ElasticSearchJavaRestClient) client.getRestClient();
+
+                Field field = ElasticSearchJavaRestClient.class.getDeclaredField("transport");
+                field.setAccessible(true);
+                RestClientTransport transport = (RestClientTransport) field.get(javaRestClient);
+                assertNotNull(transport);
+
+                Field restClientFiled = RestClientTransport.class.getDeclaredField("restClient");
+                restClientFiled.setAccessible(true);
+                org.elasticsearch.client.RestClient restClient = (org.elasticsearch.client.RestClient) restClientFiled.get(transport);
+                assertNotNull(restClient);
+
+                Field compressionEnabledFiled = org.elasticsearch.client.RestClient.class.getDeclaredField("compressionEnabled");
+                compressionEnabledFiled.setAccessible(true);
+                boolean compressionEnabled = (boolean) compressionEnabledFiled.get(restClient);
+                assertTrue(compressionEnabled);
             }
         }
     }

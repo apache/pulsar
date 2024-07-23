@@ -25,7 +25,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import javax.management.JMException;
@@ -65,7 +65,7 @@ public class ThreadDumpUtil {
         // fallback to using JMX for creating the thread dump
         StringBuilder dump = new StringBuilder();
 
-        dump.append(String.format("Timestamp: %s", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDateTime.now())));
+        dump.append(String.format("Timestamp: %s", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(ZonedDateTime.now())));
         dump.append("\n\n");
 
         Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();

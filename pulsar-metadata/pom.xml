@@ -25,9 +25,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.2.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
+
+  <properties>
+    <!-- workaround for OOM error 134 in CI -->
+    <testForkCount>2</testForkCount>
+  </properties>
 
   <artifactId>pulsar-metadata</artifactId>
   <name>Pulsar Metadata</name>
@@ -55,6 +59,17 @@
           <artifactId>netty-tcnative</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.streamnative.oxia</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -107,10 +122,15 @@
     </dependency>
 
     <dependency>
-      <groupId>io.etcd</groupId>
-      <artifactId>jetcd-core</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>jetcd-core-shaded</artifactId>
+      <version>${project.version}</version>
+      <classifier>shaded</classifier>
     </dependency>
-
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>io.etcd</groupId>
@@ -149,7 +169,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -194,4 +214,20 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipTestsForUnitGroupOther</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

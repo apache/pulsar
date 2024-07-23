@@ -243,7 +243,7 @@ public class ConcurrentOpenHashMapTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         map.get("k2");
                     } catch (Exception e) {

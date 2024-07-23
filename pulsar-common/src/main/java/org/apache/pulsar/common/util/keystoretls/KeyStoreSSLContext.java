@@ -201,7 +201,11 @@ public class KeyStoreSSLContext {
         }
 
         if (this.mode == Mode.SERVER) {
-            sslEngine.setNeedClientAuth(this.needClientAuth);
+            if (needClientAuth) {
+                sslEngine.setNeedClientAuth(true);
+            } else {
+                sslEngine.setWantClientAuth(true);
+            }
             sslEngine.setUseClientMode(false);
         } else {
             sslEngine.setUseClientMode(true);

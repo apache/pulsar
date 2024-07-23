@@ -39,10 +39,11 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     private final TransactionBufferHandler tbHandler;
     private final TransactionBufferClientStats stats;
 
-    private TransactionBufferClientImpl(TransactionBufferHandler tbHandler, boolean exposeTopicLevelMetrics,
-                                        boolean enableTxnCoordinator) {
+    private TransactionBufferClientImpl(PulsarService pulsarService, TransactionBufferHandler tbHandler,
+                                        boolean exposeTopicLevelMetrics, boolean enableTxnCoordinator) {
         this.tbHandler = tbHandler;
-        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics, tbHandler, enableTxnCoordinator);
+        this.stats = TransactionBufferClientStats.create(pulsarService, exposeTopicLevelMetrics, tbHandler,
+                enableTxnCoordinator);
     }
 
     public static TransactionBufferClient create(PulsarService pulsarService, HashedWheelTimer timer,
@@ -53,7 +54,7 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         ServiceConfiguration config = pulsarService.getConfig();
         boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
         boolean enableTxnCoordinator = config.isTransactionCoordinatorEnabled();
-        return new TransactionBufferClientImpl(handler, exposeTopicLevelMetrics, enableTxnCoordinator);
+        return new TransactionBufferClientImpl(pulsarService, handler, exposeTopicLevelMetrics, enableTxnCoordinator);
     }
 
     @Override

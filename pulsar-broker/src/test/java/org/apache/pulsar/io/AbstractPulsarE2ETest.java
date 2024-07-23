@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -238,29 +239,35 @@ public abstract class AbstractPulsarE2ETest {
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         try {
-        	if (fileServer != null) {
-              fileServer.stop();
-        	}
+            if (fileServer != null) {
+                fileServer.stop();
+                fileServer = null;
+            }
 
-        	if (pulsarClient != null) {
-              pulsarClient.close();
-        	}
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
 
-        	if (admin != null) {
-              admin.close();
-        	}
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
 
-        	if (functionsWorkerService != null) {
-              functionsWorkerService.stop();
-        	}
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
 
-        	if (pulsar != null) {
-              pulsar.close();
-        	}
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
 
-        	if (bkEnsemble != null) {
-              bkEnsemble.stop();
-        	}
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
@@ -305,6 +312,11 @@ public abstract class AbstractPulsarE2ETest {
 
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
+
+        List<String> urlPatterns =
+                List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*", "http://127\\.0\\.0\\.1:.*");
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
         return workerService;

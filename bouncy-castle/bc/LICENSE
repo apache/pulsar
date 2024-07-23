@@ -205,6 +205,5 @@
 This projects includes binary packages with the following licenses:
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - org.bouncycastle-bcpkix-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-jdk18on-1.75.jar
-    - org.bouncycastle-bcprov-ext-jdk18on-1.75.jar
+    - org.bouncycastle-bcpkix-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcprov-jdk18on-1.78.1.jar

@@ -32,6 +32,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -1295,6 +1296,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSetNamespaceReplicationCluters() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        admin.namespaces().createNamespace(namespace, 100);
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of()));
+    }
+
+    @Test
     public void testForceDeleteNamespaceNotAllowed() throws Exception {
         assertFalse(pulsar.getConfiguration().isForceDeleteNamespaceAllowed());
 
@@ -2105,5 +2114,85 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
         assertNull(topicPolicies);
+    }
+
+    @Test
+    public void testCreateNamespacesWithPolicy() throws Exception {
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "other-colo", "my-namespace",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, cluster doesn't exist
+            assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
+        }
+
+        List<NamespaceName> nsnames = new ArrayList<>();
+        nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-1"));
+        nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-2"));
+        nsnames.add(NamespaceName.get(this.testTenant, "usc", "create-other-namespace-1"));
+        createTestNamespaces(nsnames, BundlesData.builder().build());
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-1",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, namespace already exists
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+
+        }
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response,"non-existing-tenant", "use", "create-namespace-1",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, tenant doesn't exist
+            assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        }
+
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-#",
+                    new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok, invalid namespace name
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+            return op == MockZooKeeper.Op.CREATE
+                    && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
+        });
+        try {
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "my-namespace-3", new Policies()));
+            fail("should have failed");
+        } catch (RestException e) {
+            // Ok
+            assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        }
+    }
+
+    private void createTestNamespaces(List<NamespaceName> nsnames, Policies policies) throws Exception {
+        for (NamespaceName nsName : nsnames) {
+            asyncRequests(ctx -> namespaces.createNamespace(ctx, nsName.getTenant(), nsName.getCluster(), nsName.getLocalName(), policies));
+        }
+    }
+
+    @Test
+    public void testDispatcherPauseOnAckStatePersistent() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+
+        admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
+
+        assertFalse(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        // should pass
+        admin.namespaces().setDispatcherPauseOnAckStatePersistent(namespace);
+        assertTrue(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        admin.namespaces().removeDispatcherPauseOnAckStatePersistent(namespace);
+        assertFalse(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+
+        admin.namespaces().deleteNamespace(namespace);
     }
 }

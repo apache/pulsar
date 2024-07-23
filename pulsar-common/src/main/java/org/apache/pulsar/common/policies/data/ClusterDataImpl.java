@@ -107,7 +107,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private boolean brokerClientTlsEnabled;
     @ApiModelProperty(
         name = "tlsAllowInsecureConnection",
-        value = "Allow TLS connections to servers whose certificate cannot be"
+        value = "Allow TLS connections to servers whose certificate cannot"
                 + " be verified to have been signed by a trusted certificate"
                 + " authority."
     )
@@ -176,17 +176,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             example = ""
     )
     private String listenerName;
-    @ApiModelProperty(
-            name = "migrated",
-            value = "flag to check if cluster is migrated to different cluster",
-            example = "true/false"
-    )
-    private boolean migrated;
-    @ApiModelProperty(
-            name = "migratedClusterUrl",
-            value = "url of cluster where current cluster is migrated"
-    )
-    private ClusterUrl migratedClusterUrl;
 
     public static ClusterDataImplBuilder builder() {
         return new ClusterDataImplBuilder();
@@ -216,9 +205,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
-                .listenerName(listenerName)
-                .migrated(migrated)
-                .migratedClusterUrl(migratedClusterUrl);
+                .listenerName(listenerName);
     }
 
     @Data
@@ -245,8 +232,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
         private String listenerName;
-        private boolean migrated;
-        private ClusterUrl migratedClusterUrl;
 
         ClusterDataImplBuilder() {
         }
@@ -367,16 +352,6 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             return this;
         }
 
-        public ClusterDataImplBuilder migrated(boolean migrated) {
-            this.migrated = migrated;
-            return this;
-        }
-
-        public ClusterDataImplBuilder migratedClusterUrl(ClusterUrl migratedClusterUrl) {
-            this.migratedClusterUrl = migratedClusterUrl;
-            return this;
-        }
-
         public ClusterDataImpl build() {
             return new ClusterDataImpl(
                     serviceUrl,
@@ -400,9 +375,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTrustCertsFilePath,
                     brokerClientKeyFilePath,
                     brokerClientCertificateFilePath,
-                    listenerName,
-                    migrated,
-                    migratedClusterUrl);
+                    listenerName);
         }
     }
 

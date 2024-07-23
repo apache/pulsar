@@ -26,6 +26,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -88,8 +89,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
-    protected AbstractMetadataStore(String metadataStoreName) {
-        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
+    protected AbstractMetadataStore(String metadataStoreName, OpenTelemetry openTelemetry) {
+        this.executor = new ScheduledThreadPoolExecutor(1,
+                new DefaultThreadFactory(
+                        StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -135,7 +138,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
 
         this.metadataStoreName = metadataStoreName;
-        this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
+        this.metadataStoreStats = new MetadataStoreStats(metadataStoreName, openTelemetry);
     }
 
     @Override
@@ -173,6 +176,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return result;
         });
         return result;
+    }
+
+    /**
+     *  @deprecated Use {@link #registerSyncListener(Optional)} instead.
+     */
+    @Deprecated
+    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+        this.registerSyncListener(synchronizer);
     }
 
     protected void registerSyncListener(Optional<MetadataEventSynchronizer> synchronizer) {
@@ -247,8 +258,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -276,8 +286,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
@@ -288,8 +297,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
@@ -350,9 +358,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        log.info("Deleting path: {} (v. {})", path, expectedVersion);
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -395,27 +403,24 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
 
             metadataCaches.forEach(c -> c.invalidate(path));
+            log.info("Deleted path: {} (v. {})", path, expectedVersion);
         });
     }
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
+        log.info("Deleting recursively path: {}", path);
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         return getChildren(path)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
                                 .map(child -> deleteRecursive(path + "/" + child))
                                 .collect(Collectors.toList())))
-                .thenCompose(__ -> exists(path))
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
+                .thenCompose(__ -> {
+                    log.info("After deleting all children, now deleting path: {}", path);
+                    return deleteIfExists(path, Optional.empty());
                 });
     }
 
@@ -426,8 +431,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
         if (isClosed()) {
-            return FutureUtil.failedFuture(
-                    new MetadataStoreException.AlreadyClosedException());
+            return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
@@ -507,8 +511,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    private boolean isClosed() {
+    protected boolean isClosed() {
         return isClosed.get();
+    }
+
+    protected static <T> CompletableFuture<T> alreadyClosedFailedFuture() {
+        return FutureUtil.failedFuture(
+                new MetadataStoreException.AlreadyClosedException());
     }
 
     @Override

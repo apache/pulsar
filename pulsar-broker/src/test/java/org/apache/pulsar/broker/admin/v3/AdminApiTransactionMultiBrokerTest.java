@@ -40,7 +40,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+@Test(groups = "broker-admin-isolated")
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 16;
@@ -74,6 +74,9 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
         for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
             if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
+                if (localAdmin != null) {
+                    localAdmin.close();
+                }
                 localAdmin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
                         .serviceHttpUrl(pulsarServiceList.get(i + 1).getWebServiceAddress())));
         }
@@ -89,6 +92,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             localAdmin.transactions().getCoordinatorInternalStats(i, false);
         }
+        localAdmin.close();
     }
 
     @Test

@@ -18,25 +18,27 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.google.common.collect.Lists;
-import org.apache.pulsar.client.admin.Brokers;
-import org.apache.pulsar.client.api.ProxyProtocol;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import java.io.ByteArrayOutputStream;
+import com.google.common.collect.Lists;
 import java.io.File;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
+import lombok.Cleanup;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.util.Maps;
 import org.testng.Assert;
@@ -110,16 +112,27 @@ public class TestCmdClusters {
 
         CmdClusters cmd = new CmdClusters(() -> admin);
 
-        PrintStream defaultSystemOut = System.out;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
-            System.setOut(ps);
-            cmd.run("list".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", clusterList) + "\n");
-            out.reset();
-            cmd.run("list -c".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", clusterResultList) + "\n");
-        } finally {
-            System.setOut(defaultSystemOut);
-        }
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setOut(printWriter);
+
+        cmd.run("list".split("\\s+"));
+        Assert.assertEquals(stringWriter.toString(), String.join("\n", clusterList) + "\n");
+
+        @Cleanup
+        StringWriter stringWriter1 = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter1 = new PrintWriter(stringWriter1);
+        cmd.getCommander().setOut(printWriter1);
+        cmd.run("list -c".split("\\s+"));
+        Assert.assertEquals(stringWriter1.toString(), String.join("\n", clusterResultList) + "\n");
+    }
+
+    @Test
+    public void testGetClusterMigration() throws Exception {
+        cmdClusters.run(new String[]{"get-cluster-migration", "test_cluster"});
+        verify(clusters, times(1)).getClusterMigration("test_cluster");
     }
 }

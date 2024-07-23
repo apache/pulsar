@@ -65,15 +65,15 @@ public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        final BookKeeper bookKeeper = new BookKeeper(baseClientConf);
+        final BookKeeper bookKeeper = registerCloseable(new BookKeeper(baseClientConf));
         admin = new BookKeeperAdmin(bookKeeper, NullStatsLogger.INSTANCE, new ClientConfiguration(baseClientConf));
 
         String ledgersRoot = "/ledgers";
         String storeUri = metadataServiceUri.replaceAll("zk://", "").replaceAll("/ledgers", "");
-        MetadataStoreExtended store = MetadataStoreExtended.create(storeUri,
-                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        MetadataStoreExtended store = registerCloseable(MetadataStoreExtended.create(storeUri,
+                MetadataStoreConfig.builder().fsyncEnable(false).build()));
         LayoutManager layoutManager = new PulsarLayoutManager(store, ledgersRoot);
-        PulsarLedgerManagerFactory ledgerManagerFactory = new PulsarLedgerManagerFactory();
+        PulsarLedgerManagerFactory ledgerManagerFactory = registerCloseable(new PulsarLedgerManagerFactory());
 
         ClientConfiguration conf = new ClientConfiguration();
         conf.setZkLedgersRootPath(ledgersRoot);
@@ -86,7 +86,7 @@ public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
                 acquireConcurrentOpenLedgerOperationsTimeoutMSec);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void tearDown() throws Exception {
         if (ledgerManager != null) {

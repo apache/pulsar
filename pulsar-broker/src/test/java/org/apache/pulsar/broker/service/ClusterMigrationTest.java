@@ -35,6 +35,8 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -45,7 +47,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -53,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "cluster-migration")
@@ -86,37 +89,28 @@ public class ClusterMigrationTest {
     PulsarService pulsar4;
     PulsarAdmin admin4;
 
-    @DataProvider(name = "TopicsubscriptionTypes")
-    public Object[][] subscriptionTypes() {
-        return new Object[][] {
-                {true, SubscriptionType.Shared},
-                {true, SubscriptionType.Key_Shared},
-                {true, SubscriptionType.Shared},
-                {true, SubscriptionType.Key_Shared},
-
-                {false, SubscriptionType.Shared},
-                {false, SubscriptionType.Key_Shared},
-                {false, SubscriptionType.Shared},
-                {false, SubscriptionType.Key_Shared},
-        };
-    }
+    String loadManagerClassName;
 
     @DataProvider(name="NamespaceMigrationTopicSubscriptionTypes")
     public Object[][] namespaceMigrationSubscriptionTypes() {
         return new Object[][] {
-                {true, SubscriptionType.Shared, true, false},
-                {true, SubscriptionType.Key_Shared, true, false},
-                {true, SubscriptionType.Shared, false, true},
-                {true, SubscriptionType.Key_Shared, false, true},
-                {true, SubscriptionType.Shared, true, true},
-                {true, SubscriptionType.Key_Shared, true, true},
-                {false, SubscriptionType.Shared, true, false},
-                {false, SubscriptionType.Key_Shared, true, false},
-                {false, SubscriptionType.Shared, false, true},
-                {false, SubscriptionType.Key_Shared,false, true},
-                {false, SubscriptionType.Shared, true, true},
-                {false, SubscriptionType.Key_Shared,true, true},
+            {SubscriptionType.Shared, true, false},
+            {SubscriptionType.Shared, false, true},
+            {SubscriptionType.Shared, true, true},
         };
+    }
+
+    @DataProvider(name = "loadManagerClassName")
+    public static Object[][] loadManagerClassName() {
+        return new Object[][]{
+                {ModularLoadManagerImpl.class.getName()},
+                {ExtensibleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    @Factory(dataProvider = "loadManagerClassName")
+    public ClusterMigrationTest(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
     }
 
     @BeforeMethod(alwaysRun = true, timeOut = 300000)
@@ -124,10 +118,10 @@ public class ClusterMigrationTest {
 
         log.info("--- Starting ReplicatorTestBase::setup ---");
 
-        broker1 = new TestBroker("r1");
-        broker2 = new TestBroker("r2");
-        broker3 = new TestBroker("r3");
-        broker4 = new TestBroker("r4");
+        broker1 = new TestBroker("r1", loadManagerClassName);
+        broker2 = new TestBroker("r2", loadManagerClassName);
+        broker3 = new TestBroker("r3", loadManagerClassName);
+        broker4 = new TestBroker("r4", loadManagerClassName);
 
         pulsar1 = broker1.getPulsarService();
         url1 = new URL(pulsar1.getWebServiceAddress());
@@ -187,9 +181,9 @@ public class ClusterMigrationTest {
                         .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls()).build());
 
         // Setting r3 as replication cluster for r1
-        admin1.tenants().createTenant("pulsar",
+        updateTenantInfo(admin1, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
-        admin3.tenants().createTenant("pulsar",
+        updateTenantInfo(admin3, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespace);
@@ -199,9 +193,9 @@ public class ClusterMigrationTest {
         admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
 
         // Setting r4 as replication cluster for r2
-        admin2.tenants().createTenant("pulsar",
+        updateTenantInfo(admin2, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
-        admin4.tenants().createTenant("pulsar",
+        updateTenantInfo(admin4,"pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
         admin2.namespaces().createNamespace(namespace, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespace);
@@ -224,17 +218,25 @@ public class ClusterMigrationTest {
 
     }
 
+    protected void updateTenantInfo(PulsarAdmin admin, String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            admin.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin.tenants().updateTenant(tenant, tenantInfo);
+        }
+    }
+
     @AfterMethod(alwaysRun = true, timeOut = 300000)
     protected void cleanup() throws Exception {
         log.info("--- Shutting down ---");
-        broker1.cleanup();
         admin1.close();
-        broker2.cleanup();
         admin2.close();
-        broker3.cleanup();
         admin3.close();
-        broker4.cleanup();
         admin4.close();
+        broker1.cleanup();
+        broker2.cleanup();
+        broker3.cleanup();
+        broker4.cleanup();
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -259,11 +261,11 @@ public class ClusterMigrationTest {
      * (11) Restart Broker-1 and connect producer/consumer on cluster-1
      * @throws Exception
      */
-    @Test(dataProvider = "TopicsubscriptionTypes")
-    public void testClusterMigration(boolean persistent, SubscriptionType subType) throws Exception {
+    @Test
+    public void testClusterMigration() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigration ---");
         final String topicName = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -271,7 +273,7 @@ public class ClusterMigrationTest {
         // cluster-1 producer/consumer
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
                 .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s1").subscribe();
         AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
         retryStrategically((test) -> !topic1.getProducers().isEmpty(), 5, 500);
@@ -298,6 +300,7 @@ public class ClusterMigrationTest {
         ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
                 pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
 
         retryStrategically((test) -> {
             try {
@@ -330,12 +333,10 @@ public class ClusterMigrationTest {
 
         // try to consume backlog messages from cluster-1
         consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
-        if (persistent) {
-            for (int i = 0; i < n; i++) {
-                Message<byte[]> msg = consumer1.receive();
-                assertEquals(msg.getData(), "test1".getBytes());
-                consumer1.acknowledge(msg);
-            }
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer1.receive();
+            assertEquals(msg.getData(), "test1".getBytes());
+            consumer1.acknowledge(msg);
         }
         // after consuming all messages, consumer should have disconnected
         // from cluster-1 and reconnect with cluster-2
@@ -351,13 +352,13 @@ public class ClusterMigrationTest {
         assertTrue(topic1.getSubscriptions().isEmpty());
 
         // not also create a new consumer which should also reconnect to cluster-2
-        Consumer<byte[]> consumer2 = client1.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumer2 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s2").subscribe();
         retryStrategically((test) -> topic2.getSubscription("s2") != null, 10, 500);
         assertFalse(topic2.getSubscription("s2").getConsumers().isEmpty());
 
         // new sub on migration topic must be redirected immediately
-        Consumer<byte[]> consumerM = client1.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumerM = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sM").subscribe();
         assertFalse(pulsar2.getBrokerService().getTopicReference(topicName).get().getSubscription("sM").getConsumers()
                 .isEmpty());
@@ -365,7 +366,7 @@ public class ClusterMigrationTest {
 
         // migrate topic after creating subscription
         String newTopicName = topicName + "-new";
-        consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
+        consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sM").subscribe();
         retryStrategically((t) -> pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
         pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
@@ -392,8 +393,8 @@ public class ClusterMigrationTest {
 
         // create non-migrated topic which should connect to cluster-1
         String diffTopic = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
-        Consumer<byte[]> consumerDiff = client1.newConsumer().topic(diffTopic).subscriptionType(subType)
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
+        Consumer<byte[]> consumerDiff = client1.newConsumer().topic(diffTopic).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
                 .producerName("cluster1-d").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -408,7 +409,7 @@ public class ClusterMigrationTest {
         broker1.restart();
         Producer<byte[]> producer4 = client1.newProducer().topic(topicName).enableBatching(false)
                 .producerName("cluster1-4").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        Consumer<byte[]> consumer3 = client1.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumer3 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s3").subscribe();
         retryStrategically((test) -> topic2.getProducers().size() == 4, 10, 500);
         assertTrue(topic2.getProducers().size() == 4);
@@ -421,15 +422,16 @@ public class ClusterMigrationTest {
             assertEquals(consumer3.receive(2, TimeUnit.SECONDS).getData(), "test3".getBytes());
         }
 
+        client1.close();
+        client2.close();
         log.info("Successfully consumed messages by migrated consumers");
     }
 
-    @Test(dataProvider = "TopicsubscriptionTypes")
-    public void testClusterMigrationWithReplicationBacklog(boolean persistent, SubscriptionType subType) throws Exception {
+    @Test
+    public void testClusterMigrationWithReplicationBacklog() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigrationWithReplicationBacklog ---");
-        persistent = true;
         final String topicName = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -440,11 +442,11 @@ public class ClusterMigrationTest {
         // cluster-1 producer/consumer
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
                 .producerName("cluster1-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s1").subscribe();
 
         // cluster-3 consumer
-        Consumer<byte[]> consumer3 = client3.newConsumer().topic(topicName).subscriptionType(subType)
+        Consumer<byte[]> consumer3 = client3.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s1").subscribe();
         AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
         retryStrategically((test) -> !topic1.getProducers().isEmpty(), 5, 500);
@@ -526,6 +528,10 @@ public class ClusterMigrationTest {
         // verify that the producer1 is now is now connected to migrated cluster "r2" since backlog is cleared.
         retryStrategically((test) -> topic2.getProducers().size()==2, 10, 500);
         assertEquals(topic2.getProducers().size(), 2);
+
+        client1.close();
+        client2.close();
+        client3.close();
     }
 
     /**
@@ -638,17 +644,19 @@ public class ClusterMigrationTest {
             }
         }, 10, 500);
         assertFalse(pulsar2Topic.getSubscription("s1").getConsumers().isEmpty());
+
+        client1.close();
     }
 
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
-    public void testNamespaceMigration(boolean persistent, SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
+    public void testNamespaceMigration(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
         log.info("--- Starting Test::testNamespaceMigration ---");
         // topic for the namespace1 (to be migrated)
         final String topicName = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
         // topic for namespace2 (not to be migrated)
         final String topicName2 = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespaceNotToMigrate + "/migrationTopic");
+                .newUniqueName("persistent://" + namespaceNotToMigrate + "/migrationTopic");
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -764,16 +772,14 @@ public class ClusterMigrationTest {
         // try to consume backlog messages from cluster-1
         blueConsumerNs1_1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
         blueConsumerNs2_1 = client1.newConsumer().topic(topicName2).subscriptionName("s1").subscribe();
-        if (persistent) {
-            for (int i = 0; i < n; i++) {
-                Message<byte[]> msg = blueConsumerNs1_1.receive();
-                assertEquals(msg.getData(), "test1".getBytes());
-                blueConsumerNs1_1.acknowledge(msg);
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = blueConsumerNs1_1.receive();
+            assertEquals(msg.getData(), "test1".getBytes());
+            blueConsumerNs1_1.acknowledge(msg);
 
-                Message<byte[]> msg2 = blueConsumerNs2_1.receive();
-                assertEquals(msg2.getData(), "test1".getBytes());
-                blueConsumerNs2_1.acknowledge(msg2);
-            }
+            Message<byte[]> msg2 = blueConsumerNs2_1.receive();
+            assertEquals(msg2.getData(), "test1".getBytes());
+            blueConsumerNs2_1.acknowledge(msg2);
         }
         // after consuming all messages, consumer should have disconnected
         // from blue and reconnect with green
@@ -862,7 +868,7 @@ public class ClusterMigrationTest {
 
         // create non-migrated topic which should connect to blue
         String diffTopic = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
         Consumer<byte[]> consumerDiff = client1.newConsumer().topic(diffTopic).subscriptionType(subType)
                 .subscriptionName("s1-d").subscribe();
         Producer<byte[]> producerDiff = client1.newProducer().topic(diffTopic).enableBatching(false)
@@ -902,18 +908,19 @@ public class ClusterMigrationTest {
         blueProducerNs2_1.close();
         greenProducerNs1_1.close();
         greenProducerNs2_1.close();
+        client1.close();
+        client2.close();
     }
 
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
-    public void testNamespaceMigrationWithReplicationBacklog(boolean persistent, SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
+    public void testNamespaceMigrationWithReplicationBacklog(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
         log.info("--- Starting ReplicatorTest::testNamespaceMigrationWithReplicationBacklog ---");
-        persistent = true;
         // topic for namespace1 (to be migrated)
         final String topicName = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespace + "/migrationTopic");
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
         // topic for namespace2 (not to be migrated)
         final String topicName2 = BrokerTestUtil
-                .newUniqueName((persistent ? "persistent" : "non-persistent") + "://" + namespaceNotToMigrate + "/migrationTopic");
+                .newUniqueName("persistent://" + namespaceNotToMigrate + "/migrationTopic");
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -998,6 +1005,7 @@ public class ClusterMigrationTest {
                 pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
         admin1.clusters().updateClusterMigration("r1", isClusterMigrate, migratedUrl);
         admin1.namespaces().updateMigrationState(namespace, isNamespaceMigrate);
+        assertEquals(admin1.namespaces().getPolicies(namespace).migrated, isNamespaceMigrate);
         log.info("update cluster migration called");
 
         retryStrategically((test) -> {
@@ -1069,14 +1077,19 @@ public class ClusterMigrationTest {
         blueConsumerNs2_1.close();
         greenProducerNs1_1.close();
         greenProducerNs2_1.close();
+        client1.close();
+        client2.close();
+        client3.close();
     }
 
     static class TestBroker extends MockedPulsarServiceBaseTest {
 
         private String clusterName;
+        private String loadManagerClassName;
 
-        public TestBroker(String clusterName) throws Exception {
+        public TestBroker(String clusterName, String loadManagerClassName) throws Exception {
             this.clusterName = clusterName;
+            this.loadManagerClassName = loadManagerClassName;
             setup();
         }
 
@@ -1088,6 +1101,7 @@ public class ClusterMigrationTest {
         @Override
         protected void doInitConf() throws Exception {
             super.doInitConf();
+            this.conf.setLoadManagerClassName(loadManagerClassName);
             this.conf.setWebServicePortTls(Optional.of(0));
             this.conf.setBrokerServicePortTls(Optional.of(0));
         }

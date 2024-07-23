@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,7 +33,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -39,12 +42,15 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ChunkMessageIdImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -318,7 +324,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, metadata,
                     Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
-            CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
+            CompletableFuture<Position> completableFuture = new CompletableFuture<>();
             topic.publishTxnMessage(txnID, headerAndPayload, new Topic.PublishContext() {
 
                 @Override
@@ -358,7 +364,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
                 @Override
                 public void completed(Exception e, long ledgerId, long entryId) {
-                    completableFuture.complete(PositionImpl.get(ledgerId, entryId));
+                    completableFuture.complete(PositionFactory.create(ledgerId, entryId));
                 }
             });
             positionList.add(new MessageIdData().setLedgerId(completableFuture.get()
@@ -368,4 +374,45 @@ public class TransactionConsumeTest extends TransactionTestBase {
         return positionList;
     }
 
+    @Test
+    public void testAckChunkMessage() throws Exception {
+        String producerName = "test-producer";
+        String subName = "testAckChunkMessage";
+        @Cleanup
+        PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true).build();
+        @Cleanup
+        Producer<String> producer = pulsarClient1
+                .newProducer(Schema.STRING)
+                .producerName(producerName)
+                .topic(CONSUME_TOPIC)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+        Consumer<String> consumer = pulsarClient1
+                .newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(CONSUME_TOPIC)
+                .subscriptionName(subName)
+                .subscribe();
+
+        int messageSize = 6000; // payload size in KB
+        String message = "a".repeat(messageSize * 1000);
+        MessageId messageId = producer.newMessage().value(message).send();
+        assertTrue(messageId instanceof ChunkMessageIdImpl);
+        assertNotEquals(((ChunkMessageIdImpl) messageId).getLastChunkMessageId(),
+                ((ChunkMessageIdImpl) messageId).getFirstChunkMessageId());
+
+        Transaction transaction = pulsarClient1.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+
+        Message<String> msg = consumer.receive();
+        consumer.acknowledgeAsync(msg.getMessageId(), transaction);
+        transaction.commit().get();
+
+        Assert.assertEquals(admin.topics().getStats(CONSUME_TOPIC).getSubscriptions().get(subName)
+                .getUnackedMessages(), 0);
+    }
 }

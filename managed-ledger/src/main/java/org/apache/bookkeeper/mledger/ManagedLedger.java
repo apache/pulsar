@@ -632,6 +632,11 @@ public interface ManagedLedger {
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
+     * Rollover cursors in background if needed.
+     */
+    default void rolloverCursorsInBackground() {}
+
+    /**
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
      * used to delete information about this ledger in the ManagedCursor.
      */
@@ -682,11 +687,20 @@ public interface ManagedLedger {
     /**
      * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
      * roll over that ledger if inactive.
+     *
+     * @return true if ledger is considered for rolling over
      */
-    void checkInactiveLedgerAndRollOver();
+    boolean checkInactiveLedgerAndRollOver();
 
     /**
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Get managed ledger attributes.
+     */
+    default ManagedLedgerAttributes getManagedLedgerAttributes() {
+        return new ManagedLedgerAttributes(this);
+    }
 }

@@ -214,7 +214,7 @@ public class ConcurrentOpenHashSetTest {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         set.contains("k2");
                     } catch (Exception e) {

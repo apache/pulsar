@@ -34,12 +34,14 @@ public interface CompactedTopic {
      * Read entries from compacted topic.
      *
      * @deprecated Use {@link CompactedTopicUtils#asyncReadCompactedEntries(TopicCompactionService, ManagedCursor,
-     * int, long, boolean, ReadEntriesCallback, boolean, Consumer)} instead.
+     * int, long, org.apache.bookkeeper.mledger.Position, boolean, ReadEntriesCallback, boolean, Consumer)}
+     * instead.
      */
     @Deprecated
     void asyncReadEntriesOrWait(ManagedCursor cursor,
                                 int maxEntries,
                                 long bytesToRead,
+                                Position maxReadPosition,
                                 boolean isFirstRead,
                                 ReadEntriesCallback callback,
                                 Consumer consumer);

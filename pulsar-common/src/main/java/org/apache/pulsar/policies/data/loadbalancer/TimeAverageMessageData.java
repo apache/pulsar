@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * Data class comprising the average message data over a fixed period of time.
  */
-public class TimeAverageMessageData {
+@EqualsAndHashCode
+public class TimeAverageMessageData implements Comparable<TimeAverageMessageData> {
     // The maximum number of samples this data will consider.
     private int maxSamples;
 
@@ -40,6 +43,11 @@ public class TimeAverageMessageData {
 
     // The average message rate out per second.
     private double msgRateOut;
+
+    // Consider the throughput equal if difference is less than 100 KB/s
+    private static final double throughputDifferenceThreshold = 1e5;
+    // Consider the msgRate equal if the difference is less than 100
+    private static final double msgRateDifferenceThreshold = 100;
 
     // For JSON only.
     public TimeAverageMessageData() {
@@ -176,5 +184,41 @@ public class TimeAverageMessageData {
      */
     public double totalMsgThroughput() {
         return msgThroughputIn + msgThroughputOut;
+    }
+
+    @Override
+    public int compareTo(TimeAverageMessageData other) {
+        int result = this.compareByBandwidthIn(other);
+
+        if (result == 0) {
+            result = this.compareByBandwidthOut(other);
+        }
+        if (result == 0) {
+            result = this.compareByMsgRate(other);
+        }
+        return result;
+    }
+
+    public int compareByMsgRate(TimeAverageMessageData other) {
+        double thisMsgRate = this.msgRateIn + this.msgRateOut;
+        double otherMsgRate = other.msgRateIn + other.msgRateOut;
+        if (Math.abs(thisMsgRate - otherMsgRate) > msgRateDifferenceThreshold) {
+            return Double.compare(thisMsgRate, otherMsgRate);
+        }
+        return 0;
+    }
+
+    public int compareByBandwidthIn(TimeAverageMessageData other) {
+        if (Math.abs(this.msgThroughputIn - other.msgThroughputIn) > throughputDifferenceThreshold) {
+            return Double.compare(this.msgThroughputIn, other.msgThroughputIn);
+        }
+        return 0;
+    }
+
+    public int compareByBandwidthOut(TimeAverageMessageData other) {
+        if (Math.abs(this.msgThroughputOut - other.msgThroughputOut) > throughputDifferenceThreshold) {
+            return Double.compare(this.msgThroughputOut, other.msgThroughputOut);
+        }
+        return 0;
     }
 }

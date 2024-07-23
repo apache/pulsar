@@ -22,7 +22,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class MemoryLimitController {
 
     private final long memoryLimit;
@@ -46,11 +48,19 @@ public class MemoryLimitController {
     }
 
     public void forceReserveMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
         long newUsage = currentUsage.addAndGet(size);
         checkTrigger(newUsage - size, newUsage);
     }
 
     public boolean tryReserveMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return true;
+        }
         while (true) {
             long current = currentUsage.get();
             long newUsage = current + size;
@@ -68,6 +78,15 @@ public class MemoryLimitController {
         }
     }
 
+    private static void checkPositive(long memorySize) {
+        if (memorySize < 0) {
+            String errorMsg = String.format("Try to reserve/release memory failed, the param memorySize"
+                    + " is a negative value: %s", memorySize);
+            log.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
+    }
+
     private void checkTrigger(long prevUsage, long newUsage) {
         if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && trigger != null) {
             if (triggerRunning.compareAndSet(false, true)) {
@@ -81,6 +100,10 @@ public class MemoryLimitController {
     }
 
     public void reserveMemory(long size) throws InterruptedException {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
         if (!tryReserveMemory(size)) {
             mutex.lock();
             try {
@@ -94,6 +117,10 @@ public class MemoryLimitController {
     }
 
     public void releaseMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
         long newUsage = currentUsage.addAndGet(-size);
         if (newUsage + size > memoryLimit
                 && newUsage <= memoryLimit) {

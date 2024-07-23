@@ -25,8 +25,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
+import org.roaringbitmap.RoaringBitSet;
 
 /**
  * Wraps other Range classes, and adds LRU, marking dirty data and other features on this basis.
@@ -52,10 +53,10 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
                            RangeBoundConsumer<T> rangeBoundConsumer,
                            ManagedCursorImpl managedCursor) {
         requireNonNull(managedCursor);
-        this.config = managedCursor.getConfig();
+        this.config = managedCursor.getManagedLedger().getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
+                ? new OpenLongPairRangeSet<>(rangeConverter, RoaringBitSet::new)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
         this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
     }
@@ -148,16 +149,16 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     @VisibleForTesting
     void add(Range<LongPair> range) {
-        if (!(rangeSet instanceof ConcurrentOpenLongPairRangeSet)) {
+        if (!(rangeSet instanceof OpenLongPairRangeSet)) {
             throw new UnsupportedOperationException("Only ConcurrentOpenLongPairRangeSet support this method");
         }
-        ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).add(range);
+        ((OpenLongPairRangeSet<T>) rangeSet).add(range);
     }
 
     @VisibleForTesting
     void remove(Range<T> range) {
-        if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-            ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
+        if (rangeSet instanceof OpenLongPairRangeSet) {
+            ((OpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
         } else {
             ((DefaultRangeSet<T>) rangeSet).remove(range);
         }

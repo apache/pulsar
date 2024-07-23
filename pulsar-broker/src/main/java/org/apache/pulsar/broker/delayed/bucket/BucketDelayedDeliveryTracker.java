@@ -48,8 +48,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
@@ -137,9 +139,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
+        Map<String, String> cursorProperties = cursor.getCursorProperties();
+        if (MapUtils.isEmpty(cursorProperties)) {
+            log.info("[{}] Recover delayed message index bucket snapshot finish, don't find bucket snapshot",
+                    dispatcher.getName());
+            return 0;
+        }
         FutureUtil.Sequencer<Void> sequencer = this.lastMutableBucket.getSequencer();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
-        cursor.getCursorProperties().keySet().forEach(key -> {
+        cursorProperties.keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
@@ -543,7 +551,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+    public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
         if (!checkPendingLoadDone()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
@@ -556,7 +564,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
 
-        NavigableSet<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<Position> positions = new TreeSet<>();
         int n = maxMessages;
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
@@ -640,7 +648,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 }
             }
 
-            positions.add(new PositionImpl(ledgerId, entryId));
+            positions.add(PositionFactory.create(ledgerId, entryId));
 
             sharedBucketPriorityQueue.pop();
             removeIndexBit(ledgerId, entryId);

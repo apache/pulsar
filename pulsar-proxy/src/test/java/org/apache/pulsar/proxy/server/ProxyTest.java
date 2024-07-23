@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -90,17 +91,23 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
+        initializeProxyConfig();
+
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
+
+        proxyService.start();
+    }
+
+    protected void initializeProxyConfig() {
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
-
-        proxyService.start();
+        proxyConfig.setClusterName(configClusterName);
     }
 
     @Override
@@ -264,7 +271,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         String subName = "regex-proxy-test-" + System.currentTimeMillis();
-        String regexSubscriptionPattern = "persistent://sample/test/local/.*";
+        String regexSubscriptionPattern = "persistent://sample/test/local/regex-topic-.*";
         try (Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(regexSubscriptionPattern)
                 .subscriptionName(subName)
@@ -362,19 +369,21 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
-    private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
+    private PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+        registerCloseable(() -> eventLoopGroup.shutdownNow());
 
-        ConnectionPool cnxPool = new ConnectionPool(conf, eventLoopGroup, () -> {
-            return new ClientCnx(conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
+        ConnectionPool cnxPool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup, () -> {
+            return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup, ProtocolVersion.v11_VALUE) {
                 @Override
                 protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
                     throw new UnsupportedOperationException();
                 }
             };
         });
+        registerCloseable(cnxPool);
 
         return new PulsarClientImpl(conf, eventLoopGroup, cnxPool);
     }

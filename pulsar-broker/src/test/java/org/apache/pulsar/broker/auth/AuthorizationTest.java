@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -26,12 +25,14 @@ import com.google.common.collect.Sets;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.EnumSet;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -55,18 +56,29 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setClusterName("c1");
+        conf.setSystemTopicEnabled(false);
+        conf.setForceDeleteNamespaceAllowed(true);
         conf.setAuthenticationEnabled(true);
+        conf.setForceDeleteNamespaceAllowed(true);
+        conf.setForceDeleteTenantAllowed(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
     }
 
     @Override
     protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
         pulsarAdminBuilder.authentication(new MockAuthentication("pass.pass"));
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.authentication(new MockAuthentication("pass.pass"));
     }
 
     @AfterClass(alwaysRun = true)
@@ -95,8 +107,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
-                EnumSet.of(AuthAction.consume));
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, "other-role", EnumSet.of(AuthAction.consume));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
@@ -166,8 +179,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null));
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
-                EnumSet.of(AuthAction.produce));
+        String topic1 = "persistent://p1/c1/ns1/ds1";
+        admin.topics().createNonPartitionedTopic(topic1);
+        admin.topics().grantPermission(topic1, "my.*", EnumSet.of(AuthAction.produce));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null));
@@ -230,8 +244,26 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
 
-        admin.namespaces().deleteNamespace("p1/c1/ns1");
+        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
         admin.tenants().deleteTenant("p1");
+
+        admin.clusters().deleteCluster("c1");
+    }
+
+    @Test
+    public void testDeleteV1Tenant() throws Exception {
+        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        waitForChange();
+        admin.namespaces().createNamespace("p1/c1/ns1");
+        waitForChange();
+
+
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
+        admin.tenants().deleteTenant("p1", true);
         admin.clusters().deleteCluster("c1");
     }
 
@@ -283,12 +315,12 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));
         admin.namespaces().createNamespace(namespaceV2, Sets.newHashSet("c1"));
         admin.namespaces().grantPermissionOnNamespace(namespaceV2, "pass.pass2", EnumSet.of(AuthAction.produce));
+        @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                         ? brokerUrl.toString()
                         : brokerUrlTls.toString())
                 .authentication(new MockAuthentication("pass.pass2"))
                 .build();
-        when(pulsar.getAdminClient()).thenReturn(admin2);
         Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
         Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }

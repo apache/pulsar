@@ -37,8 +37,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -163,7 +164,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         for (MessageId msgId : msgIds) {
             consumer.acknowledge(msgId);
@@ -269,7 +270,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         consumer.acknowledgeCumulative(lastMsgId);
 
@@ -499,7 +500,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
-        OpSendMsg op = OpSendMsg.create(msgImpl, cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP, msgImpl, cmd, 1, null);
         producer.processOpSendMsg(op);
 
         retryStrategically((test) -> {

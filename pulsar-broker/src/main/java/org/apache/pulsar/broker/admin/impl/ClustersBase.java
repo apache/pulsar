@@ -60,8 +60,9 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -132,7 +133,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges, and the name cannot contain the '/' characters."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been created."),
+            @ApiResponse(code = 200, message = "Cluster has been created."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
             @ApiResponse(code = 409, message = "Cluster already exists."),
@@ -198,7 +199,7 @@ public class ClustersBase extends AdminResource {
         value = "Update the configuration for a cluster.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -247,13 +248,51 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+    @GET
+    @Path("/{cluster}/migrate")
+    @ApiOperation(
+        value = "Get the cluster migration configuration for the specified cluster.",
+        response = ClusterDataImpl.class,
+        notes = "This operation requires Pulsar superuser privileges."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public void getClusterMigration(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(
+            value = "The cluster name",
+            required = true
+        )
+        @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().getClusterPoliciesAsync(cluster))
+                .thenAccept(policies -> {
+                    asyncResponse.resume(
+                            policies.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {} migration", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     @POST
     @Path("/{cluster}/migrate")
     @ApiOperation(
         value = "Update the configuration for a cluster migration.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Cluster url must not be empty."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -286,8 +325,9 @@ public class ClustersBase extends AdminResource {
         }
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> {
-                    ClusterDataImpl data = (ClusterDataImpl) old;
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().setPoliciesWithCreateAsync(cluster,
+                        old -> {
+                    ClusterPoliciesImpl data = old.orElse(new ClusterPoliciesImpl());
                     data.setMigrated(isMigrated);
                     data.setMigratedClusterUrl(clusterUrl);
                     return data;
@@ -652,6 +692,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set namespace isolation policy successfully."),
         @ApiResponse(code = 400, message = "Namespace isolation policy data is invalid."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
@@ -762,6 +803,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Delete namespace isolation policy successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
@@ -809,6 +851,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set the failure domain of the cluster successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission."),
         @ApiResponse(code = 404, message = "Failure domain doesn't exist."),
         @ApiResponse(code = 409, message = "Broker already exists in another domain."),
@@ -944,6 +987,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 200, message = "Delete the failure domain of the cluster successfully"),
         @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
         @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),

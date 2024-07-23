@@ -59,6 +59,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
@@ -168,6 +169,10 @@ public class ProxyConnection extends PulsarHandler {
         ProxyService.ACTIVE_CONNECTIONS.inc();
         SocketAddress rmAddress = ctx.channel().remoteAddress();
         ConnectionController.State state = connectionController.increaseConnection(rmAddress);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Active connection count={} for cnx {} with state {}", ProxyService.ACTIVE_CONNECTIONS.get(),
+                    rmAddress, state);
+        }
         if (!state.equals(ConnectionController.State.OK)) {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
                     state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
@@ -183,6 +188,9 @@ public class ProxyConnection extends PulsarHandler {
         super.channelUnregistered(ctx);
         connectionController.decreaseConnection(ctx.channel().remoteAddress());
         ProxyService.ACTIVE_CONNECTIONS.dec();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Decreasing active connection count={} ", ProxyService.ACTIVE_CONNECTIONS.get());
+        }
     }
 
     @Override
@@ -383,11 +391,12 @@ public class ProxyConnection extends PulsarHandler {
                         service.getConfiguration().isForwardAuthorizationCredentials(), this);
             } else {
                 clientCnxSupplier =
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise);
+                        () -> new ClientCnx(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
+                                protocolVersionToAdvertise);
             }
 
             if (this.connectionPool == null) {
-                this.connectionPool = new ConnectionPool(clientConf, service.getWorkerGroup(),
+                this.connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
                         clientCnxSupplier,
                         Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())));
             } else {

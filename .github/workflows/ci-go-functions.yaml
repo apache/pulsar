@@ -42,7 +42,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Detect changed files
         id: changes
@@ -75,17 +75,17 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        go-version: [1.15, 1.16, 1.17]
+        go-version: ['1.21']
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
         id: go
@@ -93,7 +93,7 @@ jobs:
       - name: InstallTool
         run: |
           cd pulsar-function-go
-          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
+          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.55.2
           ./bin/golangci-lint --version
 
       - name: Build

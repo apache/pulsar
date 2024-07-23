@@ -4648,4 +4648,119 @@ public interface Namespaces {
      */
     void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException;
 
+    /**
+     * Set DispatcherPauseOnAckStatePersistent for a namespace asynchronously.
+     */
+    CompletableFuture<Void> setDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Remove entry filters of a namespace.
+     * @param namespace    Namespace name
+     * @throws PulsarAdminException
+     */
+    void setDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    void removeDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace);
+
+    /**
+     * Set the allowed clusters for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     *
+     * @throws ConflictException
+     *             Peer-cluster cannot be part of an allowed-cluster
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PreconditionFailedException
+     *             Invalid cluster ids
+     * @throws PulsarAdminException
+     *             The list of allowed clusters should include all replication clusters.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
+
+    /**
+     * Set the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     */
+    CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds);
+
 }

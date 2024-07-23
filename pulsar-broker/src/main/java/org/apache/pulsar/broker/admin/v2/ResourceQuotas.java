@@ -75,7 +75,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{bundle}")
-    @ApiOperation(value = "Get resource quota of a namespace bundle.")
+    @ApiOperation(value = "Get resource quota of a namespace bundle.", response = ResourceQuota.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -103,6 +103,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Set resource quota on a namespace.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
@@ -133,6 +134,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Remove resource quota for a namespace.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })

@@ -32,7 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,6 +50,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.compaction.Compactor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
@@ -124,7 +126,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
-        List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
+        List<Position> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
@@ -160,7 +162,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                entriesToRedeliver.add((PositionImpl) entry.getPosition());
+                entriesToRedeliver.add(entry.getPosition());
                 entries.set(i, null);
                 // FilterResult will be always `ACCEPTED` when there is No Filter
                 // dont need to judge whether `hasFilter` is true or not.
@@ -174,34 +176,46 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             if (msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
-                    // because consumer can receive message is smaller than maxReadPosition,
-                    // so this marker is useless for this subscription
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
+                    if (cursor == null || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                        // because consumer can receive message is smaller than maxReadPosition,
+                        // so this marker is useless for this subscription
+                        individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                                Collections.emptyMap());
+                        entries.set(i, null);
+                        entry.release();
+                        continue;
+                    }
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()),
-                                (PositionImpl) entry.getPosition())) {
-                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                                entry.getPosition())) {
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 }
             }
 
-            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
-                PositionImpl pos = (PositionImpl) entry.getPosition();
+            if (msgMetadata == null || (Markers.isServerOnlyMarker(msgMetadata))) {
+                Position pos = entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
                 if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    final int readerIndex = metadataAndPayload.readerIndex();
                     processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    metadataAndPayload.readerIndex(readerIndex);
                 }
 
-                entries.set(i, null);
-                entry.release();
-                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
-                continue;
+                // Deliver marker to __compaction cursor to avoid compaction task stuck,
+                // and filter out them when doing topic compaction.
+                if (msgMetadata == null || cursor == null
+                        || !cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                    entries.set(i, null);
+                    entry.release();
+                    individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos),
+                            Collections.emptyMap());
+                    continue;
+                }
             } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
@@ -216,24 +230,25 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             int batchSize = msgMetadata.getNumMessagesInBatch();
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
-                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
                         .getDeletedBatchIndexesAsLongArray(position);
                 // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
                 if (subscription instanceof PersistentSubscription
                         && ((PersistentSubscription) subscription)
                         .getPendingAckHandle() instanceof PendingAckHandleImpl) {
-                    PositionImpl positionInPendingAck =
+                    Position positionInPendingAck =
                             ((PersistentSubscription) subscription).getPositionInPendingAck(position);
                     // if this position not in pendingAck state, don't need to do any op
                     if (positionInPendingAck != null) {
-                        if (positionInPendingAck.hasAckSet()) {
+                        long[] pendingAckSet = AckSetStateUtil.getAckSetArrayOrNull(positionInPendingAck);
+                        if (pendingAckSet != null) {
                             // need to or ackSet in pendingAck state and cursor ackSet which bit sit has been acked
                             if (ackSet != null) {
-                                ackSet = andAckSet(ackSet, positionInPendingAck.getAckSet());
+                                ackSet = andAckSet(ackSet, pendingAckSet);
                             } else {
                                 // if actSet is null, use pendingAck ackSet
-                                ackSet = positionInPendingAck.getAckSet();
+                                ackSet = pendingAckSet;
                             }
                             // if the result of pendingAckSet(in pendingAckHandle) AND the ackSet(in cursor) is empty
                             // filter this entry
@@ -271,8 +286,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
-            subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
-                    Collections.emptyMap());
+            individualAcknowledgeMessageIfNeeded(entriesToFiltered, Collections.emptyMap());
 
             int filtered = entriesToFiltered.size();
             Topic topic = subscription.getTopic();
@@ -301,9 +315,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return totalEntries;
     }
 
-    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
+    private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {
         if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
+            subscription.acknowledgeMessage(positions, AckType.Individual, properties);
         }
     }
 
@@ -313,10 +327,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
-                    rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
             topic.getDispatchRateLimiter().ifPresent(rateLimter ->
-                    rateLimter.tryDispatchPermit(permits, totalBytesSent));
-            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(permits, totalBytesSent));
+                    rateLimter.consumeDispatchQuota(permits, totalBytesSent));
+            getRateLimiter().ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(permits, totalBytesSent));
         }
     }
 
@@ -335,7 +349,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 && maxConsumersPerSubscription <= consumerSize;
     }
 
-    private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
+    private void processReplicatedSubscriptionSnapshot(Position pos, ByteBuf headersAndPayload) {
         // Remove the protobuf headers
         Commands.skipMessageMetadata(headersAndPayload);
 
@@ -354,16 +368,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected abstract void reScheduleRead();
 
-    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
-        if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
-            if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
-                reScheduleRead();
-                return true;
-            }
-        }
-        return false;
-    }
-
     protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
                                                        int messagesToRead, long bytesToRead) {
         // update messagesToRead according to available dispatch rate limit.
@@ -374,11 +378,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
                                                            long bytesToRead, long availablePermitsOnByte) {
-        if (availablePermitsOnMsg > 0) {
+        if (availablePermitsOnMsg >= 0) {
             messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
         }
 
-        if (availablePermitsOnByte > 0) {
+        if (availablePermitsOnByte >= 0) {
             bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
         }
 

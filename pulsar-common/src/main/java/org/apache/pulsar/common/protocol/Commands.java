@@ -60,6 +60,8 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
@@ -188,6 +190,7 @@ public class Commands {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
+        flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -298,6 +301,7 @@ public class Commands {
         connected.setProtocolVersion(versionToAdvertise);
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
+        connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         return cmd;
     }
 
@@ -696,11 +700,12 @@ public class Commands {
         }
     }
 
-    public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
+    public static ByteBuf newUnsubscribe(long consumerId, long requestId, boolean force) {
         BaseCommand cmd = localCmd(Type.UNSUBSCRIBE);
         cmd.setUnsubscribe()
                 .setConsumerId(consumerId)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setForce(force);
         return serializeWithSize(cmd);
     }
 
@@ -736,11 +741,21 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
+    public static ByteBuf newCloseConsumer(
+            long consumerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
-        cmd.setCloseConsumer()
+        CommandCloseConsumer commandCloseConsumer = cmd.setCloseConsumer()
             .setConsumerId(consumerId)
             .setRequestId(requestId);
+
+        if (assignedBrokerUrl != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrl(assignedBrokerUrl);
+        }
+
+        if (assignedBrokerUrlTls != null) {
+            commandCloseConsumer.setAssignedBrokerServiceUrlTls(assignedBrokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 
@@ -761,11 +776,28 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newCloseProducer(long producerId, long requestId) {
+    public static ByteBuf newCloseProducer(
+            long producerId, long requestId) {
+        return newCloseProducer(producerId, requestId, null, null);
+    }
+
+    public static ByteBuf newCloseProducer(
+            long producerId, long requestId, String assignedBrokerUrl, String assignedBrokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_PRODUCER);
-        cmd.setCloseProducer()
-            .setProducerId(producerId)
-            .setRequestId(requestId);
+        CommandCloseProducer commandCloseProducer = cmd.setCloseProducer()
+                .setProducerId(producerId)
+                .setRequestId(requestId);
+
+        if (assignedBrokerUrl != null) {
+            commandCloseProducer
+                    .setAssignedBrokerServiceUrl(assignedBrokerUrl);
+        }
+
+        if (assignedBrokerUrlTls != null){
+            commandCloseProducer
+                    .setAssignedBrokerServiceUrlTls(assignedBrokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 
@@ -880,11 +912,13 @@ public class Commands {
         return serializeWithSize(newPartitionMetadataResponseCommand(error, errorMsg, requestId));
     }
 
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
+    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId,
+                                                      boolean metadataAutoCreationEnabled) {
         BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA);
         cmd.setPartitionMetadata()
                 .setTopic(topic)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setMetadataAutoCreationEnabled(metadataAutoCreationEnabled);
         return serializeWithSize(cmd);
     }
 
@@ -1555,6 +1589,9 @@ public class Commands {
         return cmd;
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                        List<String> topics) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
@@ -1570,6 +1607,10 @@ public class Commands {
         return cmd;
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public static BaseCommand newWatchTopicUpdate(long watcherId,
                                               List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);
@@ -1668,6 +1709,7 @@ public class Commands {
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
         BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
+        brokerEntryMetadata.clear();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerEntryMetadata);
             if (numberOfMessages >= 0) {
