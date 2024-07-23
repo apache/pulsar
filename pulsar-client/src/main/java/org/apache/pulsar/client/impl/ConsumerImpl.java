@@ -1892,30 +1892,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return payload.retain();
         }
-
+        int batchSize = msgMetadata.getNumMessagesInBatch();
         // If KeyReader is not configured throw exception based on config param
         if (conf.getCryptoKeyReader() == null) {
-            switch (conf.getCryptoFailureAction()) {
-                case CONSUME:
-                    log.debug("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
-                            topic, subscription, consumerName);
-                    return payload.retain();
-                case DISCARD:
-                    log.warn(
-                            "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and"
-                                    + " config is set to discard",
-                            topic, subscription, consumerName);
-                    discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
-                    return null;
-                case FAIL:
-                    MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
-                    log.error(
-                            "[{}][{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not"
-                                    + " implemented to consume encrypted message",
-                            topic, subscription, consumerName, m);
-                    unAckedMessageTracker.add(m, redeliveryCount);
-                    return null;
-            }
+            return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, true);
         }
 
 
@@ -1929,27 +1909,58 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         decryptedData.release();
 
+        return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, false);
+    }
+
+    private ByteBuf handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
+            int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
+
         switch (conf.getCryptoFailureAction()) {
-            case CONSUME:
+        case CONSUME:
+            if (cryptoReaderNotExist) {
+                log.warn("[{}][{}][{}] CryptoKeyReader interface is not implemented. Consuming encrypted message.",
+                        topic, subscription, consumerName);
+            } else {
                 // Note, batch message will fail to consume even if config is set to consume
                 log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to"
-                                + " consume.",
-                        topic, subscription, consumerName, messageId);
-                return payload.retain();
-            case DISCARD:
-                log.warn("[{}][{}][{}][{}] Discarding message since decryption failed and config is set to discard",
-                        topic, subscription, consumerName, messageId);
-                discardMessage(messageId, currentCnx, ValidationError.DecryptionError);
-                return null;
-            case FAIL:
-                MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+                        + " consume.", topic, subscription, consumerName, messageId);
+            }
+            return payload.retain();
+        case DISCARD:
+            if (cryptoReaderNotExist) {
+                log.warn(
+                        "[{}][{}][{}] Skipping decryption since CryptoKeyReader interface is not implemented and"
+                                + " config is set to discard message with batch size {}",
+                        topic, subscription, consumerName, batchSize);
+            } else {
+                log.warn(
+                        "[{}][{}][{}][{}-{}-{}] Discarding message since decryption failed "
+                                + "and config is set to discard",
+                        topic, subscription, consumerName, messageId.getLedgerId(), messageId.getEntryId(),
+                        messageId.getBatchIndex());
+            }
+            discardMessage(messageId, currentCnx, ValidationError.DecryptionError, batchSize);
+            return null;
+        case FAIL:
+            if (cryptoReaderNotExist) {
                 log.error(
-                        "[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message",
-                        topic, subscription, consumerName, m);
-                unAckedMessageTracker.add(m, redeliveryCount);
-                return null;
+                        "[{}][{}][{}][{}-{}-{}] Message delivery failed since CryptoKeyReader interface is not"
+                                + " implemented to consume encrypted message",
+                        topic, subscription, consumerName, messageId.getLedgerId(), messageId.getEntryId(),
+                        partitionIndex);
+            } else {
+                log.error("[{}][{}][{}][{}-{}-{}] Message delivery failed since unable to decrypt incoming message",
+                        topic, subscription, consumerName, messageId.getLedgerId(), messageId.getEntryId(),
+                        partitionIndex);
+            }
+            MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+            unAckedMessageTracker.add(m, redeliveryCount);
+            return null;
+        default:
+            log.warn("[{}][{}][{}] Invalid crypto failure state found, continue message consumption.", topic,
+                    subscription, consumerName);
+            return payload.retain();
         }
-        return null;
     }
 
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
@@ -2009,14 +2020,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ValidationError validationError) {
         log.error("[{}][{}] Discarding corrupted message at {}:{}", topic, subscription, messageId.getLedgerId(),
                 messageId.getEntryId());
-        discardMessage(messageId, currentCnx, validationError);
+        discardMessage(messageId, currentCnx, validationError, 1);
     }
 
-    private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
+    private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError,
+            int batchMessages) {
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null,
                 AckType.Individual, validationError, Collections.emptyMap(), -1);
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
-        increaseAvailablePermits(currentCnx);
+        increaseAvailablePermits(currentCnx, batchMessages);
         stats.incrementNumReceiveFailed();
     }
 
