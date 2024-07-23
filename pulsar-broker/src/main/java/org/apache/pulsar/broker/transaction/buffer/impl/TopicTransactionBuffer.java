@@ -91,7 +91,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final int takeSnapshotIntervalTime;
 
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
-    private CompletableFuture<Position> publishFuture = transactionBufferFuture.thenApply(__ -> PositionImpl.EARLIEST);
+    private CompletableFuture<Position> publishFuture = transactionBufferFuture
+            .thenApply(__ -> PositionFactory.EARLIEST);
 
     /**
      * The map is used to store the lowWaterMarks which key is TC ID and value is lowWaterMark of the TC.

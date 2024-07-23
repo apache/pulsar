@@ -2206,7 +2206,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            topic.checkIfTransactionBufferRecoverCompletely(true)
+            topic.checkIfTransactionBufferRecoverCompletely()
                  .thenCompose(__ -> topic.getLastDispatchablePosition())
                  .thenApply(lastPosition -> {
                      int partitionIndex = TopicName.getPartitionIndex(topic.getName());

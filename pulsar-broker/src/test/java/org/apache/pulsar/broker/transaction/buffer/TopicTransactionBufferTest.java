@@ -26,11 +26,8 @@ import java.lang.reflect.Field;
 import lombok.Cleanup;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.Collections;
@@ -41,7 +38,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -59,7 +55,6 @@ import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -242,9 +237,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         String topic = "persistent://" + NAMESPACE1 + "/testGetMaxReadyPositionAfterTBReady";
         // 1.1 Mock component.
         TransactionBuffer transactionBuffer = Mockito.spy(TransactionBuffer.class);
-        when(transactionBuffer.checkIfTBRecoverCompletely(anyBoolean()))
-                // Handle producer will check transaction buffer recover completely.
-                .thenReturn(CompletableFuture.completedFuture(null))
+        when(transactionBuffer.checkIfTBRecoverCompletely())
                 // If the Transaction buffer failed to recover, we can not get the correct last max read id.
                 .thenReturn(CompletableFuture.failedFuture(new Throwable("Mock fail")))
                 // If the transaction buffer recover successfully, the max read position can be acquired successfully.
