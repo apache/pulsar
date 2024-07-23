@@ -1306,7 +1306,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             selectedOpt.map(selectedBroker -> {
                                 if (orphanData.state() == Splitting) {
                                     // if Splitting, set orphan.dstBroker() as dst to indicate where it was from.
-                                    // (no-op)
+                                    // (The src broker runs handleSplitEvent.)
                                     return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
                                             Map.copyOf(orphanData.splitServiceUnitToDestBroker()), true, version);
                                 } else if (orphanData.state() == Owned) {
@@ -1324,6 +1324,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                                     orphanData.sourceBroker(),
                                             true, version);
                                 }
+                                // If no broker is selected(available), free the ownership.
+                                // If the previous owner is still active, it will close the bundle(topic) ownership.
                             }).orElseGet(() -> new ServiceUnitStateData(Free, null,
                                     orphanData.state() == Owned ? orphanData.dstBroker() : orphanData.sourceBroker(),
                                     true,
@@ -1545,7 +1547,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
         }
 
-        // timedOutOrphanServiceUnits are the in-flight ones although their src and dst brokers are known to be active.
+        // timedOutInFlightStateServiceUnits are the in-flight ones although their src and dst brokers are known to
+        // be active.
         if (!timedOutInFlightStateServiceUnits.isEmpty()) {
             for (var etr : timedOutInFlightStateServiceUnits.entrySet()) {
                 var orphanServiceUnit = etr.getKey();

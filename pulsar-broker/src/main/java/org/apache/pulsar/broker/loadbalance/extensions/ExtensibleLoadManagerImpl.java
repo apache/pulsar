@@ -1014,7 +1014,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         }
         try {
             FutureUtil.waitForAll(futures)
-                    .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                    .get(pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
         } catch (Throwable e) {
             log.warn("Failed to wait for closing internal topics", e);
         }
