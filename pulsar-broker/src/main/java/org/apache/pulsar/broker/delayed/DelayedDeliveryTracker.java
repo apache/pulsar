@@ -108,7 +108,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
         }
 
         @Override
-        public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+        public NavigableSet<Position> getScheduledMessages(int maxMessages) {
             return null;
         }
 
