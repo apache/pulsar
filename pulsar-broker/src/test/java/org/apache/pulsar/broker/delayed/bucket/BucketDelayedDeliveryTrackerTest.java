@@ -182,7 +182,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
-    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) {
+    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 100; i++) {
             tracker.addMessage(i, i, i * 10);
         }
@@ -265,7 +265,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) {
+    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 110; i++) {
             tracker.addMessage(i, i, i * 10);
             Awaitility.await().untilAsserted(() -> {
@@ -318,7 +318,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) {
+    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) throws Exception {
         MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
         mockBucketSnapshotStorage.injectCreateException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
