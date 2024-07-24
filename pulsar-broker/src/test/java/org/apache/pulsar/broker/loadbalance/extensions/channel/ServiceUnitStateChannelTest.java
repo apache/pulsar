@@ -108,6 +108,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     private ServiceUnitStateChannel channel2;
     private String brokerId1;
     private String brokerId2;
+    private String brokerId3;
     private String bundle;
     private String bundle1;
     private String bundle2;
@@ -159,6 +160,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 FieldUtils.readDeclaredField(channel1, "brokerId", true);
         brokerId2 = (String)
                 FieldUtils.readDeclaredField(channel2, "brokerId", true);
+        brokerId3 = "broker-3";
 
         bundle = "public/default/0x00000000_0xffffffff";
         bundle1 = "public/default/0x00000000_0xfffffff0";
@@ -1232,7 +1234,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
-
+        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
+                .when(loadManager).selectAsync(any(), any(), any());
         waitUntilStateWithMonitor(leader, bundle, Init);
         waitUntilStateWithMonitor(channel1, bundle, Init);
         waitUntilStateWithMonitor(channel2, bundle, Init);
@@ -1423,6 +1426,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     assertEquals(3, count.get());
                 });
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
+        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
+                .when(loadManager).selectAsync(any(), any(), any());
         ((ServiceUnitStateChannelImpl) leader)
                 .monitorOwnerships(List.of(brokerId1, brokerId2));
 
@@ -1566,26 +1571,40 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         String broker = brokerId1;
 
         // test override states
-        String releasingBundle = "public/releasing/0xfffffff0_0xffffffff";
+        String releasingBundle1 = "public/releasing1/0xfffffff0_0xffffffff";
+        String releasingBundle2 = "public/releasing2/0xfffffff0_0xffffffff";
         String splittingBundle = bundle;
-        String assigningBundle = "public/assigning/0xfffffff0_0xffffffff";
+        String assigningBundle1 = "public/assigning1/0xfffffff0_0xffffffff";
+        String assigningBundle2 = "public/assigning2/0xfffffff0_0xffffffff";
         String freeBundle = "public/free/0xfffffff0_0xffffffff";
         String deletedBundle = "public/deleted/0xfffffff0_0xffffffff";
-        String ownedBundle = "public/owned/0xfffffff0_0xffffffff";
-        overrideTableViews(releasingBundle,
-                new ServiceUnitStateData(Releasing, null, broker, 1));
+        String ownedBundle1 = "public/owned1/0xfffffff0_0xffffffff";
+        String ownedBundle2 = "public/owned2SourceBundle/0xfffffff0_0xffffffff";
+        String ownedBundle3 = "public/owned3/0xfffffff0_0xffffffff";
+        String inactiveBroker = "broker-inactive-1";
+        overrideTableViews(releasingBundle1,
+                new ServiceUnitStateData(Releasing, broker, brokerId2, 1));
+        overrideTableViews(releasingBundle2,
+                new ServiceUnitStateData(Releasing, brokerId2, brokerId3, 1));
         overrideTableViews(splittingBundle,
                 new ServiceUnitStateData(Splitting, null, broker,
                         Map.of(childBundle1Range, Optional.empty(),
                                 childBundle2Range, Optional.empty()), 1));
-        overrideTableViews(assigningBundle,
+        overrideTableViews(assigningBundle1,
                 new ServiceUnitStateData(Assigning, broker, null, 1));
+        overrideTableViews(assigningBundle2,
+                new ServiceUnitStateData(Assigning, broker, brokerId2, 1));
         overrideTableViews(freeBundle,
                 new ServiceUnitStateData(Free, null, broker, 1));
         overrideTableViews(deletedBundle,
                 new ServiceUnitStateData(Deleted, null, broker, 1));
-        overrideTableViews(ownedBundle,
+        overrideTableViews(ownedBundle1,
                 new ServiceUnitStateData(Owned, broker, null, 1));
+        overrideTableViews(ownedBundle2,
+                new ServiceUnitStateData(Owned, broker, inactiveBroker, 1));
+        overrideTableViews(ownedBundle3,
+                new ServiceUnitStateData(Owned, inactiveBroker, broker, 1));
+
 
         // test stable metadata state
         doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
@@ -1595,16 +1614,33 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(followerChannel, "inFlightStateWaitingTimeInMillis",
                 -1, true);
         ((ServiceUnitStateChannelImpl) leaderChannel)
-                .monitorOwnerships(List.of(brokerId1, brokerId2));
+                .monitorOwnerships(List.of(brokerId1, brokerId2, "broker-3"));
 
-        waitUntilNewOwner(channel2, releasingBundle, broker);
-        waitUntilNewOwner(channel2, childBundle11, broker);
-        waitUntilNewOwner(channel2, childBundle12, broker);
-        waitUntilNewOwner(channel2, assigningBundle, brokerId2);
-        waitUntilNewOwner(channel2, ownedBundle, broker);
-        assertEquals(Optional.empty(), channel2.getOwnerAsync(freeBundle).get());
-        assertTrue(channel2.getOwnerAsync(deletedBundle).isCompletedExceptionally());
+        ServiceUnitStateChannel finalLeaderChannel = leaderChannel;
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> getCleanupJobs(finalLeaderChannel).isEmpty());
+
+
+        waitUntilNewOwner(channel2, releasingBundle1, brokerId2);
+        waitUntilNewOwner(channel2, releasingBundle2, brokerId2);
         assertTrue(channel2.getOwnerAsync(splittingBundle).get().isEmpty());
+        waitUntilNewOwner(channel2, childBundle11, brokerId2);
+        waitUntilNewOwner(channel2, childBundle12, brokerId2);
+        waitUntilNewOwner(channel2, assigningBundle1, brokerId2);
+        waitUntilNewOwner(channel2, assigningBundle2, brokerId2);
+        assertTrue(channel2.getOwnerAsync(freeBundle).get().isEmpty());
+        assertTrue(channel2.getOwnerAsync(deletedBundle).isCompletedExceptionally());
+        waitUntilNewOwner(channel2, ownedBundle1, broker);
+        waitUntilNewOwner(channel2, ownedBundle2, broker);
+        waitUntilNewOwner(channel2, ownedBundle3, brokerId2);
+
+        validateMonitorCounters(leaderChannel,
+                1,
+                0,
+                6,
+                0,
+                1,
+                0,
+                0);
 
         // clean-up
         FieldUtils.writeDeclaredField(channel1,
