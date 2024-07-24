@@ -70,7 +70,11 @@ public class SnapshotTableView {
         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
             final var msg = wait(reader.readNextAsync(), "read message");
             if (msg.getKey() != null) {
-                snapshots.put(msg.getKey(), msg.getValue());
+                if (msg.getValue() != null) {
+                    snapshots.put(msg.getKey(), msg.getValue());
+                } else {
+                    snapshots.remove(msg.getKey());
+                }
             }
         }
         return snapshots.get(topic);

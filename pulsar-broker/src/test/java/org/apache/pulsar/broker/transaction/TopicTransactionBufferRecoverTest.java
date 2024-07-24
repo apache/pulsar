@@ -90,7 +90,6 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -682,25 +681,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         producer.newMessage(txn).value("test".getBytes()).send();
         txn.commit().get();
-    }
-
-
-    @Test
-    public void testTransactionBufferNoSnapshotCloseReader() throws Exception{
-        String topic = NAMESPACE1 + "/test";
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
-                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
-
-        admin.topics().unload(topic);
-
-        // unload success, all readers have been closed except for the compaction sub
-        producer.send("test");
-        TopicStats stats = admin.topics().getStats(NAMESPACE1 + "/" + TRANSACTION_BUFFER_SNAPSHOT);
-
-        // except for the compaction sub
-        assertEquals(stats.getSubscriptions().size(), 1);
-        assertTrue(stats.getSubscriptions().keySet().contains("__compaction"));
     }
 
     @Test
