@@ -995,10 +995,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
 
                 this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(getClient());
-                this.snapshotTableView = new SnapshotTableView(
-                        transactionBufferSnapshotServiceFactory.getTxnBufferSnapshotService(),
-                        executor, Long.parseLong(config.getProperties().getProperty(
-                                "brokerClient_operationTimeoutMs", "30000")));
+                this.snapshotTableView = new SnapshotTableView(this);
 
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));

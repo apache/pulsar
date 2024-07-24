@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotTableView;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
@@ -581,6 +582,22 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         reader.close();
     }
 
+    static class MockSnapshotTableView extends SnapshotTableView {
+
+        private final PulsarService pulsar;
+
+        public MockSnapshotTableView(PulsarService pulsar) {
+            super(pulsar);
+            this.pulsar = pulsar;
+        }
+
+        @Override
+        public SystemTopicClient.Reader<TransactionBufferSnapshot> getReader(String topic) {
+            return pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
+                    .createReader(TopicName.get(topic)).join();
+        }
+    }
+
     @Test(timeOut=30000)
     public void testTransactionBufferRecoverThrowException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
@@ -662,7 +679,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                                  PersistentTopic originalTopic,
                                  Field field,
                                  Producer<byte[]> producer) throws Exception {
-        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceFactory);
+        final var pulsar = getPulsarServiceList().get(0);
+        final var snapshotTableViewField = PulsarService.class.getDeclaredField("snapshotTableView");
+        final var originalSnapshotTableView = pulsar.getSnapshotTableView();
+        snapshotTableViewField.setAccessible(true);
+        snapshotTableViewField.set(pulsar, new MockSnapshotTableView(pulsar));
+        field.set(pulsar, transactionBufferSnapshotServiceFactory);
 
         // recover again will throw then close topic
         new TopicTransactionBuffer(originalTopic);
@@ -673,7 +695,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             assertTrue((boolean) close.get(originalTopic));
         });
 
-        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceFactoryOriginal);
+        field.set(pulsar, transactionBufferSnapshotServiceFactoryOriginal);
+        snapshotTableViewField.set(pulsar, originalSnapshotTableView);
 
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)

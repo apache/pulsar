@@ -19,13 +19,15 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import static org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -47,26 +49,15 @@ public class SnapshotTableView {
     private final long blockTimeoutMs;
     private final SimpleCache<NamespaceName, Reader<TransactionBufferSnapshot>> readers;
 
-    public SnapshotTableView(SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> snapshotService,
-                             ScheduledExecutorService executor, long blockTimeoutMs) {
-        this.snapshotService = snapshotService;
-        this.blockTimeoutMs = blockTimeoutMs;
-        this.readers = new SimpleCache<>(executor, CACHE_EXPIRE_TIMEOUT_MS);
+    public SnapshotTableView(PulsarService pulsar) {
+        this.snapshotService = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
+        this.blockTimeoutMs = Long.parseLong(pulsar.getConfig().getProperties()
+                .getProperty("brokerClient_operationTimeoutMs", "30000"));
+        this.readers = new SimpleCache<>(pulsar.getExecutor(), CACHE_EXPIRE_TIMEOUT_MS);
     }
 
     public TransactionBufferSnapshot readLatest(String topic) throws Exception {
-        final var topicName = TopicName.get(topic);
-        final var namespace = topicName.getNamespaceObject();
-        final var reader = readers.get(namespace, () -> {
-            try {
-                return wait(snapshotService.createReader(topicName), "create reader");
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, __ -> __.closeAsync().exceptionally(e -> {
-            log.warn("Failed to close reader {}", e.getMessage());
-            return null;
-        }));
+        final var reader = getReader(topic);
         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
             final var msg = wait(reader.readNextAsync(), "read message");
             if (msg.getKey() != null) {
@@ -80,11 +71,26 @@ public class SnapshotTableView {
         return snapshots.get(topic);
     }
 
+    @VisibleForTesting
+    protected Reader<TransactionBufferSnapshot> getReader(String topic) {
+        final var topicName = TopicName.get(topic);
+        return readers.get(topicName.getNamespaceObject(), () -> {
+            try {
+                return wait(snapshotService.createReader(topicName), "create reader");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }, __ -> __.closeAsync().exceptionally(e -> {
+            log.warn("Failed to close reader {}", e.getMessage());
+            return null;
+        }));
+    }
+
     private <T> T wait(CompletableFuture<T> future, String msg) throws Exception {
         try {
             return future.get(blockTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
-            throw new ExecutionException("Failed to " + msg, e.getCause());
+            throw new CompletionException("Failed to " + msg, e.getCause());
         }
     }
 }
