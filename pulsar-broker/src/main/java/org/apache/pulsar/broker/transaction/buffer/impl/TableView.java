@@ -25,11 +25,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
-import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.utils.SimpleCache;
@@ -40,23 +39,24 @@ import org.apache.pulsar.utils.SimpleCache;
  * - Maintains multiple long-lived readers that will be expired after some time (1 minute by default).
  */
 @Slf4j
-public class SnapshotTableView {
+public class TableView<T> {
 
     // Remove the cached reader and snapshots if there is no refresh request in 1 minute
     private static final long CACHE_EXPIRE_TIMEOUT_MS = 60 * 1000L;
-    private final Map<String, TransactionBufferSnapshot> snapshots = new ConcurrentHashMap<>();
-    private final SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> snapshotService;
-    private final long blockTimeoutMs;
-    private final SimpleCache<NamespaceName, Reader<TransactionBufferSnapshot>> readers;
+    @VisibleForTesting
+    protected final Function<TopicName, CompletableFuture<Reader<T>>> readerCreator;
+    private final Map<String, T> snapshots = new ConcurrentHashMap<>();
+    private final long clientOperationTimeoutMs;
+    private final SimpleCache<NamespaceName, Reader<T>> readers;
 
-    public SnapshotTableView(PulsarService pulsar) {
-        this.snapshotService = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-        this.blockTimeoutMs = Long.parseLong(pulsar.getConfig().getProperties()
-                .getProperty("brokerClient_operationTimeoutMs", "30000"));
-        this.readers = new SimpleCache<>(pulsar.getExecutor(), CACHE_EXPIRE_TIMEOUT_MS);
+    public TableView(Function<TopicName, CompletableFuture<Reader<T>>> readerCreator, long clientOperationTimeoutMs,
+                     ScheduledExecutorService executor) {
+        this.readerCreator = readerCreator;
+        this.clientOperationTimeoutMs = clientOperationTimeoutMs;
+        this.readers = new SimpleCache<>(executor, CACHE_EXPIRE_TIMEOUT_MS);
     }
 
-    public TransactionBufferSnapshot readLatest(String topic) throws Exception {
+    public T readLatest(String topic) throws Exception {
         final var reader = getReader(topic);
         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
             final var msg = wait(reader.readNextAsync(), "read message");
@@ -72,11 +72,11 @@ public class SnapshotTableView {
     }
 
     @VisibleForTesting
-    protected Reader<TransactionBufferSnapshot> getReader(String topic) {
+    protected Reader<T> getReader(String topic) {
         final var topicName = TopicName.get(topic);
         return readers.get(topicName.getNamespaceObject(), () -> {
             try {
-                return wait(snapshotService.createReader(topicName), "create reader");
+                return wait(readerCreator.apply(topicName), "create reader");
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -86,9 +86,9 @@ public class SnapshotTableView {
         }));
     }
 
-    private <T> T wait(CompletableFuture<T> future, String msg) throws Exception {
+    private <R> R wait(CompletableFuture<R> future, String msg) throws Exception {
         try {
-            return future.get(blockTimeoutMs, TimeUnit.MILLISECONDS);
+            return future.get(clientOperationTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw new CompletionException("Failed to " + msg, e.getCause());
         }

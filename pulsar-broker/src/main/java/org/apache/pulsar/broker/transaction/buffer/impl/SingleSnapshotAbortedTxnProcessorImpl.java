@@ -90,7 +90,8 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         final var pulsar = topic.getBrokerService().getPulsar();
         pulsar.getTransactionExecutorProvider().getExecutor(this).execute(() -> {
             try {
-                final var snapshot = pulsar.getSnapshotTableView().readLatest(topic.getName());
+                final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
+                        .getTableView().readLatest(topic.getName());
                 if (snapshot != null) {
                     handleSnapshot(snapshot);
                     final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),
