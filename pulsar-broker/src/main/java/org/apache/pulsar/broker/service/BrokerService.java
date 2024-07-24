@@ -2252,8 +2252,8 @@ public class BrokerService implements Closeable {
             if (serviceUnit.includes(topicName)) {
                 if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
                         && ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Skip unloading ExtensibleLoadManager internal topics. Such internal topic "
+                    if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
+                        log.info("[{}] Skip unloading ExtensibleLoadManager internal topics. Such internal topic "
                                 + "should be closed when shutting down the broker.", topicName);
                     }
                     return;
