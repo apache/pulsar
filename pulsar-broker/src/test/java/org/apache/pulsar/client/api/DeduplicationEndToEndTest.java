@@ -36,26 +36,17 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     }
 
     /**
-     * simulate the case where the producer sends the message but doesn't receive the ack
-     * due to network issue, broker issue, etc. User receives the exception and sends the same message again.
-     * The message is duplicated in the topic.
+     * Disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
+     * due to network issue, broker issue, etc.
+     * Multiple partitions use the same ServerCnx, so we need to disable the send receipt for one partition only.
+     * @param topic
+     * @param producerName
+     * @return
      * @throws Exception
      */
-    @Test
-    public void testProducerDuplicationWithReceiptLost() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", false);
-
-        // Create producer with deduplication enabled
-        String producerName = "my-producer-name";
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).create();
-        assertEquals(producer.getLastSequenceId(), -1L);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
-
-        // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
+    private PulsarCommandSender disableSendReceipt(String topic, String producerName) throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic, false).get().get();
+                .getTopic(topic + "-partition-" + 0, false).get().get();
         assertNotNull(persistentTopic);
         ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
 
@@ -69,9 +60,47 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // disable the send receipt
         Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
                 Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        return commandSender;
+    }
+
+    private void enableSendReceipt(String topic, String producerName, PulsarCommandSender sender) throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic + "-partition-" + 0, false).get().get();
+        assertNotNull(persistentTopic);
+        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
+
+        // set original commandSender back
+        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
+        commandSenderField.setAccessible(true);
+        commandSenderField.set(serverCnx, sender);
+    }
+
+    /**
+     * simulate the case where the producer sends the message but doesn't receive the ack
+     * due to network issue, broker issue, etc. User receives the exception and sends the same message again.
+     * The message is duplicated in the topic.
+     * @throws Exception
+     */
+    @Test
+    public void testProducerDuplicationWithReceiptLost() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test";
+        int partitionCount = 1;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", false);
+
+        // Create producer with deduplication enabled
+        String producerName = "my-producer-name";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).create();
+        assertEquals(producer.getLastSequenceId(), -1L);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+
+        // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message
-        producer.sendAsync("test".getBytes()).thenRun(() -> {
+        byte[] data = "test".getBytes();
+        producer.sendAsync(data).thenRun(() -> {
             // should not enter here
             Assert.fail();
         }).exceptionally(e -> {
@@ -79,12 +108,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
             return null;
         }).get();
 
-
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again
-        producer.sendAsync("test".getBytes()).exceptionally(e -> {
+        producer.sendAsync(data).exceptionally(e -> {
             // should not enter here
             Assert.fail();
             return null;
@@ -93,10 +121,10 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are two messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
 
         // clean up
         producer.close();
@@ -114,6 +142,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     @Test
     public void testProducerDuplicationWithReceiptLostDedupEnabled() throws Exception {
         final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled";
+        int partitionCount = 1;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Create producer with deduplication enabled
@@ -124,24 +154,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic, false).get().get();
-        assertNotNull(persistentTopic);
-        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
-        PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
-
-        // disable the send receipt
-        Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message
-        producer.sendAsync("test".getBytes()).thenRun(() -> {
+        byte[] data = "test".getBytes();
+        producer.sendAsync(data).thenRun(() -> {
             // should not enter here
             Assert.fail();
         }).exceptionally(e -> {
@@ -149,13 +166,12 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
             return null;
         }).get();
 
-
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again
         // though the message content is the same, the sequence id is different, so the message is duplicated
-        producer.sendAsync("test".getBytes()).exceptionally(e -> {
+        producer.sendAsync(data).exceptionally(e -> {
             // should not enter here
             Assert.fail();
             return null;
@@ -164,11 +180,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are two messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), 0);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), 1);
 
         // clean up
@@ -187,6 +203,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     @Test
     public void testProducerDuplicationWithReceiptLostDedupEnabled2() throws Exception {
         final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled2";
+        int partitionCount = 1;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Create producer with deduplication enabled
@@ -197,24 +215,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic, false).get().get();
-        assertNotNull(persistentTopic);
-        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
-        PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
-
-        // disable the send receipt
-        Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message
-        TypedMessageBuilder<byte[]> typeMessages = producer.newMessage().value("test".getBytes());
+        byte[] data = "test".getBytes();
+        TypedMessageBuilder<byte[]> typeMessages = producer.newMessage().value(data);
         typeMessages.sendAsync().thenRun(() -> {
             // should not enter here
             Assert.fail();
@@ -223,9 +228,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
             return null;
         }).get();
 
-
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again
         // though we use the same TypedMessageBuilder, the two messages are different!
@@ -239,11 +243,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are two messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), 0);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), 1);
 
         // clean up
@@ -260,6 +264,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     @Test
     public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceId() throws Exception {
         final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id";
+        int partitionCount = 1;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Create producer with deduplication enabled
@@ -270,25 +276,12 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic, false).get().get();
-        assertNotNull(persistentTopic);
-        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
-        PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
-
-        // disable the send receipt
-        Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message
         long lastId = 0;
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).sendAsync().thenRun(() -> {
+        byte[] data = "test".getBytes();
+        producer.newMessage().value(data).sequenceId(lastId).sendAsync().thenRun(() -> {
             // should not enter here
             Assert.fail();
         }).exceptionally(e -> {
@@ -296,12 +289,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
             return null;
         }).get();
 
-
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).sendAsync().exceptionally(e -> {
+        producer.newMessage().value(data).sequenceId(lastId).sendAsync().exceptionally(e -> {
             // should not enter here
             Assert.fail();
             return null;
@@ -310,7 +302,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are only one messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), lastId);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(message);
@@ -327,9 +319,10 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * the message is duplicated as message deduplication can't work across partitions.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdPartitionedTopic() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-partitioned";
-        admin.topics().createPartitionedTopic(topic, 2);
+    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitioned() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned";
+        int partitionCount = 2;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Create producer with deduplication enabled
@@ -340,25 +333,12 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic + "-partition-0", false).get().get();
-        assertNotNull(persistentTopic);
-        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
-        PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
-
-        // disable the send receipt
-        Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message
         long lastId = 0;
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).sendAsync().thenRun(() -> {
+        byte[] data = "test".getBytes();
+        producer.newMessage().value(data).sequenceId(lastId).sendAsync().thenRun(() -> {
             // should not enter here
             Assert.fail();
         }).exceptionally(e -> {
@@ -367,11 +347,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
         // but this new message will be routed to another partition, so the message is duplicated.
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).sendAsync().exceptionally(e -> {
+        producer.newMessage().value(data).sequenceId(lastId).sendAsync().exceptionally(e -> {
             // should not enter here
             Assert.fail();
             return null;
@@ -380,11 +360,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are two messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), lastId);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), lastId);
 
         // clean up
@@ -400,9 +380,10 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * the message is duplicated as message deduplication can't work across partitions.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdPartitionedTopicAndKeyBasedRouteProducer() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-partitioned-key-based-route-producer";
-        admin.topics().createPartitionedTopic(topic, 2);
+    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducer() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned-key-based-route-producer";
+        int partitionCount = 2;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Create producer with deduplication enabled
@@ -413,25 +394,12 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
         // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic + "-partition-0", false).get().get();
-        assertNotNull(persistentTopic);
-        ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
-        PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
-
-        // disable the send receipt
-        Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
 
         // send a message, with sequence id as the key, so messages with the same key will be routed to the same partition
         long lastId = 0;
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().thenRun(() -> {
+        byte[] data = "test".getBytes();
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().thenRun(() -> {
             // should not enter here
             Assert.fail();
         }).exceptionally(e -> {
@@ -440,11 +408,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // set back the send receipt
-        commandSenderField.set(serverCnx, commandSender);
+        enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
         // this new message will be routed to the same partition, so the message will not be duplicated.
-        producer.newMessage().value("test".getBytes()).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().exceptionally(e -> {
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().exceptionally(e -> {
             // should not enter here
             Assert.fail();
             return null;
@@ -453,7 +421,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // consume the message, there are two messages in the topic
         Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
-        assertEquals(new String(message.getData()), "test");
+        assertEquals(message.getData(), data);
         assertEquals(message.getSequenceId(), lastId);
         message = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(message);
