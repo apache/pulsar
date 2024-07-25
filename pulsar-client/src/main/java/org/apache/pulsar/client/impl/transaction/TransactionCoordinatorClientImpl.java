@@ -81,32 +81,32 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
             return pulsarClient.getPartitionedTopicMetadata(
                             SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName(), true)
-                    .thenCompose(partitionMeta -> {
-                        List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
+                .thenCompose(partitionMeta -> {
+                    List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
+                    }
+                    if (partitionMeta.partitions > 0) {
+                        handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
+                        for (int i = 0; i < partitionMeta.partitions; i++) {
+                            CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+                            connectFutureList.add(connectFuture);
+                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                                    i, pulsarClient, getTCAssignTopicName(i), connectFuture);
+                            handlers[i] = handler;
+                            handlerMap.put(i, handler);
+                            handler.start();
                         }
-                        if (partitionMeta.partitions > 0) {
-                            handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
-                            for (int i = 0; i < partitionMeta.partitions; i++) {
-                                CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-                                connectFutureList.add(connectFuture);
-                                TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                                        i, pulsarClient, getTCAssignTopicName(i), connectFuture);
-                                handlers[i] = handler;
-                                handlerMap.put(i, handler);
-                                handler.start();
-                            }
-                        } else {
-                            return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
-                                    "The broker doesn't enable the transaction coordinator, "
-                                            + "or the transaction coordinator has not initialized"));
-                        }
+                    } else {
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                "The broker doesn't enable the transaction coordinator, "
+                                        + "or the transaction coordinator has not initialized"));
+                    }
 
-                        STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
+                    STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
 
-                        return FutureUtil.waitForAll(connectFutureList);
-                    });
+                    return FutureUtil.waitForAll(connectFutureList);
+                });
         } else {
             return FutureUtil.failedFuture(
                     new CoordinatorClientStateException("Can not start while current state is " + state));
