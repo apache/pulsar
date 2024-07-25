@@ -50,7 +50,7 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
         super(NAME);
         this.pulsarCluster = cluster;
         this.numEntriesToInsert = 1;
-        this.numEntriesExpectAfterStart = 1;
+        this.numEntriesExpectAfterStart = 0;
 
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
@@ -61,7 +61,7 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
         sourceConfig.put("database.password", "dbz");
         sourceConfig.put("database.server.name", "XE");
         sourceConfig.put("database.dbname", "XE");
-        sourceConfig.put("database.whitelist", "inv");
+        sourceConfig.put("snapshot.mode", "schema_only");
         sourceConfig.put("schema.include.list", "inv");
         sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/oracle");
