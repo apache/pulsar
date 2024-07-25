@@ -1325,9 +1325,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     + " consumers limit", topic);
                                             Throwable t =
                                                     new ConsumerBusyException("Topic reached max consumers limit");
-                                            commandSender.sendErrorResponse(requestId,
-                                                    BrokerServiceException.getClientErrorCode(t),
-                                                    t.getMessage());
                                             return FutureUtil.failedFuture(t);
                                         }
 
