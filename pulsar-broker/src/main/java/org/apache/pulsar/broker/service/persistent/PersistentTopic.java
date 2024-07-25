@@ -1410,7 +1410,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
             msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
 
-            if (isSystemCursor(subscriptionName)) {
+            if (isSystemCursor(subscriptionName)
+                    || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
                 bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
             }
         }
@@ -2637,7 +2638,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicMetricBean.value += v.value;
             });
 
-            if (isSystemCursor(name)) {
+            if (isSystemCursor(name) || name.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
                 stats.bytesOutInternalCounter += subStats.bytesOutCounter;
             }
         });
