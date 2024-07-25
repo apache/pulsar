@@ -63,6 +63,13 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         return commandSender;
     }
 
+    /**
+     * Set the original commandSender back to the ServerCnx, so that the producer can receive the ack.
+     * @param topic
+     * @param producerName
+     * @param sender
+     * @throws Exception
+     */
     private void enableSendReceipt(String topic, String producerName, PulsarCommandSender sender) throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topic + "-partition-" + 0, false).get().get();
@@ -328,7 +335,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // Create producer with deduplication enabled
         String producerName = "my-producer-name";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).create();
+                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).enableBatching(false).create();
         assertEquals(producer.getLastSequenceId(), -1L);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
@@ -389,7 +396,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // Create producer with deduplication enabled
         String producerName = "my-producer-name";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).create();
+                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).enableBatching(false).create();
         assertEquals(producer.getLastSequenceId(), -1L);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
 
