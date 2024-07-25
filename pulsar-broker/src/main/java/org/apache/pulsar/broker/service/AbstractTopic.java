@@ -546,7 +546,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return count;
     }
 
-    protected boolean isConsumersExceededOnTopic() {
+    public boolean isConsumersExceededOnTopic() {
         if (isSystemTopic()) {
             return false;
         }

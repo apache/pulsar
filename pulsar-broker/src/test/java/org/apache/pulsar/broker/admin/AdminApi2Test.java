@@ -2881,7 +2881,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Set.of("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxProducersPerTopicUnlimited";
         admin.topics().createNonPartitionedTopic(topic);
-        AtomicInteger addSchemaOpsCounter = injectSchemaCheckCounterForTopic(topic);
+        AtomicInteger schemaOpsCounter = injectSchemaCheckCounterForTopic(topic);
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 0);
         Awaitility.await().until(()
@@ -2891,7 +2891,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
             producers.add(producer);
         }
-        assertEquals(maxProducersPerTopic + 1, addSchemaOpsCounter.get());
+        assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 1);
 
         admin.namespaces().removeMaxProducersPerTopic(myNamespace);
         Awaitility.await().until(()
@@ -2904,7 +2904,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         } catch (PulsarClientException e) {
             String expectMsg = "Topic '" + topic + "' reached max producers limit";
             assertTrue(e.getMessage().contains(expectMsg));
-            assertEquals(maxProducersPerTopic + 1, addSchemaOpsCounter.get());
+            assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 1);
         }
         //set the limit to 3
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
@@ -2913,7 +2913,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // should success
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         producers.add(producer);
-        assertEquals(maxProducersPerTopic + 2, addSchemaOpsCounter.get());
+        assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 2);
         try {
             @Cleanup
             Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
@@ -2921,7 +2921,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         } catch (PulsarClientException e) {
             String expectMsg = "Topic '" + topic + "' reached max producers limit";
             assertTrue(e.getMessage().contains(expectMsg));
-            assertEquals(maxProducersPerTopic + 2, addSchemaOpsCounter.get());
+            assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 2);
         }
 
         //clean up
@@ -2943,6 +2943,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 return invocation.callRealMethod();
             }
         }).when(spyTopic).addSchema(any(SchemaData.class));
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                counter.incrementAndGet();
+                return invocation.callRealMethod();
+            }
+        }).when(spyTopic).addSchemaIfIdleOrCheckCompatible(any(SchemaData.class));
         topics.put(topicName, CompletableFuture.completedFuture(Optional.of(spyTopic)));
         return counter;
     }
@@ -2958,49 +2965,55 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String myNamespace = newUniqueName(defaultTenant + "/ns");
         admin.namespaces().createNamespace(myNamespace, Set.of("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxConsumersPerTopicUnlimited";
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicInteger schemaOpsCounter = injectSchemaCheckCounterForTopic(topic);
 
         assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace));
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 0);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 0);
-        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        List<Consumer<String>> consumers = new ArrayList<>();
         for (int i = 0; i < maxConsumersPerTopic + 1; i++) {
-            Consumer<byte[]> consumer =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             consumers.add(consumer);
         }
+        assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 2);
 
         admin.namespaces().removeMaxConsumersPerTopic(myNamespace);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == null);
         try {
             @Cleanup
-            Consumer<byte[]> subscribe =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> subscribe = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
+            assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 2);
         }
         //set the limit to 3
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 3);
         // should success
-        Consumer<byte[]> consumer =
-                pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
         consumers.add(consumer);
+        assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 3);
         try {
             @Cleanup
-            Consumer<byte[]> subscribe =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> subscribe = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
+            assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 3);
         }
 
         //clean up
-        for (Consumer<byte[]> subConsumer : consumers) {
+        for (Consumer<String> subConsumer : consumers) {
             subConsumer.close();
         }
     }

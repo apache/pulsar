@@ -1320,6 +1320,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                             new SubscriptionNotFoundException(
                                                                     "Subscription does not exist"));
                                         }
+                                        if (((AbstractTopic) topic).isConsumersExceededOnTopic()) {
+                                            log.warn("[{}] Attempting to add consumer to topic which reached max"
+                                                    + " consumers limit", topic);
+                                            Throwable t =
+                                                    new ConsumerBusyException("Topic reached max consumers limit");
+                                            commandSender.sendErrorResponse(requestId,
+                                                    BrokerServiceException.getClientErrorCode(t),
+                                                    t.getMessage());
+                                            return FutureUtil.failedFuture(t);
+                                        }
 
                                         SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                                 .subscriptionName(subscriptionName)
