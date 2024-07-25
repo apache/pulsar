@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
@@ -87,6 +88,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
@@ -209,26 +213,31 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testBrokerMetrics() throws Exception {
         cleanup();
         conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
         setup();
 
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
-        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        admin.tenants().createTenant("test-tenant",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("test-tenant/test-ns", 4);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic2").create();
         // system topic
-        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/__change_events").create();
+        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/__test-topic").create();
 
         Consumer<byte[]> c1 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://test-tenant/test-ns/my-topic1")
                 .subscriptionName("test")
                 .subscribe();
 
         // additional system cursor
         Consumer<byte[]> c2 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .topic("persistent://test-tenant/test-ns/my-topic2")
                 .subscriptionName("test-cursor")
                 .subscribe();
 
         Consumer<byte[]> c3 = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/__change_events")
+                .topic("persistent://test-tenant/test-ns/__test-topic")
                 .subscriptionName("test-v1")
                 .subscribe();
 
@@ -250,7 +259,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c1.unsubscribe();
         c2.unsubscribe();
 
-        //admin.topics().unload("persistent://my-property/use/my-ns/my-topic1");
+        admin.topicPolicies().setRetention("persistent://test-tenant/test-ns/my-topic2",
+                        new RetentionPolicies(60, 1024));
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
@@ -263,33 +273,43 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         List<Metric> bytesOutTotal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total");
         List<Metric> bytesInTotal = (List<Metric>) metrics.get("pulsar_broker_in_bytes_total");
+        List<Metric> topicLevelBytesOutTotal = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+
         assertEquals(bytesOutTotal.size(), 2);
         assertEquals(bytesInTotal.size(), 2);
+        assertEquals(topicLevelBytesOutTotal.size(), 3);
 
         double systemOutBytes = 0.0;
         double userOutBytes = 0.0;
-        switch (bytesOutTotal.get(0).tags.get("system_subscription").toString()) {
-            case "true":
-                systemOutBytes = bytesOutTotal.get(0).value;
-                userOutBytes = bytesOutTotal.get(1).value;
-            case "false":
-                systemOutBytes = bytesOutTotal.get(1).value;
-                userOutBytes = bytesOutTotal.get(0).value;
-        }
-
         double systemInBytes = 0.0;
         double userInBytes = 0.0;
-        switch (bytesInTotal.get(0).tags.get("system_topic").toString()) {
-            case "true":
-                systemInBytes = bytesInTotal.get(0).value;
-                userInBytes = bytesInTotal.get(1).value;
-            case "false":
-                systemInBytes = bytesInTotal.get(1).value;
-                userInBytes = bytesInTotal.get(0).value;
+
+        for (Metric metric : bytesOutTotal) {
+            if (metric.tags.get("system_subscription").equals("true")) {
+                systemOutBytes = metric.value;
+            } else {
+                userOutBytes = metric.value;
+            }
         }
 
-        assertEquals(userOutBytes / 2, systemOutBytes);
-        assertEquals(userInBytes / 2, systemInBytes);
+        for (Metric metric : bytesInTotal) {
+            if (metric.tags.get("system_topic").equals("true")) {
+                systemInBytes = metric.value;
+            } else {
+                userInBytes = metric.value;
+            }
+        }
+
+        double systemCursorOutBytes = 0.0;
+        for (Metric metric : topicLevelBytesOutTotal) {
+            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)
+                    || metric.tags.get("subscription").equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                systemCursorOutBytes = metric.value;
+            }
+        }
+
+        assertEquals(systemCursorOutBytes, systemInBytes);
+        assertEquals(userOutBytes / 2, systemOutBytes - systemCursorOutBytes);
         assertEquals(userOutBytes + systemOutBytes, userInBytes + systemInBytes);
     }
 
