@@ -1,8 +1,13 @@
 package org.apache.pulsar.client.api;
 
+import io.netty.util.TimerTask;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -383,8 +388,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     /**
      * simulate the case where the producer sends the message but doesn't receive the ack
      * due to network issue, broker issue, etc. User receives the exception and sends the same message again.
-     * With deduplication enabled and user control sequence id, but the topic is multi partitioned,
-     * the message is duplicated as message deduplication can't work across partitions.
+     * With deduplication enabled and user control sequence id, although the topic is multi partitioned,
+     * we use the key based routing to route the messages with the same key to the same partition.
+     * The message is not duplicated.
      */
     @Test
     public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducer() throws Exception {
@@ -437,6 +443,110 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
+
+    /**
+     * trigger the partition number update for the producer
+     * @param producer
+     * @param expectedPartitionCount
+     * @throws Exception
+     */
+    private void triggerPartitionUpdateForPartitionedProducer(PartitionedProducerImpl<byte[]> producer, int expectedPartitionCount) throws Exception {
+        Field partitionsAutoUpdateTimerTask = PartitionedProducerImpl.class.getDeclaredField("partitionsAutoUpdateTimerTask");
+        partitionsAutoUpdateTimerTask.setAccessible(true);
+        TimerTask timerTask = (TimerTask) partitionsAutoUpdateTimerTask.get(producer);
+        ((PulsarClientImpl) pulsarClient).getTimer().newTimeout(timerTask, 0, TimeUnit.MILLISECONDS);
+        Awaitility.await().until(() -> {
+            try {
+                return producer.getNumOfPartitions() == expectedPartitionCount;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+    }
+
+    private void triggerPartitionUpdateForPartitionedConsumer(MultiTopicsConsumerImpl<byte[]> consumer, int expectedPartitionCount) throws Exception {
+        Field partitionsAutoUpdateTimerTask = MultiTopicsConsumerImpl.class.getDeclaredField("partitionsAutoUpdateTimerTask");
+        partitionsAutoUpdateTimerTask.setAccessible(true);
+        TimerTask timerTask = (TimerTask) partitionsAutoUpdateTimerTask.get(consumer);
+        ((PulsarClientImpl) pulsarClient).getTimer().newTimeout(timerTask, 0, TimeUnit.MILLISECONDS);
+        Awaitility.await().until(() -> {
+            try {
+                return consumer.getPartitions().size() == expectedPartitionCount;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+    }
+
+    /**
+     * simulate the case where the producer sends the message but doesn't receive the ack
+     * due to network issue, broker issue, etc. User receives the exception and sends the same message again.
+     * With deduplication enabled and user control sequence id, although the topic is multi partitioned,
+     * we use the key based routing to route the messages with the same key to the same partition.
+     * The message is not duplicated.
+     */
+    @Test
+    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducerWhileUpdatePartition() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned-key-based-route-producer-while-update-partition";
+        int partitionCount = 2;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+
+        // Create producer with deduplication enabled
+        String producerName = "my-producer-name";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).enableBatching(false).create();
+        assertEquals(producer.getLastSequenceId(), -1L);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+
+        // disable the send receipt to simulate the case where the producer sends the message but doesn't receive the ack
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
+
+        // send a message, with sequence id as the key, so messages with the same key will be routed to the same partition
+        long lastId = 0;
+        byte[] data = "test".getBytes();
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().thenRun(() -> {
+            // should not enter here
+            Assert.fail();
+        }).exceptionally(e -> {
+            // do not receive the ack, should enter here
+            return null;
+        }).get();
+
+        // set back the send receipt
+        enableSendReceipt(topic, producerName, sender);
+
+        // update the partition number between the two messages
+        admin.topics().updatePartitionedTopic(topic, 5);
+
+        // trigger the partition number update for producer and consumer
+        triggerPartitionUpdateForPartitionedProducer((PartitionedProducerImpl<byte[]>) producer, 5);
+        triggerPartitionUpdateForPartitionedConsumer((MultiTopicsConsumerImpl<byte[]>) consumer, 5);
+
+        // user receive the exception, send the same message again with the same sequence id.
+        // though the key of two messages are the same, the message is routed to different partition due to
+        // partition number update, so the message is duplicated.
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().exceptionally(e -> {
+            // should not enter here
+            Assert.fail();
+            return null;
+        }).get();
+
+        // consume the message, there are two messages in the topic
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        assertEquals(message.getSequenceId(), lastId);
+        message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        assertEquals(message.getSequenceId(), lastId);
+
+        // clean up
+        producer.close();
+        consumer.close();
+    }
+
 
 
 }
