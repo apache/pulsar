@@ -111,7 +111,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * Multiple partitions use the same ServerCnx, so we need to disable the send receipt for one partition only.
      * @param topic
      * @param producerName
-     * @return
+     * @return the original commandSender
      * @throws Exception
      */
     private PulsarCommandSender disableSendReceipt(String topic, String producerName) throws Exception {
@@ -120,12 +120,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         assertNotNull(persistentTopic);
         ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
 
-        // use reflection to spy the commandSender
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        PulsarCommandSender commandSender = (PulsarCommandSender) commandSenderField.get(serverCnx);
+        PulsarCommandSender commandSender = serverCnx.getCommandSender();
         PulsarCommandSender spyCommandSender = Mockito.spy(commandSender);
-        commandSenderField.set(serverCnx, spyCommandSender);
+        serverCnx.setCommandSender(spyCommandSender);
 
         // disable the send receipt
         Mockito.doNothing().when(spyCommandSender).sendSendReceiptResponse(Mockito.anyLong(), Mockito.anyLong(),
@@ -137,7 +134,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * Set the original commandSender back to the ServerCnx, so that the producer can receive the ack.
      * @param topic
      * @param producerName
-     * @param sender
+     * @param sender the original commandSender
      * @throws Exception
      */
     private void enableSendReceipt(String topic, String producerName, PulsarCommandSender sender) throws Exception {
@@ -145,11 +142,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
                 .getTopic(topic + "-partition-" + 0, false).get().get();
         assertNotNull(persistentTopic);
         ServerCnx serverCnx = (ServerCnx) persistentTopic.getProducers().get(producerName).getCnx();
-
         // set original commandSender back
-        Field commandSenderField = ServerCnx.class.getDeclaredField("commandSender");
-        commandSenderField.setAccessible(true);
-        commandSenderField.set(serverCnx, sender);
+        serverCnx.setCommandSender(sender);
     }
 
     /**
