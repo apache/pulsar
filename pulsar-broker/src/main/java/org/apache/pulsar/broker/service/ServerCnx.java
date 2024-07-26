@@ -1561,10 +1561,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
                     String errorMsg = "Topic '" + topicName.toString() + "' reached max producers limit";
                     Throwable t = new BrokerServiceException.ProducerBusyException(errorMsg);
-                    producerFuture.completeExceptionally(t);
-                    producers.remove(producerId, producerFuture);
-                    commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(t), errorMsg);
-                    return CompletableFuture.completedFuture(null);
+                    return CompletableFuture.failedFuture(t);
                 }
 
                 // Before creating producer, check if backlog quota exceeded
