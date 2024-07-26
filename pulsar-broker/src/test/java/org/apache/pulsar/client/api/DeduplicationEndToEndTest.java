@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.TimerTask;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
