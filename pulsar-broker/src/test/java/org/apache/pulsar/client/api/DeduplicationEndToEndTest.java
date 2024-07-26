@@ -45,8 +45,8 @@ import static org.testng.Assert.assertNull;
  * 2. The connection between the producer and the broker is broken after the producer sends the message,
  * but before the producer receives the ack. The producer reconnects to the broker and sends the same message again internally.
  * In this case, the producer can't control the sequence id of the message. The resent message remains the same as the original message.
- * Without message deduplication, the message is duplicated.
- * With message deduplication, the message is not duplicated.
+ * - Without message deduplication, the message is duplicated.
+ * - With message deduplication, the message is not duplicated.
  */
 public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
@@ -569,33 +569,36 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * @throws Exception
      */
     private void triggerReconnection(PartitionedProducerImpl<byte[]> producer) throws Exception {
-        ProducerImpl<byte[]> producer1 = producer.getProducers().get(0);
-        ClientCnx cnx = producer1.getClientCnx();
-        Field connectionHandlerField = ProducerImpl.class.getDeclaredField("connectionHandler");
-        connectionHandlerField.setAccessible(true);
-        ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(producer1);
-        connectionHandler.connectionClosed(cnx);
-        Awaitility.await().until(() -> {
-            try {
-                return connectionHandler.cnx() != null;
-            } catch (Exception e) {
-                return false;
-            }
-        });
+        for(ProducerImpl<byte[]> p : producer.getProducers()) {
+            p.getClientCnx().ctx().channel().close();
+            ClientCnx cnx = p.getClientCnx();
+            Field connectionHandlerField = ProducerImpl.class.getDeclaredField("connectionHandler");
+            connectionHandlerField.setAccessible(true);
+            ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(p);
+            connectionHandler.connectionClosed(cnx);
+            Awaitility.await().until(() -> {
+                try {
+                    return connectionHandler.cnx() != null;
+                } catch (Exception e) {
+                    return false;
+                }
+            });
+        }
     }
 
     @DataProvider(name = "enableDedup")
     public static Object[][] topicVersions() {
         return new Object[][]{
-                {true, 2},
                 {false, 2},
-                {true, 1},
+                {true, 2},
                 {false, 1},
+                {true, 1},
         };
     }
 
     /**
-     * simulate the case when the connection is lost, producer resend the message internally with the same sequence id.
+     * simulate the case when the connection is lost, producer resend the message internally with the same sequence id
+     * to the same partition.
      * If deduplication is not enabled, the message is duplicated.
      * If deduplication is enabled, the message is not duplicated.
      * @throws Exception
@@ -606,12 +609,12 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", enableDedup);
 
-        // Create producer with deduplication disabled
+        // Create producer
         String producerName = "my-producer-name";
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic)
                 .producerName(producerName).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
         assertEquals(producer.getLastSequenceId(), -1L);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+        admin.topics().createSubscription(topic, "my-sub", MessageId.earliest);
 
         // disable the send receipt
         PulsarCommandSender sender = disableSendReceipt(topic, producerName);
@@ -623,14 +626,17 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
         // trigger reconnection before the producer receives the ack
         // resend the message internally with the same sequence id
-        triggerReconnection((PartitionedProducerImpl<byte[]>) producer);
+        triggerReconnection(producer);
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
-        triggerReconnection((PartitionedProducerImpl<byte[]>) producer);
+        triggerReconnection(producer);
 
         sendFuture.get(10, TimeUnit.SECONDS);
 
+        // create consumer after the reconnection, because reconnection will trigger the same message to be
+        // delivered to the consumer again, which is a duplication problem in consumer side.
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
         if (enableDedup) {
             // with deduplication enabled, the message is not duplicated
             assertNotDuplicate(consumer, data);
