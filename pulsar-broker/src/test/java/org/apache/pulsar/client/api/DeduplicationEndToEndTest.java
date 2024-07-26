@@ -290,8 +290,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * With deduplication enabled and user control sequence id, the message is not duplicated.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceId() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id";
+    public void testProducerDuplicationWithReceiptLostUserControlSequenceId() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-user-control-sequence-id";
         int partitionCount = 1;
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -334,8 +334,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * the message is duplicated as message deduplication can't work across partitions.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitioned() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned";
+    public void testProducerDuplicationWithReceiptLostUserControlSequenceIdMultiPartitioned() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-user-control-sequence-id-multi-partitioned";
         int partitionCount = 2;
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -382,8 +382,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * The message is not duplicated.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducer() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned-key-based-route-producer";
+    public void testProducerDuplicationWithReceiptLostUserControlSequenceIdKeyBasedRoute() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-user-control-sequence-id-key-based-route";
         int partitionCount = 2;
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -463,8 +463,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * so the message is duplicated.
      */
     @Test
-    public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducerWhileUpdatePartition() throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-dedup-enabled-user-control-sequence-id-multi-partitioned-key-based-route-producer-while-update-partition";
+    public void testProducerDuplicationWithReceiptLostUserControlSequenceIdKeyBasedRouteWhileUpdatePartition() throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-user-control-sequence-id-key-based-route-while-update-partition";
         int partitionCount = 2;
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
