@@ -31,6 +31,22 @@ import static org.testng.Assert.assertNull;
 /**
  * This test class is used to point out cases where message duplication can occur,
  * producer idempotency features can be used to solve which cases and can't solve which cases.
+ * There are mainly two kinds of message duplication:
+ * 1. Producer sends the message but doesn't receive the ack due to network issue, broker issue, etc.
+ * User receives the exception and sends the same message again.
+ * This resend operation is executed by the user, so the user can control the sequence id of the message or not.
+ * Without message deduplication, the message is duplicated definitely.
+ * With message deduplication, the cases vary:
+ * - If user don't control the sequence id, the message is duplicated, as the message is resent with a different sequence id.
+ * - If user control the sequence id, there are chances that the message is duplicate or not, depending on whether
+ *    the topic is single partitioned or multi partitioned, whether the sequence id is used as the key of the message,
+ *    whether the partition number is updated between the two messages.
+ *
+ * 2. The connection between the producer and the broker is broken after the producer sends the message,
+ * but before the producer receives the ack. The producer reconnects to the broker and sends the same message again internally.
+ * In this case, the producer can't control the sequence id of the message. The resent message remains the same as the original message.
+ * Without message deduplication, the message is duplicated.
+ * With message deduplication, the message is not duplicated.
  */
 public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
@@ -570,9 +586,11 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
     @DataProvider(name = "enableDedup")
     public static Object[][] topicVersions() {
-        return new Object[][] {
-                { true },
-                { false }
+        return new Object[][]{
+                {true, 2},
+                {false, 2},
+                {true, 1},
+                {false, 1},
         };
     }
 
@@ -583,9 +601,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(dataProvider = "enableDedup")
-    public void testProducerDuplicationWhileReconnection(boolean enableDedup) throws Exception {
-        final String topic = "persistent://my-property/my-ns/deduplication-test-reconnection" + enableDedup;
-        int partitionCount = 1;
+    public void testProducerDuplicationWhileReconnection(boolean enableDedup, int partitionCount) throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-reconnection" + enableDedup + partitionCount;
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", enableDedup);
 
@@ -612,7 +629,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         enableSendReceipt(topic, producerName, sender);
         triggerReconnection((PartitionedProducerImpl<byte[]>) producer);
 
-        sendFuture.get(5, TimeUnit.SECONDS);
+        sendFuture.get(10, TimeUnit.SECONDS);
 
         if (enableDedup) {
             // with deduplication enabled, the message is not duplicated
