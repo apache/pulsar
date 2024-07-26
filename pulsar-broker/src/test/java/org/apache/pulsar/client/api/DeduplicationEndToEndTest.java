@@ -19,8 +19,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -45,6 +45,29 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    private List<Message<byte[]>> assertDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
+        // consume the message, there are at least two messages in the topic
+        List<Message<byte[]>> messages = new ArrayList<>(2);
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        messages.add(message);
+        message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        messages.add(message);
+        return messages;
+    }
+
+    private Message<byte[]> assertNotDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
+        // consume the message, there are only one messages in the topic
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+        return message;
     }
 
     /**
@@ -138,12 +161,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
+        List<Message<byte[]>> messages = assertDuplicate(consumer, data);
+        assertEquals(messages.get(0).getSequenceId(), 0);
+        assertEquals(messages.get(1).getSequenceId(), 1);
 
         // clean up
         producer.close();
@@ -197,14 +217,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), 0);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), 1);
+        List<Message<byte[]>> messages = assertDuplicate(consumer, data);
+        assertEquals(messages.get(0).getSequenceId(), 0);
+        assertEquals(messages.get(1).getSequenceId(), 1);
 
         // clean up
         producer.close();
@@ -260,14 +275,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), 0);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), 1);
+        List<Message<byte[]>> messages = assertDuplicate(consumer, data);
+        assertEquals(messages.get(0).getSequenceId(), 0);
+        assertEquals(messages.get(1).getSequenceId(), 1);
 
         // clean up
         producer.close();
@@ -319,12 +329,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are only one messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
+        Message<byte[]> message = assertNotDuplicate(consumer, data);
         assertEquals(message.getSequenceId(), lastId);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNull(message);
 
         // clean up
         producer.close();
@@ -377,14 +383,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), lastId);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), lastId);
+        List<Message<byte[]>> messages = assertDuplicate(consumer, data);
+        assertEquals(messages.get(0).getSequenceId(), lastId);
+        assertEquals(messages.get(1).getSequenceId(), lastId);
 
         // clean up
         producer.close();
@@ -438,13 +439,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
             return null;
         }).get();
 
-        // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
+        // consume the message, there are only one messages in the topic
+        Message<byte[]> message = assertNotDuplicate(consumer, data);
         assertEquals(message.getSequenceId(), lastId);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNull(message);
 
         // clean up
         producer.close();
@@ -488,9 +485,10 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
     /**
      * simulate the case where the producer sends the message but doesn't receive the ack
      * due to network issue, broker issue, etc. User receives the exception and sends the same message again.
-     * With deduplication enabled and user control sequence id, although the topic is multi partitioned,
-     * we use the key based routing to route the messages with the same key to the same partition.
-     * The message is not duplicated.
+     * With deduplication enabled and user control sequence id, the topic is multi partitioned,
+     * though we use the key based routing to route the messages with the same key to the same partition,
+     * If the partition number is updated between the two messages, the two messages will be routed to different partitions,
+     * so the message is duplicated.
      */
     @Test
     public void testProducerDuplicationWithReceiptLostDedupEnabledAndUserControlSequenceIdMultiPartitionedAndKeyBasedRouteProducerWhileUpdatePartition() throws Exception {
@@ -540,14 +538,9 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         }).get();
 
         // consume the message, there are two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), lastId);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        assertEquals(message.getSequenceId(), lastId);
+        List<Message<byte[]>> messages = assertDuplicate(consumer, data);
+        assertEquals(messages.get(0).getSequenceId(), lastId);
+        assertEquals(messages.get(1).getSequenceId(), lastId);
 
         // clean up
         producer.close();
@@ -573,25 +566,6 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
                 return false;
             }
         });
-    }
-
-    private void assertDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
-        // consume the message, there are at least two messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-    }
-
-    private void assertNotDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
-        // consume the message, there are only one messages in the topic
-        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getData(), data);
-        message = consumer.receive(1, TimeUnit.SECONDS);
-        assertNull(message);
     }
 
     @DataProvider(name = "enableDedup")
