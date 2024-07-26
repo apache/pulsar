@@ -114,14 +114,12 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
 
     @Test
     public void testClientStartWithRetry() throws Exception{
-
         String validBrokerServiceUrl = pulsarServices[0].getBrokerServiceUrl();
         String invalidBrokerServiceUrl = "localhost:0";
         String brokerServiceUrl = validBrokerServiceUrl + "," + invalidBrokerServiceUrl;
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(brokerServiceUrl).build();
-
         @Cleanup
         TransactionCoordinatorClient transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
 

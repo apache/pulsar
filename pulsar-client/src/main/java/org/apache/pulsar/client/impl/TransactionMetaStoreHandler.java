@@ -132,10 +132,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                     LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
                             transactionCoordinatorId, exception);
                 } else {
-                    LOG.error(
-                            "Transaction meta handler with transaction coordinator id {} connection failed after "
-                                    + "timeout",
-                            transactionCoordinatorId, exception);
+                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed after "
+                            + "timeout", transactionCoordinatorId, exception);
                 }
                 setState(State.Failed);
             }
