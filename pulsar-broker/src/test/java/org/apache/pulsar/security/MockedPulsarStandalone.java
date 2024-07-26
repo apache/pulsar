@@ -69,6 +69,9 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         serviceConfiguration.setWebServicePortTls(Optional.of(0));
         serviceConfiguration.setNumExecutorThreadPoolSize(5);
         serviceConfiguration.setExposeBundlesMetricsInPrometheus(true);
+        serviceConfiguration.setTlsTrustCertsFilePath(TLS_EC_TRUSTED_CERT_PATH);
+        serviceConfiguration.setTlsCertificateFilePath(TLS_EC_SERVER_CERT_PATH);
+        serviceConfiguration.setTlsKeyFilePath(TLS_EC_SERVER_KEY_PATH);
     }
 
 

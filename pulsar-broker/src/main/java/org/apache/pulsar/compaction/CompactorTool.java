@@ -86,7 +86,9 @@ public class CompactorTool {
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
+                    .sslFactoryPlugin(brokerConfig.getBrokerClientSslFactoryPlugin())
+                    .sslFactoryPluginParams(brokerConfig.getBrokerClientSslFactoryPluginParams());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
