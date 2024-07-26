@@ -4,17 +4,24 @@ import io.netty.util.TimerTask;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionHandler;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
@@ -100,7 +107,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, partitionCount);
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", false);
 
-        // Create producer with deduplication enabled
+        // Create producer with deduplication disabled
         String producerName = "my-producer-name";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .producerName(producerName).sendTimeout(1, TimeUnit.SECONDS).create();
@@ -547,6 +554,103 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    /**
+     * trigger the reconnection
+     * @param producer
+     * @throws Exception
+     */
+    private void triggerReconnection(PartitionedProducerImpl<byte[]> producer) throws Exception {
+        ProducerImpl<byte[]> producer1 = producer.getProducers().get(0);
+        ClientCnx cnx = producer1.getClientCnx();
+        Field connectionHandlerField = ProducerImpl.class.getDeclaredField("connectionHandler");
+        connectionHandlerField.setAccessible(true);
+        ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(producer1);
+        connectionHandler.connectionClosed(cnx);
+        Awaitility.await().until(() -> {
+            try {
+                return connectionHandler.cnx() != null;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+    }
 
+    private void assertDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
+        // consume the message, there are at least two messages in the topic
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+    }
+
+    private void assertNotDuplicate(Consumer<byte[]> consumer, byte[] data) throws PulsarClientException {
+        // consume the message, there are only one messages in the topic
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getData(), data);
+        message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(message);
+    }
+
+    @DataProvider(name = "enableDedup")
+    public static Object[][] topicVersions() {
+        return new Object[][] {
+                { true },
+                { false }
+        };
+    }
+
+    /**
+     * simulate the case when the connection is lost, producer resend the message internally with the same sequence id.
+     * If deduplication is not enabled, the message is duplicated.
+     * If deduplication is enabled, the message is not duplicated.
+     * @throws Exception
+     */
+    @Test(dataProvider = "enableDedup")
+    public void testProducerDuplicationWhileReconnection(boolean enableDedup) throws Exception {
+        final String topic = "persistent://my-property/my-ns/deduplication-test-reconnection" + enableDedup;
+        int partitionCount = 1;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", enableDedup);
+
+        // Create producer with deduplication disabled
+        String producerName = "my-producer-name";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .producerName(producerName).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+        assertEquals(producer.getLastSequenceId(), -1L);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+
+        // disable the send receipt
+        PulsarCommandSender sender = disableSendReceipt(topic, producerName);
+
+        // send a message
+        byte[] data = "test".getBytes();
+        CompletableFuture sendFuture = producer.sendAsync(data);
+        producer.flushAsync();
+
+        // trigger reconnection before the producer receives the ack
+        // resend the message internally with the same sequence id
+        triggerReconnection((PartitionedProducerImpl<byte[]>) producer);
+
+        // set back the send receipt
+        enableSendReceipt(topic, producerName, sender);
+        triggerReconnection((PartitionedProducerImpl<byte[]>) producer);
+
+        sendFuture.get(5, TimeUnit.SECONDS);
+
+        if (enableDedup) {
+            // with deduplication enabled, the message is not duplicated
+            assertNotDuplicate(consumer, data);
+        } else {
+            // with deduplication disabled, the message is duplicated
+            assertDuplicate(consumer, data);
+        }
+
+        // clean up
+        producer.close();
+        consumer.close();
+    }
 
 }
