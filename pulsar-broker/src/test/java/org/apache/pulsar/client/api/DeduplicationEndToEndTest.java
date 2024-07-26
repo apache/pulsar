@@ -177,23 +177,13 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
         // send a message
         byte[] data = "test".getBytes();
-        producer.sendAsync(data).thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class, () -> producer.send(data));
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again
-        producer.sendAsync(data).exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.send(data);
 
         // consume the message, there are two messages in the topic
         List<Message<byte[]>> messages = assertDuplicate(consumer, data);
@@ -232,24 +222,14 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
 
         // send a message
         byte[] data = "test".getBytes();
-        producer.sendAsync(data).thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class, () -> producer.send(data));
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again
         // though the message content is the same, the sequence id is different, so the message is duplicated
-        producer.sendAsync(data).exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.send(data);
 
         // consume the message, there are two messages in the topic
         List<Message<byte[]>> messages = assertDuplicate(consumer, data);
@@ -289,13 +269,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // send a message
         byte[] data = "test".getBytes();
         TypedMessageBuilder<byte[]> typeMessages = producer.newMessage().value(data);
-        typeMessages.sendAsync().thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class, () -> typeMessages.send());
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
@@ -303,11 +277,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // user receive the exception, send the same message again
         // though we use the same TypedMessageBuilder, the two messages are different!
         // because the sequence id is different, so the message is duplicated too.
-        typeMessages.sendAsync().exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        typeMessages.send();
 
         // consume the message, there are two messages in the topic
         List<Message<byte[]>> messages = assertDuplicate(consumer, data);
@@ -345,23 +315,14 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // send a message
         long lastId = 0;
         byte[] data = "test".getBytes();
-        producer.newMessage().value(data).sequenceId(lastId).sendAsync().thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class,
+                () -> producer.newMessage().value(data).sequenceId(lastId).send());
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
-        producer.newMessage().value(data).sequenceId(lastId).sendAsync().exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.newMessage().value(data).sequenceId(lastId).send();
 
         // consume the message, there are only one messages in the topic
         Message<byte[]> message = assertNotDuplicate(consumer, data);
@@ -398,24 +359,15 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // send a message
         long lastId = 0;
         byte[] data = "test".getBytes();
-        producer.newMessage().value(data).sequenceId(lastId).sendAsync().thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class,
+                () -> producer.newMessage().value(data).sequenceId(lastId).send());
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
         // but this new message will be routed to another partition, so the message is duplicated.
-        producer.newMessage().value(data).sequenceId(lastId).sendAsync().exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.newMessage().value(data).sequenceId(lastId).send();
 
         // consume the message, there are two messages in the topic
         List<Message<byte[]>> messages = assertDuplicate(consumer, data);
@@ -455,24 +407,15 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // send a message, with sequence id as the key, so messages with the same key will be routed to the same partition
         long lastId = 0;
         byte[] data = "test".getBytes();
-        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class,
+                () -> producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).send());
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
 
         // user receive the exception, send the same message again with the same sequence id.
         // this new message will be routed to the same partition, so the message will not be duplicated.
-        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).send();
 
         // consume the message, there are only one messages in the topic
         Message<byte[]> message = assertNotDuplicate(consumer, data);
@@ -545,13 +488,8 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // send a message, with sequence id as the key, so messages with the same key will be routed to the same partition
         long lastId = 0;
         byte[] data = "test".getBytes();
-        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().thenRun(() -> {
-            // should not enter here
-            Assert.fail();
-        }).exceptionally(e -> {
-            // do not receive the ack, should enter here
-            return null;
-        }).get();
+        Assert.assertThrows(PulsarClientException.TimeoutException.class,
+                () -> producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).send());
 
         // set back the send receipt
         enableSendReceipt(topic, producerName, sender);
@@ -566,11 +504,7 @@ public class DeduplicationEndToEndTest extends ProducerConsumerBase {
         // user receive the exception, send the same message again with the same sequence id.
         // though the key of two messages are the same, the message is routed to different partition due to
         // partition number update, so the message is duplicated.
-        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).sendAsync().exceptionally(e -> {
-            // should not enter here
-            Assert.fail();
-            return null;
-        }).get();
+        producer.newMessage().value(data).sequenceId(lastId).key(String.valueOf(lastId)).send();
 
         // consume the message, there are two messages in the topic
         List<Message<byte[]>> messages = assertDuplicate(consumer, data);
