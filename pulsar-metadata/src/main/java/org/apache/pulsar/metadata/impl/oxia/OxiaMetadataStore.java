@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -80,15 +81,17 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         }
         synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
-        client =
-                OxiaClientBuilder.create(serviceAddress)
-                        .clientIdentifier(identity)
-                        .namespace(namespace)
-                        .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
-                        .batchLinger(Duration.ofMillis(linger))
-                        .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations())
-                        .asyncClient()
-                        .get();
+        OxiaClientBuilder oxiaClientBuilder = OxiaClientBuilder
+                .create(serviceAddress)
+                .clientIdentifier(identity)
+                .namespace(namespace)
+                .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
+                .batchLinger(Duration.ofMillis(linger))
+                .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
+        if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
+            oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
+        }
+        client = oxiaClientBuilder.asyncClient().get();
         init();
     }
 
