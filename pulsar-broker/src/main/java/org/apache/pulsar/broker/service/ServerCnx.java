@@ -1307,6 +1307,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 "Topic " + topicName + " does not exist"));
                             }
                             final Topic topic = optTopic.get();
+                            // Check max consumer limitation to avoid unnecessary ops wasting resources. For example:
+                            // the new consumer reached max producer limitation, but pulsar did schema check first,
+                            // it would waste CPU.
+                            if (((AbstractTopic) topic).isConsumersExceededOnTopic()) {
+                                log.warn("[{}] Attempting to add consumer to topic which reached max"
+                                        + " consumers limit", topic);
+                                Throwable t =
+                                        new ConsumerBusyException("Topic reached max consumers limit");
+                                return FutureUtil.failedFuture(t);
+                            }
                             return service.isAllowAutoSubscriptionCreationAsync(topicName)
                                     .thenCompose(isAllowedAutoSubscriptionCreation -> {
                                         boolean rejectSubscriptionIfDoesNotExist = isDurable
@@ -1319,13 +1329,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     .failedFuture(
                                                             new SubscriptionNotFoundException(
                                                                     "Subscription does not exist"));
-                                        }
-                                        if (((AbstractTopic) topic).isConsumersExceededOnTopic()) {
-                                            log.warn("[{}] Attempting to add consumer to topic which reached max"
-                                                    + " consumers limit", topic);
-                                            Throwable t =
-                                                    new ConsumerBusyException("Topic reached max consumers limit");
-                                            return FutureUtil.failedFuture(t);
                                         }
 
                                         SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
