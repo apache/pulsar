@@ -19,10 +19,13 @@
 package org.apache.pulsar.utils;
 
 import java.util.Collections;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -38,7 +41,7 @@ public class SimpleCacheTest {
 
     @Test
     public void testConcurrentUpdate() throws Exception {
-        final var cache = new SimpleCache<Integer, Integer>(executor, 10000L);
+        final var cache = new SimpleCache<Integer, Integer>(executor, 10000L, 10000L);
         final var pool = Executors.newFixedThreadPool(2);
         final var latch = new CountDownLatch(2);
         for (int i = 0; i < 2; i++) {
@@ -60,15 +63,19 @@ public class SimpleCacheTest {
 
     @Test
     public void testExpire() throws InterruptedException {
-        final var cache = new SimpleCache<Integer, Integer>(executor, 500L);
-        final var expiredValues = new CopyOnWriteArrayList<Integer>();
-        cache.get(0, () -> 100, expiredValues::add);
-        for (int i = 0; i < 100; i++) {
-            cache.get(1, () -> 101, expiredValues::add);
-            Thread.sleep(10);
-        }
-        Assert.assertEquals(cache.get(0, () -> -1, __ -> {}), -1); // the value is expired
-        Assert.assertEquals(cache.get(1, () -> -1, __ -> {}), 101);
-        Assert.assertEquals(expiredValues, Collections.singletonList(100));
+        final var cache = new SimpleCache<Integer, Integer>(executor, 500L, 5);
+        final var expiredValues = Collections.synchronizedSet(new HashSet<Integer>());
+
+        final var allKeys = IntStream.range(0, 5).boxed().collect(Collectors.toSet());
+        allKeys.forEach(key -> cache.get(key, () -> key + 100, expiredValues::add));
+
+        Thread.sleep(400L);
+        final var recentAccessedKey = Set.of(1, 2);
+        recentAccessedKey.forEach(key -> cache.get(key, () -> -1, expiredValues::add)); // access these keys
+
+        Thread.sleep(300L);
+        recentAccessedKey.forEach(key -> Assert.assertEquals(key + 100, cache.get(key, () -> -1, __ -> {})));
+        allKeys.stream().filter(key -> !recentAccessedKey.contains(key))
+                .forEach(key -> Assert.assertEquals(-1, cache.get(key, () -> -1, __ -> {})));
     }
 }

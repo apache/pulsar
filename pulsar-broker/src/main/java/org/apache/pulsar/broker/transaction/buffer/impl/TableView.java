@@ -43,6 +43,7 @@ public class TableView<T> {
 
     // Remove the cached reader and snapshots if there is no refresh request in 1 minute
     private static final long CACHE_EXPIRE_TIMEOUT_MS = 60 * 1000L;
+    private static final long CACHE_EXPIRE_CHECK_FREQUENCY_MS = 3000L;
     @VisibleForTesting
     protected final Function<TopicName, CompletableFuture<Reader<T>>> readerCreator;
     private final Map<String, T> snapshots = new ConcurrentHashMap<>();
@@ -53,7 +54,7 @@ public class TableView<T> {
                      ScheduledExecutorService executor) {
         this.readerCreator = readerCreator;
         this.clientOperationTimeoutMs = clientOperationTimeoutMs;
-        this.readers = new SimpleCache<>(executor, CACHE_EXPIRE_TIMEOUT_MS);
+        this.readers = new SimpleCache<>(executor, CACHE_EXPIRE_TIMEOUT_MS, CACHE_EXPIRE_CHECK_FREQUENCY_MS);
     }
 
     public T readLatest(String topic) throws Exception {

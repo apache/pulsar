@@ -19,44 +19,65 @@
 package org.apache.pulsar.utils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 public class SimpleCache<K, V> {
 
-    private final Map<K, V> cache = new HashMap<>();
-    private final Map<K, ScheduledFuture<?>> futures = new HashMap<>();
-    private final ScheduledExecutorService executor;
+    private final Map<K, ExpirableValue<V>> cache = new HashMap<>();
     private final long timeoutMs;
 
-    public synchronized V get(final K key, final Supplier<V> valueSupplier, final Consumer<V> expireCallback) {
-        final V value;
-        V existingValue = cache.get(key);
-        if (existingValue != null) {
-            value = existingValue;
-        } else {
-            value = valueSupplier.get();
-            cache.put(key, value);
-        }
-        final var future = futures.remove(key);
-        if (future != null) {
-            future.cancel(true);
-        }
-        futures.put(key, executor.schedule(() -> {
-            synchronized (SimpleCache.this) {
-                futures.remove(key);
-                final var removedValue = cache.remove(key);
-                if (removedValue != null) {
-                    expireCallback.accept(removedValue);
-                }
+    @RequiredArgsConstructor
+    private class ExpirableValue<V> {
+
+        private final V value;
+        private final Consumer<V> expireCallback;
+        private long deadlineMs;
+
+        boolean tryExpire() {
+            if (System.currentTimeMillis() >= deadlineMs) {
+                expireCallback.accept(value);
+                return true;
+            } else {
+                return false;
             }
-        }, timeoutMs, TimeUnit.MILLISECONDS));
-        return value;
+        }
+
+        void updateDeadline() {
+            deadlineMs = System.currentTimeMillis() + timeoutMs;
+        }
+    }
+
+    public SimpleCache(final ScheduledExecutorService scheduler, final long timeoutMs, final long frequencyMs) {
+        this.timeoutMs = timeoutMs;
+        scheduler.scheduleAtFixedRate(() -> {
+            synchronized (SimpleCache.this) {
+                final var keys = new HashSet<K>();
+                cache.forEach((key, value) -> {
+                    if (value.tryExpire()) {
+                        keys.add(key);
+                    }
+                });
+                cache.keySet().removeAll(keys);
+            }
+        }, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public synchronized V get(final K key, final Supplier<V> valueSupplier, final Consumer<V> expireCallback) {
+        final var value = cache.get(key);
+        if (value != null) {
+            value.updateDeadline();
+            return value.value;
+        }
+
+        final var newValue = new ExpirableValue<>(valueSupplier.get(), expireCallback);
+        newValue.updateDeadline();
+        cache.put(key, newValue);
+        return newValue.value;
     }
 }
