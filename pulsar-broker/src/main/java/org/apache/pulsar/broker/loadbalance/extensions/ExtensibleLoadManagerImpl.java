@@ -123,6 +123,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
+    private static final Set<String> INTERNAL_TOPICS =
+            Set.of(BROKER_LOAD_DATA_STORE_TOPIC, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TOPIC);
+
     private PulsarService pulsar;
 
     private ServiceConfiguration conf;
@@ -819,7 +822,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public static boolean isInternalTopic(String topic) {
-        return topic.startsWith(TOPIC)
+        return INTERNAL_TOPICS.contains(topic)
+                || topic.startsWith(TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
@@ -976,5 +980,26 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         serviceUnitStateChannel.cleanOwnerships();
         leaderElectionService.close();
         brokerRegistry.unregister();
+        // Close the internal topics (if owned any) after giving up the possible leader role,
+        // so that the subsequent lookups could hit the next leader.
+        closeInternalTopics();
+    }
+
+    private void closeInternalTopics() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (String name : INTERNAL_TOPICS) {
+            futures.add(pulsar.getBrokerService().getTopicIfExists(name)
+                    .thenAccept(topicOptional -> topicOptional.ifPresent(topic -> topic.close(true)))
+                    .exceptionally(__ -> {
+                        log.warn("Failed to close internal topic:{}", name);
+                        return null;
+                    }));
+        }
+        try {
+            FutureUtil.waitForAll(futures)
+                    .get(pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+        } catch (Throwable e) {
+            log.warn("Failed to wait for closing internal topics", e);
+        }
     }
 }
