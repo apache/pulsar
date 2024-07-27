@@ -30,6 +30,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -90,8 +91,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
+    @Getter
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
-    private CompletableFuture<Position> publishFuture = transactionBufferFuture
+    @Getter
+    private CompletableFuture<Position> publishFuture = getTransactionBufferFuture()
             .thenApply(__ -> PositionFactory.EARLIEST);
 
     /**
@@ -141,14 +144,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             if (!changeToReadyState()) {
                                 log.error("[{}]Transaction buffer recover fail, current state: {}",
                                         topic.getName(), getState());
-                                transactionBufferFuture.completeExceptionally
+                                getTransactionBufferFuture().completeExceptionally
                                         (new BrokerServiceException.ServiceUnitNotReadyException(
                                                 "Transaction buffer recover failed to change the status to Ready,"
                                                         + "current state is: " + getState()));
                             } else {
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                                transactionBufferFuture.complete(null);
+                                getTransactionBufferFuture().complete(null);
                                 recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
@@ -161,7 +164,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             if (!changeToNoSnapshotState()) {
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
-                                transactionBufferFuture.complete(null);
+                                getTransactionBufferFuture().complete(null);
                                 recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
@@ -199,10 +202,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             // if transaction buffer recover fail throw PulsarClientException,
                             // we need to change the PulsarClientException to ServiceUnitNotReadyException,
                             // the tc do op will retry
-                            transactionBufferFuture.completeExceptionally
+                            getTransactionBufferFuture().completeExceptionally
                                     (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage(), e));
                         } else {
-                            transactionBufferFuture.completeExceptionally(e);
+                            getTransactionBufferFuture().completeExceptionally(e);
                         }
                         recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         topic.close(true);
@@ -217,7 +220,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely() {
-        return transactionBufferFuture;
+        return getTransactionBufferFuture();
     }
 
     @Override
@@ -240,7 +243,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         // Method `takeAbortedTxnsSnapshot` will be executed in the different thread.
         // So we need to retain the buffer in this thread. It will be released after message persistent.
         buffer.retain();
-        CompletableFuture<Position> future = publishFuture.thenCompose(ignore -> {
+        CompletableFuture<Position> future = getPublishFuture().thenCompose(ignore -> {
             if (checkIfNoSnapshot()) {
                 CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                 // `publishFuture` will be completed after message persistent, so there will not be two threads
@@ -330,7 +333,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         //Wait TB recover completely.
-        transactionBufferFuture.thenRun(() -> {
+        getTransactionBufferFuture().thenRun(() -> {
             ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                     txnID.getLeastSigBits());
             try {
@@ -372,7 +375,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         //Wait TB recover completely.
-        transactionBufferFuture.thenRun(() -> {
+        getTransactionBufferFuture().thenRun(() -> {
             //no message sent, need not to add abort mark by txn timeout.
             if (!checkIfReady()) {
                 completableFuture.complete(null);
