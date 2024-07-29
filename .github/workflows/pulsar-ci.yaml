@@ -96,7 +96,7 @@ jobs:
     name: Build and License check
     env:
       JOB_NAME: Build and License check
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -172,7 +172,7 @@ jobs:
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -391,7 +391,7 @@ jobs:
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -465,7 +465,7 @@ jobs:
     env:
       JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -731,7 +731,7 @@ jobs:
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -841,7 +841,7 @@ jobs:
     env:
       JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -1072,7 +1072,7 @@ jobs:
     env:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -1214,7 +1214,7 @@ jobs:
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1249,7 +1249,7 @@ jobs:
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       NIST_NVD_API_KEY: ${{ secrets.NIST_NVD_API_KEY }}
     steps:
       - name: checkout
