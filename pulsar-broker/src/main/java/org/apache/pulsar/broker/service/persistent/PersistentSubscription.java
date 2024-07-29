@@ -1202,6 +1202,10 @@ public class PersistentSubscription extends AbstractSubscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
+    /**
+     * @deprecated please call {@link #getStatsAsync(GetStatsOptions)}.
+     */
+    @Deprecated
     public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         // So far, there is no case hits this check.
         if (getStatsOptions.isGetEarliestTimeInBacklog()) {
