@@ -32,6 +32,8 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1201,11 +1203,18 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
+        // So far, there is no case hits this check.
         if (getStatsOptions.isGetEarliestTimeInBacklog()) {
             throw new IllegalArgumentException("Calling the sync method subscription.getStats with"
                     + " getEarliestTimeInBacklog, it may encountered a deadlock error.");
         }
-        return getStatsAsync(getStatsOptions).join();
+        // The method "getStatsAsync" will be a sync method if the param "isGetEarliestTimeInBacklog" is false.
+        try {
+            return getStatsAsync(getStatsOptions).get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            // This error will never occur.
+            throw new RuntimeException(e);
+        }
     }
 
     public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
