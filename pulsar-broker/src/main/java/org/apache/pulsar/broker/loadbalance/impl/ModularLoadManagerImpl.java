@@ -156,8 +156,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Policies used to determine which brokers are available for particular namespaces.
     private SimpleResourceAllocationPolicies policies;
 
+    @VisibleForTesting
     // Pulsar service used to initialize this.
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
 
     private PulsarResources pulsarResources;
 
