@@ -40,7 +40,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+@Test(groups = "broker-admin-isolated")
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 16;

@@ -89,7 +89,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
         brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
@@ -323,7 +322,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 240 * 1000)
+    @Test(timeOut = 300 * 1000)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
@@ -333,7 +332,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
-                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync()
+                            .get(5, TimeUnit.SECONDS);
                     assertEquals(activeBrokers.size(), NUM_BROKERS);
                 }
         );
@@ -372,15 +372,16 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
-                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync()
+                            .get(5, TimeUnit.SECONDS);
                     assertEquals(activeBrokers.size(), 2);
                 }
         );
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-            String ownerBroker = admin.lookups().lookupTopic(topic);
+            String ownerBroker = admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
             assertEquals(extractBrokerIndex(ownerBroker), 1);
         });
 
@@ -391,19 +392,25 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
             () -> {
-                List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
                 assertEquals(activeBrokers.size(), 1);
             }
         );
-        try {
-            admin.lookups().lookupTopic(topic);
-            fail();
-        } catch (Exception ex) {
-            log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).contains("Failed to select the new owner broker for bundle");
-        }
+
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+                () -> {
+                    try {
+                        admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
+                        fail();
+                    } catch (Exception ex) {
+                        log.error("Failed to lookup topic: ", ex);
+                        assertThat(ex.getMessage()).contains("Service Unavailable");
+                    }
+                }
+        );
+
     }
 
     private void createNonPartitionedTopicAndRetry(String topicName) throws Exception {

@@ -22,7 +22,6 @@ import java.io.IOException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -40,29 +39,45 @@ public class AdditionalServletWithClassLoader implements AdditionalServlet {
 
     @Override
     public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             servlet.loadConfig(pulsarConfiguration);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public String getBasePath() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return servlet.getBasePath();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public ServletHolder getServletHolder() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return servlet.getServletHolder();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public void close() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             servlet.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
         try {
             classLoader.close();

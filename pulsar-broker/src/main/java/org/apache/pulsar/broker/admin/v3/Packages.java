@@ -80,7 +80,7 @@ public class Packages extends PackagesBase {
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Update the metadata of the specified package successfully."),
+            @ApiResponse(code = 204, message = "Update the metadata of the specified package successfully."),
             @ApiResponse(code = 404, message = "The specified package is not existent."),
             @ApiResponse(code = 412, message = "The package name is illegal."),
             @ApiResponse(code = 500, message = "Internal server error."),
@@ -113,7 +113,7 @@ public class Packages extends PackagesBase {
     )
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Upload the specified package successfully."),
+            @ApiResponse(code = 204, message = "Upload the specified package successfully."),
             @ApiResponse(code = 412, message = "The package name is illegal."),
             @ApiResponse(code = 500, message = "Internal server error."),
             @ApiResponse(code = 503, message = "Package Management Service is not enabled in the broker.")
@@ -169,7 +169,7 @@ public class Packages extends PackagesBase {
     @Path("/{type}/{tenant}/{namespace}/{packageName}/{version}")
     @ApiResponses(
         value = {
-            @ApiResponse(code = 200, message = "Delete the specified package successfully."),
+            @ApiResponse(code = 204, message = "Delete the specified package successfully."),
             @ApiResponse(code = 404, message = "The specified package is not existent."),
             @ApiResponse(code = 412, message = "The package name is illegal."),
             @ApiResponse(code = 500, message = "Internal server error."),
@@ -218,7 +218,8 @@ public class Packages extends PackagesBase {
     @Path("/{type}/{tenant}/{namespace}")
     @ApiOperation(
         value = "Get all the specified type packages in a namespace.",
-        response = PackageMetadata.class
+        response = PackageMetadata.class,
+        responseContainer = "List"
     )
     @ApiResponses(
         value = {

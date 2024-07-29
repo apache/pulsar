@@ -22,14 +22,21 @@ name: "CodeQL"
 on:
   push:
     branches: [ 'master' ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ 'master' ]
   schedule:
     - cron: '27 21 * * 4'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   analyze:
+    # only run scheduled analysis in apache/pulsar repository
+    if: ${{ (github.event_name == 'schedule' && github.repository == 'apache/pulsar') || github.event_name != 'schedule' }}
     name: Analyze
     runs-on: 'ubuntu-latest'
     timeout-minutes: 360
@@ -59,7 +66,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: 17
 
       - name: Checkout repository

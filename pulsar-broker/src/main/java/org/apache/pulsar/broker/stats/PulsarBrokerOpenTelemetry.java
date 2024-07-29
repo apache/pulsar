@@ -18,28 +18,36 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.Closeable;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 
 public class PulsarBrokerOpenTelemetry implements Closeable {
 
     public static final String SERVICE_NAME = "pulsar-broker";
+
+    @Getter
     private final OpenTelemetryService openTelemetryService;
 
     @Getter
     private final Meter meter;
 
-    public PulsarBrokerOpenTelemetry(ServiceConfiguration config) {
+    public PulsarBrokerOpenTelemetry(ServiceConfiguration config,
+                                 @VisibleForTesting Consumer<AutoConfiguredOpenTelemetrySdkBuilder> builderCustomizer) {
         openTelemetryService = OpenTelemetryService.builder()
                 .clusterName(config.getClusterName())
                 .serviceName(SERVICE_NAME)
                 .serviceVersion(PulsarVersion.getVersion())
+                .builderCustomizer(builderCustomizer)
                 .build();
-        meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.broker");
+        meter = openTelemetryService.getOpenTelemetry().getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

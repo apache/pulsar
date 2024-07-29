@@ -25,6 +25,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
@@ -37,19 +40,23 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -68,6 +75,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -97,10 +105,13 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.stats.MetricsUtil;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
@@ -117,6 +128,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.pulsar.broker.PulsarService
  */
+@Slf4j
 public class NamespaceService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceService.class);
 
@@ -146,18 +158,40 @@ public class NamespaceService implements AutoCloseable {
 
     private final RedirectManager redirectManager;
 
+    public static final String LOOKUP_REQUEST_DURATION_METRIC_NAME = "pulsar.broker.request.topic.lookup.duration";
 
+    private static final AttributeKey<String> PULSAR_LOOKUP_RESPONSE_ATTRIBUTE =
+            AttributeKey.stringKey("pulsar.lookup.response");
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "broker")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "redirect")
+            .build();
+    public static final Attributes PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES = Attributes.builder()
+            .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "failure")
+            .build();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
 
+    @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
             .quantile(0.50)
             .quantile(0.99)
             .quantile(0.999)
             .quantile(1.0)
             .register();
+    private final DoubleHistogram lookupLatencyHistogram;
 
+    private ConcurrentHashMap<String, CompletableFuture<List<String>>> inProgressQueryUserTopics =
+            new ConcurrentHashMap<>();
 
     /**
      * Default constructor.
@@ -168,13 +202,19 @@ public class NamespaceService implements AutoCloseable {
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
+        this.ownershipCache = new OwnershipCache(pulsar, this);
         this.namespaceClients =
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.redirectManager = new RedirectManager(pulsar);
+
+        this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
+                .setDescription("The duration of topic lookup requests (either binary or HTTP)")
+                .setUnit("s")
+                .build();
     }
 
     public void initialize() {
@@ -195,8 +235,8 @@ public class NamespaceService implements AutoCloseable {
                                     pulsar.getBrokerId(), optResult.get(), topic);
                             return CompletableFuture.completedFuture(optResult);
                         }
-                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
+                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle, options);
                         } else {
                             // TODO: Add unit tests cover it.
                             return findBrokerServiceUrl(bundle, options);
@@ -204,18 +244,28 @@ public class NamespaceService implements AutoCloseable {
                     });
                 });
 
-        future.thenAccept(optResult -> {
-            lookupLatency.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-            if (optResult.isPresent()) {
-                if (optResult.get().isRedirect()) {
-                    lookupRedirects.inc();
+        future.whenComplete((lookupResult, throwable) -> {
+            var latencyNs = System.nanoTime() - startTime;
+            lookupLatency.observe(latencyNs, TimeUnit.NANOSECONDS);
+            Attributes attributes;
+            if (throwable == null) {
+                if (lookupResult.isPresent()) {
+                    if (lookupResult.get().isRedirect()) {
+                        lookupRedirects.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_REDIRECT_ATTRIBUTES;
+                    } else {
+                        lookupAnswers.inc();
+                        attributes = PULSAR_LOOKUP_RESPONSE_BROKER_ATTRIBUTES;
+                    }
                 } else {
-                    lookupAnswers.inc();
+                    // No lookup result, default to reporting as failure.
+                    attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
                 }
+            } else {
+                lookupFailures.inc();
+                attributes = PULSAR_LOOKUP_RESPONSE_FAILURE_ATTRIBUTES;
             }
-        }).exceptionally(ex -> {
-            lookupFailures.inc();
-            return null;
+            lookupLatencyHistogram.record(MetricsUtil.convertToSeconds(latencyNs, TimeUnit.NANOSECONDS), attributes);
         });
 
         return future;
@@ -311,8 +361,8 @@ public class NamespaceService implements AutoCloseable {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             CompletableFuture<Optional<LookupResult>> future =
-                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
-                    ? loadManager.get().findBrokerServiceUrl(Optional.ofNullable(topic), bundle) :
+                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
+                    ? loadManager.get().findBrokerServiceUrl(Optional.ofNullable(topic), bundle, options) :
                     findBrokerServiceUrl(bundle, options);
 
             return future.thenApply(lookupResult -> {
@@ -375,7 +425,7 @@ public class NamespaceService implements AutoCloseable {
             NamespaceBundle nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
             final NamespaceEphemeralData otherData;
-            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
                 ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(this.loadManager.get());
                 otherData = loadManager.tryAcquiringOwnership(nsFullBundle).get();
             } else {
@@ -496,26 +546,47 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /**
+     * Check if this is Heartbeat or SLAMonitor namespace and return the broker id.
+     *
+     * @param serviceUnit the service unit
+     * @param isBrokerActive the function to check if the broker is active
+     * @return the broker id
+     */
+    public CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(
+            ServiceUnitId serviceUnit, Function<String, CompletableFuture<Boolean>> isBrokerActive) {
+        String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
+        if (candidateBroker != null) {
+            return CompletableFuture.completedFuture(candidateBroker);
+        }
+        candidateBroker = NamespaceService.getSLAMonitorBrokerName(serviceUnit);
+        if (candidateBroker != null) {
+            // Check if the broker is available
+            final String finalCandidateBroker = candidateBroker;
+            return isBrokerActive.apply(candidateBroker).thenApply(isActive -> {
+                if (isActive) {
+                    return finalCandidateBroker;
+                } else {
+                    return null;
+                }
+            });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
-        if (null == pulsar.getLeaderElectionService()) {
+        String candidateBroker;
+        LeaderElectionService les = pulsar.getLeaderElectionService();
+        if (les == null) {
             LOG.warn("The leader election has not yet been completed! NamespaceBundle[{}]", bundle);
             lookupFuture.completeExceptionally(
                     new IllegalStateException("The leader election has not yet been completed!"));
-            return;
-        }
-        String candidateBroker;
-
-        LeaderElectionService les = pulsar.getLeaderElectionService();
-        if (les == null) {
-            // The leader election service was not initialized yet. This can happen because the broker service is
-            // initialized first, and it might start receiving lookup requests before the leader election service is
-            // fully initialized.
-            LOG.warn("Leader election service isn't initialized yet. "
-                            + "Returning empty result to lookup. NamespaceBundle[{}]",
-                    bundle);
-            lookupFuture.complete(Optional.empty());
             return;
         }
 
@@ -523,17 +594,9 @@ public class NamespaceService implements AutoCloseable {
 
         try {
             // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = checkHeartbeatNamespace(bundle);
-            if (candidateBroker == null) {
-                candidateBroker = checkHeartbeatNamespaceV2(bundle);
-            }
-            if (candidateBroker == null) {
-                String broker = getSLAMonitorBrokerName(bundle);
-                // checking if the broker is up and running
-                if (broker != null && isBrokerActive(broker)) {
-                    candidateBroker = broker;
-                }
-            }
+            candidateBroker = getHeartbeatOrSLAMonitorBrokerId(bundle, cb ->
+                    CompletableFuture.completedFuture(isBrokerActive(cb)))
+                    .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
 
             if (candidateBroker == null) {
                 Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
@@ -781,9 +844,9 @@ public class NamespaceService implements AutoCloseable {
                                                          long timeout,
                                                          TimeUnit timeoutUnit,
                                                          boolean closeWithoutWaitingClientDisconnect) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
-                    .unloadNamespaceBundleAsync(bundle, destinationBroker);
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker, false, timeout, timeoutUnit);
         }
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
@@ -795,6 +858,11 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> isNamespaceBundleOwned(NamespaceBundle bundle) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
+            return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
+                    .thenApply(Optional::isPresent);
+        }
         return pulsar.getLocalMetadataStore().exists(ServiceUnitUtils.path(bundle));
     }
 
@@ -803,15 +871,15 @@ public class NamespaceService implements AutoCloseable {
                .getIsolationDataPoliciesAsync(pulsar.getConfiguration().getClusterName())
                .thenApply(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.orElseGet(NamespaceIsolationPolicies::new))
                .thenCompose(namespaceIsolationPolicies -> {
-                   if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                   if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
                        ExtensibleLoadManagerImpl extensibleLoadManager =
                                ExtensibleLoadManagerImpl.get(loadManager.get());
-                       var statusMap = extensibleLoadManager.getOwnedServiceUnits().stream()
-                               .collect(Collectors.toMap(NamespaceBundle::toString,
-                                       bundle -> getNamespaceOwnershipStatus(true,
-                                               namespaceIsolationPolicies.getPolicyByNamespace(
-                                                       bundle.getNamespaceObject()))));
-                       return CompletableFuture.completedFuture(statusMap);
+                       return extensibleLoadManager.getOwnedServiceUnitsAsync()
+                               .thenApply(OwnedServiceUnits -> OwnedServiceUnits.stream()
+                                       .collect(Collectors.toMap(NamespaceBundle::toString,
+                                               bundle -> getNamespaceOwnershipStatus(true,
+                                                       namespaceIsolationPolicies.getPolicyByNamespace(
+                                                               bundle.getNamespaceObject())))));
                    }
                     Collection<CompletableFuture<OwnedBundle>> futures =
                             ownershipCache.getOwnedBundlesAsync().values();
@@ -883,7 +951,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
                                                      NamespaceBundleSplitAlgorithm splitAlgorithm,
                                                      List<Long> boundaries) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
                     .splitNamespaceBundleAsync(bundle, splitAlgorithm, boundaries);
         }
@@ -1126,9 +1194,14 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public Set<NamespaceBundle> getOwnedServiceUnits() {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
-            return extensibleLoadManager.getOwnedServiceUnits();
+            try {
+                return extensibleLoadManager.getOwnedServiceUnitsAsync()
+                        .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
         return ownershipCache.getOwnedBundles().values().stream().map(OwnedBundle::getNamespaceBundle)
                 .collect(Collectors.toSet());
@@ -1148,7 +1221,7 @@ public class NamespaceService implements AutoCloseable {
         }
 
         if (suName instanceof NamespaceBundle) {
-            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
                 return loadManager.get().checkOwnershipAsync(Optional.empty(), suName);
             }
             // TODO: Add unit tests cover it.
@@ -1176,7 +1249,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
@@ -1191,7 +1264,7 @@ public class NamespaceService implements AutoCloseable {
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return getFullBundleAsync(fqnn)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.empty(), bundle));
         }
@@ -1201,7 +1274,7 @@ public class NamespaceService implements AutoCloseable {
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return getBundleAsync(topic)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topic), bundle));
         }
@@ -1210,7 +1283,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
@@ -1220,9 +1293,11 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
         CompletableFuture<Void> future;
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
-            future = extensibleLoadManager.unloadNamespaceBundleAsync(nsBundle, Optional.empty());
+            future = extensibleLoadManager.unloadNamespaceBundleAsync(
+                    nsBundle, Optional.empty(), true,
+                    pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
         } else {
             future = ownershipCache.removeOwnership(nsBundle);
         }
@@ -1266,7 +1341,9 @@ public class NamespaceService implements AutoCloseable {
                 bundleOwnershipListeners.add(listener);
             }
         }
-        getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+        pulsar.runWhenReadyForIncomingRequests(() -> {
+            getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+        });
     }
 
     public void addNamespaceBundleSplitListener(NamespaceBundleSplitListener... listeners) {
@@ -1335,40 +1412,94 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
-        CompletableFuture<Boolean> future;
-        // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
-        if (topic.isPersistent() && topic.isPartitioned()) {
-            future = pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-        } else {
-            future = CompletableFuture.completedFuture(false);
-        }
+    /***
+     * Check topic exists( partitioned or non-partitioned ).
+     */
+    public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
+        return pulsar.getBrokerService()
+            .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
+            .thenCompose(metadata -> {
+                if (metadata.partitions > 0) {
+                    return CompletableFuture.completedFuture(
+                            TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
+                }
+                return checkNonPartitionedTopicExists(topic)
+                    .thenApply(b -> b ? TopicExistsInfo.newNonPartitionedTopicExists()
+                            : TopicExistsInfo.newTopicNotExists());
+            });
+    }
 
-        return future.thenCompose(found -> {
-            if (found != null && found) {
-                return CompletableFuture.completedFuture(true);
+    /***
+     * Check non-partitioned topic exists.
+     */
+    public CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topic) {
+        if (topic.isPersistent()) {
+            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+        } else {
+            return checkNonPersistentNonPartitionedTopicExists(topic.toString());
+        }
+    }
+
+    /**
+     * Regarding non-persistent topic, we do not know whether it exists or not. Redirect the request to the ownership
+     * broker of this topic. HTTP API has implemented the mechanism that redirect to ownership broker, so just call
+     * HTTP API here.
+     */
+    public CompletableFuture<Boolean> checkNonPersistentNonPartitionedTopicExists(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        // "non-partitioned & non-persistent" topics only exist on the owner broker.
+        return checkTopicOwnership(TopicName.get(topic)).thenCompose(isOwned -> {
+            // The current broker is the owner.
+            if (isOwned) {
+               CompletableFuture<Optional<Topic>> nonPersistentTopicFuture = pulsar.getBrokerService()
+                       .getTopic(topic, false);
+               if (nonPersistentTopicFuture != null) {
+                   return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+               } else {
+                   return CompletableFuture.completedFuture(false);
+               }
             }
 
-            return pulsar.getBrokerService()
-                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
-                    .thenCompose(metadata -> {
-                        if (metadata.partitions > 0) {
-                            return CompletableFuture.completedFuture(true);
-                        }
-
-                        if (topic.isPersistent()) {
-                            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-                        } else {
-                            // The non-partitioned non-persistent topic only exist in the broker topics.
-                            CompletableFuture<Optional<Topic>> nonPersistentTopicFuture =
-                                    pulsar.getBrokerService().getTopics().get(topic.toString());
-                            if (nonPersistentTopicFuture == null) {
+            // Forward to the owner broker.
+            PulsarClientImpl pulsarClient;
+            try {
+                pulsarClient = (PulsarClientImpl) pulsar.getClient();
+            } catch (Exception ex) {
+                // This error will never occur.
+                log.error("{} Failed to get partition metadata due to create internal admin client fails", topic, ex);
+                return FutureUtil.failedFuture(ex);
+            }
+            LookupOptions lookupOptions = LookupOptions.builder().readOnly(false).authoritative(true).build();
+            return getBrokerServiceUrlAsync(TopicName.get(topic), lookupOptions)
+                .thenCompose(lookupResult -> {
+                    if (!lookupResult.isPresent()) {
+                        log.error("{} Failed to get partition metadata due can not find the owner broker", topic);
+                        return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                                "No broker was available to own " + topicName));
+                    }
+                    LookupData lookupData = lookupResult.get().getLookupData();
+                    String brokerUrl;
+                    if (pulsar.getConfiguration().isBrokerClientTlsEnabled()
+                            && StringUtils.isNotEmpty(lookupData.getBrokerUrlTls())) {
+                        brokerUrl = lookupData.getBrokerUrlTls();
+                    } else {
+                        brokerUrl = lookupData.getBrokerUrl();
+                    }
+                    return pulsarClient.getLookup(brokerUrl)
+                        .getPartitionedTopicMetadata(topicName, false)
+                        .thenApply(metadata -> true)
+                        .exceptionallyCompose(ex -> {
+                            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                            if (actEx instanceof PulsarClientException.NotFoundException
+                                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                                    || actEx instanceof PulsarAdminException.NotFoundException) {
                                 return CompletableFuture.completedFuture(false);
                             } else {
-                                return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+                                log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
+                                return CompletableFuture.failedFuture(ex);
                             }
-                        }
-                    });
+                        });
+            });
         });
     }
 
@@ -1382,6 +1513,23 @@ public class NamespaceService implements AutoCloseable {
             default:
                 return getListOfPersistentTopics(namespaceName);
         }
+    }
+
+    public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
+        String key = String.format("%s://%s", mode, namespaceName);
+        final MutableBoolean initializedByCurrentThread = new MutableBoolean();
+        CompletableFuture<List<String>> queryRes = inProgressQueryUserTopics.computeIfAbsent(key, k -> {
+            initializedByCurrentThread.setTrue();
+            return getListOfTopics(namespaceName, mode).thenApplyAsync(list -> {
+                return TopicList.filterSystemTopic(list);
+            }, pulsar.getExecutor());
+        });
+        if (initializedByCurrentThread.getValue()) {
+            queryRes.whenComplete((ignore, ex) -> {
+                inProgressQueryUserTopics.remove(key, queryRes);
+            });
+        }
+        return queryRes;
     }
 
     public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {
@@ -1432,6 +1580,9 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
     }
@@ -1523,7 +1674,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             return extensibleLoadManager.getOwnershipWithLookupDataAsync(bundle)
                     .thenCompose(lookupData -> lookupData
@@ -1540,7 +1691,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkOwnershipPresentAsync(NamespaceBundle bundle) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
                     .thenApply(Optional::isPresent);

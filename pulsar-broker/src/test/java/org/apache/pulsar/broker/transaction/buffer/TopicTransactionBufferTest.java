@@ -18,35 +18,49 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import io.opentelemetry.api.common.Attributes;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -58,17 +72,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
 public class TopicTransactionBufferTest extends TransactionTestBase {
-
 
     @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
@@ -100,10 +104,19 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferAppendMarkerWriteFailState() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/testPendingAckManageLedgerWriteFailState";
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "tnx")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tnx/ns1")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.FAILURE.attributes)
+                .build();
+
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -111,11 +124,19 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .enableBatching(false)
                 .create();
 
+        assertMetricLongSumValue(
+                pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics(),
+                OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER, attributes, 0);
+
         producer.newMessage(txn).value("test".getBytes()).send();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         FieldUtils.writeField(persistentTopic.getManagedLedger(), "state", ManagedLedgerImpl.State.WriteFailed, true);
         txn.commit().get();
+
+        assertMetricLongSumValue(
+                pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics(),
+                OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER, attributes, 1);
     }
 
     @Test
@@ -232,7 +253,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         // 3. Send message and test the exception can be handled as expected.
         MessageIdImpl messageId = (MessageIdImpl) producer.newMessage().send();
         producer.newMessage().send();
-        Mockito.doReturn(new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()))
+        Mockito.doReturn(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()))
                 .when(transactionBuffer).getMaxReadPosition();
         try {
             consumer.getLastMessageIds();
@@ -278,9 +299,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         for (int i = 0; i < 3; i++) {
             expectedLastMessageID = (MessageIdImpl) producer.newMessage().send();
         }
-        assertMessageId(consumer, expectedLastMessageID, 0);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
         // 2.2 Case2: send 2 ongoing transactional messages and 2 original messages.
-        // |1:0|1:1|1:2|txn1->1:3|1:4|txn2->1:5|1:6|.
+        // |1:0|1:1|1:2|txn1:start->1:3|1:4|txn2:start->1:5.
         Transaction txn1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
@@ -289,24 +310,98 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build()
                 .get();
+
+        // |1:0|1:1|1:2|txn1:1:3|
         producer.newMessage(txn1).send();
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|
         MessageIdImpl expectedLastMessageID1 = (MessageIdImpl) producer.newMessage().send();
+
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|
         producer.newMessage(txn2).send();
-        MessageIdImpl expectedLastMessageID2 = (MessageIdImpl) producer.newMessage().send();
+
         // 2.2.1 Last message ID will not change when txn1 and txn2 do not end.
-        assertMessageId(consumer, expectedLastMessageID, 0);
+        assertGetLastMessageId(consumer, expectedLastMessageID);
+
         // 2.2.2 Last message ID will update to 1:4 when txn1 committed.
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|
         txn1.commit().get(5, TimeUnit.SECONDS);
-        assertMessageId(consumer, expectedLastMessageID1, 0);
-        // 2.2.3 Last message ID will update to 1:6 when txn2 aborted.
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // 2.2.3 Last message ID will still to 1:4 when txn2 aborted.
+        // |1:0|1:1|1:2|txn1:1:3|1:4|txn2:1:5|tx1:commit->1:6|tx2:abort->1:7|
         txn2.abort().get(5, TimeUnit.SECONDS);
-        // Todo: We can not ignore the marker's position in this fix.
-        assertMessageId(consumer, expectedLastMessageID2, 2);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+
+        // Handle the case of the maxReadPosition < lastPosition, but it's an aborted transactional message.
+        Transaction txn3 = pulsarClient.newTransaction()
+                .build()
+                .get();
+        producer.newMessage(txn3).send();
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
+        txn3.abort().get(5, TimeUnit.SECONDS);
+        assertGetLastMessageId(consumer, expectedLastMessageID1);
     }
 
-    private void assertMessageId(Consumer<?> consumer, MessageIdImpl expected, int entryOffset) throws Exception {
+    /**
+     * produce 3 messages and then trigger a ledger switch,
+     * then create a transaction and send a transactional message.
+     * As there are messages in the new ledger, the reader should be able to read the messages.
+     * But reader.hasMessageAvailable() returns false if the entry id of  max read position is -1.
+     * @throws Exception
+     */
+    @Test
+    public void testGetLastMessageIdsWithOpenTransactionAtLedgerHead() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testGetLastMessageIdsWithOpenTransactionAtLedgerHead";
+        String subName = "my-subscription";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        MessageId expectedLastMessageID = null;
+        for (int i = 0; i < 3; i++) {
+            expectedLastMessageID = producer.newMessage().value(String.valueOf(i).getBytes()).send();
+            System.out.println("expectedLastMessageID: " + expectedLastMessageID);
+        }
+        triggerLedgerSwitch(topic);
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+        producer.newMessage(txn).send();
+
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        assertTrue(reader.hasMessageAvailable());
+    }
+
+    private void triggerLedgerSwitch(String topicName) throws Exception{
+        admin.topics().unload(topicName);
+        Awaitility.await().until(() -> {
+            CompletableFuture<Optional<Topic>> topicFuture =
+                    getPulsarServiceList().get(0).getBrokerService().getTopic(topicName, false);
+            if (!topicFuture.isDone() || topicFuture.isCompletedExceptionally()){
+                return false;
+            }
+            Optional<Topic> topicOptional = topicFuture.join();
+            if (!topicOptional.isPresent()){
+                return false;
+            }
+            PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+            ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            return managedLedger.getState() == ManagedLedgerImpl.State.LedgerOpened;
+        });
+    }
+
+    private void assertGetLastMessageId(Consumer<?> consumer, MessageIdImpl expected) throws Exception {
         TopicMessageIdImpl actual = (TopicMessageIdImpl) consumer.getLastMessageIds().get(0);
-        assertEquals(expected.getEntryId(), actual.getEntryId() - entryOffset);
+        assertEquals(expected.getEntryId(), actual.getEntryId());
         assertEquals(expected.getLedgerId(), actual.getLedgerId());
     }
 

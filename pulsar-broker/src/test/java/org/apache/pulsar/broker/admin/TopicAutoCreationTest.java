@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -133,7 +134,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             // we want to skip the "lookup" phase, because it is blocked by the HTTP API
             LookupService mockLookup = mock(LookupService.class);
             ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
-            when(mockLookup.getPartitionedTopicMetadata(any())).thenAnswer(
+            when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean())).thenAnswer(
                     i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
             when(mockLookup.getBroker(any())).thenAnswer(ignored -> {
                 InetSocketAddress brokerAddress =
@@ -149,10 +150,11 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                     .sendTimeout(1, TimeUnit.SECONDS)
                     .topic(topic)
                     .create()) {
-            } catch (PulsarClientException.LookupException expected) {
-                String msg = "Namespace bundle for topic (%s) not served by this instance";
+            } catch (PulsarClientException.TopicDoesNotExistException expected) {
+                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
+                // so the "TopicDoesNotExistException" is expected.
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(String.format(msg, topic))
+                assertTrue(expected.getMessage().contains(topic)
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 
@@ -160,10 +162,11 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                     .topic(topic)
                     .subscriptionName("test")
                     .subscribe()) {
-            } catch (PulsarClientException.LookupException expected) {
-                String msg = "Namespace bundle for topic (%s) not served by this instance";
+            } catch (PulsarClientException.TopicDoesNotExistException expected) {
+                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
+                // so the "TopicDoesNotExistException" is expected.
                 log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(String.format(msg, topic))
+                assertTrue(expected.getMessage().contains(topic)
                         || expected.getMessage().contains(topicPoliciesServiceInitException));
             }
 

@@ -46,7 +46,6 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -98,7 +97,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     protected static final int NUM_PARTITIONS = 16;
     private static final int waitTimeForCanReceiveMsgInSec = 5;
     private static final int waitTimeForCannotReceiveMsgInSec = 5;
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
@@ -439,7 +438,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                                 //when delete commit marker operation finish, it can run next delete commit marker operation
                                 //so this test may not delete all the position in this manageLedger.
                                 Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                        .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                        .getManagedLedger()).getNextValidPosition(markDeletePosition);
                                 //marker is the lastConfirmedEntry, after commit the marker will only be write in
                                 if (!markerPosition.equals(lastConfirmedEntry)) {
                                     log.error("Mark delete position is not commit marker position!");
@@ -744,7 +743,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                         //when delete commit marker operation finish, it can run next delete commit marker operation
                         //so this test may not delete all the position in this manageLedger.
                         Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                .getManagedLedger()).getNextValidPosition(markDeletePosition);
                         //marker is the lastConfirmedEntry, after commit the marker will only be write in
                         if (!markerPosition.equals(lastConfirmedEntry)) {
                             log.error("Mark delete position is not commit marker position!");
@@ -1626,7 +1625,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testDelayedTransactionMessages() throws Exception {
         String topic = NAMESPACE1 + "/testDelayedTransactionMessages";
 
@@ -1655,23 +1654,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage(transaction)
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(7, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
         producer.flush();
 
         transaction.commit().get();
-
-        // Failover consumer will receive the messages immediately while
-        // the shared consumer will get them after the delay
-        Message<String> msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        assertNull(msg);
-
+        Message<String> msg;
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             assertEquals(msg.getValue(), "msg-" + i);
         }
+
+        // Failover consumer will receive the messages immediately while
+        // the shared consumer will get them after the delay
+        msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
+        assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -25,12 +26,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             AtomicLongFieldUpdater
                     .newUpdater(TopicListWatcher.class, "createWatcherDeadline");
 
-    private final PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener;
+    private final PatternConsumerUpdateQueue patternConsumerUpdateQueue;
     private final String name;
     private final ConnectionHandler connectionHandler;
     private final Pattern topicsPattern;
@@ -59,13 +60,16 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final Runnable recheckTopicsChangeAfterReconnect;
 
 
-    public TopicListWatcher(PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener,
+    /***
+     * @param topicsPattern The regexp for the topic name(not contains partition suffix).
+     */
+    public TopicListWatcher(PatternConsumerUpdateQueue patternConsumerUpdateQueue,
                             PulsarClientImpl client, Pattern topicsPattern, long watcherId,
                             NamespaceName namespace, String topicsHash,
                             CompletableFuture<TopicListWatcher> watcherFuture,
                             Runnable recheckTopicsChangeAfterReconnect) {
         super(client, topicsPattern.pattern());
-        this.topicsChangeListener = topicsChangeListener;
+        this.patternConsumerUpdateQueue = patternConsumerUpdateQueue;
         this.name = "Watcher(" + topicsPattern + ")";
         this.connectionHandler = new ConnectionHandler(this,
                 new BackoffBuilder()
@@ -142,7 +146,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                                 return;
                             }
                         }
-
                         this.connectionHandler.resetBackoff();
 
                         recheckTopicsChangeAfterReconnect.run();
@@ -274,13 +277,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate update) {
-        List<String> deleted = update.getDeletedTopicsList();
-        if (!deleted.isEmpty()) {
-            topicsChangeListener.onTopicsRemoved(deleted);
-        }
-        List<String> added = update.getNewTopicsList();
-        if (!added.isEmpty()) {
-            topicsChangeListener.onTopicsAdded(added);
-        }
+        patternConsumerUpdateQueue.appendTopicsRemovedOp(update.getDeletedTopicsList());
+        patternConsumerUpdateQueue.appendTopicsAddedOp(update.getNewTopicsList());
     }
 }

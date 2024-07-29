@@ -141,8 +141,6 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 >
 > This project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system-installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.    
->
-> It's better to use CMD rather than Powershell on Windows. Because maven will activate the `windows` profile which runs `rename-netty-native-libs.cmd`.
 
 ### Build
 
@@ -192,6 +190,10 @@ Check https://pulsar.apache.org for documentation and examples.
 
 ## Build custom docker images
 
+The commands used in the Apache Pulsar release process can be found in the [release process documentation](https://pulsar.apache.org/contribute/release-process/#stage-docker-images).
+
+Here are some general instructions for building custom docker images:
+
 * Docker images must be built with Java 8 for `branch-2.7` or previous branches because of [ISSUE-8445](https://github.com/apache/pulsar/issues/8445).
 * Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
 * Java 17 is the recommended JDK version in `master`.
@@ -200,6 +202,8 @@ The following command builds the docker images `apachepulsar/pulsar-all:latest` 
 
 ```bash
 mvn clean install -DskipTests
+# setting DOCKER_CLI_EXPERIMENTAL=enabled is required in some environments with older docker versions
+export DOCKER_CLI_EXPERIMENTAL=enabled
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
 

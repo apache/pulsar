@@ -194,6 +194,7 @@ public class LocalBookkeeperEnsemble {
                 : createTempDirectory("zktest");
 
         if (this.clearOldData) {
+            LOG.info("Wiping Zookeeper data directory at {}", zkDataDir.getAbsolutePath());
             cleanDirectory(zkDataDir);
         }
 
@@ -291,6 +292,7 @@ public class LocalBookkeeperEnsemble {
                     : createTempDirectory("bk" + i + "test");
 
             if (this.clearOldData) {
+                LOG.info("Wiping Bookie data directory at {}", bkDataDir.getAbsolutePath());
                 cleanDirectory(bkDataDir);
             }
 
@@ -358,7 +360,7 @@ public class LocalBookkeeperEnsemble {
         // create a default namespace
         try (StorageAdminClient admin = StorageClientBuilder.newBuilder()
              .withSettings(StorageClientSettings.newBuilder()
-                 .serviceUri("bk://localhost:4181")
+                 .serviceUri("bk://localhost:" + streamStoragePort)
                  .backoffPolicy(Backoff.Jitter.of(
                      Type.EXPONENTIAL,
                      1000,
@@ -498,7 +500,9 @@ public class LocalBookkeeperEnsemble {
         LOG.debug("Local ZK/BK stopping ...");
         for (LifecycleComponent bookie : bookieComponents) {
             try {
-                bookie.close();
+                if (bookie != null) {
+                    bookie.close();
+                }
             } catch (Exception e) {
                 LOG.warn("failed to shutdown bookie", e);
             }

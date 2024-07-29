@@ -23,9 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
@@ -36,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -61,40 +61,45 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Starts an instance of the Pulsar ProxyService.
  */
+@Command(name = "proxy", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class ProxyServiceStarter {
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Option(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
 
     @Deprecated
-    @Parameter(names = { "-zk", "--zookeeper-servers" },
+    @Option(names = { "-zk", "--zookeeper-servers" },
             description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
-    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+    @Option(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
     private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+    @Option(names = { "-gzk", "--global-zookeeper-servers" },
             description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
     @Deprecated
-    @Parameter(names = { "-cs", "--configuration-store-servers" },
+    @Option(names = { "-cs", "--configuration-store-servers" },
                     description = "Configuration store connection string, "
                             + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
-    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+    @Option(names = { "-cms", "--configuration-metadata-store" },
             description = "The metadata store URL for the configuration data")
     private String configurationMetadataStoreUrl = "";
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Option(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
 
     private ProxyConfiguration config;
@@ -105,8 +110,15 @@ public class ProxyServiceStarter {
     private WebServer server;
     private WebSocketService webSocketService;
     private static boolean metricsInitialized;
+    private boolean embeddedMode;
 
     public ProxyServiceStarter(String[] args) throws Exception {
+        this(args, null, false);
+    }
+
+    public ProxyServiceStarter(String[] args, Consumer<ProxyConfiguration> proxyConfigurationCustomizer,
+                               boolean embeddedMode) throws Exception {
+        this.embeddedMode = embeddedMode;
         try {
             DateFormat dateFormat = new SimpleDateFormat(
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
@@ -116,28 +128,38 @@ public class ProxyServiceStarter {
                 exception.printStackTrace(System.out);
             });
 
-            JCommander jcommander = new JCommander();
+            CommandLine commander = new CommandLine(this);
             try {
-                jcommander.addObject(this);
-                jcommander.parse(args);
+                commander.parseArgs(args);
                 if (help || isBlank(configFile)) {
-                    jcommander.usage();
+                    commander.usage(commander.getOut());
                     return;
                 }
 
                 if (this.generateDocs) {
                     CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                    cmd.addCommand("proxy", this);
+                    cmd.addCommand("proxy", commander);
                     cmd.run(null);
-                    System.exit(0);
+                    if (embeddedMode) {
+                        return;
+                    } else {
+                        System.exit(0);
+                    }
                 }
             } catch (Exception e) {
-                jcommander.usage();
-                System.exit(1);
+                commander.getErr().println(e);
+                if (embeddedMode) {
+                    return;
+                } else {
+                    System.exit(1);
+                }
             }
 
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
+            if (proxyConfigurationCustomizer != null) {
+                proxyConfigurationCustomizer.accept(config);
+            }
 
             if (!isBlank(zookeeperServers)) {
                 // Use zookeeperServers from command line
@@ -227,28 +249,45 @@ public class ProxyServiceStarter {
         // create a web-service
         server = new WebServer(config, authenticationService);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        if (!embeddedMode) {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        }
 
         proxyService.start();
 
         if (!metricsInitialized) {
             // Setup metrics
             DefaultExports.initialize();
+            CollectorRegistry registry = CollectorRegistry.defaultRegistry;
 
             // Report direct memory from Netty counters
-            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return getJvmDirectMemoryUsed();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Collector jvmMemoryDirectBytesUsed =
+                    Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return getJvmDirectMemoryUsed();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesUsed);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug("Failed to register jvm_memory_direct_bytes_used metric: {}", e.getMessage());
+            }
 
-            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return DirectMemoryUtils.jvmMaxDirectMemory();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Collector jvmMemoryDirectBytesMax =
+                    Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return DirectMemoryUtils.jvmMaxDirectMemory();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesMax);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug("Failed to register jvm_memory_direct_bytes_max metric: {}", e.getMessage());
+            }
 
             metricsInitialized = true;
         }
@@ -275,7 +314,9 @@ public class ProxyServiceStarter {
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
         } finally {
-            LogManager.shutdown();
+            if (!embeddedMode) {
+                LogManager.shutdown();
+            }
         }
     }
 
