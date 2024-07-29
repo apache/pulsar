@@ -502,8 +502,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             for (MetadataCacheImpl metadataCache : metadataCaches) {
                 metadataCache.invalidateAll();
             }
-            childrenCache.synchronous().invalidateAll();
-            existsCache.synchronous().invalidateAll();
+            invalidateAll();
         }
 
         // Notice listeners.
