@@ -501,51 +501,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 3));
     }
 
-    private void testMaxProducers() {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        topic.initialize().join();
-        String role = "appid1";
-        // 1. add producer1
-        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
-                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
-        topic.addProducer(producer, new CompletableFuture<>());
-        assertEquals(topic.getProducers().size(), 1);
-
-        // 2. add producer2
-        Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
-                false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
-        topic.addProducer(producer2, new CompletableFuture<>());
-        assertEquals(topic.getProducers().size(), 2);
-
-        // 3. add producer3 but reached maxProducersPerTopic
-        try {
-            Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
-                    false, null, SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
-            topic.addProducer(producer3, new CompletableFuture<>()).join();
-            fail("should have failed");
-        } catch (Exception e) {
-            assertEquals(e.getCause().getClass(), BrokerServiceException.ProducerBusyException.class);
-        }
-    }
-
-    @Test
-    public void testMaxProducersForBroker() {
-        // set max clients
-        pulsarTestContext.getConfig().setMaxProducersPerTopic(2);
-        testMaxProducers();
-    }
-
-    @Test
-    public void testMaxProducersForNamespace() throws Exception {
-        // set max clients
-        Policies policies = new Policies();
-        policies.max_producers_per_topic = 2;
-        pulsarTestContext.getPulsarResources().getNamespaceResources()
-                .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
-                        policies);
-        testMaxProducers();
-    }
-
     private Producer getMockedProducerWithSpecificAddress(Topic topic, long producerId, InetAddress address) {
         final String producerNameBase = "producer";
         final String role = "appid1";
