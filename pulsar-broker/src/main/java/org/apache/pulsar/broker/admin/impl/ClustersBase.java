@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -55,6 +56,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -705,7 +707,9 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName,
         @ApiParam(value = "The namespace isolation policy data", required = true)
-        NamespaceIsolationDataImpl policyData
+        NamespaceIsolationDataImpl policyData,
+        @DefaultValue("true")
+        @QueryParam("unloadBundles") boolean unload
     ) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -722,8 +726,14 @@ public class ClustersBase extends AdminResource {
                 ).thenCompose(nsIsolationPolicies -> {
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
-                                    .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
+                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
+                }).thenCompose(__ -> {
+                    if (unload) {
+                        return filterAndUnloadMatchedNamespaceAsync(cluster, policyData);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                })
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
@@ -757,7 +767,8 @@ public class ClustersBase extends AdminResource {
     /**
      * Get matched namespaces; call unload for each namespaces.
      */
-    private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(NamespaceIsolationDataImpl policyData) {
+    private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(String cluster,
+                                                                         NamespaceIsolationDataImpl policyData) {
         PulsarAdmin adminClient;
         try {
             adminClient = pulsar().getAdminClient();
@@ -770,8 +781,13 @@ public class ClustersBase extends AdminResource {
                             .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant));
                     return FutureUtil.waitForAll(completableFutureStream)
                             .thenApply(namespaces -> {
-                                // if namespace match any policy regex, add it to ns list to be unload.
+                                // Filter namespaces that have current cluster in their replication_clusters
+                                // if namespace match any policy regex, add it to ns list to be unloaded.
                                 return namespaces.stream()
+                                        .filter(namespaceName -> adminClient.namespaces()
+                                                .getPoliciesAsync(namespaceName)
+                                                .thenApply(policies -> policies.replication_clusters.contains(cluster))
+                                                .join())
                                         .filter(namespaceName ->
                                                 policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
                                         .collect(Collectors.toList());
