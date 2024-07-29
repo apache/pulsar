@@ -2691,7 +2691,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     topicMetricBean.value += v.value;
                 });
 
-                if (isSystemCursor(name)) {
+                if (isSystemCursor(name) || name.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
                     stats.bytesOutInternalCounter += subStats.bytesOutCounter;
                 }
             }
@@ -2703,7 +2703,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     });
                 // print error log.
                 finalRes.exceptionally(ex -> {
-                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);
+                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, ex);
                     return null;
                 });
                 return finalRes;
