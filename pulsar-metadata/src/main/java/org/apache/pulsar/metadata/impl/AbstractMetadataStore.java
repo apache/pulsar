@@ -498,7 +498,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         isConnected = event.isConnected();
 
         // Clear cache after session expired.
-        if (event == SessionEvent.SessionReestablished) {
+        if (event == SessionEvent.SessionReestablished || event == SessionEvent.Reconnected) {
             for (MetadataCacheImpl metadataCache : metadataCaches) {
                 metadataCache.invalidateAll();
             }
