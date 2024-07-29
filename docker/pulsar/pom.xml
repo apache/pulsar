@@ -123,5 +123,12 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>docker-push</id>
+      <properties>
+        <docker.skip.push>false</docker.skip.push>
+        <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
+      </properties>
+    </profile>
   </profiles>
 </project>
