@@ -38,6 +38,12 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
  * Admin interface for clusters management.
  */
 public interface Clusters {
+
+    /**
+     * Defaults for all the flags.
+     */
+    boolean UNLOAD_BUNDLE_DEFAULT = false;
+
     /**
      * Get the list of clusters.
      * <p/>
@@ -418,8 +424,14 @@ public interface Clusters {
      *             Unexpected error
      */
     void createNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles)
             throws PulsarAdminException;
+
+    default void createNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            throws PulsarAdminException {
+        createNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData, UNLOAD_BUNDLE_DEFAULT);
+    }
 
     /**
      * Create a namespace isolation policy for a cluster asynchronously.
@@ -437,7 +449,13 @@ public interface Clusters {
      * @return
      */
     CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles);
+
+    default CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+        return createNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData, UNLOAD_BUNDLE_DEFAULT);
+    }
+
 
     /**
      * Returns list of active brokers with namespace-isolation policies attached to it.
@@ -506,8 +524,14 @@ public interface Clusters {
      *             Unexpected error
      */
     void updateNamespaceIsolationPolicy(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles)
             throws PulsarAdminException;
+
+    default void updateNamespaceIsolationPolicy(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
+            throws PulsarAdminException {
+        updateNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData, UNLOAD_BUNDLE_DEFAULT);
+    }
 
     /**
      * Update a namespace isolation policy for a cluster asynchronously.
@@ -526,7 +550,12 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles);
+
+    default CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+        return updateNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData, UNLOAD_BUNDLE_DEFAULT);
+    }
 
     /**
      * Delete a namespace isolation policy for a cluster.
