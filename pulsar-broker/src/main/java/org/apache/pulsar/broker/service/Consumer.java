@@ -537,10 +537,11 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position;
-            Pair<Consumer, Long> ackOwnerConsumerPair = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
-            Consumer ackOwnerConsumer = ackOwnerConsumerPair.getLeft();
+            Pair<Consumer, Long> ackOwnerConsumerAndBatchSize =
+                    getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
+            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.getLeft();
             long ackedCount;
-            long batchSize = ackOwnerConsumerPair.getRight();
+            long batchSize = ackOwnerConsumerAndBatchSize.getRight();
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
@@ -606,8 +607,8 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
-            Pair<Consumer, Long> ackOwnerConsumerPair = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
-            Consumer ackOwnerConsumer = ackOwnerConsumerPair.getLeft();
+            Consumer ackOwnerConsumer = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
+                    msgId.getEntryId()).getLeft();
             // acked count at least one
             long ackedCount;
             long batchSize;
@@ -733,7 +734,7 @@ public class Consumer {
      * @param entryId The ID of the entry.
      * @return Pair<Consumer, BatchSize>
      */
-    private Pair<Consumer, Long> getAckOwnerConsumer(long ledgerId, long entryId) {
+    private Pair<Consumer, Long> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
             LongPair longPair = getPendingAcks().get(ledgerId, entryId);
             if (longPair != null) {
