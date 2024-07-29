@@ -135,7 +135,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Set<String> sentMessages = new HashSet<>();
 
         final int N = 10;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < N * 2; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
             sentMessages.add(value);
@@ -146,11 +146,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             Message<String> msg = consumer.receive();
             consumer.negativeAcknowledge(msg);
         }
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.negativeAcknowledge(msg.getMessageId());
+        }
+
 
         Set<String> receivedMessages = new HashSet<>();
 
         // All the messages should be received again
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < N * 2; i++) {
             Message<String> msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
@@ -308,9 +313,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
         // negative batch message id
-        unAckedMessageTracker.add(batchMessageId);
-        unAckedMessageTracker.add(batchMessageId2);
-        unAckedMessageTracker.add(batchMessageId3);
+        unAckedMessageTracker.add(messageId);
         consumer.negativeAcknowledge(batchMessageId);
         consumer.negativeAcknowledge(batchMessageId2);
         consumer.negativeAcknowledge(batchMessageId3);
