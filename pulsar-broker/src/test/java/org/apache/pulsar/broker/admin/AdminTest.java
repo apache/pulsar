@@ -309,7 +309,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                         .build())
                 .build();
         asyncRequests(ctx -> clusters.setNamespaceIsolationPolicy(ctx,
-                "use", "policy1", policyData, true));
+                "use", "policy1", policyData));
         asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
 
         try {
