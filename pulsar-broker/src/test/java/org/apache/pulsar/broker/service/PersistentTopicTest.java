@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -53,6 +54,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -2187,9 +2189,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub1.addConsumer(consumer1);
         consumer1.close();
 
-        SubscriptionStatsImpl stats1 = sub1.getStats(new GetStatsOptions(false, false, false, false, false));
-        assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
-        assertFalse(stats1.allowOutOfOrderDelivery);
+        CompletableFuture<SubscriptionStatsImpl> stats1Async =
+                sub1.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        assertThat(stats1Async).succeedsWithin(Duration.ofSeconds(3))
+                .matches(stats1 -> {
+                    assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
+                    assertFalse(stats1.allowOutOfOrderDelivery);
+                    return true;
+                });
 
         Consumer consumer2 = new Consumer(sub2, SubType.Key_Shared, topic.getName(), 2, 0, "Cons2", true, serverCnx,
                 "myrole-1", Collections.emptyMap(), false,
@@ -2198,9 +2205,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub2.addConsumer(consumer2);
         consumer2.close();
 
-        SubscriptionStatsImpl stats2 = sub2.getStats(new GetStatsOptions(false, false, false, false, false));
-        assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
-        assertTrue(stats2.allowOutOfOrderDelivery);
+        CompletableFuture<SubscriptionStatsImpl> stats2Async =
+                sub2.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        assertThat(stats2Async).succeedsWithin(Duration.ofSeconds(3))
+                .matches(stats2 -> {
+                    assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
+                    assertTrue(stats2.allowOutOfOrderDelivery);
+                    return true;
+                });
 
         KeySharedMeta ksm = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
                 .setAllowOutOfOrderDelivery(false);
@@ -2210,9 +2222,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub3.addConsumer(consumer3);
         consumer3.close();
 
-        SubscriptionStatsImpl stats3 = sub3.getStats(new GetStatsOptions(false, false, false, false, false));
-        assertEquals(stats3.keySharedMode, "STICKY");
-        assertFalse(stats3.allowOutOfOrderDelivery);
+        CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
+        assertThat(stats3Async).succeedsWithin(Duration.ofSeconds(3))
+                .matches(stats3 -> {
+                    assertEquals(stats3.keySharedMode, "STICKY");
+                    assertFalse(stats3.allowOutOfOrderDelivery);
+                    return true;
+                });
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {
