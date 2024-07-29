@@ -78,5 +78,11 @@ public class MaxProducerTest extends ProducerConsumerBase {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.ProducerBusyException);
         }
+
+        // cleanup.
+        for (org.apache.pulsar.client.api.Producer p : producers) {
+            p.close();
+        }
+        admin.topics().delete(topicName, false);
     }
 }
