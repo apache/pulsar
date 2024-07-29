@@ -97,7 +97,7 @@ public class ClusterMetadataSetupTest {
         assertEquals(clusterData.getServiceUrlTls(), "https://127.0.0.1:8443");
         assertEquals(clusterData.getBrokerServiceUrl(), "pulsar://127.0.0.1:6650");
         assertEquals(clusterData.getBrokerServiceUrlTls(), "pulsar+ssl://127.0.0.1:6651");
-        assertTrue(clusterData.isBrokerClientTlsEnabled());
+        assertFalse(clusterData.isBrokerClientTlsEnabled());
     }
 
     public void testSetupClusterMetadataWithAuthEnabled() throws Exception {
