@@ -145,7 +145,7 @@ jobs:
     name: Build and License check
     env:
       JOB_NAME: Build and License check
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -222,7 +222,7 @@ jobs:
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
@@ -464,7 +464,7 @@ jobs:
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
@@ -540,7 +540,7 @@ jobs:
     env:
       JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
@@ -815,7 +815,7 @@ jobs:
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       IMAGE_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
@@ -927,7 +927,7 @@ jobs:
     env:
       JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
@@ -1157,7 +1157,7 @@ jobs:
     env:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     strategy:
       fail-fast: false
@@ -1300,7 +1300,7 @@ jobs:
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
@@ -1336,7 +1336,7 @@ jobs:
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
     env:
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       NIST_NVD_API_KEY: ${{ secrets.NIST_NVD_API_KEY }}
     steps:

@@ -145,7 +145,7 @@ jobs:
     env:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
