@@ -125,7 +125,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private static final Set<String> INTERNAL_TOPICS =
             Set.of(BROKER_LOAD_DATA_STORE_TOPIC, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TOPIC);
 
-    private PulsarService pulsar;
+    @VisibleForTesting
+    protected PulsarService pulsar;
 
     private ServiceConfiguration conf;
 
