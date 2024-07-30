@@ -480,8 +480,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.streamnative.oxia-oxia-client-api-0.3.0.jar
-    - io.streamnative.oxia-oxia-client-0.3.0.jar
+    - io.streamnative.oxia-oxia-client-api-0.3.1.jar
+    - io.streamnative.oxia-oxia-client-0.3.1.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
@@ -513,7 +513,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.0.6.jar
+    - org.roaringbitmap-RoaringBitmap-1.2.0.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.38.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.38.0-alpha.jar

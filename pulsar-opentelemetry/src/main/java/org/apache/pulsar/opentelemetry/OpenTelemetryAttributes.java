@@ -112,10 +112,22 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
+    AttributeKey<String> PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME =
+            AttributeKey.stringKey("pulsar.connection.rate_limit.operation.name");
+    enum ConnectionRateLimitOperationName {
+        PAUSED,
+        RESUMED,
+        THROTTLED,
+        UNTHROTTLED;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME, name().toLowerCase());
+    }
+
     /**
      * The status of the Pulsar transaction.
      */
     AttributeKey<String> PULSAR_TRANSACTION_STATUS = AttributeKey.stringKey("pulsar.transaction.status");
+
     enum TransactionStatus {
         ABORTED,
         ACTIVE,
@@ -174,6 +186,36 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(PULSAR_BACKLOG_QUOTA_TYPE, name().toLowerCase());
     }
 
+    // Managed Ledger Attributes
+    /**
+     * The name of the managed ledger.
+     */
+    AttributeKey<String> ML_LEDGER_NAME = AttributeKey.stringKey("pulsar.managed_ledger.name");
+
+    /**
+     * The name of the managed cursor.
+     */
+    AttributeKey<String> ML_CURSOR_NAME = AttributeKey.stringKey("pulsar.managed_ledger.cursor.name");
+
+    /**
+     * The status of the managed cursor operation.
+     */
+    AttributeKey<String> ML_CURSOR_OPERATION_STATUS =
+            AttributeKey.stringKey("pulsar.managed_ledger.cursor.operation.status");
+    enum ManagedCursorOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(ML_CURSOR_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> MANAGED_LEDGER_READ_INFLIGHT_USAGE =
+            AttributeKey.stringKey("pulsar.managed_ledger.inflight.read.usage.state");
+    enum InflightReadLimiterUtilization {
+        USED,
+        FREE;
+        public final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
+    }
+
     /**
      * The name of the remote cluster for a Pulsar replicator.
      */
@@ -195,6 +237,23 @@ public interface OpenTelemetryAttributes {
         FAILURE;
         public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
     }
+
+    // Managed Ledger Attributes
+
+    /**
+     * The name of the managed ledger.
+     */
+    AttributeKey<String> ML_NAME = AttributeKey.stringKey("pulsar.managed_ledger.name");
+
+    /**
+     * The status of the managed ledger operation.
+     */
+    AttributeKey<String> ML_OPERATION_STATUS = AttributeKey.stringKey("pulsar.managed_ledger.operation.status");
+    enum ManagedLedgerOperationStatus {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes = Attributes.of(ML_OPERATION_STATUS, name().toLowerCase());
+    };
 
     /**
      * The type of the pool arena.

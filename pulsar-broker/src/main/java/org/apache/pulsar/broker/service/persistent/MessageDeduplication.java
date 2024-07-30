@@ -159,11 +159,12 @@ public class MessageDeduplication {
         log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
         CompletableFuture<Position> future = new CompletableFuture<>();
         replayCursor(future);
-        return future.thenAccept(lastPosition -> {
+        return future.thenCompose(lastPosition -> {
             if (lastPosition != null && snapshotCounter >= snapshotInterval) {
                 snapshotCounter = 0;
-                takeSnapshot(lastPosition);
+                return takeSnapshot(lastPosition);
             }
+            return CompletableFuture.completedFuture(null);
         });
     }
 
@@ -438,13 +439,15 @@ public class MessageDeduplication {
         }
     }
 
-    private void takeSnapshot(Position position) {
+    private CompletableFuture<Void> takeSnapshot(Position position) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            return;
+            future.complete(null);
+            return future;
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -462,14 +465,18 @@ public class MessageDeduplication {
                 }
                 lastSnapshotTimestamp = System.currentTimeMillis();
                 snapshotTaking.set(false);
+                future.complete(null);
             }
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                log.warn("[{}] Failed to store new deduplication snapshot at {}",
+                        topic.getName(), position, exception);
                 snapshotTaking.set(false);
+                future.completeExceptionally(exception);
             }
         }, null);
+        return future;
     }
 
     /**

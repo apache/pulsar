@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -32,9 +33,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -130,6 +134,50 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCnxReceiveSendError() throws Exception {
+        final String topicOne = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-one";
+        final String topicTwo = "persistent://" + NAMESPACE + "/testCnxReceiveSendError-two";
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString()).connectionsPerBroker(1).build();
+        Producer<String> producerOne = client.newProducer(Schema.STRING)
+                .topic(topicOne)
+                .create();
+        Producer<String> producerTwo = client.newProducer(Schema.STRING)
+                .topic(topicTwo)
+                .create();
+        ClientCnx cnxOne = ((ProducerImpl<?>) producerOne).getClientCnx();
+        ClientCnx cnxTwo = ((ProducerImpl<?>) producerTwo).getClientCnx();
+
+        // simulate a sending error
+        cnxOne.handleSendError(Commands.newSendErrorCommand(((ProducerImpl<?>) producerOne).producerId,
+                10, ServerError.PersistenceError, "persistent error").getSendError());
+
+        // two producer use the same cnx
+        Assert.assertEquals(cnxOne, cnxTwo);
+
+        // the cnx will not change
+        try {
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    (((ProducerImpl<?>) producerOne).getClientCnx() != null
+                            && !cnxOne.equals(((ProducerImpl<?>) producerOne).getClientCnx()))
+                            || !cnxTwo.equals(((ProducerImpl<?>) producerTwo).getClientCnx()));
+            Assert.fail();
+        } catch (Throwable e) {
+            Assert.assertTrue(e instanceof ConditionTimeoutException);
+        }
+
+        // two producer use the same cnx
+        Assert.assertEquals(((ProducerImpl<?>) producerTwo).getClientCnx(),
+                ((ProducerImpl<?>) producerOne).getClientCnx());
+
+        // producer also can send message
+        producerOne.send("test");
+        producerTwo.send("test");
+        producerTwo.close();
+        producerOne.close();
+        client.close();
+    }
+
     public void testSupportsGetPartitionedMetadataWithoutAutoCreation() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName( "persistent://" + NAMESPACE + "/tp");
         admin.topics().createNonPartitionedTopic(topic);

@@ -696,4 +696,11 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Get managed ledger attributes.
+     */
+    default ManagedLedgerAttributes getManagedLedgerAttributes() {
+        return new ManagedLedgerAttributes(this);
+    }
 }

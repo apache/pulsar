@@ -32,6 +32,8 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1200,7 +1202,26 @@ public class PersistentSubscription extends AbstractSubscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
+    /**
+     * @deprecated please call {@link #getStatsAsync(GetStatsOptions)}.
+     */
+    @Deprecated
     public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
+        // So far, there is no case hits this check.
+        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
+            throw new IllegalArgumentException("Calling the sync method subscription.getStats with"
+                    + " getEarliestTimeInBacklog, it may encountered a deadlock error.");
+        }
+        // The method "getStatsAsync" will be a sync method if the param "isGetEarliestTimeInBacklog" is false.
+        try {
+            return getStatsAsync(getStatsOptions).get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            // This error will never occur.
+            throw new RuntimeException(e);
+        }
+    }
+
+    public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1273,21 +1294,6 @@ public class PersistentSubscription extends AbstractSubscription {
         } else {
             subStats.backlogSize = -1;
         }
-        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
-            if (subStats.msgBacklog > 0) {
-                ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-                Position markDeletedPosition = cursor.getMarkDeletedPosition();
-                long result = 0;
-                try {
-                    result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    result = -1;
-                }
-                subStats.earliestMsgPublishTimeInBacklog = result;
-            } else {
-                subStats.earliestMsgPublishTimeInBacklog = -1;
-            }
-        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
@@ -1305,14 +1311,44 @@ public class PersistentSubscription extends AbstractSubscription {
                     .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
-                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                    // The dispatcher allows same name consumers
+                    final StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("consumerName=").append(k.consumerName())
+                            .append(", consumerId=").append(k.consumerId());
+                    if (k.cnx() != null) {
+                        stringBuilder.append(", address=").append(k.cnx().clientAddress());
+                    }
+                    subStats.consumersAfterMarkDeletePosition.put(stringBuilder.toString(), v.toString());
                 });
+            }
+            final String lastSentPosition = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                    .getLastSentPosition();
+            if (lastSentPosition != null) {
+                subStats.lastSentPosition = lastSentPosition;
+            }
+            final String individuallySentPositions = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                    .getIndividuallySentPositions();
+            if (individuallySentPositions != null) {
+                subStats.individuallySentPositions = individuallySentPositions;
             }
         }
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =
                 cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
-        return subStats;
+        if (!getStatsOptions.isGetEarliestTimeInBacklog()) {
+            return CompletableFuture.completedFuture(subStats);
+        }
+        if (subStats.msgBacklog > 0) {
+            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            return managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).thenApply(v -> {
+                subStats.earliestMsgPublishTimeInBacklog = v;
+                return subStats;
+            });
+        } else {
+            subStats.earliestMsgPublishTimeInBacklog = -1;
+            return CompletableFuture.completedFuture(subStats);
+        }
     }
 
     @Override

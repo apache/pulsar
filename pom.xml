@@ -167,7 +167,7 @@ flexible messaging model and an intuitive client API.</description>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.43.3</docker-maven.version>
+    <docker-maven.version>0.45.0</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <byte-buddy.version>1.14.12</byte-buddy.version>
@@ -252,7 +252,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.3.0</oxia.version>
+    <oxia.version>0.3.1</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
@@ -316,8 +316,8 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.21</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>9.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>1.0.6</roaringbitmap.version>
+    <dependency-check-maven.version>10.0.2</dependency-check-maven.version>
+    <roaringbitmap.version>1.2.0</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
@@ -2192,6 +2192,16 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
         </plugin>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>${dependency-check-maven.version}</version>
+          <configuration>
+            <nvdApiKeyEnvironmentVariable>NIST_NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+            <!-- Uncomment the following to use the NVD data feed provided by the Dependency-Check project -->
+            <!-- <nvdDatafeedUrl>https://jeremylong.github.io/DependencyCheck/hb_nvd/</nvdDatafeedUrl> -->
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
     <extensions>
@@ -2639,7 +2649,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <configuration>
               <suppressionFiles>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
@@ -2674,7 +2683,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <reportSets>
               <reportSet>
                 <reports>
