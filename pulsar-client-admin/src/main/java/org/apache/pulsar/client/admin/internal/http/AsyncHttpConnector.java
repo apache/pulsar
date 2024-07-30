@@ -83,19 +83,23 @@ public class AsyncHttpConnector implements Connector {
     private final PulsarServiceNameResolver serviceNameResolver;
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
+    private final boolean acceptGzipCompression;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+                              boolean acceptGzipCompression) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
                 PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf);
+                conf, acceptGzipCompression);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
-                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf) {
+                              int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
+                              boolean acceptGzipCompression) {
+        this.acceptGzipCompression = acceptGzipCompression;
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
@@ -338,6 +342,10 @@ public class AsyncHttpConnector implements Connector {
                 builder.addHeader(key, headers);
             }
         });
+
+        if (acceptGzipCompression) {
+            builder.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip");
+        }
 
         return builder.execute().toCompletableFuture();
     }

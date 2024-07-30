@@ -54,7 +54,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public double messageAckRate;
 
     /** Chunked message dispatch rate. */
-    public int chunkedMessageRate;
+    public double chunkedMessageRate;
 
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
@@ -125,6 +125,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
+
+    /** The last sent position of the cursor. This is for Key_Shared subscription. */
+    public String lastSentPosition;
+
+    /** Set of individually sent ranges. This is for Key_Shared subscription. */
+    public String individuallySentPositions;
 
     /** The number of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRanges;

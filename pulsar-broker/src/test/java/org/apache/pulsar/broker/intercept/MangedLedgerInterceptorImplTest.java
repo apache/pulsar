@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
@@ -35,7 +42,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -48,15 +54,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
@@ -264,9 +261,9 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
 
 
-        PositionImpl position = null;
+        Position position = null;
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
@@ -279,7 +276,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertNotEquals(firstLedgerId, secondLedgerId);
 
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
@@ -298,7 +295,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertNotEquals(secondLedgerId, thirdLedgerId);
 
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
         cursor.close();

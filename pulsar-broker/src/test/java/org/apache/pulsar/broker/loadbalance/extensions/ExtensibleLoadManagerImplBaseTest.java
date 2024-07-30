@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -37,7 +38,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -64,29 +64,30 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         this.defaultTestNamespace = defaultTestNamespace;
     }
 
-    protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
-        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-        // stuck when doing unload.
-        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
-        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        updateConfig(conf);
+    }
+
+
+    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
         conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
         return conf;
     }
 
     @Override
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
-        initConfig(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
-        var conf2 = initConfig(getDefaultConf());
+        var conf2 = updateConfig(getDefaultConf());
         additionalPulsarTestContext = createAdditionalPulsarTestContext(conf2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -111,8 +112,15 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        this.additionalPulsarTestContext.close();
+        if (additionalPulsarTestContext != null) {
+            additionalPulsarTestContext.close();
+            additionalPulsarTestContext = null;
+        }
         super.internalCleanup();
+        pulsar1 = pulsar2 = null;
+        primaryLoadManager = secondaryLoadManager = null;
+        channel1 = channel2 = null;
+        lookupService = null;
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -144,7 +152,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
                 FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
     }
 
-    protected CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
+    protected static CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
         return pulsar.getNamespaceService().getBundleAsync(topic);
     }
 

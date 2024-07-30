@@ -52,11 +52,11 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxDelayMillis;
     private final int maxOperations;
     private final int maxSize;
-    private final MetadataEventSynchronizer synchronizer;
+    private MetadataEventSynchronizer synchronizer;
     private final BatchMetadataStoreStats batchMetadataStoreStats;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super(conf.getMetadataStoreName());
+        super(conf.getMetadataStoreName(), conf.getOpenTelemetry());
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
@@ -75,10 +75,9 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         }
 
         // update synchronizer and register sync listener
-        synchronizer = conf.getSynchronizer();
-        registerSyncListener(Optional.ofNullable(synchronizer));
+        updateMetadataEventSynchronizer(conf.getSynchronizer());
         this.batchMetadataStoreStats =
-                new BatchMetadataStoreStats(metadataStoreName, executor);
+                new BatchMetadataStoreStats(metadataStoreName, executor, conf.getOpenTelemetry());
     }
 
     @Override
@@ -87,9 +86,13 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             // Fail all the pending items
             MetadataStoreException ex =
                     new MetadataStoreException.AlreadyClosedException("Metadata store is getting closed");
-            readOps.drain(op -> op.getFuture().completeExceptionally(ex));
-            writeOps.drain(op -> op.getFuture().completeExceptionally(ex));
-
+            MetadataOp op;
+            while ((op = readOps.poll()) != null) {
+                op.getFuture().completeExceptionally(ex);
+            }
+            while ((op = writeOps.poll()) != null) {
+                op.getFuture().completeExceptionally(ex);
+            }
             scheduledTask.cancel(true);
         }
         super.close();
@@ -99,7 +102,13 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private void flush() {
         while (!readOps.isEmpty()) {
             List<MetadataOp> ops = new ArrayList<>();
-            readOps.drain(ops::add, maxOperations);
+            for (int i = 0; i < maxOperations; i++) {
+                MetadataOp op = readOps.poll();
+                if (op == null) {
+                    break;
+                }
+                ops.add(op);
+            }
             internalBatchOperation(ops);
         }
 
@@ -161,7 +170,18 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         return Optional.ofNullable(synchronizer);
     }
 
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = synchronizer;
+        registerSyncListener(Optional.ofNullable(synchronizer));
+    }
+
     private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
+        if (isClosed()) {
+            MetadataStoreException ex = new MetadataStoreException.AlreadyClosedException();
+            op.getFuture().completeExceptionally(ex);
+            return;
+        }
         if (enabled) {
             if (!queue.offer(op)) {
                 // Execute individually if we're failing to enqueue
@@ -177,6 +197,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     private void internalBatchOperation(List<MetadataOp> ops) {
+        if (isClosed()) {
+            MetadataStoreException ex =
+                    new MetadataStoreException.AlreadyClosedException();
+            ops.forEach(op -> op.getFuture().completeExceptionally(ex));
+            return;
+        }
         long now = System.currentTimeMillis();
         for (MetadataOp op : ops) {
             this.batchMetadataStoreStats.recordOpWaiting(now - op.created());

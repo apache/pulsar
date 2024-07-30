@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
@@ -270,7 +269,7 @@ public class CmdProduce extends AbstractCmd {
                 case KEY_VALUE_ENCODING_TYPE_INLINE:
                     break;
                 default:
-                    throw (new ParameterException("--key-value-encoding-type "
+                    throw (new IllegalArgumentException("--key-value-encoding-type "
                             + keyValueEncodingType + " is not valid, only 'separated' or 'inline'"));
             }
         }
@@ -279,7 +278,7 @@ public class CmdProduce extends AbstractCmd {
         if (totalMessages > MAX_MESSAGES) {
             String msg = "Attempting to send " + totalMessages + " messages. Please do not send more than "
                     + MAX_MESSAGES + " messages";
-            throw new ParameterException(msg);
+            throw new IllegalArgumentException(msg);
         }
 
         if (this.serviceURL.startsWith("ws")) {
@@ -322,13 +321,13 @@ public class CmdProduce extends AbstractCmd {
                 final byte[] keyValueKeyBytes;
                 if (this.keyValueKey != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new ParameterException(
+                        throw new IllegalArgumentException(
                             "Key value encoding type must be set when using --key-value-key");
                     }
                     keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
                 } else if (this.keyValueKeyFile != null) {
                     if (keyValueEncodingType == KEY_VALUE_ENCODING_TYPE_NOT_SET) {
-                        throw new ParameterException(
+                        throw new IllegalArgumentException(
                             "Key value encoding type must be set when using --key-value-key-file");
                     }
                     keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));

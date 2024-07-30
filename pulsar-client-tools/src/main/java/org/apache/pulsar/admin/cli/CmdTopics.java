@@ -62,9 +62,12 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1097,10 +1100,23 @@ public class CmdTopics extends CmdBase {
         @Option(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
         private int numMessages = 1;
 
+        @Option(names = { "-ssm", "--show-server-marker" },
+                description = "Enables the display of internal server write markers.", required = false)
+        private boolean showServerMarker = false;
+
+        @Option(names = { "-til", "--transaction-isolation-level" },
+                description = "Sets the isolation level for peeking messages within transactions. "
+                   + "'READ_COMMITTED' allows peeking only committed transactional messages. "
+                   + "'READ_UNCOMMITTED' allows peeking all messages, "
+                        + "even transactional messages which have been aborted.",
+                required = false)
+        private TransactionIsolationLevel transactionIsolationLevel = TransactionIsolationLevel.READ_COMMITTED;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
+                    showServerMarker, transactionIsolationLevel);
             int position = 0;
             for (Message<byte[]> msg : messages) {
                 MessageImpl message = (MessageImpl) msg;
@@ -1121,6 +1137,10 @@ public class CmdTopics extends CmdBase {
 
                 if (message.getDeliverAtTime() != 0) {
                     System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                }
+                MessageMetadata msgMetaData = message.getMessageBuilder();
+                if (showServerMarker && msgMetaData.hasMarkerType()) {
+                    System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
                 }
 
                 if (message.getBrokerEntryMetadata() != null) {

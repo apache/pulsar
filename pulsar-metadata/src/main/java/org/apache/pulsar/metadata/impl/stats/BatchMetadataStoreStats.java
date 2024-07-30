@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import java.util.concurrent.ExecutorService;
@@ -58,7 +61,10 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private final Histogram.Child batchExecuteTimeChild;
     private final Histogram.Child opsPerBatchChild;
 
-    public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor) {
+    public static final String EXECUTOR_QUEUE_SIZE_METRIC_NAME = "pulsar.broker.metadata.store.executor.queue.size";
+    private final ObservableLongUpDownCounter batchMetadataStoreSizeCounter;
+
+    public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor, OpenTelemetry openTelemetry) {
         if (executor instanceof ThreadPoolExecutor tx) {
             this.executor = tx;
         } else {
@@ -69,8 +75,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         EXECUTOR_QUEUE_SIZE.setChild(new Gauge.Child() {
             @Override
             public double get() {
-                return BatchMetadataStoreStats.this.executor == null ? 0 :
-                        BatchMetadataStoreStats.this.executor.getQueue().size();
+                return getQueueSize();
             }
         }, metadataStoreName);
 
@@ -78,6 +83,17 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
         this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
 
+        var meter = openTelemetry.getMeter("org.apache.pulsar");
+        var attributes = Attributes.of(MetadataStoreStats.METADATA_STORE_NAME, metadataStoreName);
+        this.batchMetadataStoreSizeCounter = meter
+                .upDownCounterBuilder(EXECUTOR_QUEUE_SIZE_METRIC_NAME)
+                .setDescription("The number of batch operations in the metadata store executor queue")
+                .setUnit("{operation}")
+                .buildWithCallback(measurement -> measurement.record(getQueueSize(), attributes));
+    }
+
+    private int getQueueSize() {
+        return executor == null ? 0 : executor.getQueue().size();
     }
 
     public void recordOpWaiting(long millis) {
@@ -99,6 +115,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             OPS_WAITING.remove(this.metadataStoreName);
             BATCH_EXECUTE_TIME.remove(this.metadataStoreName);
             OPS_PER_BATCH.remove(metadataStoreName);
+            batchMetadataStoreSizeCounter.close();
         }
     }
 }

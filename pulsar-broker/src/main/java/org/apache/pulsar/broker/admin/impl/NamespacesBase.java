@@ -309,8 +309,14 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), ex);
                                             return FutureUtil.failedFuture(ex);
                                         }
+                                        log.info("[{}] Deleting namespace bundle {}/{}", clientAppId(),
+                                                namespaceName, bundle.getBundleRange());
                                         return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
                                                 bundle.getBundleRange(), force);
+                                    } else {
+                                        log.warn("[{}] Skipping deleting namespace bundle {}/{} "
+                                                        + "as it's not owned by any broker",
+                                                clientAppId(), namespaceName, bundle.getBundleRange());
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
@@ -321,8 +327,11 @@ public abstract class NamespacesBase extends AdminResource {
                         final Throwable rc = FutureUtil.unwrapCompletionException(error);
                         if (rc instanceof MetadataStoreException) {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                KeeperException.NotEmptyException ne =
+                                        (KeeperException.NotEmptyException) rc.getCause();
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
-                                        + "retry to delete the namespace again.", namespaceName);
+                                        + "retry to delete the namespace again. (path {} is not empty on metadata)",
+                                        namespaceName, ne.getPath());
                                 final int next = retryTimes - 1;
                                 if (next > 0) {
                                     // async recursive
@@ -330,7 +339,8 @@ public abstract class NamespacesBase extends AdminResource {
                                 } else {
                                     callback.completeExceptionally(
                                             new RestException(Status.CONFLICT, "The broker still have in-flight topics"
-                                                    + " created during namespace deletion, please try again."));
+                                                    + " created during namespace deletion (path " + ne.getPath() + ") "
+                                                    + "is not empty on metadata store, please try again."));
                                     // drop out recursive
                                 }
                                 return;
@@ -476,6 +486,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative,
                                                                          boolean force) {
+        log.info("[{}] Deleting namespace bundle {}/{} authoritative:{} force:{}",
+                clientAppId(), namespaceName, bundleRange, authoritative, force);
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
@@ -691,9 +703,21 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ ->
-                                                        validateClusterForTenantAsync(
-                                                                namespaceName.getTenant(), clusterId));
+                                                .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                        .thenCompose(nsPolicies -> {
+                                                            if (nsPolicies.allowed_clusters.isEmpty()) {
+                                                                return validateClusterForTenantAsync(
+                                                                        namespaceName.getTenant(), clusterId);
+                                                            }
+                                                            if (!nsPolicies.allowed_clusters.contains(clusterId)) {
+                                                                String msg = String.format("Cluster [%s] is not in the "
+                                                                        + "list of allowed clusters list for namespace "
+                                                                        + "[%s]", clusterId, namespaceName.toString());
+                                                                log.info(msg);
+                                                                throw new RestException(Status.FORBIDDEN, msg);
+                                                            }
+                                                            return CompletableFuture.completedFuture(null);
+                                                        }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -969,13 +993,13 @@ public abstract class NamespacesBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return CompletableFuture.completedFuture(null);
                     }
                     return validateLeaderBrokerAsync();
                 })
                 .thenAccept(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
                         return;
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
@@ -2019,7 +2043,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -2125,9 +2149,10 @@ public abstract class NamespacesBase extends AdminResource {
                     f.complete(null);
                 })
                 .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
                             clientAppId(), namespaceName, t);
-                    f.completeExceptionally(new RestException(t));
+                    f.completeExceptionally(new RestException(cause));
                     return null;
                 });
 
@@ -2698,7 +2723,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistentAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName,
                     PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
                 .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
@@ -2709,4 +2734,65 @@ public abstract class NamespacesBase extends AdminResource {
                     return policiesOpt.map(p -> p.dispatcherPauseOnAckStatePersistentEnabled).orElse(false);
                 });
     }
+
+    protected CompletableFuture<Void> internalSetNamespaceAllowedClusters(List<String> clusterIds) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                // Allowed clusters in the namespace policy should be included in the allowed clusters in the tenant
+                // policy.
+                .thenCompose(__ -> FutureUtil.waitForAll(clusterIds.stream().map(clusterId ->
+                        validateClusterForTenantAsync(namespaceName.getTenant(), clusterId))
+                        .collect(Collectors.toList())))
+                // Allowed clusters should include all the existed replication clusters and could not contain global
+                // cluster.
+                .thenCompose(__ -> {
+                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (clusterIds.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of allowed clusters");
+                    }
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(namespacePolicies -> {
+                        namespacePolicies.replication_clusters.forEach(replicationCluster -> {
+                            if (!clusterIds.contains(replicationCluster)) {
+                                throw new RestException(Status.BAD_REQUEST,
+                                        String.format("Allowed clusters do not contain the replication cluster %s. "
+                                                + "Please remove the replication cluster if the cluster is not allowed "
+                                                + "for this namespace", replicationCluster));
+                            }
+                        });
+                        return Sets.newHashSet(clusterIds);
+                    });
+                })
+                // Verify the allowed clusters are valid and they do not contain the peer clusters.
+                .thenCompose(allowedClusters -> clustersAsync()
+                        .thenCompose(clusters -> {
+                            List<CompletableFuture<Void>> futures =
+                                    allowedClusters.stream().map(clusterId -> {
+                                        if (!clusters.contains(clusterId)) {
+                                            throw new RestException(Status.FORBIDDEN,
+                                                    "Invalid cluster id: " + clusterId);
+                                        }
+                                        return validatePeerClusterConflictAsync(clusterId, allowedClusters);
+                                    }).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> allowedClusters);
+                        }))
+                // Update allowed clusters into policies.
+                .thenCompose(allowedClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.allowed_clusters = allowedClusterSet;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
+                .thenAccept(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot get the allowed clusters for a non-global namespace");
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.allowed_clusters);
+    }
+
+
 }
