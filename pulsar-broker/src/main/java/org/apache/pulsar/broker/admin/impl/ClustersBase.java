@@ -775,12 +775,12 @@ public class ClustersBase extends AdminResource {
                                 // Filter namespaces that have current cluster in their replication_clusters
                                 // if namespace match any policy regex, add it to ns list to be unloaded.
                                 return namespaces.stream()
+                                        .filter(namespaceName ->
+                                                policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
                                         .filter(namespaceName -> adminClient.namespaces()
                                                 .getPoliciesAsync(namespaceName)
                                                 .thenApply(policies -> policies.replication_clusters.contains(cluster))
                                                 .join())
-                                        .filter(namespaceName ->
-                                                policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
                                         .collect(Collectors.toList());
                             });
                 }).thenCompose(shouldUnloadNamespaces -> {
