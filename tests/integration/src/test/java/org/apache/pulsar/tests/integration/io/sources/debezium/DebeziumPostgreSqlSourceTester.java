@@ -35,7 +35,7 @@ import org.testng.Assert;
  * It reads binlog from Postgres, and store the debezium output into Pulsar.
  * This test verify that the target topic contains wanted number messages.
  *
- * Debezium Postgresql Container is "debezium/example-postgres:2.5.0.Final",
+ * Debezium Postgresql Container is "debezium/example-postgres:2.6.1.Final",
  * which is a Postgresql database server preconfigured with an inventory database.
  */
 @Slf4j

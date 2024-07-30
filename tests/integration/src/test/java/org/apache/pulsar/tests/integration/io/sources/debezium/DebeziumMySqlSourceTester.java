@@ -32,7 +32,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
  * It reads binlog from MySQL, and store the debezium output into Pulsar.
  * This test verify that the target topic contains wanted number messages.
  *
- * Debezium MySQL Container is "debezium/example-mysql:2.5.0.Final",
+ * Debezium MySQL Container is "debezium/example-mysql:2.6.1.Final",
  * which is a MySQL database server preconfigured with an inventory database.
  */
 @Slf4j
