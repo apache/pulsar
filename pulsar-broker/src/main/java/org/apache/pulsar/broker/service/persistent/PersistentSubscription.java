@@ -31,9 +31,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -334,17 +331,18 @@ public class PersistentSubscription extends AbstractSubscription {
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().execute(() -> {
-                    topic.removeSubscription(subName);
-                    // Also need remove the cursor here, otherwise the data deletion will not work well.
-                    // Because data deletion depends on the mark delete position of all cursors.
-                    if (!isResetCursor) {
-                        try {
-                            topic.getManagedLedger().deleteCursor(cursor.getName());
-                            topic.getManagedLedger().removeWaitingCursor(cursor);
-                        } catch (InterruptedException | ManagedLedgerException e) {
-                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                    topic.removeSubscription(subName).thenRunAsync(() -> {
+                        // Also need remove the cursor here, otherwise the data deletion will not work well.
+                        // Because data deletion depends on the mark delete position of all cursors.
+                        if (!isResetCursor) {
+                            try {
+                                topic.getManagedLedger().deleteCursor(cursor.getName());
+                                topic.getManagedLedger().removeWaitingCursor(cursor);
+                            } catch (InterruptedException | ManagedLedgerException e) {
+                                log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                            }
                         }
-                    }
+                    }, topic.getBrokerService().pulsar().getExecutor());
                 });
             } else {
                 topic.getManagedLedger().removeWaitingCursor(cursor);
@@ -1200,25 +1198,6 @@ public class PersistentSubscription extends AbstractSubscription {
 
     public long estimateBacklogSize() {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
-    }
-
-    /**
-     * @deprecated please call {@link #getStatsAsync(GetStatsOptions)}.
-     */
-    @Deprecated
-    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
-        // So far, there is no case hits this check.
-        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
-            throw new IllegalArgumentException("Calling the sync method subscription.getStats with"
-                    + " getEarliestTimeInBacklog, it may encountered a deadlock error.");
-        }
-        // The method "getStatsAsync" will be a sync method if the param "isGetEarliestTimeInBacklog" is false.
-        try {
-            return getStatsAsync(getStatsOptions).get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            // This error will never occur.
-            throw new RuntimeException(e);
-        }
     }
 
     public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
