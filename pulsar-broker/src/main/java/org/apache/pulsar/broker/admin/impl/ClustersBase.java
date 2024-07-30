@@ -36,7 +36,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -707,9 +706,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName,
         @ApiParam(value = "The namespace isolation policy data", required = true)
-        NamespaceIsolationDataImpl policyData,
-        @DefaultValue("true")
-        @QueryParam("unloadBundles") boolean unload
+        NamespaceIsolationDataImpl policyData
     ) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -727,13 +724,7 @@ public class ClustersBase extends AdminResource {
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
                             .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> {
-                    if (unload) {
-                        return filterAndUnloadMatchedNamespaceAsync(cluster, policyData);
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                })
+                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(cluster, policyData))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
