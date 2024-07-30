@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -332,17 +331,18 @@ public class PersistentSubscription extends AbstractSubscription {
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().execute(() -> {
-                    topic.removeSubscription(subName);
-                    // Also need remove the cursor here, otherwise the data deletion will not work well.
-                    // Because data deletion depends on the mark delete position of all cursors.
-                    if (!isResetCursor) {
-                        try {
-                            topic.getManagedLedger().deleteCursor(cursor.getName());
-                            topic.getManagedLedger().removeWaitingCursor(cursor);
-                        } catch (InterruptedException | ManagedLedgerException e) {
-                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                    topic.removeSubscription(subName).thenRunAsync(() -> {
+                        // Also need remove the cursor here, otherwise the data deletion will not work well.
+                        // Because data deletion depends on the mark delete position of all cursors.
+                        if (!isResetCursor) {
+                            try {
+                                topic.getManagedLedger().deleteCursor(cursor.getName());
+                                topic.getManagedLedger().removeWaitingCursor(cursor);
+                            } catch (InterruptedException | ManagedLedgerException e) {
+                                log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                            }
                         }
-                    }
+                    }, topic.getBrokerService().pulsar().getExecutor());
                 });
             } else {
                 topic.getManagedLedger().removeWaitingCursor(cursor);
@@ -1200,7 +1200,7 @@ public class PersistentSubscription extends AbstractSubscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
+    public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1273,21 +1273,6 @@ public class PersistentSubscription extends AbstractSubscription {
         } else {
             subStats.backlogSize = -1;
         }
-        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
-            if (subStats.msgBacklog > 0) {
-                ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-                Position markDeletedPosition = cursor.getMarkDeletedPosition();
-                long result = 0;
-                try {
-                    result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    result = -1;
-                }
-                subStats.earliestMsgPublishTimeInBacklog = result;
-            } else {
-                subStats.earliestMsgPublishTimeInBacklog = -1;
-            }
-        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
@@ -1329,7 +1314,20 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =
                 cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
-        return subStats;
+        if (!getStatsOptions.isGetEarliestTimeInBacklog()) {
+            return CompletableFuture.completedFuture(subStats);
+        }
+        if (subStats.msgBacklog > 0) {
+            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            return managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).thenApply(v -> {
+                subStats.earliestMsgPublishTimeInBacklog = v;
+                return subStats;
+            });
+        } else {
+            subStats.earliestMsgPublishTimeInBacklog = -1;
+            return CompletableFuture.completedFuture(subStats);
+        }
     }
 
     @Override

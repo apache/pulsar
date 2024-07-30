@@ -34,7 +34,7 @@ jobs:
     name: Check ${{ matrix.branch }}
     env:
       JOB_NAME: Check ${{ matrix.branch }}
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-22.04
     timeout-minutes: 75
     strategy:
