@@ -708,7 +708,7 @@ public class ClustersBase extends AdminResource {
         @PathParam("policyName") String policyName,
         @ApiParam(value = "The namespace isolation policy data", required = true)
         NamespaceIsolationDataImpl policyData,
-        @DefaultValue("false")
+        @DefaultValue("true")
         @QueryParam("unloadBundles") boolean unload
     ) {
         validateSuperUserAccessAsync()

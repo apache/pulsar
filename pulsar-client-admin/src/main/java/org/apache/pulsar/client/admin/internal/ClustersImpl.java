@@ -202,26 +202,26 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public void createNamespaceIsolationPolicy(String cluster, String policyName,
-            NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) throws PulsarAdminException {
-        setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData, unloadBundles);
+            NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+        setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public CompletableFuture<Void> createNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) {
-        return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData, unloadBundles);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+        return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public void updateNamespaceIsolationPolicy(String cluster, String policyName,
-           NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) throws PulsarAdminException {
-        setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData, unloadBundles);
+           NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+        setNamespaceIsolationPolicy(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
     public CompletableFuture<Void> updateNamespaceIsolationPolicyAsync(
-            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) {
-        return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData, unloadBundles);
+            String cluster, String policyName, NamespaceIsolationData namespaceIsolationData) {
+        return setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData);
     }
 
     @Override
@@ -236,14 +236,13 @@ public class ClustersImpl extends BaseResource implements Clusters {
     }
 
     private void setNamespaceIsolationPolicy(String cluster, String policyName,
-             NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) throws PulsarAdminException {
-        sync(() -> setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData, unloadBundles));
+             NamespaceIsolationData namespaceIsolationData) throws PulsarAdminException {
+        sync(() -> setNamespaceIsolationPolicyAsync(cluster, policyName, namespaceIsolationData));
     }
 
     private CompletableFuture<Void> setNamespaceIsolationPolicyAsync(String cluster, String policyName,
-             NamespaceIsolationData namespaceIsolationData, boolean unloadBundles) {
-        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName)
-                .queryParam("unloadBundles", unloadBundles);
+             NamespaceIsolationData namespaceIsolationData) {
+        WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
         return asyncPostRequest(path, Entity.entity(namespaceIsolationData, MediaType.APPLICATION_JSON));
     }
 

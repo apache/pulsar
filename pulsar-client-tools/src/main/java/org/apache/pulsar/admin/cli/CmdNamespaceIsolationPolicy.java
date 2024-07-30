@@ -73,16 +73,12 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
                 required = true, split = ",")
         private Map<String, String> autoFailoverPolicyParams;
 
-        @Option(names = "--unloadBundles", description = "Unload namespace bundles after applying policy")
-        private boolean unloadBundles;
-
         void run() throws PulsarAdminException {
             // validate and create the POJO
             NamespaceIsolationData namespaceIsolationData = createNamespaceIsolationData(namespaces, primary, secondary,
                     autoFailoverPolicyTypeName, autoFailoverPolicyParams);
 
-            getAdmin().clusters()
-                    .createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData, unloadBundles);
+            getAdmin().clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
         }
     }
 
