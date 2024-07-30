@@ -531,7 +531,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build().get();
 
-        // 2. Set a new future in transaction buffer as `transactionBufferFuture` to stimulate whether the
+        // 2. Set a new future in transaction buffer as `transactionBufferFuture` to simulate whether the
         // transaction buffer recover completely.
         // Register this topic to the transaction in advance to avoid the sending request pending here.
         ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
