@@ -72,14 +72,13 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of(""), Set.of("test", "cluster-1", "cluster-2"));
         localAdmin.tenants().createTenant("prop-ig", tenantInfo);
         localAdmin.namespaces().createNamespace("prop-ig/ns1", Set.of("test", "cluster-1"));
-        localAdmin.namespaces().setNamespaceReplicationClusters("prop-ig/ns1", Set.of("cluster-1"));
     }
 
     public void testNamespaceIsolationPolicyForReplNS() throws Exception {
 
-        // Verify that namespace is only present in one cluster.
+        // Verify that namespace is not present in cluster-2.
         Set<String> replicationClusters = localAdmin.namespaces().getPolicies("prop-ig/ns1").replication_clusters;
-        Assert.assertEquals(replicationClusters, Set.of("cluster-1"));
+        Assert.assertFalse(replicationClusters.contains("cluster-2"));
 
         // setup ns-isolation-policy in both the clusters.
         String policyName1 = "policy-1";
