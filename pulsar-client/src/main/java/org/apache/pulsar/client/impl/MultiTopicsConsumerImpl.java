@@ -243,11 +243,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
                 consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
-                if (conf.getBatchReceivePolicy() != null) {
-                    internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
-                } else {
-                    internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, false));
-                }
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
             });
         }
     }
