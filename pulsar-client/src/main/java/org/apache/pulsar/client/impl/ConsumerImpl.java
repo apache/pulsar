@@ -532,8 +532,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
+                        //Message<T> interceptMsg = beforeConsume(msg);
+                        messages.add(msg);
                     }
                     msgPeeked = incomingMessages.peek();
                 }
