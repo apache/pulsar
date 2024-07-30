@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
@@ -37,7 +38,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
+import java.util.function.Function;
+import lombok.RequiredArgsConstructor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -483,6 +485,17 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Assert.assertNull(message);
     }
 
+    @RequiredArgsConstructor
+    static class MockTransactionBufferProvider implements TransactionBufferProvider {
+
+        private final Function<PersistentTopic, TransactionBuffer> function;
+
+        @Override
+        public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+            return function.apply((PersistentTopic) originTopic);
+        }
+    }
+
     /**
      * Send some messages before transaction buffer ready and then send some messages after transaction buffer ready,
      * these messages should be received in order.
@@ -490,9 +503,15 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     @Test
     public void testMessagePublishInOrder() throws Exception {
         // 1. Prepare test environment.
-        this.pulsarServiceList.forEach(pulsarService ->  {
-            pulsarService.setTransactionExecutorProvider(new TransactionBufferTestProvider());
-        });
+        final var transactionBufferFuture = new AtomicReference<CompletableFuture<Void>>();
+        transactionBufferFuture.set(new CompletableFuture<>());
+        pulsarServiceList.get(0).setTransactionExecutorProvider(new MockTransactionBufferProvider(topic -> {
+            final var transactionBuffer = spy(new TopicTransactionBuffer(topic));
+            when(transactionBuffer.getTransactionBufferFuture()).thenReturn(transactionBufferFuture.get());
+            when(transactionBuffer.getState()).thenReturn(TopicTransactionBufferState.State.Ready);
+            return transactionBuffer;
+        }));
+
         String topic = "persistent://" + NAMESPACE1 + "/testMessagePublishInOrder" + RandomUtils.nextLong();
         admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
@@ -511,13 +530,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build().get();
+
         // 2. Set a new future in transaction buffer as `transactionBufferFuture` to stimulate whether the
         // transaction buffer recover completely.
-        TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
-                .getTransactionBuffer();
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        topicTransactionBuffer.setTransactionBufferFuture(completableFuture);
-        topicTransactionBuffer.setState(TopicTransactionBufferState.State.Ready);
         // Register this topic to the transaction in advance to avoid the sending request pending here.
         ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
         // 3. Test the messages sent before transaction buffer ready is in order.
@@ -525,7 +540,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
             producer.newMessage(transaction).value(i).sendAsync();
         }
         // 4. Test the messages sent after transaction buffer ready is in order.
-        completableFuture.complete(null);
+        transactionBufferFuture.get().complete(null);
         for (int i = 50; i < 100; i++) {
             producer.newMessage(transaction).value(i).sendAsync();
         }
