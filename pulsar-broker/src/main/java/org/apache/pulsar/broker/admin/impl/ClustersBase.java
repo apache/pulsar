@@ -33,8 +33,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -58,6 +60,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -724,10 +727,15 @@ public class ClustersBase extends AdminResource {
                                         .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
                 ).thenCompose(nsIsolationPolicies -> {
+                    NamespaceIsolationPolicy currentIsolationPolicy = nsIsolationPolicies.getPolicyByName(policyName);
+                    List<String> oldNamespaceRegex = currentIsolationPolicy == null ? new ArrayList<>() :
+                            currentIsolationPolicy.getNamespaces();
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
-                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> unload ? filterAndUnloadMatchedNamespaceAsync(cluster, policyData) :
+                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
+                            .thenApply(policy -> oldNamespaceRegex);
+                }).thenCompose(oldNSRegex -> unload ? filterAndUnloadMatchedNamespaceAsync(cluster, policyData,
+                        oldNSRegex) :
                         CompletableFuture.completedFuture(null))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
@@ -763,21 +771,33 @@ public class ClustersBase extends AdminResource {
      * Get matched namespaces; call unload for each namespaces.
      */
     private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(String cluster,
-                                                                         NamespaceIsolationDataImpl policyData) {
+                                                                         NamespaceIsolationDataImpl policyData,
+                                                                         List<String> oldNSRegex) {
         PulsarAdmin adminClient;
         try {
             adminClient = pulsar().getAdminClient();
         } catch (PulsarServerException e) {
             return FutureUtil.failedFuture(e);
         }
+        List<String> currentRegex = policyData.getNamespaces();
+        // (new ∩ old), namespaces to remove matching this regex
+        List<String> commonRegex = currentRegex.stream().distinct().filter(oldNSRegex::contains).toList();
         // compile regex patterns once
-        List<Pattern> namespacePatterns = policyData.getNamespaces().stream().map(Pattern::compile).toList();
+        List<Pattern> excludeNamespacePatterns = commonRegex.stream().map(Pattern::compile).toList();
+        // (new ⋃ old), namespaces to keep matching this regex
+        List<Pattern> namespacePatterns =
+                Stream.concat(currentRegex.stream(), oldNSRegex.stream()).map(Pattern::compile).toList();
         return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
             List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
                     .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
                         List<CompletableFuture<String>> namespaceNamesInCluster = namespaces.stream()
+                                // filter namespaces using ns regex from current policy
                                 .filter(namespaceName -> namespacePatterns.stream()
                                         .anyMatch(pattern -> pattern.matcher(namespaceName).matches()))
+                                // remove namespaces using old ns regex
+                                // only unloads namespaces matching delta of policy, (new ⋃ old) - (new ∩ old)
+                                .filter(((Predicate<String>) (namespaceName -> excludeNamespacePatterns.stream()
+                                        .anyMatch(pattern -> pattern.matcher(namespaceName).matches()))).negate())
                                 .map(namespaceName -> adminClient.namespaces().getPoliciesAsync(namespaceName)
                                         .thenApply(policies -> policies.replication_clusters.contains(cluster)
                                                 ? namespaceName : null))

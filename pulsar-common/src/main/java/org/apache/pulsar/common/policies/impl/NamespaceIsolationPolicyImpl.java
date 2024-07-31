@@ -77,6 +77,11 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     }
 
     @Override
+    public List<String> getNamespaces() {
+        return this.namespaces;
+    }
+
+    @Override
     public List<URL> findPrimaryBrokers(List<URL> availableBrokers, NamespaceName namespace) {
         if (!this.matchNamespaces(namespace.toString())) {
             throw new IllegalArgumentException("Namespace " + namespace.toString() + " does not match policy");

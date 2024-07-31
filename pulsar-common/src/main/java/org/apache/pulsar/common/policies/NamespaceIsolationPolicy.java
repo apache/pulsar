@@ -44,6 +44,13 @@ public interface NamespaceIsolationPolicy {
     List<String> getSecondaryBrokers();
 
     /**
+     * Get the list of namespace regex used in policy.
+     *
+     * @return
+     */
+    List<String> getNamespaces();
+
+    /**
      * Get the list of primary brokers for the namespace according to the policy.
      *
      * @param availableBrokers brokers identified by service URL.
