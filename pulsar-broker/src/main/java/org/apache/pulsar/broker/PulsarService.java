@@ -2016,7 +2016,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     @VisibleForTesting
-    public void setTransactionExecutorProvider(TransactionBufferProvider transactionBufferProvider) {
+    public void setTransactionBufferProvider(TransactionBufferProvider transactionBufferProvider) {
         this.transactionBufferProvider = transactionBufferProvider;
     }
 
