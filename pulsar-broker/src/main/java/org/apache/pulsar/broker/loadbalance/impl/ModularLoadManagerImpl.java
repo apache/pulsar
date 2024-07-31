@@ -353,8 +353,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
-                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
+            return getAvailableBrokersAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
