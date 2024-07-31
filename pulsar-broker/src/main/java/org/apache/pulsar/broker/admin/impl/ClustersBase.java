@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -727,13 +727,8 @@ public class ClustersBase extends AdminResource {
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
                             .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> {
-                    if (unload) {
-                        return filterAndUnloadMatchedNamespaceAsync(cluster, policyData);
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                })
+                }).thenCompose(__ -> unload ? filterAndUnloadMatchedNamespaceAsync(cluster, policyData) :
+                        CompletableFuture.completedFuture(null))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
@@ -775,40 +770,45 @@ public class ClustersBase extends AdminResource {
         } catch (PulsarServerException e) {
             return FutureUtil.failedFuture(e);
         }
-        return adminClient.tenants().getTenantsAsync()
-                .thenCompose(tenants -> {
-                    Stream<CompletableFuture<List<String>>> completableFutureStream = tenants.stream()
-                            .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant));
-                    return FutureUtil.waitForAll(completableFutureStream)
-                            .thenApply(namespaces -> {
-                                // Filter namespaces that have current cluster in their replication_clusters
-                                // if namespace match any policy regex, add it to ns list to be unloaded.
-                                return namespaces.stream()
-                                        .filter(namespaceName -> adminClient.namespaces()
-                                                .getPoliciesAsync(namespaceName)
-                                                .thenApply(policies -> policies.replication_clusters.contains(cluster))
-                                                .join())
-                                        .filter(namespaceName ->
-                                                policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
-                                        .collect(Collectors.toList());
-                            });
-                }).thenCompose(shouldUnloadNamespaces -> {
-                    if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
-                            .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
-                            .collect(Collectors.toList());
-                    return FutureUtil.waitForAll(futures)
-                            .thenAccept(__ -> {
-                                try {
-                                    // write load info to load manager to make the load happens fast
-                                    pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
-                                } catch (Exception e) {
-                                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
-                                }
-                            });
-                });
+        // compile regex patterns once
+        List<Pattern> namespacePatterns = policyData.getNamespaces().stream().map(Pattern::compile).toList();
+        return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
+            List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
+                    .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
+                        List<CompletableFuture<String>> namespaceNamesInCluster = namespaces.stream()
+                                .filter(namespaceName -> namespacePatterns.stream()
+                                        .anyMatch(pattern -> pattern.matcher(namespaceName).matches()))
+                                .map(namespaceName -> adminClient.namespaces().getPoliciesAsync(namespaceName)
+                                        .thenApply(policies -> policies.replication_clusters.contains(cluster)
+                                                ? namespaceName : null))
+                                .collect(Collectors.toList());
+                        return FutureUtil.waitForAll(namespaceNamesInCluster).thenApply(
+                                __ -> namespaceNamesInCluster.stream()
+                                        .map(CompletableFuture::join)
+                                        .filter(Objects::nonNull)
+                                        .collect(Collectors.toList()));
+                    })).toList();
+            return FutureUtil.waitForAll(filteredNamespacesForEachTenant)
+                    .thenApply(__ -> filteredNamespacesForEachTenant.stream()
+                            .map(CompletableFuture::join)
+                            .flatMap(List::stream)
+                            .collect(Collectors.toList()));
+        }).thenCompose(shouldUnloadNamespaces -> {
+            if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
+                    .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
+                    .collect(Collectors.toList());
+            return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+                try {
+                    // write load info to load manager to make the load happens fast
+                    pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
+                }
+            });
+        });
     }
 
     @DELETE
