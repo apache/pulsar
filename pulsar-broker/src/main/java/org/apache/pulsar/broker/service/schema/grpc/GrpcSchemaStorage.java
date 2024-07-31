@@ -66,12 +66,13 @@ public class GrpcSchemaStorage implements SchemaStorage {
     @Override
     public CompletableFuture<StoredSchema> get(String key, SchemaVersion version) {
         GetVersionSchemaRequest request = GetVersionSchemaRequest.newBuilder()
-                .setKey(key).setVersion(GrpcSchemaVersion.newBuilder()
-                        .setSchemaVersion(ByteString.copyFrom(version.bytes()))).build();
+                .setKey(key).setVersion(
+                        GrpcSchemaVersion.newBuilder().setSchemaVersion(ByteString.copyFrom(version.bytes()))).build();
 
         ListenableFuture<VersionedSchemaResponse> f = stub.get(request);
         return fromListenableFuture(f).thenApply(v ->
-                new StoredSchema(v.getData().toByteArray(), BytesSchemaVersion.of(v.getVersion().toByteArray())));
+                new StoredSchema(v.getData().toByteArray(),
+                        BytesSchemaVersion.of(v.getVersion().getSchemaVersion().toByteArray())));
     }
 
     @Override
@@ -86,7 +87,7 @@ public class GrpcSchemaStorage implements SchemaStorage {
             List<CompletableFuture<StoredSchema>> futures = new ArrayList<>();
             values.getSchemasList().forEach(schema -> {
                 byte[] data = schema.getData().toByteArray();
-                SchemaVersion version = BytesSchemaVersion.of(schema.getVersion().toByteArray());
+                SchemaVersion version = BytesSchemaVersion.of(schema.getVersion().getSchemaVersion().toByteArray());
                 futures.add(CompletableFuture.completedFuture(new StoredSchema(data, version)));
             });
             return futures;
@@ -116,7 +117,7 @@ public class GrpcSchemaStorage implements SchemaStorage {
     @Override
     public void start() throws Exception {
         String address = conf.getSchemaRegistryStorageGrpcEndpoint();
-        channel = ManagedChannelBuilder.forTarget(address).build();
+        channel = ManagedChannelBuilder.forTarget(address).usePlaintext().build();
         stub = GrpcSchemaStorageServiceGrpc.newFutureStub(channel);
     }
 

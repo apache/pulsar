@@ -34,12 +34,12 @@
   <description>Common libraries needed by client/broker/tools</description>
 
   <dependencies>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty-shaded</artifactId>
-      <version>${grpc.version}</version>
-      <scope>provided</scope>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>io.grpc</groupId>-->
+<!--      <artifactId>grpc-netty-shaded</artifactId>-->
+<!--      <version>${grpc.version}</version>-->
+<!--      <scope>provided</scope>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-protobuf</artifactId>

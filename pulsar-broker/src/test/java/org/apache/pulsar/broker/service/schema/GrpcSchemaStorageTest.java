@@ -23,19 +23,19 @@ import io.grpc.Grpc;
 import io.grpc.InsecureServerCredentials;
 import io.grpc.Server;
 import io.grpc.stub.StreamObserver;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.grpc.GrpcSchemaStorageFactory;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.grpc.*;
 import org.mockito.Mockito;
@@ -45,56 +45,126 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class GrpcSchemaStorageTest extends ProducerConsumerBase {
+public class GrpcSchemaStorageTest {
 
     private Server server;
+    private NioEventLoopGroup eventLoopGroup;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
+    @BeforeClass(alwaysRun = true)
+    public void setup() throws Exception {
         server = Grpc.newServerBuilderForPort(8005, InsecureServerCredentials.create())
                 .addService(new GrpcSchemaStorageServer())
-                .build();
-        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
-        super.internalSetup();
-        super.producerBaseSetup();
+                .build().start();
     }
 
     @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         server.shutdown();
-        super.internalCleanup();
+        eventLoopGroup.shutdownGracefully();
     }
 
     private SchemaStorage buildSchemaStorage() throws Exception {
-        PulsarService pulsar = Mockito.spy(PulsarService.class);
-        Mockito.doReturn(Executors.newSingleThreadExecutor()).when(pulsar).getIoEventLoopGroup();
+        PulsarService pulsar = Mockito.mock(PulsarService.class);
+        eventLoopGroup = new NioEventLoopGroup();
+        Mockito.doReturn(eventLoopGroup).when(pulsar).getIoEventLoopGroup();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setSchemaRegistryStorageGrpcEndpoint("localhost:8005");
         conf.setSchemaRegistryStorageGrpcEnableTls(false);
         Mockito.doReturn(conf).when(pulsar).getConfig();
         Mockito.doReturn(conf).when(pulsar).getConfiguration();
         GrpcSchemaStorageFactory factory = new GrpcSchemaStorageFactory();
-        return factory.create(pulsar);
+        SchemaStorage storage =  factory.create(pulsar);
+        storage.start();
+        return storage;
+    }
+
+    private byte[] putSchema(SchemaStorage schemaStorage) throws Exception {
+        byte[] value = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+        CompletableFuture<SchemaVersion> version = schemaStorage.put("key1", value, new byte[0]);
+        SchemaVersion result = version.get();
+        long version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
+        Assert.assertEquals(version0, 1);
+
+        version = schemaStorage.put("key1", value, new byte[0]);
+        result = version.get();
+        version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
+        Assert.assertEquals(version0, 2);
+
+        version = schemaStorage.put("key1", value, new byte[0]);
+        result = version.get();
+        version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
+        Assert.assertEquals(version0, 3);
+        return value;
     }
 
     @Test
     public void testPutSchema() throws Exception {
         SchemaStorage schemaStorage = buildSchemaStorage();
-        byte[] value = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-        CompletableFuture<SchemaVersion> version = schemaStorage.put("key1", value, new byte[0]);
-        SchemaVersion result = version.get();
-        long version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
-        Assert.assertEquals(version0, 0);
-        version = schemaStorage.put("key1", value, new byte[0]);
-        version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
-        Assert.assertEquals(version0, 1);
-        version = schemaStorage.put("key1", value, new byte[0]);
-        version0 = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.bytes())).getVersion();
-        Assert.assertEquals(version0, 2);
+        try {
+            putSchema(schemaStorage);
+        } finally {
+            schemaStorage.close();
+        }
     }
 
+    @Test
+    public void testGetVersionSchema() throws Exception {
+        SchemaStorage schemaStorage = buildSchemaStorage();
+        try {
+            byte[] value = putSchema(schemaStorage);
+            CompletableFuture<StoredSchema> schema = schemaStorage.get("key1", new LongSchemaVersion(1));
+            StoredSchema result = schema.get();
+            Assert.assertEquals(new String(value), new String(result.data));
+            Assert.assertEquals(schemaStorage.versionFromBytes(result.version.bytes()), new LongSchemaVersion(1));
+
+            schema = schemaStorage.get("key1", new LongSchemaVersion(2));
+            result = schema.get();
+            Assert.assertEquals(new String(value), new String(result.data));
+            Assert.assertEquals(schemaStorage.versionFromBytes(result.version.bytes()), new LongSchemaVersion(2));
+
+            schema = schemaStorage.get("key1", new LongSchemaVersion(3));
+            result = schema.get();
+            Assert.assertEquals(new String(value), new String(result.data));
+            Assert.assertEquals(schemaStorage.versionFromBytes(result.version.bytes()), new LongSchemaVersion(3));
+        } finally {
+            schemaStorage.close();
+        }
+    }
+
+    @Test
+    public void testGetAllSchemaVersions() throws Exception {
+        SchemaStorage schemaStorage = buildSchemaStorage();
+        try {
+            byte[] value = putSchema(schemaStorage);
+
+            CompletableFuture<List<CompletableFuture<StoredSchema>>> schemas = schemaStorage.getAll("key1");
+            List<CompletableFuture<StoredSchema>> futures = schemas.get();
+            Assert.assertEquals(futures.size(), 3);
+
+            for (CompletableFuture<StoredSchema> future : futures) {
+                StoredSchema result = future.get();
+                Assert.assertEquals(new String(value), new String(result.data));
+                long v = ((LongSchemaVersion) schemaStorage.versionFromBytes(result.version.bytes())).getVersion();
+                Assert.assertTrue(v == 1 || v == 2 || v == 3);
+            }
+        } finally {
+            schemaStorage.close();
+        }
+    }
+
+    @Test
+    public void testDeleteSchema() throws Exception {
+        SchemaStorage schemaStorage = buildSchemaStorage();
+        try {
+            putSchema(schemaStorage);
+            schemaStorage.delete("key1").get();
+            CompletableFuture<List<CompletableFuture<StoredSchema>>> schemas = schemaStorage.getAll("key1");
+            List<CompletableFuture<StoredSchema>> futures = schemas.get();
+            Assert.assertEquals(futures.size(), 0);
+        } finally {
+            schemaStorage.close();
+        }
+    }
 
     static class GrpcSchemaStorageServer extends GrpcSchemaStorageServiceGrpc.GrpcSchemaStorageServiceImplBase {
         private final Map<String, AtomicInteger> versionMap = new ConcurrentHashMap<>();
