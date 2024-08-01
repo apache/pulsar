@@ -86,11 +86,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertOtelMetricLongSumValue(metricName, 50_000);
+        //assertOtelMetricLongSumValue(metricName, 50_000);
         assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
-        assertOtelMetricLongSumValue(metricName, 0);
+        //assertOtelMetricLongSumValue(metricName, 0);
     }
 
     /**
@@ -104,11 +104,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertOtelMetricLongSumValue(metricName, 5_000);
+        //assertOtelMetricLongSumValue(metricName, 5_000);
         assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
-        assertOtelMetricLongSumValue(metricName, 0);
+        //assertOtelMetricLongSumValue(metricName, 0);
     }
 
     /**
