@@ -213,6 +213,16 @@ public interface Topic {
 
     void checkCursorsToCacheEntries();
 
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
+
     void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
@@ -274,6 +284,13 @@ public interface Topic {
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
+
+    /**
+     * Get the last message position that can be dispatch.
+     */
+    default CompletableFuture<Position> getLastDispatchablePosition() {
+        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+    }
 
     CompletableFuture<MessageId> getLastMessageId();
 
@@ -367,4 +384,9 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

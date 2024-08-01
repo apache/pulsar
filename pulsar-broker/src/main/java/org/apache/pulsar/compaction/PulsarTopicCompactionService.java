@@ -34,7 +34,6 @@ import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -75,7 +74,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
         Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture()).thenCompose(
-                (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
+                (context) -> findStartPoint(startPosition, context.ledger.getLastAddConfirmed(),
                         context.cache).thenCompose((startPoint) -> {
                     if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
                         return CompletableFuture.completedFuture(Collections.emptyList());

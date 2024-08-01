@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.3.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>3.4.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-cli-utils</artifactId>
@@ -73,7 +72,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
@@ -112,7 +111,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>

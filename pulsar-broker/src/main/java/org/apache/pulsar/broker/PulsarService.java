@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.BrokersBase.getHeartbeatTopicName;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
@@ -30,6 +31,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -72,6 +74,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
@@ -109,7 +112,14 @@ import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTransactionCoordinatorStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryTransactionPendingAckStoreStats;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -251,6 +261,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
+    private OpenTelemetryTopicStats openTelemetryTopicStats;
+    private OpenTelemetryConsumerStats openTelemetryConsumerStats;
+    private OpenTelemetryProducerStats openTelemetryProducerStats;
+    private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
+    private OpenTelemetryTransactionCoordinatorStats openTelemetryTransactionCoordinatorStats;
+    private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -279,6 +295,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider transactionExecutorProvider;
     private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
     private String brokerId;
+    private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
 
     public enum State {
         Init, Started, Closing, Closed
@@ -371,7 +388,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
     }
 
-    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException {
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
@@ -384,6 +402,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
+                        .openTelemetry(openTelemetry)
                         .build());
     }
 
@@ -406,6 +425,41 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.leaderElectionService.close();
                 this.leaderElectionService = null;
             }
+        }
+    }
+
+    private boolean isManagedLedgerNotFoundException(Throwable e) {
+        Throwable realCause = e.getCause();
+        return realCause instanceof ManagedLedgerException.MetadataNotFoundException
+                || realCause instanceof MetadataStoreException.NotFoundException;
+    }
+
+    private void deleteHeartbeatResource() {
+        if (this.brokerService != null) {
+            LOG.info("forcefully delete heartbeat topic when close broker");
+
+            String heartbeatTopicNameV1 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), false);
+            String heartbeatTopicNameV2 = getHeartbeatTopicName(getBrokerId(), getConfiguration(), true);
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV1, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV1, e);
+                }
+            }
+
+            try {
+                this.brokerService.deleteTopic(heartbeatTopicNameV2, true).get();
+            } catch (Exception e) {
+                if (!isManagedLedgerNotFoundException(e)) {
+                    LOG.error("Closed with errors in delete heartbeat topic [{}]",
+                            heartbeatTopicNameV2, e);
+                }
+            }
+
+            LOG.info("finish forcefully delete heartbeat topic when close broker");
         }
     }
 
@@ -439,11 +493,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public CompletableFuture<Void> closeAsync() {
         mutex.lock();
         try {
+            // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
+            // Pulsar clients that could send lookup requests that affect unloading.
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
             if (closeFuture != null) {
                 return closeFuture;
             }
             LOG.info("Closing PulsarService");
+            if (brokerService != null) {
+                brokerService.unloadNamespaceBundlesGracefully();
+            }
+            // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
+
+            if (brokerId != null) {
+                // forcefully delete heartbeat topic when close broker
+                deleteHeartbeatResource();
+            }
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
@@ -504,16 +573,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
-            // close protocol handler before closing broker service
-            if (protocolHandlers != null) {
-                protocolHandlers.close();
-                protocolHandlers = null;
-            }
 
             // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
-            if (this.loadSheddingTask != null) {
-                this.loadSheddingTask.cancel();
-            }
+            cancelLoadBalancerTasks();
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -561,6 +623,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionBufferClient.close();
             }
 
+            if (topicPoliciesService != null) {
+                topicPoliciesService.close();
+                topicPoliciesService = null;
+            }
+
             if (client != null) {
                 client.close();
                 client = null;
@@ -598,13 +665,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             }
 
-            closeLocalMetadataStore();
+            asyncCloseFutures.add(closeLocalMetadataStore());
+            if (configMetadataSynchronizer != null) {
+                asyncCloseFutures.add(configMetadataSynchronizer.closeAsync());
+            }
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
-                if (configMetadataSynchronizer != null) {
-                    configMetadataSynchronizer.close();
-                    configMetadataSynchronizer = null;
-                }
             }
 
             if (transactionExecutorProvider != null) {
@@ -621,6 +687,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
+
+            if (openTelemetryTransactionPendingAckStoreStats != null) {
+                openTelemetryTransactionPendingAckStoreStats.close();
+                openTelemetryTransactionPendingAckStoreStats = null;
+            }
+            if (openTelemetryTransactionCoordinatorStats != null) {
+                openTelemetryTransactionCoordinatorStats.close();
+                openTelemetryTransactionCoordinatorStats = null;
+            }
+            if (openTelemetryReplicatorStats != null) {
+                openTelemetryReplicatorStats.close();
+                openTelemetryReplicatorStats = null;
+            }
+            if (openTelemetryProducerStats != null) {
+                openTelemetryProducerStats.close();
+                openTelemetryProducerStats = null;
+            }
+            if (openTelemetryConsumerStats != null) {
+                openTelemetryConsumerStats.close();
+                openTelemetryConsumerStats = null;
+            }
+            if (openTelemetryTopicStats != null) {
+                openTelemetryTopicStats.close();
+                openTelemetryTopicStats = null;
+            }
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
@@ -762,10 +853,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
+            openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
+            openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
+            openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
+            openTelemetryReplicatorStats = new OpenTelemetryReplicatorStats(this);
+
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
-            localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer);
+            localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer,
+                    openTelemetry.getOpenTelemetryService().getOpenTelemetry());
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
@@ -774,7 +871,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configMetadataSynchronizer = StringUtils.isNotBlank(config.getConfigurationMetadataSyncEventTopic())
                         ? new PulsarMetadataEventSynchronizer(this, config.getConfigurationMetadataSyncEventTopic())
                         : null;
-                configurationMetadataStore = createConfigurationMetadataStore(configMetadataSynchronizer);
+                configurationMetadataStore = createConfigurationMetadataStore(configMetadataSynchronizer,
+                        openTelemetry.getOpenTelemetryService().getOpenTelemetry());
                 shouldShutdownConfigurationMetadataStore = true;
             } else {
                 configurationMetadataStore = localMetadataStore;
@@ -803,7 +901,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
-                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this);
 
             OffloadPoliciesImpl defaultOffloadPolicies =
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
@@ -894,7 +992,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MLTransactionMetadataStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
                 MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
 
-                this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(getClient());
+                this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(this);
 
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
@@ -910,9 +1008,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .newProvider(config.getTransactionBufferProviderClassName());
                 transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
                         .newProvider(config.getTransactionPendingAckStoreProviderClassName());
+
+                openTelemetryTransactionCoordinatorStats = new OpenTelemetryTransactionCoordinatorStats(this);
+                openTelemetryTransactionPendingAckStoreStats = new OpenTelemetryTransactionPendingAckStoreStats(this);
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
+            readyForIncomingRequestsFuture.complete(null);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
@@ -962,10 +1066,20 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             state = State.Started;
         } catch (Exception e) {
             LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
-            throw new PulsarServerException(e);
+            PulsarServerException startException = new PulsarServerException(e);
+            readyForIncomingRequestsFuture.completeExceptionally(startException);
+            throw startException;
         } finally {
             mutex.unlock();
         }
+    }
+
+    public void runWhenReadyForIncomingRequests(Runnable runnable) {
+        readyForIncomingRequestsFuture.thenRun(runnable);
+    }
+
+    public void waitUntilReadyForIncomingRequests() throws ExecutionException, InterruptedException {
+        readyForIncomingRequestsFuture.get();
     }
 
     protected BrokerInterceptor newBrokerInterceptor() throws IOException {
@@ -984,14 +1098,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected ManagedLedgerStorage newManagedLedgerClientFactory() throws Exception {
         return ManagedLedgerStorage.create(
                 config, localMetadataStore,
-                bkClientFactory, ioEventLoopGroup
+                bkClientFactory, ioEventLoopGroup, openTelemetry.getOpenTelemetryService().getOpenTelemetry()
         );
     }
 
     @VisibleForTesting
     protected PulsarResources newPulsarResources() {
         PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
-                config.getMetadataStoreOperationTimeoutSeconds());
+                config.getMetadataStoreOperationTimeoutSeconds(), getExecutor());
 
         pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
         return pulsarResources;
@@ -1040,7 +1154,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 true, attributeMap, true, Topics.class);
 
         // Add metrics servlet
-        webService.addServlet("/metrics",
+        webService.addServlet(PrometheusMetricsServlet.DEFAULT_METRICS_PATH,
                 new ServletHolder(metricsServlet),
                 config.isAuthenticateMetricsEndpoint(), attributeMap);
 
@@ -1129,7 +1243,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
-    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException, PulsarServerException {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
@@ -1142,17 +1257,20 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .openTelemetry(openTelemetry)
                         .build());
     }
 
-    protected void closeLocalMetadataStore() throws Exception {
+    protected CompletableFuture<Void> closeLocalMetadataStore() throws Exception {
         if (localMetadataStore != null) {
             localMetadataStore.close();
         }
         if (localMetadataSynchronizer != null) {
-            localMetadataSynchronizer.close();
+            CompletableFuture<Void> closeSynchronizer = localMetadataSynchronizer.closeAsync();
             localMetadataSynchronizer = null;
+            return closeSynchronizer;
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     protected void startLeaderElectionService() {
@@ -1164,46 +1282,51 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new LeaderElectionService(coordinationService, getBrokerId(), getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
-                        LOG.info("This broker was elected leader");
+                        LOG.info("This broker {} was elected leader", getBrokerId());
                         if (getConfiguration().isLoadBalancerEnabled()) {
-                            long resourceQuotaUpdateInterval = TimeUnit.MINUTES
-                                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
-
-                            if (loadSheddingTask != null) {
-                                loadSheddingTask.cancel();
-                            }
-                            if (loadResourceQuotaTask != null) {
-                                loadResourceQuotaTask.cancel(false);
-                            }
-                            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
-                            loadSheddingTask.start();
-                            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
-                                    new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
-                                    resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+                            startLoadBalancerTasks();
                         }
                     } else {
                         if (leaderElectionService != null) {
                             final Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
                             if (currentLeader.isPresent()) {
-                                LOG.info("This broker is a follower. Current leader is {}",
+                                LOG.info("This broker {} is a follower. Current leader is {}", getBrokerId(),
                                         currentLeader);
                             } else {
-                                LOG.info("This broker is a follower. No leader has been elected yet");
+                                LOG.info("This broker {} is a follower. No leader has been elected yet", getBrokerId());
                             }
 
                         }
-                        if (loadSheddingTask != null) {
-                            loadSheddingTask.cancel();
-                            loadSheddingTask = null;
-                        }
-                        if (loadResourceQuotaTask != null) {
-                            loadResourceQuotaTask.cancel(false);
-                            loadResourceQuotaTask = null;
-                        }
+                        cancelLoadBalancerTasks();
                     }
                 });
 
         leaderElectionService.start();
+    }
+
+    private synchronized void cancelLoadBalancerTasks() {
+        if (loadSheddingTask != null) {
+            loadSheddingTask.cancel();
+            loadSheddingTask = null;
+        }
+        if (loadResourceQuotaTask != null) {
+            loadResourceQuotaTask.cancel(false);
+            loadResourceQuotaTask = null;
+        }
+    }
+
+    private synchronized void startLoadBalancerTasks() {
+        cancelLoadBalancerTasks();
+        if (isRunning()) {
+            long resourceQuotaUpdateInterval = TimeUnit.MINUTES
+                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor,
+                    config, getManagedLedgerFactory());
+            loadSheddingTask.start();
+            loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
+                    new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
+                    resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
+        }
     }
 
     protected void acquireSLANamespace() {
@@ -1892,6 +2015,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BrokerService(pulsar, ioEventLoopGroup);
     }
 
+    @VisibleForTesting
+    public void setTransactionBufferProvider(TransactionBufferProvider transactionBufferProvider) {
+        this.transactionBufferProvider = transactionBufferProvider;
+    }
+
     private CompactionServiceFactory loadCompactionServiceFactory() {
         String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
         var compactionServiceFactory =
@@ -1907,6 +2035,71 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             return compactionServiceFactory.newTopicCompactionService(topic);
         } catch (Throwable e) {
             return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    public void initConfigMetadataSynchronizerIfNeeded() {
+        mutex.lock();
+        try {
+            final String newTopic = config.getConfigurationMetadataSyncEventTopic();
+            final PulsarMetadataEventSynchronizer oldSynchronizer = configMetadataSynchronizer;
+            // Skip if not support.
+            if (!(configurationMetadataStore instanceof MetadataStoreExtended)) {
+                LOG.info(
+                        "Skip to update Metadata Synchronizer because of the Configuration Metadata Store using[{}]"
+                                + " does not support.", configurationMetadataStore.getClass().getName());
+                return;
+            }
+            // Skip if no changes.
+            //   case-1: both null.
+            //   case-2: both topics are the same.
+            if ((oldSynchronizer == null && StringUtils.isBlank(newTopic))) {
+                LOG.info("Skip to update Metadata Synchronizer because the topic[null] does not changed.");
+            }
+            if (StringUtils.isNotBlank(newTopic) && oldSynchronizer != null) {
+                TopicName newTopicName = TopicName.get(newTopic);
+                TopicName oldTopicName = TopicName.get(oldSynchronizer.getTopicName());
+                if (newTopicName.equals(oldTopicName)) {
+                    LOG.info("Skip to update Metadata Synchronizer because the topic[{}] does not changed.",
+                            oldTopicName);
+                }
+            }
+            // Update(null or not null).
+            //   1.set the new one.
+            //   2.close the old one.
+            //   3.async start the new one.
+            if (StringUtils.isBlank(newTopic)) {
+                configMetadataSynchronizer = null;
+            } else {
+                configMetadataSynchronizer = new PulsarMetadataEventSynchronizer(this, newTopic);
+            }
+            // close the old one and start the new one.
+            PulsarMetadataEventSynchronizer newSynchronizer = configMetadataSynchronizer;
+            MetadataStoreExtended metadataStoreExtended = (MetadataStoreExtended) configurationMetadataStore;
+            metadataStoreExtended.updateMetadataEventSynchronizer(newSynchronizer);
+            Runnable startNewSynchronizer = () -> {
+                if (newSynchronizer == null) {
+                    return;
+                }
+                try {
+                    newSynchronizer.start();
+                } catch (Exception e) {
+                    // It only occurs when get internal client fails.
+                    LOG.error("Start Metadata Synchronizer with topic {} failed.",
+                            newTopic, e);
+                }
+            };
+            executor.submit(() -> {
+                if (oldSynchronizer != null) {
+                    oldSynchronizer.closeAsync().whenComplete((ignore, ex) -> {
+                        startNewSynchronizer.run();
+                    });
+                } else {
+                    startNewSynchronizer.run();
+                }
+            });
+        } finally {
+            mutex.unlock();
         }
     }
 }

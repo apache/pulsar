@@ -165,7 +165,7 @@ public class CompactorTool {
                 new DefaultThreadFactory("compactor-io"));
 
         @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null).get();
 
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);

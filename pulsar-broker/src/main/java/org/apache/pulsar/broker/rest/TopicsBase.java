@@ -53,7 +53,7 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
@@ -194,7 +194,7 @@ public class TopicsBase extends PersistentTopicsBase {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
             List<Message> messages = buildMessage(request, schema, producerName, topicName);
-            List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
+            List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             for (int index = 0; index < messages.size(); index++) {
                 ProducerAck produceMessageResult = new ProducerAck();
@@ -235,7 +235,7 @@ public class TopicsBase extends PersistentTopicsBase {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
             List<Message> messages = buildMessage(request, schema, producerName, topicName);
-            List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
+            List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             // Try to publish messages to all partitions this broker owns in round robin mode.
             for (int index = 0; index < messages.size(); index++) {
@@ -266,8 +266,8 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private CompletableFuture<PositionImpl> publishSingleMessageToPartition(String topic, Message message) {
-        CompletableFuture<PositionImpl> publishResult = new CompletableFuture<>();
+    private CompletableFuture<Position> publishSingleMessageToPartition(String topic, Message message) {
+        CompletableFuture<Position> publishResult = new CompletableFuture<>();
         pulsar().getBrokerService().getTopic(topic, false)
         .thenAccept(t -> {
             // TODO: Check message backlog and fail if backlog too large.
@@ -297,11 +297,11 @@ public class TopicsBase extends PersistentTopicsBase {
 
     // Process results for all message publishing attempts
     private void processPublishMessageResults(List<ProducerAck> produceMessageResults,
-                                              List<CompletableFuture<PositionImpl>> publishResults) {
+                                              List<CompletableFuture<Position>> publishResults) {
         // process publish message result
         for (int index = 0; index < publishResults.size(); index++) {
             try {
-                PositionImpl position = publishResults.get(index).get();
+                Position position = publishResults.get(index).get();
                 MessageId messageId = new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
                         Integer.parseInt(produceMessageResults.get(index).getMessageId()));
                 produceMessageResults.get(index).setMessageId(messageId.toString());

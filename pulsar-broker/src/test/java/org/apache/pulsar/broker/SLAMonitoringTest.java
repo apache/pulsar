@@ -126,15 +126,26 @@ public class SLAMonitoringTest {
     @AfterClass(alwaysRun = true)
     public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
-        executor = null;
-
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            pulsarAdmins[i].close();
-            pulsarServices[i].close();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
         }
 
-        bkEnsemble.stop();
+        for (int i = 0; i < BROKER_COUNT; i++) {
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+                pulsarAdmins[i] = null;
+            }
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+                pulsarServices[i] = null;
+            }
+        }
+
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @Test

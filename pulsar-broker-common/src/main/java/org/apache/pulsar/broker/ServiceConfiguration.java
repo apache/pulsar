@@ -250,6 +250,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " when getting topic statistics data.")
     private boolean haProxyProtocolEnabled;
 
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for Netty Acceptor."
@@ -579,6 +595,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean backlogQuotaCheckEnabled = true;
 
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
+
+    @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Whether to enable precise time based backlog quota check. "
                   + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "
@@ -635,6 +666,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(disable default-ttl with value 0)"
         )
     private int ttlDurationDefaultInSeconds = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Additional system subscriptions that will be ignored by ttl check. "
+                + "The cursor names are comma separated. Default is empty."
+    )
+    private Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1321,6 +1359,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The position that replication task start at, it can be set to earliest or latest (default).")
+    private String replicationStartAt = "latest";
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2067,10 +2111,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
     @FieldContext(
-            category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "The threshold to triggering automatic offload to long term storage"
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "The threshold to triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Trigger offload on topic load or not. Default is false"
+    )
+    private boolean triggerOffloadOnTopicLoad = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -2361,21 +2410,51 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+            doc = "The low threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderLowThreshold = 15;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The high threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderHighThreshold = 40;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the low threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountLowThreshold = 8;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the high threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountHighThreshold = 2;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum message that triggers unload."
     )
     private int minUnloadMessage = 1000;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum throughput that triggers unload."
     )
     private int minUnloadMessageThroughput = 1 * 1024 * 1024;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
+                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
+                    + "evenly between the highest and lowest brokers."
     )
     private double maxUnloadPercentage = 0.2;
 
@@ -2416,16 +2495,59 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithIn Resource Usage Weight"
+            doc = "BandwidthIn Resource Usage Weight"
     )
-    private double loadBalancerBandwithInResourceWeight = 1.0;
+    private double loadBalancerBandwidthInResourceWeight = 1.0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithOut Resource Usage Weight"
+            doc = "BandwidthOut Resource Usage Weight"
+    )
+    private double loadBalancerBandwidthOutResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthIn Resource Usage Weight, Deprecated: Use loadBalancerBandwidthInResourceWeight"
+    )
+    private double loadBalancerBandwithInResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthOut Resource Usage Weight, Deprecated: Use loadBalancerBandwidthOutResourceWeight"
     )
     private double loadBalancerBandwithOutResourceWeight = 1.0;
+
+    /**
+     * Get the load balancer bandwidth in resource weight.
+     * To be compatible with the old configuration, we still support the old configuration.
+     * If a configuration is not the default configuration, use that configuration.
+     * If both the new and the old are configured different from the default value, use the new one.
+     * @return
+     */
+    public double getLoadBalancerBandwidthInResourceWeight() {
+        if (loadBalancerBandwidthInResourceWeight != 1.0) {
+            return loadBalancerBandwidthInResourceWeight;
+        }
+        if (loadBalancerBandwithInResourceWeight != 1.0) {
+            return loadBalancerBandwithInResourceWeight;
+        }
+        return 1.0;
+    }
+
+    public double getLoadBalancerBandwidthOutResourceWeight() {
+        if (loadBalancerBandwidthOutResourceWeight != 1.0) {
+            return loadBalancerBandwidthOutResourceWeight;
+        }
+        if (loadBalancerBandwithOutResourceWeight != 1.0) {
+            return loadBalancerBandwithOutResourceWeight;
+        }
+        return 1.0;
+    }
 
     @FieldContext(
             dynamic = true,
@@ -2441,7 +2563,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Memory Resource Usage Weight. Deprecated: Memory is no longer used as a load balancing item.",
             deprecated = true
     )
-    private double loadBalancerMemoryResourceWeight = 1.0;
+    private double loadBalancerMemoryResourceWeight = 0;
 
     @FieldContext(
             dynamic = true,
@@ -2568,7 +2690,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(100% resource usage is 1.0 load). "
                     + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
                     + "The smaller value will incur load balancing more frequently. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private double loadBalancerBrokerLoadTargetStd = 0.25;
 
@@ -2579,7 +2701,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If the unload scheduler consecutively finds bundles that meet unload conditions "
                     + "many times bigger than this threshold, the scheduler will shed the bundles. "
                     + "The bigger value will incur less bundle unloading/transfers. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerSheddingConditionHitCountThreshold = 3;
 
@@ -2591,7 +2713,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "-- pre-assigns the destination broker upon unloading). "
                     + "Off: unload bundles from overloaded brokers "
                     + "-- post-assigns the destination broker upon lookups). "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private boolean loadBalancerTransferEnabled = true;
 
@@ -2600,7 +2722,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "Maximum number of brokers to unload bundle load for each unloading cycle. "
                     + "The bigger value will incur more unloading/transfers for each unloading cycle. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private int loadBalancerMaxNumberOfBrokerSheddingPerCycle = 3;
 
@@ -2610,7 +2732,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Delay (in seconds) to the next unloading cycle after unloading. "
                     + "The logic tries to give enough time for brokers to recompute load after unloading. "
                     + "The bigger value will delay the next unloading cycle longer. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalanceSheddingDelayInSeconds = 180;
 
@@ -2623,7 +2745,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
                     + "The current default value is loadBalancerReportUpdateMaxIntervalMinutes * 120, reflecting "
                     + "twice the duration in seconds. "
-                    + "(only used in load balancer extension TransferSheddeer)"
+                    + "(only used in load balancer extension TransferShedder)"
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
 
@@ -2634,7 +2756,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The load balancer distributes bundles across brokers, "
                     + "based on topK bundle load data and other broker load data."
                     + "The bigger value will increase the overhead of reporting many bundles in load data. "
-                    + "(only used in load balancer extension logics)"
+                    + "Used for ExtensibleLoadManagerImpl and ModularLoadManagerImpl, default value is 10. "
+                    + "User can disable the bundle filtering feature of ModularLoadManagerImpl by setting to -1."
+                    + "Enabling this feature can reduce the pressure on the zookeeper when doing load report."
+                    + "WARNING: too small value could result in a long load balance time."
     )
     private int loadBalancerMaxNumberOfBundlesInBundleLoadReport = 10;
     @FieldContext(
@@ -2896,6 +3021,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy"
+    )
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Time in milliseconds that idle WebSocket session times out"
@@ -2928,8 +3060,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "If true, export buffered metrics"
-    )
+            doc = "Set to true to enable the broker to cache the metrics response; the default is false. "
+                    + "The caching period is defined by `managedLedgerStatsPeriodSeconds`. "
+                    + "The broker returns the same response for subsequent requests within the same period. "
+                    + "Ensure that the scrape interval of your monitoring system matches the caching period.")
     private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,

@@ -53,6 +53,7 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
@@ -357,7 +358,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
         ManagedCursor c1 = ledger.openCursor("c1");
 
-        PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
+        Position p1 = ledger.addEntry("entry-1".getBytes());
 
         // Trigger the closure of the data ledger
         bkc.openLedger(p1.getLedgerId(), BookKeeper.DigestType.CRC32C, new byte[] {});
@@ -367,7 +368,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(2, c1.getNumberOfEntries());
         assertEquals(2, c1.getNumberOfEntriesInBacklog(false));
 
-        PositionImpl p3 = (PositionImpl) ledger.addEntry("entry-3".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
 
         // Now entry-2 should have been written before entry-3
         assertEquals(3, c1.getNumberOfEntries());
@@ -548,6 +549,42 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @Test
+    public void testPeriodicRollover() throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
 
+        int rolloverTimeForCursorInSeconds = 5;
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1)
+                .setMetadataAckQuorumSize(1)
+                .setLedgerRolloverTimeout(rolloverTimeForCursorInSeconds);
+        ManagedLedger ledger = factory.open("my-ledger" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        Position pos = ledger.addEntry("entry-0".getBytes());
+        ledger.addEntry("entry-1".getBytes());
+
+        List<Entry> entries = cursor.readEntries(2);
+        assertEquals(2, entries.size());
+        entries.forEach(Entry::release);
+
+        ManagedCursorImpl cursorImpl = (ManagedCursorImpl) cursor;
+        assertEquals(ManagedCursorImpl.State.NoLedger, cursorImpl.state);
+
+        // this creates the ledger
+        cursor.delete(pos);
+
+        Awaitility.await().until(() -> cursorImpl.state == ManagedCursorImpl.State.Open);
+
+        Thread.sleep(rolloverTimeForCursorInSeconds * 1000 + 1000);
+
+        long currentLedgerId = cursorImpl.getCursorLedger();
+        assertTrue(cursor.periodicRollover());
+        Awaitility.await().until(() -> cursorImpl.getCursorLedger() != currentLedgerId);
+    }
 
 }

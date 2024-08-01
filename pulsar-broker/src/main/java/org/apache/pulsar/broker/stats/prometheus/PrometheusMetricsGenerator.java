@@ -24,12 +24,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.prometheus.client.Collector;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -43,6 +46,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.zip.CRC32;
+import java.util.zip.Deflater;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -72,7 +77,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
     private volatile boolean closed;
 
     public static class MetricsBuffer {
-        private final CompletableFuture<ByteBuf> bufferFuture;
+        private final CompletableFuture<ResponseBuffer> bufferFuture;
         private final long createTimeslot;
         private final AtomicInteger refCnt = new AtomicInteger(2);
 
@@ -81,7 +86,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             createTimeslot = timeslot;
         }
 
-        public CompletableFuture<ByteBuf> getBufferFuture() {
+        public CompletableFuture<ResponseBuffer> getBufferFuture() {
             return bufferFuture;
         }
 
@@ -113,6 +118,180 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         }
     }
 
+    /**
+     * A wraps the response buffer and asynchronously provides a gzip compressed buffer when requested.
+     */
+    public static class ResponseBuffer {
+        private final ByteBuf uncompressedBuffer;
+        private boolean released = false;
+        private CompletableFuture<ByteBuf> compressedBuffer;
+
+        private ResponseBuffer(final ByteBuf uncompressedBuffer) {
+            this.uncompressedBuffer = uncompressedBuffer;
+        }
+
+        public ByteBuf getUncompressedBuffer() {
+            return uncompressedBuffer;
+        }
+
+        public synchronized CompletableFuture<ByteBuf> getCompressedBuffer(Executor executor) {
+            if (released) {
+                throw new IllegalStateException("Already released!");
+            }
+            if (compressedBuffer == null) {
+                compressedBuffer = new CompletableFuture<>();
+                ByteBuf retainedDuplicate = uncompressedBuffer.retainedDuplicate();
+                executor.execute(() -> {
+                    try {
+                        compressedBuffer.complete(compress(retainedDuplicate));
+                    } catch (Exception e) {
+                        compressedBuffer.completeExceptionally(e);
+                    } finally {
+                        retainedDuplicate.release();
+                    }
+                });
+            }
+            return compressedBuffer;
+        }
+
+        private ByteBuf compress(ByteBuf uncompressedBuffer) {
+            GzipByteBufferWriter gzipByteBufferWriter = new GzipByteBufferWriter(uncompressedBuffer.alloc(),
+                    uncompressedBuffer.readableBytes());
+            return gzipByteBufferWriter.compress(uncompressedBuffer);
+        }
+
+        public synchronized void release() {
+            released = true;
+            uncompressedBuffer.release();
+            if (compressedBuffer != null) {
+                compressedBuffer.whenComplete((byteBuf, throwable) -> {
+                    if (byteBuf != null) {
+                        byteBuf.release();
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Compress input nio buffers into gzip format with output in a Netty composite ByteBuf.
+     */
+    private static class GzipByteBufferWriter {
+        private static final byte[] GZIP_HEADER =
+                new byte[] {(byte) 0x1f, (byte) 0x8b, Deflater.DEFLATED, 0, 0, 0, 0, 0, 0, 0};
+        private final ByteBufAllocator bufAllocator;
+        private final Deflater deflater;
+        private final CRC32 crc;
+        private final int bufferSize;
+        private final CompositeByteBuf resultBuffer;
+        private ByteBuf backingCompressBuffer;
+        private ByteBuffer compressBuffer;
+
+        GzipByteBufferWriter(ByteBufAllocator bufAllocator, int readableBytes) {
+            deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
+            crc = new CRC32();
+            this.bufferSize = Math.max(Math.min(resolveChunkSize(bufAllocator), readableBytes), 8192);
+            this.bufAllocator = bufAllocator;
+            this.resultBuffer = bufAllocator.compositeDirectBuffer(readableBytes / bufferSize + 2);
+            allocateCompressBuffer();
+        }
+
+        /**
+         * Compress the input Netty buffer and append it to the result buffer in gzip format.
+         * @param uncompressedBuffer
+         */
+        public ByteBuf compress(ByteBuf uncompressedBuffer) {
+            try {
+                ByteBuffer[] nioBuffers = uncompressedBuffer.nioBuffers();
+                for (int i = 0, nioBuffersLength = nioBuffers.length; i < nioBuffersLength; i++) {
+                    ByteBuffer nioBuffer = nioBuffers[i];
+                    compressAndAppend(nioBuffer, i == 0, i == nioBuffersLength - 1);
+                }
+                return resultBuffer;
+            } finally {
+                close();
+            }
+        }
+
+        private void compressAndAppend(ByteBuffer nioBuffer, boolean isFirst, boolean isLast) {
+            if (isFirst) {
+                // write gzip header
+                compressBuffer.put(GZIP_HEADER);
+            }
+            // update the CRC32 checksum calculation
+            nioBuffer.mark();
+            crc.update(nioBuffer);
+            nioBuffer.reset();
+            // pass the input buffer to the deflater
+            deflater.setInput(nioBuffer);
+            // when the input buffer is the last one, set the flag to finish the deflater
+            if (isLast) {
+                deflater.finish();
+            }
+            int written = -1;
+            // the deflater may need multiple calls to deflate the input buffer
+            // the completion is checked by the deflater.needsInput() method for buffers that aren't the last buffer
+            // for the last buffer, the completion is checked by the deflater.finished() method
+            while (!isLast && !deflater.needsInput() || isLast && !deflater.finished()) {
+                // when the previous deflater.deflate call returns 0 (and needsInput/finished returns false),
+                // it means that the output buffer is full.
+                // append the compressed buffer to the result buffer and allocate a new buffer.
+                if (written == 0) {
+                    if (compressBuffer.position() > 0) {
+                        appendCompressBufferToResultBuffer();
+                        allocateCompressBuffer();
+                    } else {
+                        // this is an unexpected case, throw an exception to prevent an infinite loop
+                        throw new IllegalStateException(
+                                "Deflater didn't write any bytes while the compress buffer is empty.");
+                    }
+                }
+                written = deflater.deflate(compressBuffer);
+            }
+            if (isLast) {
+                // append the last compressed buffer when it is not empty
+                if (compressBuffer.position() > 0) {
+                    appendCompressBufferToResultBuffer();
+                } else {
+                    // release an unused empty buffer
+                    backingCompressBuffer.release();
+                }
+                backingCompressBuffer = null;
+                compressBuffer = null;
+
+                // write gzip trailer, 2 integers (CRC32 checksum and uncompressed size)
+                ByteBuffer trailerBuf = ByteBuffer.allocate(2 * Integer.BYTES);
+                // integer values are in little endian byte order
+                trailerBuf.order(ByteOrder.LITTLE_ENDIAN);
+                // write CRC32 checksum
+                trailerBuf.putInt((int) crc.getValue());
+                // write uncompressed size
+                trailerBuf.putInt(deflater.getTotalIn());
+                trailerBuf.flip();
+                resultBuffer.addComponent(true, Unpooled.wrappedBuffer(trailerBuf));
+            }
+        }
+
+        private void appendCompressBufferToResultBuffer() {
+            backingCompressBuffer.setIndex(0, compressBuffer.position());
+            resultBuffer.addComponent(true, backingCompressBuffer);
+        }
+
+        private void allocateCompressBuffer() {
+            backingCompressBuffer = bufAllocator.directBuffer(bufferSize);
+            compressBuffer = backingCompressBuffer.nioBuffer(0, bufferSize);
+        }
+
+        private void close() {
+            if (deflater != null) {
+                deflater.end();
+            }
+            if (backingCompressBuffer != null) {
+                backingCompressBuffer.release();
+            }
+        }
+    }
+
     private final PulsarService pulsar;
     private final boolean includeTopicMetrics;
     private final boolean includeConsumerMetrics;
@@ -133,7 +312,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         this.clock = clock;
     }
 
-    private ByteBuf generate0(List<PrometheusRawMetricsProvider> metricsProviders) {
+    protected ByteBuf generateMetrics(List<PrometheusRawMetricsProvider> metricsProviders) {
         ByteBuf buf = allocateMultipartCompositeDirectBuffer();
         boolean exceptionHappens = false;
         //Used in namespace/topic and transaction aggregators as share metric names
@@ -187,6 +366,20 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         // use composite buffer with pre-allocated buffers to ensure that the pooled allocator can be used
         // for allocating the buffers
         ByteBufAllocator byteBufAllocator = PulsarByteBufAllocator.DEFAULT;
+        int chunkSize = resolveChunkSize(byteBufAllocator);
+        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
+                Math.max(MINIMUM_FOR_MAX_COMPONENTS, (initialBufferSize / chunkSize) + 1));
+        int totalLen = 0;
+        while (totalLen < initialBufferSize) {
+            totalLen += chunkSize;
+            // increase the capacity in increments of chunkSize to preallocate the buffers
+            // in the composite buffer
+            buf.capacity(totalLen);
+        }
+        return buf;
+    }
+
+    private static int resolveChunkSize(ByteBufAllocator byteBufAllocator) {
         int chunkSize;
         if (byteBufAllocator instanceof PooledByteBufAllocator) {
             PooledByteBufAllocator pooledByteBufAllocator = (PooledByteBufAllocator) byteBufAllocator;
@@ -194,14 +387,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         } else {
             chunkSize = DEFAULT_INITIAL_BUFFER_SIZE;
         }
-        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
-                Math.max(MINIMUM_FOR_MAX_COMPONENTS, (initialBufferSize / chunkSize) + 1));
-        int totalLen = 0;
-        while (totalLen < initialBufferSize) {
-            totalLen += chunkSize;
-            buf.addComponent(false, byteBufAllocator.directBuffer(chunkSize));
-        }
-        return buf;
+        return chunkSize;
     }
 
     private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
@@ -335,10 +521,10 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     if (currentMetricsBuffer != null) {
                         currentMetricsBuffer.release();
                     }
-                    CompletableFuture<ByteBuf> bufferFuture = newMetricsBuffer.getBufferFuture();
+                    CompletableFuture<ResponseBuffer> bufferFuture = newMetricsBuffer.getBufferFuture();
                     executor.execute(() -> {
                         try {
-                            bufferFuture.complete(generate0(metricsProviders));
+                            bufferFuture.complete(new ResponseBuffer(generateMetrics(metricsProviders)));
                         } catch (Exception e) {
                             bufferFuture.completeExceptionally(e);
                         } finally {

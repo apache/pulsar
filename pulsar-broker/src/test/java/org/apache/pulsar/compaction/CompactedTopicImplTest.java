@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -29,7 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -107,7 +110,7 @@ public class CompactedTopicImplTest {
         AsyncLoadingCache<Long, MessageIdData> cache = Caffeine.newBuilder()
                 .buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
         // Do test.
-        PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
+        Position targetPosition = PositionFactory.create(DEFAULT_LEDGER_ID, targetMessageId);
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cache);
         long result = promise.join();
@@ -137,7 +140,7 @@ public class CompactedTopicImplTest {
         // executed "findStartPointLoop".
         Supplier<Integer> loopCounter = () -> invokeCounterOfCacheGet.get() / 3;
         // Do test.
-        PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
+        Position targetPosition = PositionFactory.create(DEFAULT_LEDGER_ID, targetMessageId);
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cacheWithCounter);
         // Do verify.

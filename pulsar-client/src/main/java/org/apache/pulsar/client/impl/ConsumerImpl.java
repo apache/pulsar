@@ -123,6 +123,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -809,7 +811,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         negativeAcksTracker.add(messageId);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
-        unAckedMessageTracker.remove(messageId);
+        unAckedMessageTracker.remove(MessageIdAdvUtils.discardBatch(messageId));
     }
 
     @Override
@@ -1086,7 +1088,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
+    public synchronized CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         if (getState() == State.Closing || getState() == State.Closed) {
