@@ -110,6 +110,7 @@ public class ProxyServiceStarter {
 
     private ProxyConfiguration config;
 
+    @Getter
     private Authentication proxyClientAuthentication;
 
     @Getter
