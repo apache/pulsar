@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -235,7 +236,11 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
                 AuthenticationService authenticationService = new AuthenticationService(
                         PulsarConfigurationLoader.convertFrom(proxyConfig));
 		@Cleanup
-		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
+		final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+				proxyConfig.getBrokerClientAuthenticationParameters());
+		proxyClientAuthentication.start();
+		@Cleanup
+		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication);
 
 		proxyService.start();
 		final String proxyServiceUrl = proxyService.getServiceUrl();
