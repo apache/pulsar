@@ -102,13 +102,7 @@ public class CompactedTopicUtils {
                     });
         }).exceptionally((exception) -> {
             exception = FutureUtil.unwrapCompletionException(exception);
-            ManagedLedgerException managedLedgerException;
-            if (exception instanceof ManagedLedgerException) {
-                managedLedgerException = (ManagedLedgerException) exception;
-            } else {
-                managedLedgerException = new ManagedLedgerException(exception);
-            }
-            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(exception), readEntriesCtx);
             return null;
         });
     }

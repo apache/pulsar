@@ -981,7 +981,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (uninitializedCursors.containsKey(cursorName)) {
             uninitializedCursors.get(cursorName).thenAccept(cursor -> callback.openCursorComplete(cursor, ctx))
                     .exceptionally(ex -> {
-                callback.openCursorFailed((ManagedLedgerException) ex, ctx);
+                callback.openCursorFailed(ManagedLedgerException
+                        .getManagedLedgerException(FutureUtil.unwrapCompletionException(ex)), ctx);
                 return null;
             });
             return;
@@ -2968,9 +2969,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         truncateFuture.whenComplete((ignore, exc) -> {
             if (exc != null) {
                 log.error("[{}] Error truncating ledger for deletion", name, exc);
-                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
-                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
-                        ctx);
+                callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(
+                        FutureUtil.unwrapCompletionException(exc)), ctx);
             } else {
                 asyncDeleteInternal(callback, ctx);
             }
