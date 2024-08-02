@@ -1815,7 +1815,7 @@ public class BrokerService implements Closeable {
                                             });
                                             return null;
                                         });
-                            } catch (PulsarServerException e) {
+                            } catch (Exception e) {
                                 log.warn("Failed to create topic {}: {}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
