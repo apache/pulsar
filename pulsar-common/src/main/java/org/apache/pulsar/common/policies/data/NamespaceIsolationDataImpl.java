@@ -75,6 +75,14 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     @JsonProperty("auto_failover_policy")
     private AutoFailoverPolicyData autoFailoverPolicy;
 
+    @ApiModelProperty(
+            name = "unload",
+            value = "The type of unload to perform while applying the new isolation policy.",
+            example = "'all' (default) for unloading all matching namespaces. 'none' for not unloading any namespace."
+                    + " 'changed' for unloading only the namespaces whose placement is actually changing"
+    )
+    private NamespaceIsolationPolicyUnloadType unload;
+
     public static NamespaceIsolationDataImplBuilder builder() {
         return new NamespaceIsolationDataImplBuilder();
     }
@@ -106,6 +114,7 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
         private List<String> primary = new ArrayList<>();
         private List<String> secondary = new ArrayList<>();
         private AutoFailoverPolicyData autoFailoverPolicy;
+        private NamespaceIsolationPolicyUnloadType unload;
 
         public NamespaceIsolationDataImplBuilder namespaces(List<String> namespaces) {
             this.namespaces = namespaces;
@@ -127,8 +136,13 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
             return this;
         }
 
+        public NamespaceIsolationDataImplBuilder unload(NamespaceIsolationPolicyUnloadType unload) {
+            this.unload = unload;
+            return this;
+        }
+
         public NamespaceIsolationDataImpl build() {
-            return new NamespaceIsolationDataImpl(namespaces, primary, secondary, autoFailoverPolicy);
+            return new NamespaceIsolationDataImpl(namespaces, primary, secondary, autoFailoverPolicy, unload);
         }
     }
 }

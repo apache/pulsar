@@ -31,6 +31,8 @@ public interface NamespaceIsolationData {
 
     AutoFailoverPolicyData getAutoFailoverPolicy();
 
+    NamespaceIsolationPolicyUnloadType getUnload();
+
     void validate();
 
     interface Builder {
@@ -41,6 +43,8 @@ public interface NamespaceIsolationData {
         Builder secondary(List<String> secondary);
 
         Builder autoFailoverPolicy(AutoFailoverPolicyData autoFailoverPolicyData);
+
+        Builder unload(NamespaceIsolationPolicyUnloadType unload);
 
         NamespaceIsolationData build();
     }

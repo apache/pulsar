@@ -29,11 +29,13 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadType;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -69,23 +71,43 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
                 .createCluster("cluster-1", ClusterData.builder().serviceUrl(localBrokerWebService).build());
         remoteAdmin.clusters()
                 .createCluster("cluster-2", ClusterData.builder().serviceUrl(remoteBrokerWebService).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of(""), Set.of("test", "cluster-1", "cluster-2"));
-        localAdmin.tenants().createTenant("prop-ig", tenantInfo);
-        localAdmin.namespaces().createNamespace("prop-ig/ns1", Set.of("test", "cluster-1"));
+        setupForTenant("A");
+        setupForTenant("B");
     }
 
-    public void testNamespaceIsolationPolicyForReplNS() throws Exception {
+    private void setupForTenant(String prefix) throws PulsarAdminException {
 
-        // Verify that namespace is not present in cluster-2.
-        Set<String> replicationClusters = localAdmin.namespaces().getPolicies("prop-ig/ns1").replication_clusters;
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of(""), Set.of("test", "cluster-1", "cluster-2"));
+        localAdmin.tenants().createTenant(prefix + "prop-ig", tenantInfo);
+        localAdmin.namespaces().createNamespace(prefix + "prop-ig/ns1", Set.of("test", "cluster-1"));
+        localAdmin.namespaces().createNamespace(prefix + "prop-ig/n1", Set.of("test", "cluster-1"));
+        localAdmin.topics().createNonPartitionedTopic(prefix + "prop-ig/ns1/t1");
+    }
+
+    public void testNamespaceIsolationPolicyForReplNSWithAllUnload() throws Exception {
+        testNamespaceIsolationPolicyForReplNS("A", "policy-1", NamespaceIsolationPolicyUnloadType.all);
+    }
+
+    public void testNamespaceIsolationPolicyForReplNSWithChangedUnload() throws Exception {
+        testNamespaceIsolationPolicyForReplNS("A", "policy-2", NamespaceIsolationPolicyUnloadType.changed);
+    }
+
+    public void testNamespaceIsolationPolicyForReplNSWithoutUnload() throws Exception {
+        testNamespaceIsolationPolicyForReplNS("B", "policy-3", NamespaceIsolationPolicyUnloadType.none);
+    }
+
+    private void testNamespaceIsolationPolicyForReplNS(String prefix, String policyName1, NamespaceIsolationPolicyUnloadType unload) throws Exception {
+        // Verify that namespaces are not present in cluster-2.
+        Set<String> replicationClusters = localAdmin.namespaces().getPolicies(prefix + "prop-ig/ns1").replication_clusters;
+        Assert.assertFalse(replicationClusters.contains("cluster-2"));
+        replicationClusters = localAdmin.namespaces().getPolicies(prefix + "prop-ig/n1").replication_clusters;
         Assert.assertFalse(replicationClusters.contains("cluster-2"));
 
         // setup ns-isolation-policy in both the clusters.
-        String policyName1 = "policy-1";
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
-        List<String> nsRegexList = new ArrayList<>(Arrays.asList("prop-ig/.*"));
+        List<String> nsRegexList = new ArrayList<>(Arrays.asList(prefix + "prop-ig/ns1.*"));
 
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 // "prop-ig/ns1" is present in test cluster, policy set on test2 should work
@@ -96,19 +118,35 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
                         .build())
+                .unload(unload)
                 .build();
 
+        // 1. Create policy should work in local cluster
         localAdmin.clusters().createNamespaceIsolationPolicy("test", policyName1, nsPolicyData1);
         // verify policy is present in local cluster
         Map<String, ? extends NamespaceIsolationData> policiesMap =
                 localAdmin.clusters().getNamespaceIsolationPolicies("test");
         assertEquals(policiesMap.get(policyName1), nsPolicyData1);
 
+        // 2. Create policy should work in remote cluster
         remoteAdmin.clusters().createNamespaceIsolationPolicy("cluster-2", policyName1, nsPolicyData1);
         // verify policy is present in remote cluster
         policiesMap = remoteAdmin.clusters().getNamespaceIsolationPolicies("cluster-2");
         assertEquals(policiesMap.get(policyName1), nsPolicyData1);
 
+        // 3. Update (add) policy should work in local cluster
+        nsPolicyData1.getNamespaces().add(prefix + "prop-ig/n1.*");    // this will add public/.* namespaces
+        localAdmin.clusters().updateNamespaceIsolationPolicy("test", policyName1, nsPolicyData1);
+        // verify policy is present in local cluster
+        policiesMap = localAdmin.clusters().getNamespaceIsolationPolicies("test");
+        assertEquals(policiesMap.get(policyName1), nsPolicyData1);
+
+        // 4. Update (remove) policy should work in local cluster
+        nsPolicyData1.getNamespaces().remove(prefix + "prop-ig/n1.*");    // this will add public/.* namespaces
+        localAdmin.clusters().updateNamespaceIsolationPolicy("test", policyName1, nsPolicyData1);
+        // verify policy is present in local cluster
+        policiesMap = localAdmin.clusters().getNamespaceIsolationPolicies("test");
+        assertEquals(policiesMap.get(policyName1), nsPolicyData1);
     }
 
 }

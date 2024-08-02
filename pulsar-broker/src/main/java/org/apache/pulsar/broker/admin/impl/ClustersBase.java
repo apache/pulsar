@@ -27,6 +27,7 @@ import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -65,6 +67,7 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadType;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -721,10 +724,12 @@ public class ClustersBase extends AdminResource {
                                         .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
                 ).thenCompose(nsIsolationPolicies -> {
+                    NamespaceIsolationDataImpl oldPolicy = nsIsolationPolicies.getPolicies().getOrDefault(policyName, null);
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
-                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(cluster, policyData))
+                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
+                            .thenApply(__ -> oldPolicy);
+                }).thenCompose(oldPolicy -> filterAndUnloadMatchedNamespaceAsync(cluster, policyData, oldPolicy))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
@@ -759,7 +764,13 @@ public class ClustersBase extends AdminResource {
      * Get matched namespaces; call unload for each namespaces.
      */
     private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(String cluster,
-                                                                         NamespaceIsolationDataImpl policyData) {
+                                                                         NamespaceIsolationDataImpl policyData,
+                                                                         NamespaceIsolationDataImpl oldPolicy) {
+        // exit early if none of the namespaces need to be unloaded
+        if (NamespaceIsolationPolicyUnloadType.none.equals(policyData.getUnload())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         PulsarAdmin adminClient;
         try {
             adminClient = pulsar().getAdminClient();
@@ -768,6 +779,7 @@ public class ClustersBase extends AdminResource {
         }
         // compile regex patterns once
         List<Pattern> namespacePatterns = policyData.getNamespaces().stream().map(Pattern::compile).toList();
+        // TODO for 4.x, we should include both old and new namespace regex pattern for unload `all` option
         return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
             List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
                     .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
@@ -793,6 +805,38 @@ public class ClustersBase extends AdminResource {
             if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
                 return CompletableFuture.completedFuture(null);
             }
+            // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
+            // actually have been changed.
+
+            if (oldPolicy!= null && NamespaceIsolationPolicyUnloadType.changed.equals(policyData.getUnload())) {
+                // We also compare that the previous primary broker list is same as current, in case all namespaces need
+                // to be placed again anyway.
+                List<String> oldBrokers = new ArrayList<>(policyData.getPrimary());
+                oldBrokers.removeAll(policyData.getPrimary());
+
+                if (oldBrokers.isEmpty()) {
+                    // list is same, so we continue finding the changed namespaces.
+                    List<Pattern> oldNamespacePatterns = oldPolicy.getNamespaces().stream().map(Pattern::compile).toList();
+                    // We create a union regex list contains old + new regexes
+                    Set<Pattern> combinedPatterns = new HashSet<>(oldNamespacePatterns);
+                    combinedPatterns.addAll(namespacePatterns);
+                    // We create a intersection of the old and new regexes. These won't need to be unloaded
+                    Set<Pattern> commonPatterns = new HashSet<>(oldNamespacePatterns);
+                    commonPatterns.retainAll(namespacePatterns);
+
+                    // Find the changed regexes (new - new ∩ old). TODO for 4.x, make this (new U old - new ∩ old)
+                    combinedPatterns.removeAll(commonPatterns);
+
+                    // Now we further filter the filtered namespaces based on this combinedPatterns set
+                    shouldUnloadNamespaces = shouldUnloadNamespaces.stream()
+                            .filter(name -> combinedPatterns.stream()
+                                    .anyMatch(pattern -> pattern.matcher(name).matches())
+                            ).toList();
+
+                }
+            }
+            // unload type is either null or not in (changed, none), so we proceed to unload all namespaces
+            // TODO - default in 4.x should become `changed`
             List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
                     .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
                     .collect(Collectors.toList());
