@@ -24,6 +24,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -225,6 +227,9 @@ public class MessageChecksumTest extends BrokerTestBase {
                 .create();
         TypedMessageBuilderImpl<byte[]> msgBuilder = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                 .value("a message".getBytes());
+        Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
+        method.setAccessible(true);
+        method.invoke(msgBuilder);
         MessageMetadata msgMetadata = msgBuilder.getMetadataBuilder()
                 .setProducerName("test")
                 .setSequenceId(1)
