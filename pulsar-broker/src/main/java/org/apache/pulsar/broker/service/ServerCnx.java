@@ -3649,7 +3649,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              *   occur, so this log's level is `ERROR`) this log will be printed.
                              */
                             log.error("[{}] Connection check might be success, because the variable"
-                                    + " connectionCheckInProgress has been override by the following check.",
+                                    + " connectionCheckInProgress has been override by the following check. But this"
+                                    + " scenario is not expected",
                                     this.toString());
                             finalConnectionCheckInProgress.complete(Optional.of(true));
                         }
