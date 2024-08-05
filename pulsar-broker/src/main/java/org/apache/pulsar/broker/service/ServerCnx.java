@@ -3628,10 +3628,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 && !finalConnectionCheckInProgress.isDone()) {
                             log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
                             ctx.close();
-                        } else {
+                        } else if (finalConnectionCheckInProgress != connectionCheckInProgress){
                             log.info("[{}] Connection check might be success, because the variable"
-                                    + " connectionCheckInProgress has been changed.", this.toString());
-                            finalConnectionCheckInProgress.complete(Optional.of(false));
+                                    + " connectionCheckInProgress has been override by the following check.",
+                                    this.toString());
+                            finalConnectionCheckInProgress.complete(Optional.of(true));
+                        } else {
+                            log.warn("[{}] Connection check might is still in progress after {} millis, increasing the"
+                                        + "param connectionLivenessCheckTimeoutMillis is better",
+                                    this.toString(), connectionLivenessCheckTimeoutMillis);
                         }
                     }, connectionLivenessCheckTimeoutMillis, TimeUnit.MILLISECONDS);
                     sendPing();
