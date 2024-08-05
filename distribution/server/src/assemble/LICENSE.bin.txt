@@ -536,6 +536,8 @@ The Apache Software License, Version 2.0
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.3-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.3-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.25.0-alpha.jar
+  * Spotify completable-futures
+    - com.spotify-completable-futures-0.3.6.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
