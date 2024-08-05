@@ -379,6 +379,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         long callTime = System.nanoTime();
         try {
             message = incomingMessages.poll(timeout, unit);
+            message = beforeConsume(message);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
