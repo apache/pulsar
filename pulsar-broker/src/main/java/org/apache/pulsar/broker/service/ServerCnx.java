@@ -3644,9 +3644,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              *
                              * Once {@link #connectionCheckInProgress} is not equal to
                              *   {@link #finalConnectionCheckInProgress}, it means Scenario 1 occurred before. If
-                             *   "receiving Pong" and "the current scheduled task" are executing at the same time
-                             *   (since they will be executing at the same thread, the concurrency scenario can not
-                             *   occur, so this log's level is `ERROR`) this log will be printed.
+                             *   "receiving Pong" and "the current scheduled task" are executing at the same time,
+                             *   this log will be printed. Since the two events will be executing at the same thread,
+                             *   the concurrency scenario can not occur, so this log's level is "ERROR".
                              */
                             log.error("[{}] Connection check might be success, because the variable"
                                     + " connectionCheckInProgress has been override by the following check. But this"
