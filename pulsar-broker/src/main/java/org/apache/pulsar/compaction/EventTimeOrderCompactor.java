@@ -70,7 +70,7 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
       boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
           .map(Pair::getRight)
           .map(latestEventTime -> mcd.eventTime() != null
-              && mcd.eventTime() > latestEventTime).orElse(true);
+              && mcd.eventTime() >= latestEventTime).orElse(true);
       if (newer) {
         if (mcd.payloadSize() > 0) {
           Pair<MessageId, Long> old = latestForKey.put(mcd.key(),

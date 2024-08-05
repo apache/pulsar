@@ -127,7 +127,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return compactor;
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
+    protected List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
             throws Exception {
 
         long compactedLedgerId = compact(topic);
