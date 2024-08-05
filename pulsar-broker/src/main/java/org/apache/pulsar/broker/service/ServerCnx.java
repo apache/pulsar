@@ -3635,22 +3635,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
                             ctx.close();
                         } else {
-                            /**
-                             * Scenarios that changing {@link #connectionCheckInProgress}.
-                             *   1. {@link #connectionCheckInProgress} will be changed to "null" after a successful
-                             *     "Ping & Pong"
-                             *   2. {@link #connectionCheckInProgress} will be set to a new future the next time
-                             *     {@link #checkConnectionLiveness()} when it is null.
-                             *
-                             * Once {@link #connectionCheckInProgress} is not equal to
-                             *   {@link #finalConnectionCheckInProgress}, it means Scenario 1 occurred before. If
-                             *   "receiving Pong" and "the current scheduled task" are executing at the same time,
-                             *   this log will be printed. Since the two events will be executing at the same thread,
-                             *   the concurrency scenario can not occur, so this log's level is "ERROR".
-                             */
-                            log.error("[{}] Connection check might be success, because the variable"
-                                    + " connectionCheckInProgress has been override by the following check. But this"
-                                    + " scenario is not expected",
+                            log.error("[{}] Reached unexpected code block. Completing connection check.",
                                     this.toString());
                             finalConnectionCheckInProgress.complete(Optional.of(true));
                         }
