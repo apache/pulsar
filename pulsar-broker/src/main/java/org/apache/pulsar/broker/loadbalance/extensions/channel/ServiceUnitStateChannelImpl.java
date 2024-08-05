@@ -1764,8 +1764,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet() {
-        if (tableview == null) {
-            return Set.of();
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
         return tableview.entrySet();
     }
