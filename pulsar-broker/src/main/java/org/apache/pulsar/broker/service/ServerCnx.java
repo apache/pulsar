@@ -3628,12 +3628,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return;
                         }
                         if (finalConnectionCheckInProgress == connectionCheckInProgress) {
-                            // finalConnectionCheckInProgress will be completed when channel.inactive event occurs.
-                            // So skip set it here.
+                            /**
+                             * {@link #connectionCheckInProgress} will be completed when
+                             * {@link #channelInactive(ChannelHandlerContext)} event occurs, so skip set it here.
+                             */
                             log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
                             ctx.close();
                         } else {
-                            log.info("[{}] Connection check might be success, because the variable"
+                            /**
+                             * Scenarios that changing {@link #connectionCheckInProgress}.
+                             *   1. {@link #connectionCheckInProgress} will be changed to "null" after a successful
+                             *     "Ping & Pong"
+                             *   2. {@link #connectionCheckInProgress} will be set to a new future the next time
+                             *     {@link #checkConnectionLiveness()} when it is null.
+                             *
+                             * Once {@link #connectionCheckInProgress} is not equal to
+                             *   {@link #finalConnectionCheckInProgress}, it means Scenario 1 occurred before. If
+                             *   "receiving Pong" and "the current scheduled task" are executing at the same time
+                             *   (since they will be executing at the same thread, the concurrency scenario can not
+                             *   occur, so this log's level is `ERROR`) this log will be printed.
+                             */
+                            log.error("[{}] Connection check might be success, because the variable"
                                     + " connectionCheckInProgress has been override by the following check.",
                                     this.toString());
                             finalConnectionCheckInProgress.complete(Optional.of(true));
