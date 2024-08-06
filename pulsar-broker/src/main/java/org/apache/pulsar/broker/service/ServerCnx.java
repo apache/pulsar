@@ -3260,18 +3260,39 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public CompletableFuture<Boolean> checkConnectionLiveness() {
+        if (!isActive()) {
+            return CompletableFuture.completedFuture(false);
+        }
         if (connectionLivenessCheckTimeoutMillis > 0) {
             return NettyFutureUtil.toCompletableFuture(ctx.executor().submit(() -> {
+                if (!isActive()) {
+                    return CompletableFuture.completedFuture(false);
+                }
                 if (connectionCheckInProgress != null) {
                     return connectionCheckInProgress;
                 } else {
-                    final CompletableFuture<Boolean> finalConnectionCheckInProgress = new CompletableFuture<>();
+                    final CompletableFuture<Boolean> finalConnectionCheckInProgress =
+                            new CompletableFuture<>();
                     connectionCheckInProgress = finalConnectionCheckInProgress;
                     ctx.executor().schedule(() -> {
-                        if (finalConnectionCheckInProgress == connectionCheckInProgress
-                                && !finalConnectionCheckInProgress.isDone()) {
+                        if (!isActive()) {
+                            finalConnectionCheckInProgress.complete(false);
+                            return;
+                        }
+                        if (finalConnectionCheckInProgress.isDone()) {
+                            return;
+                        }
+                        if (finalConnectionCheckInProgress == connectionCheckInProgress) {
+                            /**
+                             * {@link #connectionCheckInProgress} will be completed when
+                             * {@link #channelInactive(ChannelHandlerContext)} event occurs, so skip set it here.
+                             */
                             log.warn("[{}] Connection check timed out. Closing connection.", this.toString());
                             ctx.close();
+                        } else {
+                            log.error("[{}] Reached unexpected code block. Completing connection check.",
+                                    this.toString());
+                            finalConnectionCheckInProgress.complete(true);
                         }
                     }, connectionLivenessCheckTimeoutMillis, TimeUnit.MILLISECONDS);
                     sendPing();
