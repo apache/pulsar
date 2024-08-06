@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -1760,6 +1761,18 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "brokerRegistry", registry , true);
         cleanTableViews();
 
+    }
+
+    @Test(priority = 20)
+    public void testGetOwnershipEntrySetBeforeChannelStart() {
+        var tmpChannel = new ServiceUnitStateChannelImpl(pulsar1);
+        try {
+            tmpChannel.getOwnershipEntrySet();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalStateException);
+            assertEquals("Invalid channel state:Constructed", e.getMessage());
+        }
     }
 
 
