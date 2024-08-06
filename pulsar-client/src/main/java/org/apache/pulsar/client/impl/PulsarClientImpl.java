@@ -572,8 +572,8 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
                 consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, externalExecutorProvider,
-                        partitionIndex, false, consumerSubscribedFuture, null, schema, interceptors,
-                        true /* createTopicIfDoesNotExist */);
+                        partitionIndex, consumerSubscribedFuture, schema, interceptors
+                        /* createTopicIfDoesNotExist */);
             }
             consumers.add(consumer);
         }).exceptionally(ex -> {

@@ -368,9 +368,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <ul>
      * <li>Decreases the throughput of the consumer by disabling pre-fetching of messages. This approach improves the
      * message distribution on shared subscriptions by pushing messages only to the consumers that are ready to process
-     * them. Neither {@link Consumer#receive(int, TimeUnit)} nor Partitioned Topics can be used if the consumer queue
-     * size is zero. {@link Consumer#receive()} function call should not be interrupted when the consumer queue size is
-     * zero.</li>
+     * them.
+     * <li>When a non-partitioned topic is subscribed, {@link Consumer#receive(int, TimeUnit)} cannot be used.
+     * {@link Consumer#receive()} function call should not be interrupted.</li>
+     * <li>When a partitioned topic or multiple topics are subscribed, both {@link Consumer#receive()} and
+     * {@link Consumer#receive(int, TimeUnit)} cannot be used.</li>
      * <li>Doesn't support Batch-Message. If a consumer receives a batch-message, it closes the consumer connection with
      * the broker and {@link Consumer#receive()} calls remain blocked while {@link Consumer#receiveAsync()} receives
      * exception in callback.

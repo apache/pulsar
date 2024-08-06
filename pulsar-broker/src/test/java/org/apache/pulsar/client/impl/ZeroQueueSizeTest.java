@@ -21,18 +21,24 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -542,6 +548,46 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         assertEquals(receivedMessages.size(), numMessages);
         for (int i = 0; i < numMessages; i++) {
             assertEquals(receivedMessages.get(i).intValue(), i);
+        }
+    }
+
+    @Test
+    public void testMultiTopics() throws Exception {
+        final String topic1 = "persistent://prop/ns-abc/test-multi-topics-1";
+        final String topic2 = "persistent://prop/ns-abc/test-multi-topics-2";
+        final int numMessages = 10;
+        final CountDownLatch latch = new CountDownLatch(numMessages);
+        final Map<String, List<Integer>> topicToValues = new ConcurrentHashMap<>();
+        @Cleanup
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic1, topic2)
+                .subscriptionName("sub").receiverQueueSize(0)
+                .messageListener((__, msg) -> {
+                    topicToValues.computeIfAbsent(msg.getTopicName(), ___ -> new CopyOnWriteArrayList<>())
+                            .add(msg.getValue());
+                    latch.countDown();
+                })
+                .subscribe();
+        final Producer<Integer> producer1 = pulsarClient.newProducer(Schema.INT32).topic(topic1).create();
+        final Producer<Integer> producer2 = pulsarClient.newProducer(Schema.INT32).topic(topic2).create();
+        for (int i = 0; i < numMessages; i++) {
+            (i % 2 == 0 ? producer1 : producer2).send(i);
+        }
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(topicToValues.keySet(), new HashSet<>(Arrays.asList(topic1, topic2)));
+        assertEquals(topicToValues.get(topic1), Arrays.asList(0, 2, 4, 6, 8));
+        assertEquals(topicToValues.get(topic2), Arrays.asList(1, 3, 5, 7, 9));
+    }
+
+    @Test
+    public void testMultiTopicsWithoutListener() {
+        final String topic1 = "persistent://prop/ns-abc/test-multi-topics-without-listener-1";
+        final String topic2 = "persistent://prop/ns-abc/test-multi-topics-without-listener-2";
+        try {
+            pulsarClient.newConsumer().topic(topic1, topic2).subscriptionName("sub").receiverQueueSize(0).subscribe();
+            fail();
+        } catch (PulsarClientException e) {
+            assertTrue(e.getCause() instanceof ExecutionException);
+            assertTrue(e.getCause().getCause() instanceof IllegalArgumentException);
         }
     }
 }

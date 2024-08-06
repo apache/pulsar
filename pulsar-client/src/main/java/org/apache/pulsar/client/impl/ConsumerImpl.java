@@ -79,6 +79,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -242,14 +243,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerConfigurationData<T> conf,
                                                ExecutorProvider executorProvider,
                                                int partitionIndex,
-                                               boolean hasParentConsumer,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
-                                               MessageId startMessageId,
                                                Schema<T> schema,
-                                               ConsumerInterceptors<T> interceptors,
-                                               boolean createTopicIfDoesNotExist) {
-        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false,
-                subscribeFuture, startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
+                                               ConsumerInterceptors<T> interceptors) {
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, false,
+                conf.getMessageListener(), subscribeFuture, null, schema, interceptors,
+                true, 0);
     }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
@@ -258,7 +257,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ExecutorProvider executorProvider,
                                                int partitionIndex,
                                                boolean hasParentConsumer,
-                                               boolean parentConsumerHasListener,
+                                               MessageListener<T> listener,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
                                                MessageId startMessageId,
                                                Schema<T> schema,
@@ -269,10 +268,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     startMessageId, schema, interceptors,
-                    createTopicIfDoesNotExist);
+                    createTopicIfDoesNotExist, listener);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
-                    parentConsumerHasListener,
+                    listener != null,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);

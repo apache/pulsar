@@ -138,8 +138,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), executorProvider, subscribeFuture,
                 schema, interceptors);
 
-        checkArgument(conf.getReceiverQueueSize() > 0,
-            "Receiver queue size needs to be greater than 0 for Topics Consumer");
+        checkArgument(conf.getMessageListener() == null && conf.getReceiverQueueSize() > 0,
+                "Receiver queue size needs to be greater than 0 for Topics Consumer when listener is null");
 
         this.partitionedTopics = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
@@ -233,9 +233,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
-                        consumer.getCurrentReceiverQueueSize());
-                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
+                if (consumer instanceof ZeroQueueConsumerImpl) {
+                    consumer.increaseAvailablePermits(1);
+                } else {
+                    consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
+                            consumer.getCurrentReceiverQueueSize());
+                    internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
+                }
             });
         }
     }
@@ -1184,7 +1188,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         configurationData = configurationData.clone();
         return ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
-                partitionIndex, true, listener != null, subFuture,
+                partitionIndex, true, listener, subFuture,
                 startMessageId, schema, interceptors,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
     }
