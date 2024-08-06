@@ -58,6 +58,7 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
@@ -354,7 +355,16 @@ public class AsyncHttpConnector implements Connector {
             builder.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip");
         }
 
-        return builder.execute().toCompletableFuture();
+        ListenableFuture<Response> responseFuture = builder.execute();
+        CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
+        completableFuture.whenComplete((response, throwable) -> {
+            if (throwable != null && (throwable instanceof CancellationException
+                    || throwable instanceof TimeoutException)) {
+                // abort the request if the future is cancelled or timed out
+                responseFuture.abort(throwable);
+            }
+        });
+        return completableFuture;
     }
 
     @Override
