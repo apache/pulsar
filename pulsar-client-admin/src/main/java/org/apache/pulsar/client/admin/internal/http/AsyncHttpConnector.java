@@ -185,7 +185,7 @@ public class AsyncHttpConnector implements Connector {
             confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
-        this.requestTimeout = Duration.ofMillis(requestTimeoutMs);
+        this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
@@ -264,7 +264,7 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
-        if (!requestTimeout.isZero() && !requestTimeout.isNegative()) {
+        if (requestTimeout != null) {
             FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
         }
         return resultFuture;
