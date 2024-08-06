@@ -116,10 +116,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             } else {
                 ch.pipeline().addLast(TLS_HANDLER, sslCtxRefresher.get().newHandler(ch.alloc()));
             }
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
-        } else {
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
+        ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.getEncoder(this.enableTls));
 
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
