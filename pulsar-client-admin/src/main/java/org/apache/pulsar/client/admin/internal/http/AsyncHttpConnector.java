@@ -73,11 +73,11 @@ import org.glassfish.jersey.client.spi.Connector;
  */
 @Slf4j
 public class AsyncHttpConnector implements Connector {
-    private static final TimeoutException READ_TIMEOUT_EXCEPTION =
-            FutureUtil.createTimeoutException("Read timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
+    private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
     @Getter
     private final AsyncHttpClient httpClient;
-    private final Duration readTimeout;
+    private final Duration requestTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
@@ -184,7 +184,7 @@ public class AsyncHttpConnector implements Connector {
             confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
-        this.readTimeout = Duration.ofMillis(readTimeoutMs);
+        this.requestTimeout = Duration.ofMillis(requestTimeoutMs);
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
@@ -263,7 +263,9 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
-        FutureUtil.addTimeoutHandling(resultFuture, readTimeout, delayer, () -> READ_TIMEOUT_EXCEPTION);
+        if (!requestTimeout.isZero() && !requestTimeout.isNegative()) {
+            FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
+        }
         return resultFuture;
     }
 
@@ -320,7 +322,7 @@ public class AsyncHttpConnector implements Connector {
         }
     }
 
-    private CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+    protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
         ClientRequest currentRequest = new ClientRequest(request);
         URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);

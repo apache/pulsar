@@ -9,11 +9,17 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.asynchttpclient.Response;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -56,7 +62,6 @@ public class AsyncHttpConnectorTest {
                 .whenScenarioStateIs(Scenario.STARTED)
                 .willSetStateTo("next")
                 .willReturn(aResponse()
-                        .withFixedDelay(1000)
                         .withHeader("Content-Type", "application/json")
                         .withBody("[\"test-cluster\"]")));
 
@@ -69,10 +74,25 @@ public class AsyncHttpConnectorTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("http://localhost:" + server.port());
 
-        int readTimeoutMs = 500;
+        int requestTimeout = 500;
+
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        Executor delayedExecutor = runnable -> {
+            scheduledExecutor.schedule(runnable, requestTimeout, TimeUnit.MILLISECONDS);
+        };
         @Cleanup
-        AsyncHttpConnector connector = new AsyncHttpConnector(5000, readTimeoutMs,
-                5000, 0, conf, false);
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
+                requestTimeout, 0, conf, false) {
+            @Override
+            protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+                // delay the request to simulate a timeout
+                return super.oneShot(host, request)
+                        .thenApplyAsync(response -> {
+                            return response;
+                        }, delayedExecutor);
+            }
+        };
 
         JerseyClient jerseyClient = JerseyClientBuilder.createClient();
         ClientConfig clientConfig = jerseyClient.getConfiguration();
@@ -92,7 +112,7 @@ public class AsyncHttpConnectorTest {
                 future.completeExceptionally(failure);
             }
         });
-        Thread.sleep(2 * readTimeoutMs);
+        Thread.sleep(2 * requestTimeout);
         String scenarioState =
                 server.getAllScenarios().getScenarios().stream().filter(scenario -> "once".equals(scenario.getName()))
                         .findFirst().get().getState();
