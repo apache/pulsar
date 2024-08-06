@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import com.spotify.futures.ConcurrencyReducer;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
@@ -28,8 +29,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -76,6 +79,7 @@ import org.glassfish.jersey.client.spi.Connector;
 public class AsyncHttpConnector implements Connector {
     private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
+    private static final int DEFAULT_MAX_QUEUE_SIZE_PER_HOST = 10000;
     @Getter
     private final AsyncHttpClient httpClient;
     private final Duration requestTimeout;
@@ -84,6 +88,7 @@ public class AsyncHttpConnector implements Connector {
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
             new DefaultThreadFactory("delayer"));
     private final boolean acceptGzipCompression;
+    private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
@@ -269,11 +274,24 @@ public class AsyncHttpConnector implements Connector {
 
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
+        retryOperation(resultFuture, () -> callOperation(request), maxRetries);
         if (requestTimeout != null) {
             FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
         }
         return resultFuture;
+    }
+
+    private CompletableFuture<Response> callOperation(ClientRequest request) {
+        InetSocketAddress host = serviceNameResolver.resolveHost();
+        if (httpClient.getConfig().getMaxConnectionsPerHost() > 0) {
+            String hostAndPort = host.getHostString() + ":" + host.getPort();
+            ConcurrencyReducer<Response> responseConcurrencyReducer = concurrencyReducers.computeIfAbsent(hostAndPort,
+                    h -> ConcurrencyReducer.create(httpClient.getConfig().getMaxConnectionsPerHost(),
+                            DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
+            return responseConcurrencyReducer.add(() -> oneShot(host, request));
+        } else {
+            return oneShot(host, request);
+        }
     }
 
     private <T> void retryOperation(
