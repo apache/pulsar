@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
 @Slf4j
-public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
+public class SameAuthParamsAutoClusterFailover implements ServiceUrlProvider {
 
     private PulsarClientImpl pulsarClient;
     private EventLoopGroup executor;
@@ -62,7 +62,7 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
     @Getter
     private volatile int currentPulsarServiceIndex;
 
-    private SameAuthAutoClusterFailover() {}
+    private SameAuthParamsAutoClusterFailover() {}
 
     @Override
     public void initialize(PulsarClient client) {
@@ -241,13 +241,14 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
 
     public static class Builder {
 
-        private SameAuthAutoClusterFailover sameAuthAutoClusterFailover = new SameAuthAutoClusterFailover();
+        private SameAuthParamsAutoClusterFailover
+                sameAuthParamsAutoClusterFailover = new SameAuthParamsAutoClusterFailover();
 
         public Builder failoverThreshold(int failoverThreshold) {
             if (failoverThreshold < 1) {
                 throw new IllegalArgumentException("failoverThreshold must be larger than 0");
             }
-            sameAuthAutoClusterFailover.failoverThreshold = failoverThreshold;
+            sameAuthParamsAutoClusterFailover.failoverThreshold = failoverThreshold;
             return this;
         }
 
@@ -255,7 +256,7 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
             if (recoverThreshold < 1) {
                 throw new IllegalArgumentException("recoverThreshold must be larger than 0");
             }
-            sameAuthAutoClusterFailover.recoverThreshold = recoverThreshold;
+            sameAuthParamsAutoClusterFailover.recoverThreshold = recoverThreshold;
             return this;
         }
 
@@ -263,7 +264,7 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
             if (checkHealthyIntervalMs < 1) {
                 throw new IllegalArgumentException("checkHealthyIntervalMs must be larger than 0");
             }
-            sameAuthAutoClusterFailover.checkHealthyIntervalMs = checkHealthyIntervalMs;
+            sameAuthParamsAutoClusterFailover.checkHealthyIntervalMs = checkHealthyIntervalMs;
             return this;
         }
 
@@ -271,12 +272,12 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
             if (StringUtils.isBlank(testTopic) && TopicName.get(testTopic) != null) {
                 throw new IllegalArgumentException("testTopic can not be blank");
             }
-            sameAuthAutoClusterFailover.testTopic = testTopic;
+            sameAuthParamsAutoClusterFailover.testTopic = testTopic;
             return this;
         }
 
         public Builder markTopicNotFoundAsAvailable(boolean markTopicNotFoundAsAvailable) {
-            sameAuthAutoClusterFailover.markTopicNotFoundAsAvailable = markTopicNotFoundAsAvailable;
+            sameAuthParamsAutoClusterFailover.markTopicNotFoundAsAvailable = markTopicNotFoundAsAvailable;
             return this;
         }
 
@@ -284,7 +285,7 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
             if (pulsarServiceUrlArray == null || pulsarServiceUrlArray.length == 0) {
                 throw new IllegalArgumentException("pulsarServiceUrlArray can not be empty");
             }
-            sameAuthAutoClusterFailover.pulsarServiceUrlArray = pulsarServiceUrlArray;
+            sameAuthParamsAutoClusterFailover.pulsarServiceUrlArray = pulsarServiceUrlArray;
             int pulsarServiceLen = pulsarServiceUrlArray.length;
             HashSet<String> uniqueChecker = new HashSet<>();
             for (int i = 0; i < pulsarServiceLen; i++) {
@@ -300,19 +301,19 @@ public class SameAuthAutoClusterFailover implements ServiceUrlProvider {
             return this;
         }
 
-        public SameAuthAutoClusterFailover build() {
-            String[] pulsarServiceUrlArray = sameAuthAutoClusterFailover.pulsarServiceUrlArray;
+        public SameAuthParamsAutoClusterFailover build() {
+            String[] pulsarServiceUrlArray = sameAuthParamsAutoClusterFailover.pulsarServiceUrlArray;
             if (pulsarServiceUrlArray == null) {
                 throw new IllegalArgumentException("pulsarServiceUrlArray can not be empty");
             }
             int pulsarServiceLen = pulsarServiceUrlArray.length;
-            sameAuthAutoClusterFailover.pulsarServiceStateArray = new PulsarServiceState[pulsarServiceLen];
-            sameAuthAutoClusterFailover.checkCounterArray = new MutableInt[pulsarServiceLen];
+            sameAuthParamsAutoClusterFailover.pulsarServiceStateArray = new PulsarServiceState[pulsarServiceLen];
+            sameAuthParamsAutoClusterFailover.checkCounterArray = new MutableInt[pulsarServiceLen];
             for (int i = 0; i < pulsarServiceLen; i++) {
-                sameAuthAutoClusterFailover.pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
-                sameAuthAutoClusterFailover.checkCounterArray[i] = new MutableInt(0);
+                sameAuthParamsAutoClusterFailover.pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
+                sameAuthParamsAutoClusterFailover.checkCounterArray[i] = new MutableInt(0);
             }
-            return sameAuthAutoClusterFailover;
+            return sameAuthParamsAutoClusterFailover;
         }
     }
 }

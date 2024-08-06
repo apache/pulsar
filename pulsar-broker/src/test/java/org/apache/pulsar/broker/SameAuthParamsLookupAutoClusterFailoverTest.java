@@ -27,12 +27,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.NetworkErrorTestBase;
 import org.apache.pulsar.broker.service.OneWayReplicatorTestBase;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.SameAuthParamsAutoClusterFailover;
+import org.apache.pulsar.client.impl.SameAuthParamsLookupAutoClusterFailover;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
@@ -41,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class SameAuthParamsAutoClusterFailoverTest extends OneWayReplicatorTestBase {
+public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicatorTestBase {
 
     public void setup() throws Exception {
         super.setup();
@@ -73,7 +72,7 @@ public class SameAuthParamsAutoClusterFailoverTest extends OneWayReplicatorTestB
         String url1 = enabledTls ? pulsar1.getBrokerServiceUrlTls() : pulsar1.getBrokerServiceUrl();
         String url2 = enabledTls ? pulsar2.getBrokerServiceUrlTls() : pulsar2.getBrokerServiceUrl();
         final String[] urlArray = new String[]{url1, urlProxy, url2};
-        final SameAuthParamsAutoClusterFailover failover = SameAuthParamsAutoClusterFailover.builder()
+        final SameAuthParamsLookupAutoClusterFailover failover = SameAuthParamsLookupAutoClusterFailover.builder()
                 .pulsarServiceUrlArray(urlArray)
                 .failoverThreshold(5)
                 .recoverThreshold(5)
@@ -130,30 +129,6 @@ public class SameAuthParamsAutoClusterFailoverTest extends OneWayReplicatorTestB
         producer.close();
         client.close();
         dummyServer.close();
-    }
-
-    public static void main(String[] args) throws Exception {
-        String token = "<token>";
-        String serviceUrl_a = "<url_a>";
-        String serviceUrl_b = "<url_b>>";
-        String serviceUrl_c = "<url_b>>";
-        final String[] urlArray = new String[]{serviceUrl_a, serviceUrl_b, serviceUrl_c};
-        // Build client.
-        final SameAuthParamsAutoClusterFailover failover = SameAuthParamsAutoClusterFailover.builder()
-                .pulsarServiceUrlArray(urlArray)
-                .failoverThreshold(5)
-                .recoverThreshold(5)
-                .checkHealthyIntervalMs(1000)
-                .testTopic("a/b/c")
-                .markTopicNotFoundAsAvailable(true)
-                .build();
-        PulsarClient client = PulsarClient.builder()
-                .authentication(AuthenticationFactory.token(token)).serviceUrlProvider(failover)
-                .build();
-        failover.initialize(client);
-
-        // Pub & Sub.
-        // ...
     }
 
     @Override
