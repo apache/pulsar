@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
@@ -264,9 +263,8 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
-        CompletableFuture<Response> timeoutAfter = FutureUtil.createFutureWithTimeout(readTimeout, delayer,
-                () -> READ_TIMEOUT_EXCEPTION);
-        return resultFuture.applyToEither(timeoutAfter, Function.identity());
+        FutureUtil.addTimeoutHandling(resultFuture, readTimeout, delayer, () -> READ_TIMEOUT_EXCEPTION);
+        return resultFuture;
     }
 
     private <T> void retryOperation(
@@ -285,11 +283,18 @@ public class AsyncHttpConnector implements Connector {
                                         new RetryException("Operation future was cancelled.", throwable));
                             } else {
                                 if (retries > 0) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Retrying operation. Remaining retries: {}", retries);
+                                    }
                                     retryOperation(
                                             resultFuture,
                                             operation,
                                             retries - 1);
                                 } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Number of retries has been exhausted. Failing the operation.",
+                                                throwable);
+                                    }
                                     resultFuture.completeExceptionally(
                                         new RetryException("Could not complete the operation. Number of retries "
                                             + "has been exhausted. Failed reason: " + throwable.getMessage(),
