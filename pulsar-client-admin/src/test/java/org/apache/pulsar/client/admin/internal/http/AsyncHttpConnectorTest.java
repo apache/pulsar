@@ -86,7 +86,7 @@ public class AsyncHttpConnectorTest {
                 requestTimeout, 0, conf, false) {
             @Override
             protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
-                // delay the request to simulate a timeout
+                // delay the response to simulate a timeout
                 return super.oneShot(host, request)
                         .thenApplyAsync(response -> {
                             return response;
