@@ -1294,7 +1294,11 @@ public class NamespaceService implements AutoCloseable {
             }
         }
         pulsar.runWhenReadyForIncomingRequests(() -> {
-            getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+            try {
+                getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+            } catch (Exception e) {
+                LOG.error("Failed to notify namespace bundle ownership listener", e);
+            }
         });
     }
 
