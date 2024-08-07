@@ -94,6 +94,10 @@
           <groupId>org.apache.qpid</groupId>
           <artifactId>qpid-broker-plugins-amqp-1-0-protocol-bdb-link-store</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-broker-plugins-derby-store</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
