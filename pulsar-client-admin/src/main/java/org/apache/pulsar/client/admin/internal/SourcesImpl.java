@@ -52,8 +52,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     private final WebTarget source;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.source = web.path("/admin/v3/source");
         this.asyncHttpClient = asyncHttpClient;
     }

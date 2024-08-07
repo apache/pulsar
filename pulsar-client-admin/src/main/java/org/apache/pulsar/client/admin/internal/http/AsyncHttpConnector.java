@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
@@ -59,6 +58,7 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
@@ -74,11 +74,11 @@ import org.glassfish.jersey.client.spi.Connector;
  */
 @Slf4j
 public class AsyncHttpConnector implements Connector {
-    private static final TimeoutException READ_TIMEOUT_EXCEPTION =
-            FutureUtil.createTimeoutException("Read timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
+    private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
     @Getter
     private final AsyncHttpClient httpClient;
-    private final Duration readTimeout;
+    private final Duration requestTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
     private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
@@ -185,7 +185,7 @@ public class AsyncHttpConnector implements Connector {
             confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
-        this.readTimeout = Duration.ofMillis(readTimeoutMs);
+        this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
         this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
     }
 
@@ -264,9 +264,10 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
-        CompletableFuture<Response> timeoutAfter = FutureUtil.createFutureWithTimeout(readTimeout, delayer,
-                () -> READ_TIMEOUT_EXCEPTION);
-        return resultFuture.applyToEither(timeoutAfter, Function.identity());
+        if (requestTimeout != null) {
+            FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
+        }
+        return resultFuture;
     }
 
     private <T> void retryOperation(
@@ -285,11 +286,18 @@ public class AsyncHttpConnector implements Connector {
                                         new RetryException("Operation future was cancelled.", throwable));
                             } else {
                                 if (retries > 0) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Retrying operation. Remaining retries: {}", retries);
+                                    }
                                     retryOperation(
                                             resultFuture,
                                             operation,
                                             retries - 1);
                                 } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Number of retries has been exhausted. Failing the operation.",
+                                                throwable);
+                                    }
                                     resultFuture.completeExceptionally(
                                         new RetryException("Could not complete the operation. Number of retries "
                                             + "has been exhausted. Failed reason: " + throwable.getMessage(),
@@ -315,7 +323,7 @@ public class AsyncHttpConnector implements Connector {
         }
     }
 
-    private CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+    protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
         ClientRequest currentRequest = new ClientRequest(request);
         URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);
@@ -347,7 +355,16 @@ public class AsyncHttpConnector implements Connector {
             builder.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip");
         }
 
-        return builder.execute().toCompletableFuture();
+        ListenableFuture<Response> responseFuture = builder.execute();
+        CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
+        completableFuture.whenComplete((response, throwable) -> {
+            if (throwable != null && (throwable instanceof CancellationException
+                    || throwable instanceof TimeoutException)) {
+                // abort the request if the future is cancelled or timed out
+                responseFuture.abort(throwable);
+            }
+        });
+        return completableFuture;
     }
 
     @Override
