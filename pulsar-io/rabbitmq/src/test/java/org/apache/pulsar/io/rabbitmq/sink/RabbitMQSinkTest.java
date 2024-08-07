@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.io.rabbitmq.sink;
 
+import static org.mockito.Mockito.mock;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSink;
 import org.awaitility.Awaitility;
@@ -66,7 +68,8 @@ public class RabbitMQSinkTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, null));
+        SinkContext sinkContext = mock(SinkContext.class);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, sinkContext));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");

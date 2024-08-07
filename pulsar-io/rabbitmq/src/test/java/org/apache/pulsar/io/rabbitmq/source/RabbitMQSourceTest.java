@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
+import static org.mockito.Mockito.mock;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
 import org.awaitility.Awaitility;
@@ -66,8 +68,10 @@ public class RabbitMQSourceTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, null));
+        SourceContext sourceContext = mock(SourceContext.class);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, sourceContext));
         source.close();
     }
+
 
 }
