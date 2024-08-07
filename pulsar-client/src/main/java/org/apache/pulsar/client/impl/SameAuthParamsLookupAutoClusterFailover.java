@@ -115,7 +115,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
 
     private int firstHealthyPulsarService() {
         for (int i = 0; i <= currentPulsarServiceIndex; i++) {
-            if (pulsarServiceStateArray[i] == PulsarServiceState.Healthy) {
+            if (pulsarServiceStateArray[i] == PulsarServiceState.Healthy
+                    || pulsarServiceStateArray[i] == PulsarServiceState.PreFail) {
                 return i;
             }
         }
