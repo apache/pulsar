@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
@@ -37,6 +38,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
 @Slf4j
+@SuppressFBWarnings(value = {"EI_EXPOSE_REP2"})
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
 
     private PulsarClientImpl pulsarClient;
@@ -54,11 +56,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
     @Getter
     private String testTopic = "public/default/tp_test";
 
-    @Getter
     private String[] pulsarServiceUrlArray;
-    @Getter
     private PulsarServiceState[] pulsarServiceStateArray;
-    @Getter
     private MutableInt[] checkCounterArray;
     @Getter
     private volatile int currentPulsarServiceIndex;
