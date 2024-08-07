@@ -58,7 +58,6 @@ import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1498,7 +1497,8 @@ public class NamespaceService implements AutoCloseable {
                             } else if (actEx instanceof PulsarClientException.NotSupportedException){
                                 /**
                                  * Summary: For compatibility of
-                                 * {@link BinaryProtoLookupService#getPartitionedTopicMetadata(TopicName, boolean)}.
+                                 * {@link org.apache.pulsar.client.impl.BinaryProtoLookupService
+                                 *        #getPartitionedTopicMetadata(TopicName, boolean)}.
                                  *
                                  * Explanation:
                                  * 1. Reason of why getting the error here.
