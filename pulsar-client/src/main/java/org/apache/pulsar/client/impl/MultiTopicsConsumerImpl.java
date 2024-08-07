@@ -1114,7 +1114,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
-                startMessageId, schema, interceptors,
+                startMessageId, schema, null,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
     }
 

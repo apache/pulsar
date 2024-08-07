@@ -532,8 +532,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             msgPeeked = incomingMessages.peek();
                             continue;
                         }
-                        //Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(msg);
+                        Message<T> interceptMsg = beforeConsume(msg);
+                        messages.add(interceptMsg);
                     }
                     msgPeeked = incomingMessages.peek();
                 }
@@ -1490,9 +1490,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
         // call proper interceptor
-        final Message<T> interceptMessage = beforeConsume(message);
+        //final Message<T> interceptMessage = beforeConsume(message);
         // return message to receivedCallback
-        completePendingReceive(receivedFuture, interceptMessage);
+        completePendingReceive(receivedFuture, message);
     }
 
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,

@@ -877,8 +877,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
-                //Message<T> interceptMsg = beforeConsume(msg);
-                messages.add(msg);
+                Message<T> interceptMsg = beforeConsume(msg);
+                messages.add(interceptMsg);
             }
             msgPeeked = incomingMessages.peek();
         }
