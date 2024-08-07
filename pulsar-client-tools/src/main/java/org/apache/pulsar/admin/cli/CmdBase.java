@@ -44,10 +44,10 @@ public abstract class CmdBase {
     private IUsageFormatter usageFormatter;
 
     /**
-     * Default read timeout in milliseconds.
-     * Used if not found from configuration data in {@link #getReadTimeoutMs()}
+     * Default request timeout in milliseconds.
+     * Used if not found from configuration data in {@link #getRequestTimeoutMs()}
      */
-    private static final long DEFAULT_READ_TIMEOUT_MILLIS = 60000;
+    private static final long DEFAULT_REQUEST_TIMEOUT_MILLIS = 60000;
 
     @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
     private boolean help = false;
@@ -136,17 +136,17 @@ public abstract class CmdBase {
         return admin;
     }
 
-    protected long getReadTimeoutMs() {
+    protected long getRequestTimeoutMs() {
         PulsarAdmin pulsarAdmin = getAdmin();
         if (pulsarAdmin instanceof PulsarAdminImpl) {
-            return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getReadTimeoutMs();
+            return ((PulsarAdminImpl) pulsarAdmin).getClientConfigData().getRequestTimeoutMs();
         }
-        return DEFAULT_READ_TIMEOUT_MILLIS;
+        return DEFAULT_REQUEST_TIMEOUT_MILLIS;
     }
 
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
         try {
-            return executor.get().get(getReadTimeoutMs(), TimeUnit.MILLISECONDS);
+            return executor.get().get(getRequestTimeoutMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new PulsarAdminException(e);
