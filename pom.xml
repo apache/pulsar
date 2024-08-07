@@ -2804,13 +2804,5 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
-    <!-- For the BDB JE dependency -->
-    <repository>
-      <id>oracle.releases</id>
-      <url>https://download.oracle.com/maven</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
   </repositories>
 </project>
