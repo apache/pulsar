@@ -1490,7 +1490,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
         // call proper interceptor
-        //final Message<T> interceptMessage = beforeConsume(message);
+        final Message<T> interceptMessage = beforeConsume(message);
         // return message to receivedCallback
         completePendingReceive(receivedFuture, message);
     }
