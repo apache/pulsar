@@ -122,6 +122,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                     || actEx instanceof PulsarAdminException.NotFoundException) {
                 existsFuture.complete(false);
+            } else if (actEx instanceof PulsarClientException.NotSupportedException) {
+                existsFuture.completeExceptionally(new PulsarClientException.NotSupportedException("There is a bug that"
+                    + " the Retry/DLQ consumer will still trigger a Retry/DLQ topic with the old rule"
+                    + " ({namespace}/{subscription}-RETRY/DLQ), but the rule was changed to"
+                    + " {namespace}/{topic}-{subscription}-RETRY/DLQ after 2.8.0. Please upgrade the brokers' version"
+                    + " to >=3.0.6 or >=3.3.1; another solution is use HTTP protocol service URL instead of Binary"
+                    + " protocol service URL when building Pulsar Client"));
             } else {
                 existsFuture.completeExceptionally(ex);
             }

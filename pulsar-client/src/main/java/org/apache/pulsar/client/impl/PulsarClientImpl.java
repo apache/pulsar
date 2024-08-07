@@ -404,6 +404,31 @@ public class PulsarClientImpl implements PulsarClient {
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                     || actEx instanceof PulsarAdminException.NotFoundException) {
                 checkPartitions.complete(0);
+            } else if (actEx instanceof PulsarClientException.NotSupportedException) {
+                /**
+                 * Summary: For compatibility of
+                 * {@link BinaryProtoLookupService#getPartitionedTopicMetadata(TopicName, boolean)}.
+                 *
+                 * Explanation:
+                 * 1. This error will only occur when using Geo-Replication, and one version of the two cluster os
+                 *    larger or equals than "3.0.6" and "3.3.1" and another is smaller than "3.0.6" and "3.3.1".
+                 * 2. Reason of why getting the error here.
+                 *   The feature method above was supported at "3.0.6" and "3.3.1", before that the API
+                 *   "getPartitionedTopicMetadata" will trigger a creation for partitioned topic
+                 *   metadata automatically even if you just want query it. So the brokers whose version
+                 *   is less than "3.0.6" and "3.3.1" do not support the new API.
+                 * 3. Compatibility
+                 *   Skip the check of comparing of topic's partitions, and force connect to the non-partitioned topic,
+                 *   it may cause both partitioned topic and non-partitioned topic to exist at the same time. But this
+                 *   is still better than the behavior before the fix #22983, without the fix #22838, there is an issue
+                 *   that may cause replication stuck and topics being created in confusion, see more details in
+                 *   #22838's motivation.
+                 */
+                log.error("{} {} Since the target cluster does not support to get topic's partitions without"
+                        + " auto-creation, skip the partitions check. It may cause both partitioned topic and"
+                        + " non-partitioned topic to exist at the same time, please upgrade clusters to the version"
+                        + " that >=3.0.6 or >=3.3.1", topic, producerNameForLog);
+                checkPartitions.complete(0);
             } else {
                 checkPartitions.completeExceptionally(ex);
             }

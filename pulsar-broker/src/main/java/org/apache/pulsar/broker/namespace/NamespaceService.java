@@ -58,6 +58,7 @@ import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1493,6 +1494,29 @@ public class NamespaceService implements AutoCloseable {
                             if (actEx instanceof PulsarClientException.NotFoundException
                                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                                     || actEx instanceof PulsarAdminException.NotFoundException) {
+                                return CompletableFuture.completedFuture(false);
+                            } else if (actEx instanceof PulsarClientException.NotSupportedException){
+                                /**
+                                 * Summary: For compatibility of
+                                 * {@link BinaryProtoLookupService#getPartitionedTopicMetadata(TopicName, boolean)}.
+                                 *
+                                 * Explanation:
+                                 * 1. Reason of why getting the error here.
+                                 *   The feature method above was supported at "3.0.6" and "3.3.1", before that the API
+                                 *   "getPartitionedTopicMetadata" will trigger a creation for partitioned topic
+                                 *   metadata automatically even if you just want query it. So the brokers whose version
+                                 *   is less than "3.0.6" and "3.3.1" do not support the new API.
+                                 * 2. The conditions to lead this error occur.
+                                 *   There are 2 brokers in a cluster, and the version is less than "3.0.1", rolling
+                                 *   upgrade brokers to "3.0.6". After the first broker restarted, there is one broker
+                                 *   with version "3.0.6" and another is "3.0.1", and when the internal client tries
+                                 *   to call "getPartitionedTopicMetadata" to the broker with lower version, it will
+                                 *   get this error.
+                                 * 3. Compatibility
+                                 *   Rollback to the original behavior before the fix #22838. Without the fix #22838,
+                                 *   there is an issue that may cause a non-partitioned non-persistent topic and
+                                 *   a partitioned non-persistent topic with the same name to exist at the same time.
+                                 */
                                 return CompletableFuture.completedFuture(false);
                             } else {
                                 log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
