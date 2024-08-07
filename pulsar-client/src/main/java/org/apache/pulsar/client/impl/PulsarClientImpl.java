@@ -410,7 +410,7 @@ public class PulsarClientImpl implements PulsarClient {
                  * {@link BinaryProtoLookupService#getPartitionedTopicMetadata(TopicName, boolean)}.
                  *
                  * Explanation:
-                 * 1. This error will only occur when using Geo-Replication, and one version of the two cluster os
+                 * 1. This error will only occur when using Geo-Replication, and one version of the two cluster is
                  *    larger or equals than "3.0.6" and "3.3.1" and another is smaller than "3.0.6" and "3.3.1".
                  * 2. Reason of why getting the error here.
                  *   The feature method above was supported at "3.0.6" and "3.3.1", before that the API
