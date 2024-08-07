@@ -121,6 +121,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         if (conf.getConnectionsPerBroker() > 0) {
             confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
+            // Use the request timeout value for acquireFreeChannelTimeout so that we don't need to add
+            // yet another configuration property. When the ConcurrencyReducer is in use, it shouldn't be necessary to
+            // wait for a free channel since the ConcurrencyReducer will queue the requests.
+            confBuilder.setAcquireFreeChannelTimeout(conf.getRequestTimeoutMs());
         }
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
