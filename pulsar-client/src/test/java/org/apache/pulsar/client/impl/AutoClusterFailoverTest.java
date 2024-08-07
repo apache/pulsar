@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AutoClusterFailoverTest {
     @Test
-    public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
+    public void testBuildAutoClusterFailoverInstance() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 30;
@@ -106,7 +106,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testInitialize() {
+    public void testInitialize() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 10;
@@ -151,7 +151,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchWithoutAuthentication() {
+    public void testAutoClusterFailoverSwitchWithoutAuthentication() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 1;
@@ -187,7 +187,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchWithAuthentication() throws IOException {
+    public void testAutoClusterFailoverSwitchWithAuthentication() throws Exception {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
         long failoverDelay = 1;
@@ -251,7 +251,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchTlsTrustStore() throws IOException {
+    public void testAutoClusterFailoverSwitchTlsTrustStore() throws Exception {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
         long failoverDelay = 1;
