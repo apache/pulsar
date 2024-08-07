@@ -18,7 +18,16 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import static org.asynchttpclient.util.HttpConstants.Methods.GET;
+import static org.asynchttpclient.util.HttpConstants.Methods.HEAD;
+import static org.asynchttpclient.util.HttpConstants.Methods.OPTIONS;
+import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.FOUND_302;
+import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.MOVED_PERMANENTLY_301;
+import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANENT_REDIRECT_308;
+import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
+import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import com.spotify.futures.ConcurrencyReducer;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
@@ -57,15 +66,18 @@ import org.apache.pulsar.client.util.WithSNISslEngineFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.DefaultRequest;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
+import org.asynchttpclient.uri.Uri;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -113,7 +125,7 @@ public class AsyncHttpConnector implements Connector {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
         }
         confBuilder.setUseProxyProperties(true);
-        confBuilder.setFollowRedirect(true);
+        confBuilder.setFollowRedirect(false);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
         confBuilder.setConnectTimeout(connectTimeoutMs);
         confBuilder.setReadTimeout(readTimeoutMs);
@@ -348,6 +360,92 @@ public class AsyncHttpConnector implements Connector {
     }
 
     protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+        Request preparedRequest;
+        try {
+            preparedRequest = prepareRequest(host, request);
+        } catch (IOException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return executeRequest(preparedRequest, 0);
+    }
+
+    private CompletableFuture<Response> executeRequest(Request request, int redirectCount) {
+        int maxRedirects = httpClient.getConfig().getMaxRedirects();
+        if (redirectCount > maxRedirects) {
+            return FutureUtil.failedFuture(new IOException("Maximum redirect reached: " + maxRedirects));
+        }
+        CompletableFuture<Response> responseFuture;
+        if (httpClient.getConfig().getMaxConnectionsPerHost() > 0) {
+            String hostAndPort = request.getUri().getHost() + ":" + request.getUri().getPort();
+            ConcurrencyReducer<Response> responseConcurrencyReducer = concurrencyReducers.computeIfAbsent(hostAndPort,
+                    h -> ConcurrencyReducer.create(httpClient.getConfig().getMaxConnectionsPerHost(),
+                            DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
+            responseFuture = responseConcurrencyReducer.add(() -> doExecuteRequest(request));
+        } else {
+            responseFuture = doExecuteRequest(request);
+        }
+        CompletableFuture<Response> futureWithRedirect = responseFuture.thenCompose(response -> {
+            if (isRedirectStatusCode(response.getStatusCode())) {
+                return executeRedirect(request, response, redirectCount);
+            }
+            return CompletableFuture.completedFuture(response);
+        });
+        futureWithRedirect.whenComplete((response, throwable) -> {
+            // propagate cancellation or timeout to the original response future
+            responseFuture.cancel(false);
+        });
+        return futureWithRedirect;
+    }
+
+    private CompletableFuture<Response> executeRedirect(Request request, Response response, int redirectCount) {
+        String originalMethod = request.getMethod();
+        int statusCode = response.getStatusCode();
+        boolean switchToGet = !originalMethod.equals(GET)
+                && !originalMethod.equals(OPTIONS) && !originalMethod.equals(HEAD) && (
+                statusCode == MOVED_PERMANENTLY_301 || statusCode == SEE_OTHER_303 || statusCode == FOUND_302);
+        boolean keepBody = statusCode == TEMPORARY_REDIRECT_307 || statusCode == PERMANENT_REDIRECT_308;
+        String location = response.getHeader(HttpHeaders.LOCATION);
+        Uri newUri = Uri.create(request.getUri(), location);
+        BoundRequestBuilder builder =
+                httpClient.prepareRequest(request);
+        if (switchToGet) {
+            builder.setMethod(GET);
+        }
+        builder.setUri(newUri);
+        if (!keepBody) {
+            builder.resetFormParams();
+            builder.resetNonMultipartData();
+            builder.resetMultipartData();
+            io.netty.handler.codec.http.HttpHeaders headers = new DefaultHttpHeaders(false);
+            headers.add(request.getHeaders());
+            headers.remove(HttpHeaders.CONTENT_LENGTH);
+            headers.remove(HttpHeaders.CONTENT_TYPE);
+            headers.remove(HttpHeaders.CONTENT_ENCODING);
+            builder.setHeaders(headers);
+        }
+        return executeRequest(builder.build(), redirectCount + 1);
+    }
+
+    private static boolean isRedirectStatusCode(int statusCode) {
+        return statusCode == MOVED_PERMANENTLY_301 || statusCode == FOUND_302 || statusCode == SEE_OTHER_303
+                || statusCode == TEMPORARY_REDIRECT_307 || statusCode == PERMANENT_REDIRECT_308;
+    }
+
+    private CompletableFuture<Response> doExecuteRequest(Request request) {
+        ListenableFuture<Response> responseFuture =
+                httpClient.executeRequest(request, new AsyncCompletionHandlerBase());
+        CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
+        completableFuture.whenComplete((response, throwable) -> {
+            if (throwable != null && (throwable instanceof CancellationException
+                    || throwable instanceof TimeoutException)) {
+                // abort the request if the future is cancelled or timed out
+                responseFuture.abort(throwable);
+            }
+        });
+        return completableFuture;
+    }
+
+    private Request prepareRequest(InetSocketAddress host, ClientRequest request) throws IOException {
         ClientRequest currentRequest = new ClientRequest(request);
         URI newUri = replaceWithNew(host, currentRequest.getUri());
         currentRequest.setUri(newUri);
@@ -358,14 +456,7 @@ public class AsyncHttpConnector implements Connector {
         if (currentRequest.hasEntity()) {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             currentRequest.setStreamProvider(contentLength -> outStream);
-            try {
-                currentRequest.writeEntity();
-            } catch (IOException e) {
-                CompletableFuture<Response> r = new CompletableFuture<>();
-                r.completeExceptionally(e);
-                return r;
-            }
-
+            currentRequest.writeEntity();
             builder.setBody(outStream.toByteArray());
         }
 
@@ -379,16 +470,7 @@ public class AsyncHttpConnector implements Connector {
             builder.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip");
         }
 
-        ListenableFuture<Response> responseFuture = builder.execute();
-        CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
-        completableFuture.whenComplete((response, throwable) -> {
-            if (throwable != null && (throwable instanceof CancellationException
-                    || throwable instanceof TimeoutException)) {
-                // abort the request if the future is cancelled or timed out
-                responseFuture.abort(throwable);
-            }
-        });
-        return completableFuture;
+        return builder.build();
     }
 
     @Override
