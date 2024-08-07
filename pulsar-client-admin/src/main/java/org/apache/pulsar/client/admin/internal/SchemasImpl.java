@@ -46,8 +46,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     private final WebTarget adminV2;
     private final WebTarget adminV1;
 
-    public SchemasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SchemasImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.adminV1 = web.path("/admin/schemas");
         this.adminV2 = web.path("/admin/v2/schemas");
     }
