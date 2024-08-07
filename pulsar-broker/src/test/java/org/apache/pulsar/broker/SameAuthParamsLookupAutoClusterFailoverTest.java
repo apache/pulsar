@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.getTlsFileForClient;
+import static org.apache.pulsar.client.impl.SameAuthParamsLookupAutoClusterFailover.PulsarServiceState;
 import io.netty.channel.EventLoopGroup;
 import java.net.ServerSocket;
 import java.util.HashMap;
@@ -76,7 +77,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
                 .pulsarServiceUrlArray(urlArray)
                 .failoverThreshold(5)
                 .recoverThreshold(5)
-                .checkHealthyIntervalMs(1000)
+                .checkHealthyIntervalMs(300)
                 .testTopic("a/b/c")
                 .markTopicNotFoundAsAvailable(true)
                 .build();
@@ -93,16 +94,24 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         final PulsarClient client = clientBuilder.build();
         failover.initialize(client);
         final EventLoopGroup executor = WhiteboxImpl.getInternalState(failover, "executor");
+        final PulsarServiceState[] stateArray =
+                WhiteboxImpl.getInternalState(failover, "pulsarServiceStateArray");
 
         // Test all things is fine.
         final String tp = BrokerTestUtil.newUniqueName(nonReplicatedNamespace + "/tp");
         final Producer<String> producer = client.newProducer(Schema.STRING).topic(tp).create();
         producer.send("0");
         Assert.assertEquals(failover.getCurrentPulsarServiceIndex(), 0);
+        Assert.assertEquals(stateArray[0], PulsarServiceState.Healthy);
+        Assert.assertEquals(stateArray[1], PulsarServiceState.Healthy);
+        Assert.assertEquals(stateArray[2], PulsarServiceState.Healthy);
 
         // Test failover 0 --> 3.
         pulsar1.close();
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(stateArray[0], PulsarServiceState.Failed);
+            Assert.assertEquals(stateArray[1], PulsarServiceState.Failed);
+            Assert.assertEquals(stateArray[2], PulsarServiceState.Healthy);
             producer.send("0->2");
             Assert.assertEquals(failover.getCurrentPulsarServiceIndex(), 2);
         });
@@ -112,6 +121,9 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
             urlArray[1] = url2;
         });
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(stateArray[0], PulsarServiceState.Failed);
+            Assert.assertEquals(stateArray[1], PulsarServiceState.Healthy);
+            Assert.assertEquals(stateArray[2], PulsarServiceState.Healthy);
             producer.send("2->1");
             Assert.assertEquals(failover.getCurrentPulsarServiceIndex(), 1);
         });
@@ -121,6 +133,9 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
             urlArray[0] = url2;
         });
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(stateArray[0], PulsarServiceState.Healthy);
+            Assert.assertEquals(stateArray[1], PulsarServiceState.Healthy);
+            Assert.assertEquals(stateArray[2], PulsarServiceState.Healthy);
             producer.send("1->0");
             Assert.assertEquals(failover.getCurrentPulsarServiceIndex(), 0);
         });
