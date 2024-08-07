@@ -20,6 +20,7 @@ package org.apache.pulsar.io.rabbitmq.sink;
 
 import static org.mockito.Mockito.mock;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +49,7 @@ public class RabbitMQSinkTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
         configs.put("port", "5673");
@@ -69,7 +70,8 @@ public class RabbitMQSinkTest {
         // open should success
         // rabbitmq service may need time to initialize
         SinkContext sinkContext = mock(SinkContext.class);
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, sinkContext));
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(1))
+                .untilAsserted(() -> sink.open(configs, sinkContext));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");

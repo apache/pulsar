@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.rabbitmq.source;
 
 import static org.mockito.Mockito.mock;
+import java.time.Duration;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
@@ -46,7 +47,7 @@ public class RabbitMQSourceTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
         configs.put("port", "5672");
@@ -69,7 +70,8 @@ public class RabbitMQSourceTest {
         // open should success
         // rabbitmq service may need time to initialize
         SourceContext sourceContext = mock(SourceContext.class);
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, sourceContext));
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(1))
+                .untilAsserted(() -> source.open(configs, sourceContext));
         source.close();
     }
 
