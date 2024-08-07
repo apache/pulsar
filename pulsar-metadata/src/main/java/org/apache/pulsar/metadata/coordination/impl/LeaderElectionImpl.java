@@ -134,7 +134,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             // If the value is the same as our proposed value, it means this instance was the leader at some
             // point before. The existing value can either be for this same session or for a previous one.
             if (res.getStat().isCreatedBySelf()) {
-                log.info("Keeping the existing value {} for {} as it's fom the same session stat={}", existingValue,
+                log.info("Keeping the existing value {} for {} as it's from the same session stat={}", existingValue,
                         path, res.getStat());
                 // The value is still valid because it was created in the same session
                 changeState(LeaderElectionState.Leading);
