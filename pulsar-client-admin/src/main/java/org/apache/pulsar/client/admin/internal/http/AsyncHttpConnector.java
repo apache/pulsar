@@ -26,6 +26,7 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.MOVED_P
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANENT_REDIRECT_308;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
+import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
 import com.spotify.futures.ConcurrencyReducer;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
@@ -67,6 +68,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
+import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -87,7 +89,7 @@ import org.glassfish.jersey.client.spi.Connector;
  * Customized Jersey client connector with multi-host support.
  */
 @Slf4j
-public class AsyncHttpConnector implements Connector {
+public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
     private static final int DEFAULT_MAX_QUEUE_SIZE_PER_HOST = 10000;
@@ -362,10 +364,21 @@ public class AsyncHttpConnector implements Connector {
         } catch (IOException e) {
             return FutureUtil.failedFuture(e);
         }
-        return executeRequest(preparedRequest, 0);
+        return executeRequest(preparedRequest);
     }
 
-    private CompletableFuture<Response> executeRequest(Request request, int redirectCount) {
+    public CompletableFuture<Response> executeRequest(Request request) {
+        return executeRequest(request, () -> new AsyncCompletionHandlerBase());
+    }
+
+    public CompletableFuture<Response> executeRequest(Request request,
+                                                       Supplier<AsyncHandler<Response>> handlerSupplier) {
+        return executeRequest(request, handlerSupplier, 0);
+    }
+
+    private CompletableFuture<Response> executeRequest(Request request,
+                                                       Supplier<AsyncHandler<Response>> handlerSupplier,
+                                                       int redirectCount) {
         int maxRedirects = httpClient.getConfig().getMaxRedirects();
         if (redirectCount > maxRedirects) {
             return FutureUtil.failedFuture(
@@ -377,13 +390,13 @@ public class AsyncHttpConnector implements Connector {
             ConcurrencyReducer<Response> responseConcurrencyReducer = concurrencyReducers.computeIfAbsent(hostAndPort,
                     h -> ConcurrencyReducer.create(httpClient.getConfig().getMaxConnectionsPerHost(),
                             DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
-            responseFuture = responseConcurrencyReducer.add(() -> doExecuteRequest(request));
+            responseFuture = responseConcurrencyReducer.add(() -> doExecuteRequest(request, handlerSupplier));
         } else {
-            responseFuture = doExecuteRequest(request);
+            responseFuture = doExecuteRequest(request, handlerSupplier);
         }
         CompletableFuture<Response> futureWithRedirect = responseFuture.thenCompose(response -> {
             if (isRedirectStatusCode(response.getStatusCode())) {
-                return executeRedirect(request, response, redirectCount);
+                return executeRedirect(request, response, handlerSupplier, redirectCount);
             }
             return CompletableFuture.completedFuture(response);
         });
@@ -394,7 +407,9 @@ public class AsyncHttpConnector implements Connector {
         return futureWithRedirect;
     }
 
-    private CompletableFuture<Response> executeRedirect(Request request, Response response, int redirectCount) {
+    private CompletableFuture<Response> executeRedirect(Request request, Response response,
+                                                        Supplier<AsyncHandler<Response>> handlerSupplier,
+                                                        int redirectCount) {
         String originalMethod = request.getMethod();
         int statusCode = response.getStatusCode();
         boolean switchToGet = !originalMethod.equals(GET)
@@ -409,7 +424,22 @@ public class AsyncHttpConnector implements Connector {
             builder.setMethod(GET);
         }
         builder.setUri(newUri);
-        if (!keepBody) {
+        if (keepBody) {
+            builder.setCharset(request.getCharset());
+            if (isNonEmpty(request.getFormParams())) {
+                builder.setFormParams(request.getFormParams());
+            } else if (request.getStringData() != null) {
+                builder.setBody(request.getStringData());
+            } else if (request.getByteData() != null){
+                builder.setBody(request.getByteData());
+            } else if (request.getByteBufferData() != null) {
+                builder.setBody(request.getByteBufferData());
+            } else if (request.getBodyGenerator() != null) {
+                builder.setBody(request.getBodyGenerator());
+            } else if (isNonEmpty(request.getBodyParts())) {
+                builder.setBodyParts(request.getBodyParts());
+            }
+        } else {
             builder.resetFormParams();
             builder.resetNonMultipartData();
             builder.resetMultipartData();
@@ -420,7 +450,7 @@ public class AsyncHttpConnector implements Connector {
             headers.remove(HttpHeaders.CONTENT_ENCODING);
             builder.setHeaders(headers);
         }
-        return executeRequest(builder.build(), redirectCount + 1);
+        return executeRequest(builder.build(), handlerSupplier, redirectCount + 1);
     }
 
     private static boolean isRedirectStatusCode(int statusCode) {
@@ -428,9 +458,10 @@ public class AsyncHttpConnector implements Connector {
                 || statusCode == TEMPORARY_REDIRECT_307 || statusCode == PERMANENT_REDIRECT_308;
     }
 
-    private CompletableFuture<Response> doExecuteRequest(Request request) {
+    private CompletableFuture<Response> doExecuteRequest(Request request,
+                                                         Supplier<AsyncHandler<Response>> handlerSupplier) {
         ListenableFuture<Response> responseFuture =
-                httpClient.executeRequest(request, new AsyncCompletionHandlerBase());
+                httpClient.executeRequest(request, handlerSupplier.get());
         CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
         completableFuture.whenComplete((response, throwable) -> {
             if (throwable != null && (throwable instanceof CancellationException
