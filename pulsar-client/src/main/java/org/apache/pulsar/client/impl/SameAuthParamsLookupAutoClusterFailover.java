@@ -147,6 +147,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     case Failed: {
                         pulsarServiceStateArray[i] = PulsarServiceState.PreRecover;
                         checkCounterArray[i].setValue(1);
+                        break;
                     }
                     case PreRecover: {
                         checkCounterArray[i].setValue(checkCounterArray[i].getValue() + 1);

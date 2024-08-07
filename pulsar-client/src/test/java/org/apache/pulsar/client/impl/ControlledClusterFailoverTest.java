@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
