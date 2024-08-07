@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.io.rabbitmq;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -42,28 +40,14 @@ public class RabbitMQBrokerManager {
 
     Map<String, Object> getBrokerOptions(String port) throws Exception {
         Path tmpFolder = Files.createTempDirectory("qpidWork");
-        Path homeFolder = Files.createTempDirectory("qpidHome");
-        File etc = new File(homeFolder.toFile(), "etc");
-        etc.mkdir();
-        FileOutputStream fos = new FileOutputStream(new File(etc, "passwd"));
-        fos.write("guest:guest\n".getBytes());
-        fos.close();
-
         Map<String, Object> config = new HashMap<>();
         config.put("qpid.work_dir", tmpFolder.toAbsolutePath().toString());
         config.put("qpid.amqp_port", port);
-        config.put("qpid.home_dir", homeFolder.toAbsolutePath().toString());
-        String configPath = getFile("qpid.json").getAbsolutePath();
 
         Map<String, Object> context = new HashMap<>();
-        context.put(SystemConfig.INITIAL_CONFIGURATION_LOCATION, configPath);
+        context.put(SystemConfig.INITIAL_CONFIGURATION_LOCATION, "classpath:qpid.json");
         context.put(SystemConfig.TYPE, "Memory");
         context.put(SystemConfig.CONTEXT, config);
         return context;
-    }
-
-    private File getFile(String name) {
-        ClassLoader classLoader = getClass().getClassLoader();
-        return new File(classLoader.getResource(name).getFile());
     }
 }
