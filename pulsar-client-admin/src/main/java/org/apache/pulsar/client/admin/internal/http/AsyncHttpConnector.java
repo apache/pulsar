@@ -71,7 +71,6 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.DefaultRequest;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
@@ -317,9 +316,13 @@ public class AsyncHttpConnector implements Connector {
             operationFuture.whenComplete(
                     (t, throwable) -> {
                         if (throwable != null) {
+                            throwable = FutureUtil.unwrapCompletionException(throwable);
                             if (throwable instanceof CancellationException) {
                                 resultFuture.completeExceptionally(
                                         new RetryException("Operation future was cancelled.", throwable));
+                            } else if (throwable instanceof MaxRedirectException) {
+                                // don't retry on max redirect
+                                resultFuture.completeExceptionally(throwable);
                             } else {
                                 if (retries > 0) {
                                     if (log.isDebugEnabled()) {
@@ -359,6 +362,12 @@ public class AsyncHttpConnector implements Connector {
         }
     }
 
+    public static class MaxRedirectException extends Exception {
+        public MaxRedirectException(String msg) {
+            super(msg, null, true, false);
+        }
+    }
+
     protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
         Request preparedRequest;
         try {
@@ -372,7 +381,8 @@ public class AsyncHttpConnector implements Connector {
     private CompletableFuture<Response> executeRequest(Request request, int redirectCount) {
         int maxRedirects = httpClient.getConfig().getMaxRedirects();
         if (redirectCount > maxRedirects) {
-            return FutureUtil.failedFuture(new IOException("Maximum redirect reached: " + maxRedirects));
+            return FutureUtil.failedFuture(
+                    new MaxRedirectException("Maximum redirect reached: " + maxRedirects + " uri:" + request.getUri()));
         }
         CompletableFuture<Response> responseFuture;
         if (httpClient.getConfig().getMaxConnectionsPerHost() > 0) {
