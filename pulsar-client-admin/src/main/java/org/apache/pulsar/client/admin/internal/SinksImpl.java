@@ -53,8 +53,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     private final WebTarget sink;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.sink = web.path("/admin/v3/sink");
         this.asyncHttpClient = asyncHttpClient;
     }
