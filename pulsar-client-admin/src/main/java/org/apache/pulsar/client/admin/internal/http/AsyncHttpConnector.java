@@ -447,7 +447,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             builder.resetFormParams();
             builder.resetNonMultipartData();
             builder.resetMultipartData();
-            io.netty.handler.codec.http.HttpHeaders headers = new DefaultHttpHeaders(false);
+            io.netty.handler.codec.http.HttpHeaders headers = new DefaultHttpHeaders();
             headers.add(request.getHeaders());
             headers.remove(HttpHeaders.CONTENT_LENGTH);
             headers.remove(HttpHeaders.CONTENT_TYPE);
