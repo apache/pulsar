@@ -285,24 +285,11 @@ public class AsyncHttpConnector implements Connector {
 
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-        retryOperation(resultFuture, () -> callOperation(request), maxRetries);
+        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
         if (requestTimeout != null) {
             FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
         }
         return resultFuture;
-    }
-
-    private CompletableFuture<Response> callOperation(ClientRequest request) {
-        InetSocketAddress host = serviceNameResolver.resolveHost();
-        if (httpClient.getConfig().getMaxConnectionsPerHost() > 0) {
-            String hostAndPort = host.getHostString() + ":" + host.getPort();
-            ConcurrencyReducer<Response> responseConcurrencyReducer = concurrencyReducers.computeIfAbsent(hostAndPort,
-                    h -> ConcurrencyReducer.create(httpClient.getConfig().getMaxConnectionsPerHost(),
-                            DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
-            return responseConcurrencyReducer.add(() -> oneShot(host, request));
-        } else {
-            return oneShot(host, request);
-        }
     }
 
     private <T> void retryOperation(
