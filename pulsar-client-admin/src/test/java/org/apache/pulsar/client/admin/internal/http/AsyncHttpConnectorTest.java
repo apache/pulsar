@@ -34,14 +34,18 @@ import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
@@ -59,6 +63,7 @@ import org.testng.annotations.Test;
 
 public class AsyncHttpConnectorTest {
     WireMockServer server;
+    ConcurrencyTestTransformer concurrencyTestTransformer = new ConcurrencyTestTransformer();
 
     private static class CopyRequestBodyToResponseBodyTransformer extends ResponseTransformer {
         @Override
@@ -81,10 +86,51 @@ public class AsyncHttpConnectorTest {
         }
     }
 
+    private static class ConcurrencyTestTransformer extends ResponseTransformer {
+        private static final long DELAY_MS = 100;
+        private final AtomicInteger concurrencyCounter = new AtomicInteger(0);
+        private final AtomicInteger maxConcurrency = new AtomicInteger(0);
+
+        @Override
+        public com.github.tomakehurst.wiremock.http.Response transform(
+                com.github.tomakehurst.wiremock.http.Request request,
+                com.github.tomakehurst.wiremock.http.Response response, FileSource fileSource, Parameters parameters) {
+            int currentCounter = concurrencyCounter.incrementAndGet();
+            maxConcurrency.updateAndGet(v -> Math.max(v, currentCounter));
+            try {
+                try {
+                    Thread.sleep(DELAY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return com.github.tomakehurst.wiremock.http.Response.Builder.like(response)
+                        .body(String.valueOf(currentCounter))
+                        .build();
+            } finally {
+                concurrencyCounter.decrementAndGet();
+            }
+        }
+
+        public int getMaxConcurrency() {
+            return maxConcurrency.get();
+        }
+
+        @Override
+        public String getName() {
+            return "concurrency-test";
+        }
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+    }
+
     @BeforeClass(alwaysRun = true)
     void beforeClass() throws IOException {
         server = new WireMockServer(WireMockConfiguration.wireMockConfig()
-                .extensions(new CopyRequestBodyToResponseBodyTransformer())
+                .extensions(new CopyRequestBodyToResponseBodyTransformer(), concurrencyTestTransformer)
+                .containerThreads(100)
                 .port(0));
         server.start();
     }
@@ -261,5 +307,34 @@ public class AsyncHttpConnectorTest {
 
         Response response = connector.executeRequest(request).get();
         assertEquals(response.getResponseBody(), "Hello world!");
+    }
+
+    @Test
+    void testMaxConnections() throws ExecutionException, InterruptedException {
+        server.stubFor(post(urlEqualTo("/concurrency-test"))
+                .willReturn(aResponse()
+                        .withTransformers("concurrency-test")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        int maxConnections = 10;
+        conf.setConnectionsPerBroker(maxConnections);
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false);
+
+        Request request = new RequestBuilder("POST")
+                .setUrl("http://localhost:" + server.port() + "/concurrency-test")
+                .build();
+
+        List<CompletableFuture<Response>> futures = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            futures.add(connector.executeRequest(request));
+        }
+        FutureUtil.waitForAll(futures).get();
+        int maxConcurrency = concurrencyTestTransformer.getMaxConcurrency();
+        assertTrue(maxConcurrency > maxConnections / 2 && maxConcurrency <= maxConnections,
+                "concurrency didn't get limited as expected (max: " + maxConcurrency + ")");
     }
 }
