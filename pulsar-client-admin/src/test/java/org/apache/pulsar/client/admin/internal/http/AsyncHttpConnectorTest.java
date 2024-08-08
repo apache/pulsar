@@ -20,12 +20,16 @@ package org.apache.pulsar.client.admin.internal.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.extension.Parameters;
+import com.github.tomakehurst.wiremock.extension.ResponseTransformer;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -56,9 +60,31 @@ import org.testng.annotations.Test;
 public class AsyncHttpConnectorTest {
     WireMockServer server;
 
+    private static class CopyRequestBodyToResponseBodyTransformer extends ResponseTransformer {
+        @Override
+        public com.github.tomakehurst.wiremock.http.Response transform(
+                com.github.tomakehurst.wiremock.http.Request request,
+                com.github.tomakehurst.wiremock.http.Response response, FileSource fileSource, Parameters parameters) {
+            return com.github.tomakehurst.wiremock.http.Response.Builder.like(response)
+                    .body(request.getBodyAsString())
+                    .build();
+        }
+
+        @Override
+        public String getName() {
+            return "copy-body";
+        }
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+    }
+
     @BeforeClass(alwaysRun = true)
     void beforeClass() throws IOException {
         server = new WireMockServer(WireMockConfiguration.wireMockConfig()
+                .extensions(new CopyRequestBodyToResponseBodyTransformer())
                 .port(0));
         server.start();
     }
@@ -168,5 +194,72 @@ public class AsyncHttpConnectorTest {
         } catch (InterruptedException e) {
             fail();
         }
+    }
+
+    @Test
+    void testRelativeRedirect() throws ExecutionException, InterruptedException {
+        doTestRedirect("path2");
+    }
+
+    @Test
+    void testAbsoluteRedirect() throws ExecutionException, InterruptedException {
+        doTestRedirect("/path2");
+    }
+
+    @Test
+    void testUrlRedirect() throws ExecutionException, InterruptedException {
+        doTestRedirect("http://localhost:" + server.port() + "/path2");
+    }
+
+    private void doTestRedirect(String location) throws InterruptedException, ExecutionException {
+        server.stubFor(get(urlEqualTo("/path1"))
+                .willReturn(aResponse()
+                        .withStatus(301)
+                        .withHeader("Location", location)));
+
+        server.stubFor(get(urlEqualTo("/path2"))
+                .willReturn(aResponse()
+                        .withBody("OK")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false);
+
+        Request request = new RequestBuilder("GET")
+                .setUrl("http://localhost:" + server.port() + "/path1")
+                .build();
+
+        Response response = connector.executeRequest(request).get();
+        assertEquals(response.getResponseBody(), "OK");
+    }
+
+    @Test
+    void testRedirectWithBody() throws ExecutionException, InterruptedException {
+        server.stubFor(post(urlEqualTo("/path1"))
+                .willReturn(aResponse()
+                        .withStatus(307)
+                        .withHeader("Location", "/path2")));
+
+        server.stubFor(post(urlEqualTo("/path2"))
+                .willReturn(aResponse()
+                        .withTransformers("copy-body")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false);
+
+        Request request = new RequestBuilder("POST")
+                .setUrl("http://localhost:" + server.port() + "/path1")
+                .setBody("Hello world!")
+                .build();
+
+        Response response = connector.executeRequest(request).get();
+        assertEquals(response.getResponseBody(), "Hello world!");
     }
 }
