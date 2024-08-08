@@ -554,6 +554,8 @@ The Apache Software License, Version 2.0
     - com.rabbitmq-amqp-client-5.5.3.jar
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-0.9.44.jar
+  * Spotify completable-futures
+    - com.spotify-completable-futures-0.3.6.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
@@ -595,15 +597,15 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2-osgi-resource-locator-1.0.3.jar
     - org.glassfish.hk2.external-aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.41.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.41.jar
-    - org.glassfish.jersey.core-jersey-client-2.41.jar
-    - org.glassfish.jersey.core-jersey-common-2.41.jar
-    - org.glassfish.jersey.core-jersey-server-2.41.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.41.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.41.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.41.jar
-    - org.glassfish.jersey.inject-jersey-hk2-2.41.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.42.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.42.jar
+    - org.glassfish.jersey.core-jersey-client-2.42.jar
+    - org.glassfish.jersey.core-jersey-common-2.42.jar
+    - org.glassfish.jersey.core-jersey-server-2.42.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.42.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.42.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.42.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.42.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt

@@ -168,13 +168,13 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, requestTimeoutMs);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth, requestTimeoutMs);
         this.lookups = new LookupImpl(root, auth, useTls, requestTimeoutMs, topics);
-        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), requestTimeoutMs);
-        this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), requestTimeoutMs);
-        this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), requestTimeoutMs);
+        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.sources = new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
+        this.sinks = new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
         this.worker = new WorkerImpl(root, auth, requestTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, requestTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, requestTimeoutMs);
-        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), requestTimeoutMs);
+        this.packages = new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
         this.transactions = new TransactionsImpl(root, auth, requestTimeoutMs);
 
         if (originalCtxLoader != null) {

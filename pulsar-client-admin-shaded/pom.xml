@@ -123,6 +123,7 @@
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.spotify:completable-futures</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>io.netty:*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
@@ -187,6 +188,10 @@
                   <excludes>
                     <exclude>com.google.protobuf.*</exclude>
                   </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.spotify.futures</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>

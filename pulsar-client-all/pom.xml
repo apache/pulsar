@@ -165,6 +165,7 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.spotify:completable-futures</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
@@ -239,6 +240,10 @@
                   <excludes>
                     <exclude>com.google.protobuf.*</exclude>
                   </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.spotify.futures</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
