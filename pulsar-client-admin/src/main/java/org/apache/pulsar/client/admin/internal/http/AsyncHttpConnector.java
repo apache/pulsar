@@ -51,6 +51,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
@@ -265,9 +266,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         try {
             return future.get();
         } catch (InterruptedException | ExecutionException e) {
-            log.error(e.getMessage());
+            throw new ProcessingException(e.getCause());
         }
-        return null;
     }
 
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
