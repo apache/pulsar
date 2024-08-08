@@ -205,6 +205,11 @@
 	  <artifactId>protobuf-java</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.spotify</groupId>
+      <artifactId>completable-futures</artifactId>
+    </dependency>
+
     <!-- test -->
     <dependency>
       <groupId>org.bouncycastle</groupId>

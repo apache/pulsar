@@ -46,6 +46,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
+        this.conf.setConnectionsPerBroker(16);
     }
 
     private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
@@ -61,6 +62,15 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
+        // in ClientConfigurationData, the maxConnectionsPerHost maps to connectionsPerBroker
+        if (config.containsKey("maxConnectionsPerHost")) {
+            Object maxConnectionsPerHostObj = config.get("maxConnectionsPerHost");
+            if (maxConnectionsPerHostObj instanceof Integer) {
+                maxConnectionsPerHost((Integer) maxConnectionsPerHostObj);
+            } else {
+                maxConnectionsPerHost(Integer.parseInt(maxConnectionsPerHostObj.toString()));
+            }
+        }
         return this;
     }
 
@@ -225,6 +235,20 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost) {
+        // reuse the same configuration as the client, however for the admin client, the connection
+        // is usually established to a cluster address and not to a broker address
+        this.conf.setConnectionsPerBroker(maxConnectionsPerHost);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
 }

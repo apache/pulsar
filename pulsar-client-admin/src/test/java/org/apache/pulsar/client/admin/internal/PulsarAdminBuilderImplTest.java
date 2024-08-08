@@ -65,6 +65,7 @@ public class PulsarAdminBuilderImplTest {
         config.put("autoCertRefreshSeconds", 20);
         config.put("connectionTimeoutMs", 30);
         config.put("readTimeoutMs", 40);
+        config.put("maxConnectionsPerHost", 50);
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().loadConf(config);
         PulsarAdminImpl admin = (PulsarAdminImpl) adminBuilder.build();
         ClientConfigurationData clientConfigData = admin.getClientConfigData();
@@ -72,6 +73,7 @@ public class PulsarAdminBuilderImplTest {
         Assert.assertEquals(clientConfigData.getAutoCertRefreshSeconds(), 20);
         Assert.assertEquals(clientConfigData.getConnectionTimeoutMs(), 30);
         Assert.assertEquals(clientConfigData.getReadTimeoutMs(), 40);
+        Assert.assertEquals(clientConfigData.getConnectionsPerBroker(), 50);
     }
 
     @Test
