@@ -1517,6 +1517,10 @@ public class NamespaceService implements AutoCloseable {
                                  *   there is an issue that may cause a non-partitioned non-persistent topic and
                                  *   a partitioned non-persistent topic with the same name to exist at the same time.
                                  */
+                                log.warn("{} The versions of the brokers in the same cluster are different( some are"
+                                        + " less than 3.0.6), rollback to the original behavior before the bug fix that"
+                                        + " may cause a non-partitioned non-persistent topic and a partitioned"
+                                        + " non-persistent topic with the same name to exist at the same time.", topic);
                                 return CompletableFuture.completedFuture(false);
                             } else {
                                 log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);

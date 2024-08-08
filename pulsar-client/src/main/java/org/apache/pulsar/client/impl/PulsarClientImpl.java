@@ -424,7 +424,7 @@ public class PulsarClientImpl implements PulsarClient {
                  *   that may cause replication stuck and topics being created in confusion, see more details in
                  *   #22838's motivation.
                  */
-                log.error("{} {} Since the target cluster does not support to get topic's partitions without"
+                log.warn("{} {} Since the target cluster does not support to get topic's partitions without"
                         + " auto-creation, skip the partitions check. It may cause both partitioned topic and"
                         + " non-partitioned topic to exist at the same time, please upgrade clusters to the version"
                         + " that >=3.0.6 or >=3.3.1", topic, producerNameForLog);
