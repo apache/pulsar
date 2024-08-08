@@ -133,8 +133,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             // If the value is the same as our proposed value, it means this instance was the leader at some
             // point before. The existing value can either be for this same session or for a previous one.
             if (res.getStat().isCreatedBySelf()) {
+                log.info("Keeping the existing value {} for {} as it's from the same session stat={}", existingValue,
+                        path, res.getStat());
                 // The value is still valid because it was created in the same session
                 changeState(LeaderElectionState.Leading);
+                return CompletableFuture.completedFuture(LeaderElectionState.Leading);
             } else {
                 // Since the value was created in a different session, it might be expiring. We need to delete it
                 // and try the election again.
@@ -257,7 +260,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             return CompletableFuture.completedFuture(null);
         }
 
-        return store.delete(path, version);
+        return store.delete(path, version)
+                .thenAccept(__ -> {
+                            synchronized (LeaderElectionImpl.this) {
+                                leaderElectionState = LeaderElectionState.NoLeader;
+                            }
+                        }
+                );
     }
 
     @Override
@@ -278,8 +287,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
         executor.execute(SafeRunnable.safeRun(() -> {
-            if (event == SessionEvent.SessionReestablished) {
-                log.info("Revalidating leadership for {}", path);
+            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
+                log.info("Revalidating leadership for {}, event:{}", path, event);
 
                 try {
                     LeaderElectionState les = elect().get();
