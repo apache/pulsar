@@ -23,6 +23,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
@@ -37,6 +38,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.asynchttpclient.Request;
+import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientRequest;
@@ -136,5 +139,34 @@ public class AsyncHttpConnectorTest {
                         .findFirst().get().getState();
         assertEquals(scenarioState, "next");
         assertTrue(future.isCompletedExceptionally());
+    }
+
+    @Test
+    void testMaxRedirects() {
+        // Redirect to itself to test max redirects
+        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                .willReturn(aResponse()
+                        .withStatus(301)
+                        .withHeader("Location", "http://localhost:" + server.port() + "/admin/v2/clusters")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false);
+
+        Request request = new RequestBuilder("GET")
+                .setUrl("http://localhost:" + server.port() + "/admin/v2/clusters")
+                .build();
+
+        try {
+            connector.executeRequest(request).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AsyncHttpConnector.MaxRedirectException);
+        } catch (InterruptedException e) {
+            fail();
+        }
     }
 }
