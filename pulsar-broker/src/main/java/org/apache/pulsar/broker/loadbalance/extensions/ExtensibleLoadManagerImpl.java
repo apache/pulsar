@@ -124,7 +124,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
-    private static final Set<String> INTERNAL_TOPICS =
+    public static final Set<String> INTERNAL_TOPICS =
             Set.of(BROKER_LOAD_DATA_STORE_TOPIC, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TOPIC);
 
     @VisibleForTesting
@@ -146,7 +146,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     @Getter
     private IsolationPoliciesHelper isolationPoliciesHelper;
 
+    @Getter
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
+
+    @Getter
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
 
     private LoadManagerScheduler unloadScheduler;
@@ -259,6 +262,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         Follower
     }
 
+    @Getter
     private volatile Role role;
 
     /**
@@ -903,6 +907,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
+                closeInternalTopics();
                 brokerLoadDataStore.init();
                 topBundlesLoadDataStore.close();
                 topBundlesLoadDataStore.startProducer();
@@ -1006,12 +1011,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private void closeInternalTopics() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (String name : INTERNAL_TOPICS) {
-            futures.add(pulsar.getBrokerService().getTopicIfExists(name)
-                    .thenAccept(topicOptional -> topicOptional.ifPresent(topic -> topic.close(true)))
-                    .exceptionally(__ -> {
-                        log.warn("Failed to close internal topic:{}", name);
-                        return null;
-                    }));
+            pulsar.getBrokerService()
+                    .getTopicReference(name)
+                    .ifPresent(topic -> futures.add(topic.close(true)
+                            .exceptionally(__ -> {
+                                log.warn("Failed to close internal topic:{}", name);
+                                return null;
+                            })));
         }
         try {
             FutureUtil.waitForAll(futures)
