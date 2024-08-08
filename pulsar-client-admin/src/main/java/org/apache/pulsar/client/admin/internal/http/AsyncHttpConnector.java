@@ -329,6 +329,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         return resultFuture;
     }
 
+    // TODO: There are problems with this solution since AsyncHttpClient already contains logic to retry requests.
+    // This solution doesn't contain backoff handling.
     private <T> void retryOperation(
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
