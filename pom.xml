@@ -152,7 +152,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
     <jetty.version>9.4.54.v20240208</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <jersey.version>2.41</jersey.version>
+    <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.5.8</vertx.version>
@@ -266,6 +266,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
     <re2j.version>1.7</re2j.version>
+    <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
@@ -663,6 +664,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.google.re2j</groupId>
         <artifactId>re2j</artifactId>
         <version>${re2j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.spotify</groupId>
+        <artifactId>completable-futures</artifactId>
+        <version>${completable-futures.version}</version>
       </dependency>
 
       <dependency>
