@@ -270,8 +270,8 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                 field.set(clientCnx, false);
             }
         }
-        // Verify: the method "getPartitionsForTopic(topic, false, true)" will be roll-backed
-        //   to "getPartitionsForTopic(topic, true)".
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
+        //   to "getPartitionsForTopic(topic, true)" behavior.
         int lookupPermitsBefore = getLookupRequestPermits();
 
         // Verify: we will not get an un-support error.

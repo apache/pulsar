@@ -250,8 +250,8 @@ public class GetPartitionMetadataTest {
             }
         }
 
-        // Verify: the method "getPartitionsForTopic(topic, false, true)" will be roll-backed to
-        // "getPartitionsForTopic(topic)".
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback to
+        // "getPartitionsForTopic(topic)" behavior.
         int lookupPermitsBefore = getLookupRequestPermits();
         for (PulsarClientImpl client : clients) {
             // Verify: the behavior of topic creation.
