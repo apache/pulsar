@@ -137,11 +137,11 @@ public class HttpLookupService implements LookupService {
 
     /**
      * {@inheritDoc}
-     * @param acceptFallbackIfNotSupport HttpLookupService supports every request, so this param will be ignored.
+     * @param useFallbackForNonPIP344Brokers HttpLookupService ignores this parameter
      */
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            TopicName topicName, boolean metadataAutoCreationEnabled, boolean acceptFallbackIfNotSupport) {
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
 
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";

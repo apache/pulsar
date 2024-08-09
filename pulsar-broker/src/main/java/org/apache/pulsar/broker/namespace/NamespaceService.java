@@ -1498,18 +1498,20 @@ public class NamespaceService implements AutoCloseable {
                                 return CompletableFuture.completedFuture(false);
                             } else if (actEx instanceof PulsarClientException.FeatureNotSupportedException fe){
                                 if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
-                                    // Since the feature PIP-344 was not supported, just rollback the behavior to the
-                                    // original as before the fix https://github.com/apache/pulsar/pull/22838.
-                                    log.info("{} Checking if a non-persistent non-partitioned topic exists was"
-                                            + " fall-backed to the previous behavior before #22838, because a broker"
-                                            + " does not support a new API. see more detail #23136", topic);
+                                    // Since the feature PIP-344 isn't supported, restore the behavior to previous
+                                    // before before https://github.com/apache/pulsar/pull/22838 changes.
+                                    log.info("{} Checking the existence of a non-persistent non-partitioned topic "
+                                                    + "was performed using the behavior prior to PIP-344 changes, "
+                                                    + "because the broker does not support the PIP-344 feature "
+                                                    + "'supports_get_partitioned_metadata_without_auto_creation'.",
+                                            topic);
                                     return CompletableFuture.completedFuture(false);
                                 } else {
-                                    log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
+                                    log.error("{} Failed to get partition metadata", topic, ex);
                                     return CompletableFuture.failedFuture(ex);
                                 }
                             } else {
-                                log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
+                                log.error("{} Failed to get partition metadata", topic, ex);
                                 return CompletableFuture.failedFuture(ex);
                             }
                         });

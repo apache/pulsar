@@ -80,15 +80,15 @@ public interface LookupService extends AutoCloseable {
      * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
      *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
      *  For the result, see case 1.
-     * @param acceptFallbackIfNotSupport fall-back to the original method
-     *   {@link #getPartitionedTopicMetadata(TopicName)} if brokers do not support
-     *   "getPartitionedTopicMetadata(topic, false)". This param only affects when the
-     *   {@param metadataAutoCreationEnabled} is "false".
+     * @param useFallbackForNonPIP344Brokers <p>If true, fallback to the prior behavior of the method
+     *   {@link #getPartitionedTopicMetadata(TopicName)} if the broker does not support the PIP-344 feature
+     *   'supports_get_partitioned_metadata_without_auto_creation'. This parameter only affects the behavior when
+     *   {@param metadataAutoCreationEnabled} is false.</p>
      * @version 3.3.0.
      */
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
                                                                         boolean metadataAutoCreationEnabled,
-                                                                        boolean acceptFallbackIfNotSupport);
+                                                                        boolean useFallbackForNonPIP344Brokers);
 
     /**
      * Returns current SchemaInfo {@link SchemaInfo} for a given topic.

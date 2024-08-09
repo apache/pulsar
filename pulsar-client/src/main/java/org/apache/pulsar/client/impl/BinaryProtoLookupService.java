@@ -148,13 +148,13 @@ public class BinaryProtoLookupService implements LookupService {
      */
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            TopicName topicName, boolean metadataAutoCreationEnabled, boolean acceptFallbackIfNotSupport) {
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
                 CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadata(
                         serviceNameResolver.resolveHost(), topicName, metadataAutoCreationEnabled,
-                        acceptFallbackIfNotSupport);
+                        useFallbackForNonPIP344Brokers);
                 newFutureCreated.setValue(newFuture);
                 return newFuture;
             });
@@ -251,7 +251,7 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
-            TopicName topicName, boolean metadataAutoCreationEnabled, boolean acceptFallbackIfNotSupport) {
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
 
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
@@ -259,15 +259,17 @@ public class BinaryProtoLookupService implements LookupService {
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
-                if (acceptFallbackIfNotSupport) {
-                    log.info("{} Fall-back getPartitionedTopicMetadata(topic, false) to"
-                            + " getPartitionedTopicMetadata(topic) since broker does not support.", topicName);
+                if (useFallbackForNonPIP344Brokers) {
+                    log.info("[{}] Using original behavior of getPartitionedTopicMetadata(topic) in "
+                            + "getPartitionedTopicMetadata(topic, false) "
+                            + "since the target broker does not support PIP-344 and fallback is enabled.", topicName);
                     finalAutoCreationEnabled = true;
                 } else {
                     partitionFuture.completeExceptionally(
-                            new PulsarClientException.FeatureNotSupportedException("The feature of"
-                                    + " getting partitions without auto-creation is not supported from the broker,"
-                                    + " please upgrade the broker to the latest version.",
+                            new PulsarClientException.FeatureNotSupportedException("The feature of "
+                                    + "getting partitions without auto-creation is not supported by the broker. "
+                                    + "Please upgrade the broker to version that supports PIP-344 to resolve this "
+                                    + "issue.",
                                     SupportsGetPartitionedMetadataWithoutAutoCreation));
                     return;
                 }

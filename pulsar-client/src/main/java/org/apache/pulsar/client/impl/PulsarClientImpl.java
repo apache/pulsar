@@ -1132,12 +1132,14 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
-     * @param acceptFallbackIfNotSupport fall-back to the original method {@link #getPartitionsForTopic(String)} if
-     * brokers do not support "getPartitionsForTopic(topic, false)". This param only affects when the
-     * {@param metadataAutoCreationEnabled} is "false".
+     * @param useFallbackForNonPIP344Brokers <p>If true, fallback to the prior behavior of the method
+     *                                       getPartitionedTopicMetadata if the broker does not support the PIP-344
+     *                                       feature 'supports_get_partitioned_metadata_without_auto_creation'. This
+     *                                       parameter only affects the behavior when
+     *                                       {@param metadataAutoCreationEnabled} is false.</p>
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            String topic, boolean metadataAutoCreationEnabled, boolean acceptFallbackIfNotSupport) {
+            String topic, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
@@ -1150,7 +1152,7 @@ public class PulsarClientImpl implements PulsarClient {
                     .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture, new ArrayList<>(),
-                    metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
+                    metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
@@ -1163,10 +1165,10 @@ public class PulsarClientImpl implements PulsarClient {
                                              CompletableFuture<PartitionedTopicMetadata> future,
                                              List<Throwable> previousExceptions,
                                              boolean metadataAutoCreationEnabled,
-                                             boolean acceptFallbackIfNotSupport) {
+                                             boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> queryFuture = lookup.getPartitionedTopicMetadata(topicName,
-                metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
+                metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         queryFuture.thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
@@ -1187,7 +1189,7 @@ public class PulsarClientImpl implements PulsarClient {
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions,
-                        metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
+                        metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });
