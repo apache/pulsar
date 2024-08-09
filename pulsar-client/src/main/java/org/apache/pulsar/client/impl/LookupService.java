@@ -61,11 +61,11 @@ public interface LookupService extends AutoCloseable {
     /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
      * Note: this method will try to create the topic partitioned metadata if it does not exist.
-     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean)}}.
+     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}}.
      */
     @Deprecated
     default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        return getPartitionedTopicMetadata(topicName, true);
+        return getPartitionedTopicMetadata(topicName, true, true);
     }
 
     /**
@@ -80,10 +80,15 @@ public interface LookupService extends AutoCloseable {
      * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
      *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
      *  For the result, see case 1.
+     * @param acceptFallbackIfNotSupport roll-back to the original method
+     *   {@link #getPartitionedTopicMetadata(TopicName)} if brokers do not support
+     *   "getPartitionedTopicMetadata(topic, false)". This param only affects when the
+     *   {@param metadataAutoCreationEnabled} is "false".
      * @version 3.3.0.
      */
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
-                                                                            boolean metadataAutoCreationEnabled);
+                                                                        boolean metadataAutoCreationEnabled,
+                                                                        boolean acceptFallbackIfNotSupport);
 
     /**
      * Returns current SchemaInfo {@link SchemaInfo} for a given topic.

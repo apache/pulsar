@@ -387,7 +387,7 @@ public class PulsarClientImpl implements PulsarClient {
     private CompletableFuture<Integer> checkPartitions(String topic, boolean forceNoPartitioned,
                                                        @Nullable String producerNameForLog) {
         CompletableFuture<Integer> checkPartitions = new CompletableFuture<>();
-        getPartitionedTopicMetadata(topic, !forceNoPartitioned).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, !forceNoPartitioned, true).thenAccept(metadata -> {
             if (forceNoPartitioned && metadata.partitions > 0) {
                 String errorMsg = String.format("Can not create the producer[%s] for the topic[%s] that contains %s"
                                 + " partitions, but the producer does not support for a partitioned topic.",
@@ -403,31 +403,6 @@ public class PulsarClientImpl implements PulsarClient {
             if (forceNoPartitioned && actEx instanceof PulsarClientException.NotFoundException
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                     || actEx instanceof PulsarAdminException.NotFoundException) {
-                checkPartitions.complete(0);
-            } else if (actEx instanceof PulsarClientException.NotSupportedException) {
-                /**
-                 * Summary: For compatibility of
-                 * {@link BinaryProtoLookupService#getPartitionedTopicMetadata(TopicName, boolean)}.
-                 *
-                 * Explanation:
-                 * 1. This error will only occur when using Geo-Replication, and one version of the two cluster is
-                 *    larger or equals than "3.0.6" and "3.3.1" and another is smaller than "3.0.6" and "3.3.1".
-                 * 2. Reason of why getting the error here.
-                 *   The feature method above was supported at "3.0.6" and "3.3.1", before that the API
-                 *   "getPartitionedTopicMetadata" will trigger a creation for partitioned topic
-                 *   metadata automatically even if you just want query it. So the brokers whose version
-                 *   is less than "3.0.6" and "3.3.1" do not support the new API.
-                 * 3. Compatibility
-                 *   Skip the check of comparing of topic's partitions, and force connect to the non-partitioned topic,
-                 *   it may cause both partitioned topic and non-partitioned topic to exist at the same time. But this
-                 *   is still better than the behavior before the fix #22983, without the fix #22838, there is an issue
-                 *   that may cause replication stuck and topics being created in confusion, see more details in
-                 *   #22838's motivation.
-                 */
-                log.warn("{} {} Since the target cluster does not support to get topic's partitions without"
-                        + " auto-creation, skip the partitions check. It may cause both partitioned topic and"
-                        + " non-partitioned topic to exist at the same time, please upgrade clusters to the version"
-                        + " that >=3.0.6 or >=3.3.1", topic, producerNameForLog);
                 checkPartitions.complete(0);
             } else {
                 checkPartitions.completeExceptionally(ex);
@@ -585,7 +560,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         String topic = conf.getSingleTopic();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -735,7 +710,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -1156,8 +1131,13 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    /**
+     * @param acceptFallbackIfNotSupport roll-back to the original method {@link #getPartitionsForTopic(String)} if
+     * brokers do not support "getPartitionsForTopic(topic, false)". This param only affects when the
+     * {@param metadataAutoCreationEnabled} is "false".
+     */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            String topic, boolean metadataAutoCreationEnabled) {
+            String topic, boolean metadataAutoCreationEnabled, boolean acceptFallbackIfNotSupport) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
@@ -1169,8 +1149,8 @@ public class PulsarClientImpl implements PulsarClient {
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                     .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
-            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs,
-                                        metadataFuture, new ArrayList<>(), metadataAutoCreationEnabled);
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture, new ArrayList<>(),
+                    metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
@@ -1182,10 +1162,11 @@ public class PulsarClientImpl implements PulsarClient {
                                              AtomicLong remainingTime,
                                              CompletableFuture<PartitionedTopicMetadata> future,
                                              List<Throwable> previousExceptions,
-                                             boolean metadataAutoCreationEnabled) {
+                                             boolean metadataAutoCreationEnabled,
+                                             boolean acceptFallbackIfNotSupport) {
         long startTime = System.nanoTime();
-        CompletableFuture<PartitionedTopicMetadata> queryFuture =
-                lookup.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled);
+        CompletableFuture<PartitionedTopicMetadata> queryFuture = lookup.getPartitionedTopicMetadata(topicName,
+                metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
         queryFuture.thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
@@ -1206,7 +1187,7 @@ public class PulsarClientImpl implements PulsarClient {
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions,
-                        metadataAutoCreationEnabled);
+                        metadataAutoCreationEnabled, acceptFallbackIfNotSupport);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });
@@ -1214,7 +1195,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled) {
-        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled).thenApply(metadata -> {
+        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled, false).thenApply(metadata -> {
             if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);

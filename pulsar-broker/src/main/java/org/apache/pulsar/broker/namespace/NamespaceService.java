@@ -24,6 +24,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck
+        .SupportsGetPartitionedMetadataWithoutAutoCreation;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -1486,7 +1488,7 @@ public class NamespaceService implements AutoCloseable {
                         brokerUrl = lookupData.getBrokerUrl();
                     }
                     return pulsarClient.getLookup(brokerUrl)
-                        .getPartitionedTopicMetadata(topicName, false)
+                        .getPartitionedTopicMetadata(topicName, false, false)
                         .thenApply(metadata -> true)
                         .exceptionallyCompose(ex -> {
                             Throwable actEx = FutureUtil.unwrapCompletionException(ex);
@@ -1494,34 +1496,18 @@ public class NamespaceService implements AutoCloseable {
                                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                                     || actEx instanceof PulsarAdminException.NotFoundException) {
                                 return CompletableFuture.completedFuture(false);
-                            } else if (actEx instanceof PulsarClientException.NotSupportedException){
-                                /**
-                                 * Summary: For compatibility of
-                                 * {@link org.apache.pulsar.client.impl.BinaryProtoLookupService
-                                 *        #getPartitionedTopicMetadata(TopicName, boolean)}.
-                                 *
-                                 * Explanation:
-                                 * 1. Reason of why getting the error here.
-                                 *   The feature method above was supported at "3.0.6" and "3.3.1", before that the API
-                                 *   "getPartitionedTopicMetadata" will trigger a creation for partitioned topic
-                                 *   metadata automatically even if you just want query it. So the brokers whose version
-                                 *   is less than "3.0.6" and "3.3.1" do not support the new API.
-                                 * 2. The conditions to lead this error occur.
-                                 *   There are 2 brokers in a cluster, and the version is less than "3.0.1", rolling
-                                 *   upgrade brokers to "3.0.6". After the first broker restarted, there is one broker
-                                 *   with version "3.0.6" and another is "3.0.1", and when the internal client tries
-                                 *   to call "getPartitionedTopicMetadata" to the broker with lower version, it will
-                                 *   get this error.
-                                 * 3. Compatibility
-                                 *   Rollback to the original behavior before the fix #22838. Without the fix #22838,
-                                 *   there is an issue that may cause a non-partitioned non-persistent topic and
-                                 *   a partitioned non-persistent topic with the same name to exist at the same time.
-                                 */
-                                log.warn("{} The versions of the brokers in the same cluster are different( some are"
-                                        + " less than 3.0.6), rollback to the original behavior before the bug fix that"
-                                        + " may cause a non-partitioned non-persistent topic and a partitioned"
-                                        + " non-persistent topic with the same name to exist at the same time.", topic);
-                                return CompletableFuture.completedFuture(false);
+                            } else if (actEx instanceof PulsarClientException.FeatureNotSupportedException fe){
+                                if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
+                                    // Since the feature PIP-344 was not supported, just rollback the behavior to the
+                                    // original as before the fix https://github.com/apache/pulsar/pull/22838.
+                                    log.info("{} Checking if a non-persistent non-partitioned topic exists was"
+                                            + " roll-backed to the original before #22838, because a broker does not"
+                                            + " support a new API. see more detail #23136", topic);
+                                    return CompletableFuture.completedFuture(false);
+                                } else {
+                                    log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
+                                    return CompletableFuture.failedFuture(ex);
+                                }
                             } else {
                                 log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
                                 return CompletableFuture.failedFuture(ex);
