@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck
-        .SupportsGetPartitionedMetadataWithoutAutoCreation;
 import static java.lang.String.format;
+import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import io.netty.buffer.ByteBuf;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
