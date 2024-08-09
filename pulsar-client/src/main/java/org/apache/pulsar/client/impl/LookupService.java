@@ -80,7 +80,7 @@ public interface LookupService extends AutoCloseable {
      * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
      *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
      *  For the result, see case 1.
-     * @param acceptFallbackIfNotSupport roll-back to the original method
+     * @param acceptFallbackIfNotSupport fall-back to the original method
      *   {@link #getPartitionedTopicMetadata(TopicName)} if brokers do not support
      *   "getPartitionedTopicMetadata(topic, false)". This param only affects when the
      *   {@param metadataAutoCreationEnabled} is "false".

@@ -260,7 +260,7 @@ public class BinaryProtoLookupService implements LookupService {
             boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
                 if (acceptFallbackIfNotSupport) {
-                    log.info("{} Roll-back getPartitionedTopicMetadata(topic, false) to"
+                    log.info("{} Fall-back getPartitionedTopicMetadata(topic, false) to"
                             + " getPartitionedTopicMetadata(topic) since broker does not support.", topicName);
                     finalAutoCreationEnabled = true;
                 } else {

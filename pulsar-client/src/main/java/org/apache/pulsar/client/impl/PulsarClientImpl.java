@@ -1132,7 +1132,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
-     * @param acceptFallbackIfNotSupport roll-back to the original method {@link #getPartitionsForTopic(String)} if
+     * @param acceptFallbackIfNotSupport fall-back to the original method {@link #getPartitionsForTopic(String)} if
      * brokers do not support "getPartitionsForTopic(topic, false)". This param only affects when the
      * {@param metadataAutoCreationEnabled} is "false".
      */

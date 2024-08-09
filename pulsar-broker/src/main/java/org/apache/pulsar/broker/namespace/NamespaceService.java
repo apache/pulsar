@@ -1501,8 +1501,8 @@ public class NamespaceService implements AutoCloseable {
                                     // Since the feature PIP-344 was not supported, just rollback the behavior to the
                                     // original as before the fix https://github.com/apache/pulsar/pull/22838.
                                     log.info("{} Checking if a non-persistent non-partitioned topic exists was"
-                                            + " roll-backed to the original before #22838, because a broker does not"
-                                            + " support a new API. see more detail #23136", topic);
+                                            + " fall-backed to the previous behavior before #22838, because a broker"
+                                            + " does not support a new API. see more detail #23136", topic);
                                     return CompletableFuture.completedFuture(false);
                                 } else {
                                     log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
