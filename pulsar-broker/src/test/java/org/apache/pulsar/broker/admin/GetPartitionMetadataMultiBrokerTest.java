@@ -247,9 +247,6 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         };
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Test(dataProvider = "autoCreationParamsAllForNonPersistentTopic")
     public void testCompatibilityDifferentBrokersForNonPersistentTopic(boolean configAllowAutoTopicCreation,
                                                   boolean paramMetadataAutoCreationEnabled,
