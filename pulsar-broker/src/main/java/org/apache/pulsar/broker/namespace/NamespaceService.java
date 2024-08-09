@@ -1498,7 +1498,7 @@ public class NamespaceService implements AutoCloseable {
                             } else if (actEx instanceof PulsarClientException.FeatureNotSupportedException fe){
                                 if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
                                     // Since the feature PIP-344 isn't supported, restore the behavior to previous
-                                    // before before https://github.com/apache/pulsar/pull/22838 changes.
+                                    // behavior before https://github.com/apache/pulsar/pull/22838 changes.
                                     log.info("{} Checking the existence of a non-persistent non-partitioned topic "
                                                     + "was performed using the behavior prior to PIP-344 changes, "
                                                     + "because the broker does not support the PIP-344 feature "
