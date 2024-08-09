@@ -392,9 +392,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
                 trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
+                message = beforeConsume(message);
             }
             resumeReceivingFromPausedConsumersIfNeeded();
-            return beforeConsume(message);
+            return message;
         } catch (Exception e) {
             ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
