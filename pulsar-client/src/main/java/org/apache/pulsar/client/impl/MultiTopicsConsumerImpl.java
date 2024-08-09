@@ -1601,7 +1601,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
     }
 
-    private ConsumerInterceptors<T> getInternalConsumerInterceptors(ConsumerInterceptors<T> interceptors) {
+    private ConsumerInterceptors<T> getInternalConsumerInterceptors(ConsumerInterceptors<T> multiTopicInterceptors) {
         return new ConsumerInterceptors<T>(new ArrayList<>()) {
 
             @Override
@@ -1611,33 +1611,33 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             @Override
             public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-                interceptors.onAcknowledge(consumer, messageId, exception);
+                multiTopicInterceptors.onAcknowledge(consumer, messageId, exception);
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<T> consumer,
                                                 MessageId messageId, Throwable exception) {
-                interceptors.onAcknowledgeCumulative(consumer, messageId, exception);
+                multiTopicInterceptors.onAcknowledgeCumulative(consumer, messageId, exception);
             }
 
             @Override
             public void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> set) {
-                interceptors.onNegativeAcksSend(consumer, set);
+                multiTopicInterceptors.onNegativeAcksSend(consumer, set);
             }
 
             @Override
             public void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> set) {
-                interceptors.onAckTimeoutSend(consumer, set);
+                multiTopicInterceptors.onAckTimeoutSend(consumer, set);
             }
 
             @Override
             public void onPartitionsChange(String topicName, int partitions) {
-                interceptors.onPartitionsChange(topicName, partitions);
+                multiTopicInterceptors.onPartitionsChange(topicName, partitions);
             }
 
             @Override
             public void close() throws IOException {
-                interceptors.close();
+                multiTopicInterceptors.close();
             }
         };
     }
