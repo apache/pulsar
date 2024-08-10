@@ -954,7 +954,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> subscribeResult = new CompletableFuture<>();
 
-        client.getPartitionedTopicMetadata(topicName, true)
+        client.getPartitionedTopicMetadata(topicName, true, false)
                 .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, fullTopicName, metadata.partitions,
                     createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
