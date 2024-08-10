@@ -271,6 +271,16 @@ public class GetPartitionMetadataTest {
             // Cleanup.
             admin1.topics().deletePartitionedTopic(tp, false);
         }
+
+        // reset clients.
+        for (PulsarClientImpl client : clients) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, true);
+            }
+        }
     }
 
     @DataProvider(name = "autoCreationParamsAll")

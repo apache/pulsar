@@ -208,7 +208,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             clientWitBinaryLookup.getPartitionsForTopic(topic, false).join();
             Assert.fail("Expected an error that the broker version is too old.");
         } catch (Exception ex) {
-            Assert.assertTrue(ex.getMessage().contains("without auto-creation is not supported from the broker"));
+            Assert.assertTrue(ex.getMessage().contains("without auto-creation is not supported by the broker"));
         }
 
         // cleanup.

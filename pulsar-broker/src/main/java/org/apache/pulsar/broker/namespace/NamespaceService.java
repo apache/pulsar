@@ -1487,7 +1487,7 @@ public class NamespaceService implements AutoCloseable {
                         brokerUrl = lookupData.getBrokerUrl();
                     }
                     return pulsarClient.getLookup(brokerUrl)
-                        .getPartitionedTopicMetadata(topicName, false, false)
+                        .getPartitionedTopicMetadata(topicName, false)
                         .thenApply(metadata -> true)
                         .exceptionallyCompose(ex -> {
                             Throwable actEx = FutureUtil.unwrapCompletionException(ex);

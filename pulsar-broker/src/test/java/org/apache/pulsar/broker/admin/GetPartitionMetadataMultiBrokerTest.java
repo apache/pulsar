@@ -296,5 +296,15 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         Awaitility.await().untilAsserted(() -> {
             assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
         });
+
+        // reset clients.
+        for (PulsarClientImpl client : Arrays.asList(client1, client2)) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, false);
+            }
+        }
     }
 }

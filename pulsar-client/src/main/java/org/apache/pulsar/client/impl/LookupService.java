@@ -69,6 +69,14 @@ public interface LookupService extends AutoCloseable {
     }
 
     /**
+     * See the doc {@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}.
+     */
+    default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
+                                                                                boolean metadataAutoCreationEnabled) {
+        return getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled, false);
+    }
+
+    /**
      * 1.Get the partitions if the topic exists. Return "{partition: n}" if a partitioned topic exists;
      *  return "{partition: 0}" if a non-partitioned topic exists.
      * 2. When {@param metadataAutoCreationEnabled} is "false," neither partitioned topic nor non-partitioned topic
