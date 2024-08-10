@@ -91,9 +91,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
-    @Getter
+
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
-    @Getter
+
     private CompletableFuture<Position> publishFuture = getTransactionBufferFuture()
             .thenApply(__ -> PositionFactory.EARLIEST);
 
@@ -216,6 +216,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Position> getPublishFuture() {
+        return publishFuture;
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Void> getTransactionBufferFuture() {
+        return transactionBufferFuture;
     }
 
     @Override

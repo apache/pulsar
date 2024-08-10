@@ -191,9 +191,7 @@ public interface TransactionBuffer {
      *
      * @return a future that will be completed after the transaction buffer recover completely.
      */
-    default CompletableFuture<Void> checkIfTBRecoverCompletely() {
-        return CompletableFuture.completedFuture(null);
-    }
+    CompletableFuture<Void> checkIfTBRecoverCompletely();
 
     long getOngoingTxnCount();
 
