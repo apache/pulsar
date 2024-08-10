@@ -107,7 +107,7 @@ public class PulsarClientImplTest {
                 nullable(String.class)))
                 .thenReturn(CompletableFuture.completedFuture(
                         new GetTopicsResult(Collections.emptyList(), null, false, true)));
-        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean()))
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))
                 .thenReturn(CompletableFuture.completedFuture(

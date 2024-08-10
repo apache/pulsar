@@ -106,7 +106,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private CompletableFuture<Boolean> checkDlqAlreadyExists(String topic) {
         CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
-        client.getPartitionedTopicMetadata(topic, false).thenAccept(metadata -> {
+        client.getPartitionedTopicMetadata(topic, false, true).thenAccept(metadata -> {
             TopicName topicName = TopicName.get(topic);
             if (topicName.isPersistent()) {
                 // Either partitioned or non-partitioned, it exists.
