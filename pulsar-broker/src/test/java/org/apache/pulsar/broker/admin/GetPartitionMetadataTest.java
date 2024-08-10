@@ -229,7 +229,7 @@ public class GetPartitionMetadataTest {
         }
     }
 
-    @Test(dataProvider = "topicDomains")
+    @Test(dataProvider = "topicDomains", priority = Integer.MAX_VALUE)
     public void testCompatibilityForNewClientAndOldBroker(TopicDomain topicDomain) throws Exception {
         modifyTopicAutoCreation(true, TopicType.PARTITIONED, 3);
         // Initialize connections.

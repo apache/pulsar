@@ -247,7 +247,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         };
     }
 
-    @Test(dataProvider = "autoCreationParamsAllForNonPersistentTopic")
+    @Test(dataProvider = "autoCreationParamsAllForNonPersistentTopic", priority = Integer.MAX_VALUE)
     public void testCompatibilityDifferentBrokersForNonPersistentTopic(boolean configAllowAutoTopicCreation,
                                                   boolean paramMetadataAutoCreationEnabled,
                                                   boolean isUsingHttpLookup) throws Exception {
@@ -303,7 +303,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
             for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
                 ClientCnx clientCnx = connectionFuture.join();
                 clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
-                field.set(clientCnx, false);
+                field.set(clientCnx, true);
             }
         }
     }
