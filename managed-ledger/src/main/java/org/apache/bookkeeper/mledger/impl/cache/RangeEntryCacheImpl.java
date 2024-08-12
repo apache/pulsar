@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.api.BKException;
-import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -250,7 +249,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            readAsync(lh, position.getEntryId(), position.getEntryId()).thenAcceptAsync(
+            ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).thenAcceptAsync(
                     ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
@@ -430,7 +429,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
                                                        long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        CompletableFuture<List<EntryImpl>> readResult = readAsync(lh, firstEntry, lastEntry)
+        CompletableFuture<List<EntryImpl>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry)
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());
@@ -511,23 +510,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     public void invalidateEntriesBeforeTimestamp(long timestamp) {
         Pair<Integer, Long> evictedPair = entries.evictLEntriesBeforeTimestamp(timestamp);
         manager.entriesRemoved(evictedPair.getRight(), evictedPair.getLeft());
-    }
-
-    private CompletableFuture<LedgerEntries> readAsync(ReadHandle handle, long firstEntry, long lastEntry) {
-        final var lastConfirmedEntry = ml.getLastConfirmedEntry();
-        if (lastConfirmedEntry == null) {
-            return CompletableFuture.failedFuture(new IllegalStateException("LastConfirmedEntry is null when reading "
-                    + handle.getId()));
-        }
-        if (handle.getId() > lastConfirmedEntry.getLedgerId()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("LastConfirmedEntry is "
-                    + lastConfirmedEntry + " while trying to read ledger " + handle.getId()));
-        }
-        if (handle.getId() == lastConfirmedEntry.getLedgerId() && lastEntry > lastConfirmedEntry.getEntryId()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Last ConfirmedEntry is "
-                    + lastConfirmedEntry + " while trying to read entry " + lastEntry));
-        }
-        return handle.readUnconfirmedAsync(firstEntry, lastEntry);
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheImpl.class);
