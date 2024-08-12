@@ -39,6 +39,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -67,6 +68,7 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -990,7 +992,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 && !(realCause instanceof ManagedLedgerException.NonRecoverableLedgerException))
                 || realCause instanceof PulsarClientException.BrokerPersistenceException
                 || realCause instanceof PulsarClientException.LookupException
-                || realCause instanceof PulsarClientException.ConnectException;
+                || realCause instanceof PulsarClientException.ConnectException
+                || realCause instanceof MetadataStoreException
+                || realCause instanceof BKException;
     }
 
     @Override
