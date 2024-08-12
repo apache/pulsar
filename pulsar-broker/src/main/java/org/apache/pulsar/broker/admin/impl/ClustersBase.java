@@ -67,7 +67,7 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadType;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -767,7 +767,7 @@ public class ClustersBase extends AdminResource {
                                                                          NamespaceIsolationDataImpl policyData,
                                                                          NamespaceIsolationDataImpl oldPolicy) {
         // exit early if none of the namespaces need to be unloaded
-        if (NamespaceIsolationPolicyUnloadType.none.equals(policyData.getUnload())) {
+        if (NamespaceIsolationPolicyUnloadScope.none.equals(policyData.getUnloadScope())) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -808,7 +808,7 @@ public class ClustersBase extends AdminResource {
             // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
             // actually have been changed.
 
-            if (oldPolicy!= null && NamespaceIsolationPolicyUnloadType.changed.equals(policyData.getUnload())) {
+            if (oldPolicy!= null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
                 // We also compare that the previous primary broker list is same as current, in case all namespaces need
                 // to be placed again anyway.
                 List<String> oldBrokers = new ArrayList<>(policyData.getPrimary());

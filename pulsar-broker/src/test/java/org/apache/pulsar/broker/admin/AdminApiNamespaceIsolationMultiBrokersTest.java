@@ -35,7 +35,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadType;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -85,18 +85,18 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
     }
 
     public void testNamespaceIsolationPolicyForReplNSWithAllUnload() throws Exception {
-        testNamespaceIsolationPolicyForReplNS("A", "policy-1", NamespaceIsolationPolicyUnloadType.all);
+        testNamespaceIsolationPolicyForReplNS("A", "policy-1", NamespaceIsolationPolicyUnloadScope.all_matching);
     }
 
     public void testNamespaceIsolationPolicyForReplNSWithChangedUnload() throws Exception {
-        testNamespaceIsolationPolicyForReplNS("A", "policy-2", NamespaceIsolationPolicyUnloadType.changed);
+        testNamespaceIsolationPolicyForReplNS("A", "policy-2", NamespaceIsolationPolicyUnloadScope.changed);
     }
 
     public void testNamespaceIsolationPolicyForReplNSWithoutUnload() throws Exception {
-        testNamespaceIsolationPolicyForReplNS("B", "policy-3", NamespaceIsolationPolicyUnloadType.none);
+        testNamespaceIsolationPolicyForReplNS("B", "policy-3", NamespaceIsolationPolicyUnloadScope.none);
     }
 
-    private void testNamespaceIsolationPolicyForReplNS(String prefix, String policyName1, NamespaceIsolationPolicyUnloadType unload) throws Exception {
+    private void testNamespaceIsolationPolicyForReplNS(String prefix, String policyName1, NamespaceIsolationPolicyUnloadScope unload) throws Exception {
         // Verify that namespaces are not present in cluster-2.
         Set<String> replicationClusters = localAdmin.namespaces().getPolicies(prefix + "prop-ig/ns1").replication_clusters;
         Assert.assertFalse(replicationClusters.contains("cluster-2"));
@@ -118,7 +118,7 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
                         .build())
-                .unload(unload)
+                .unloadScope(unload)
                 .build();
 
         // 1. Create policy should work in local cluster

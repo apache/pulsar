@@ -21,13 +21,15 @@ package org.apache.pulsar.common.policies.data;
 /**
  * The type of unload to perform while setting the isolation policy.
  */
-public enum NamespaceIsolationPolicyUnloadType {
-    all, none, changed;
+public enum NamespaceIsolationPolicyUnloadScope {
+    all_matching, // unloads all matching namespaces as per new regex
+    none,         // unloads no namespaces
+    changed;      // unloads only the namespaces which are newly added or removed from the regex list
 
-    public static NamespaceIsolationPolicyUnloadType fromString(String unloadTypeName) {
-        for (NamespaceIsolationPolicyUnloadType unloadType : NamespaceIsolationPolicyUnloadType.values()) {
-            if (unloadType.toString().equalsIgnoreCase(unloadTypeName)) {
-                return unloadType;
+    public static NamespaceIsolationPolicyUnloadScope fromString(String unloadScopeString) {
+        for (NamespaceIsolationPolicyUnloadScope unloadScope : NamespaceIsolationPolicyUnloadScope.values()) {
+            if (unloadScope.toString().equalsIgnoreCase(unloadScopeString)) {
+                return unloadScope;
             }
         }
         return null;

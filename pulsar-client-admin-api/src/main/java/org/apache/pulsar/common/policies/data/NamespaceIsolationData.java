@@ -31,7 +31,7 @@ public interface NamespaceIsolationData {
 
     AutoFailoverPolicyData getAutoFailoverPolicy();
 
-    NamespaceIsolationPolicyUnloadType getUnload();
+    NamespaceIsolationPolicyUnloadScope getUnloadScope();
 
     void validate();
 
@@ -44,7 +44,7 @@ public interface NamespaceIsolationData {
 
         Builder autoFailoverPolicy(AutoFailoverPolicyData autoFailoverPolicyData);
 
-        Builder unload(NamespaceIsolationPolicyUnloadType unload);
+        Builder unloadScope(NamespaceIsolationPolicyUnloadScope unloadScope);
 
         NamespaceIsolationData build();
     }
