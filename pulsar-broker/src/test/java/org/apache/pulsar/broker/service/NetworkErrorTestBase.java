@@ -102,7 +102,7 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         log.info("broker-1: {}, broker-2: {}", broker1.getListenPort(), broker2.getListenPort());
     }
 
-    protected int getOneFreePort() throws IOException {
+    public static int getOneFreePort() throws IOException {
         ServerSocket serverSocket = new ServerSocket(0);
         int port = serverSocket.getLocalPort();
         serverSocket.close();
