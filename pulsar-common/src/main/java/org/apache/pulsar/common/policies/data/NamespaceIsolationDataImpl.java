@@ -76,10 +76,10 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     private AutoFailoverPolicyData autoFailoverPolicy;
 
     @ApiModelProperty(
-            name = "unload",
+            name = "unload_scope",
             value = "The type of unload to perform while applying the new isolation policy.",
-            example = "'all' (default) for unloading all matching namespaces. 'none' for not unloading any namespace."
-                    + " 'changed' for unloading only the namespaces whose placement is actually changing"
+            example = "'all_matching' (default) for unloading all matching namespaces. 'none' for not unloading "
+                    + "any namespace. 'changed' for unloading only the namespaces whose placement is actually changing"
     )
     @JsonProperty("unload_scope")
     private NamespaceIsolationPolicyUnloadScope unloadScope;
