@@ -42,6 +42,7 @@ import java.util.concurrent.CompletionStage;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -252,14 +253,16 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {
-        if (ex.getCause() instanceof UnexpectedVersionIdException
-                || ex.getCause() instanceof KeyAlreadyExistsException) {
+        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+        if (actEx instanceof UnexpectedVersionIdException || actEx instanceof KeyAlreadyExistsException) {
             return CompletableFuture.failedFuture(
-                    new MetadataStoreException.BadVersionException(ex.getCause()));
-        } else if (ex.getCause() instanceof IllegalStateException) {
-            return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException(ex.getCause()));
+                    new MetadataStoreException.BadVersionException(actEx));
+        } else if (actEx instanceof IllegalStateException) {
+            return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException(actEx));
+        } else if (actEx instanceof MetadataStoreException) {
+            return CompletableFuture.failedFuture(actEx);
         } else {
-            return CompletableFuture.failedFuture(ex.getCause());
+            return CompletableFuture.failedFuture(new MetadataStoreException(actEx));
         }
     }
 
