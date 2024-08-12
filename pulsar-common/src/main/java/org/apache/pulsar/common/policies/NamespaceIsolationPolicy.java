@@ -45,7 +45,7 @@ public interface NamespaceIsolationPolicy {
     List<String> getSecondaryBrokers();
 
     /**
-     * Get the unload scope for the policy set call
+     * Get the unload scope for the policy set call.
      */
     NamespaceIsolationPolicyUnloadScope getUnloadScope();
 

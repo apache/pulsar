@@ -33,9 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -724,7 +724,8 @@ public class ClustersBase extends AdminResource {
                                         .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
                 ).thenCompose(nsIsolationPolicies -> {
-                    NamespaceIsolationDataImpl oldPolicy = nsIsolationPolicies.getPolicies().getOrDefault(policyName, null);
+                    NamespaceIsolationDataImpl oldPolicy = nsIsolationPolicies
+                            .getPolicies().getOrDefault(policyName, null);
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
                             .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
@@ -808,7 +809,7 @@ public class ClustersBase extends AdminResource {
             // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
             // actually have been changed.
 
-            if (oldPolicy!= null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
+            if (oldPolicy != null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
                 // We also compare that the previous primary broker list is same as current, in case all namespaces need
                 // to be placed again anyway.
                 List<String> oldBrokers = new ArrayList<>(policyData.getPrimary());
@@ -816,7 +817,8 @@ public class ClustersBase extends AdminResource {
 
                 if (oldBrokers.isEmpty()) {
                     // list is same, so we continue finding the changed namespaces.
-                    List<Pattern> oldNamespacePatterns = oldPolicy.getNamespaces().stream().map(Pattern::compile).toList();
+                    List<Pattern> oldNamespacePatterns = oldPolicy.getNamespaces().stream()
+                            .map(Pattern::compile).toList();
                     // We create a union regex list contains old + new regexes
                     Set<Pattern> combinedPatterns = new HashSet<>(oldNamespacePatterns);
                     combinedPatterns.addAll(namespacePatterns);
