@@ -310,6 +310,10 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                 if (StringUtils.isBlank(pulsarService)) {
                     throw new IllegalArgumentException("pulsarServiceUrlArray contains a blank value at index " + i);
                 }
+                if (pulsarService.startsWith("http") || pulsarService.startsWith("HTTP")) {
+                    throw new IllegalArgumentException("SameAuthParamsLookupAutoClusterFailover does not support HTTP"
+                            + " protocol pulsar service url so far.");
+                }
                 if (!uniqueChecker.add(pulsarService)) {
                     throw new IllegalArgumentException("pulsarServiceUrlArray contains duplicated value "
                             + pulsarServiceUrlArray[i]);
