@@ -324,7 +324,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             "topicCompactionStrategyClassName",
                             ServiceUnitStateCompactionStrategy.class.getName()))
                     .create();
-            tableview.forEachAndListen((key, value) -> handle(key, value));
+            tableview.listen((key, value) -> handle(key, value));
+            tableview.forEach((serviceUnit, data) -> {
+                if (debug) {
+                    log.info("Loaded the service unit state data. serviceUnit: {}, data: {}", serviceUnit, data);
+                }
+                ServiceUnitState state = state(data);
+                if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
+                    pulsar.getNamespaceService()
+                            .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
+                }
+            });
             var strategy = (ServiceUnitStateCompactionStrategy) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
             if (strategy == null) {
                 String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
