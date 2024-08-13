@@ -730,7 +730,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     result.completeExceptionally(ex);
                                     return null;
                                 });
-                    }, internalPinnedExecutor);
+                    }, internalPinnedExecutor).exceptionally(ex -> {
+                        result.completeExceptionally(ex);
+                        retryLetterProducer = null;
+                        return null;
+                    });
                 }
             } catch (Exception e) {
                 result.completeExceptionally(e);
