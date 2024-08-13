@@ -223,8 +223,8 @@ public class PersistentSubscription extends AbstractSubscription {
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
         CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
         if (inProgressResetCursorFuture != null) {
-            return inProgressResetCursorFuture.thenCompose(ignore -> addConsumerInternal(consumer))
-                    .exceptionallyCompose(ex -> addConsumerInternal(consumer));
+            return inProgressResetCursorFuture.thenApply(ignore -> null)
+                    .exceptionally(ex -> null).thenCompose(ignore -> addConsumerInternal(consumer));
         } else {
             return addConsumerInternal(consumer);
         }
@@ -811,7 +811,7 @@ public class PersistentSubscription extends AbstractSubscription {
             return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
-        final CompletableFuture<Void> future = new CompletableFuture<>();;
+        final CompletableFuture<Void> future = new CompletableFuture<>();
         inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
