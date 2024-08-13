@@ -424,6 +424,7 @@ public class BinaryProtoLookupService implements LookupService {
     @Override
     public void close() throws Exception {
         // no-op
+        serviceNameResolver.close();
     }
 
     public static class LookupDataResult {

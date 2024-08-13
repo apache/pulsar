@@ -177,6 +177,7 @@ public class HttpClient implements Closeable {
     @Override
     public void close() throws IOException {
         httpClient.close();
+        serviceNameResolver.close();
     }
 
     public <T> CompletableFuture<T> get(String path, Class<T> clazz) {
