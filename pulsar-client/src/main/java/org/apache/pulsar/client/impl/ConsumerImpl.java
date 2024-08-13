@@ -2262,7 +2262,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .blockIfQueueFull(false)
                             .createAsync();
                     retryLetterProducer.thenAccept(rtlProducer -> {
-                        stats.setDeadLetterProducerStats(rtlProducer.getStats());
+                        stats.setRetryLetterProducerStats(rtlProducer.getStats());
                     });
                 }
             } finally {
