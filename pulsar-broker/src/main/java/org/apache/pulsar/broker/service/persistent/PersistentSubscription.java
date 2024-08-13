@@ -223,8 +223,8 @@ public class PersistentSubscription extends AbstractSubscription {
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
         CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
         if (inProgressResetCursorFuture != null) {
-            return inProgressResetCursorFuture.thenApply(ignore -> null)
-                    .exceptionally(ex -> null).thenCompose(ignore -> addConsumerInternal(consumer));
+            return inProgressResetCursorFuture.handle((ignore, ignoreEx) -> null)
+                    .thenCompose(ignore -> addConsumerInternal(consumer));
         } else {
             return addConsumerInternal(consumer);
         }
