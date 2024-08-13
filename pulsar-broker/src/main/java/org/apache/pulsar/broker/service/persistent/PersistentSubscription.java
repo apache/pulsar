@@ -132,6 +132,7 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
+    private volatile CompletableFuture<Void> inProgressResetCursorFuture;
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
         return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
@@ -220,6 +221,15 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        if (inProgressResetCursorFuture != null) {
+            return inProgressResetCursorFuture.thenCompose(ignore -> addConsumerInternal(consumer))
+                    .exceptionallyCompose(ex -> addConsumerInternal(consumer));
+        } else {
+            return addConsumerInternal(consumer);
+        }
+    }
+
+    private CompletableFuture<Void> addConsumerInternal(Consumer consumer) {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
@@ -775,7 +785,8 @@ public class PersistentSubscription extends AbstractSubscription {
                 } else {
                     finalPosition = position.getNext();
                 }
-                resetCursor(finalPosition, future);
+                CompletableFuture<Void> resetCursorFuture = resetCursor(finalPosition);
+                FutureUtil.completeAfter(future, resetCursorFuture);
             }
 
             @Override
@@ -794,22 +805,16 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        resetCursor(position, future);
-        return future;
-    }
-
-    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
-        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
-            return;
-        }
-
-        final CompletableFuture<Void> disconnectFuture;
-
+    public CompletableFuture<Void> resetCursor(Position finalPosition) {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
+        final CompletableFuture<Void> disconnectFuture;
+        final CompletableFuture<Void> future;
         synchronized (this) {
+            if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            future = new CompletableFuture<>();
+            inProgressResetCursorFuture = future;
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
@@ -890,6 +895,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 return null;
             });
         });
+        return future;
     }
 
     @Override

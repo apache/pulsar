@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -779,6 +780,28 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         int msgInTopic1Partition1 = msgNum / partitionNum;
         int msgInTopic1Partition2 = 1;
         assertEquals(count, (msgInTopic1Partition0 + msgInTopic1Partition1 + msgInTopic1Partition2) * 2);
+    }
+
+    @Test
+    public void testSeekWillNotEncounteredFencedError() throws Exception {
+        String topicName = "persistent://my-property/my-ns/my-topic2";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(3600, 0));
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("s1")
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName).create();
+        MessageIdImpl msgId1 = (MessageIdImpl) producer.send("0");
+        for (int i = 1; i < 11; i++) {
+            admin.topics().unload(topicName);
+            producer.send(i + "");
+        }
+        Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+        consumer.acknowledge(msg);
+        consumer.seek(msgId1);
+        Thread.sleep(20 * 1000);
     }
 
     @Test
