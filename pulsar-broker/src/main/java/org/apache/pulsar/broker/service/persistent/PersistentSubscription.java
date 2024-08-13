@@ -221,6 +221,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
         if (inProgressResetCursorFuture != null) {
             return inProgressResetCursorFuture.thenCompose(ignore -> addConsumerInternal(consumer))
                     .exceptionallyCompose(ex -> addConsumerInternal(consumer));
@@ -806,15 +807,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> resetCursor(Position finalPosition) {
-        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
+        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+        }
+
+        final CompletableFuture<Void> future = new CompletableFuture<>();;
+        inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
-        final CompletableFuture<Void> future;
+
+        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
-            if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
-            }
-            future = new CompletableFuture<>();
-            inProgressResetCursorFuture = future;
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
@@ -830,6 +832,7 @@ public class PersistentSubscription extends AbstractSubscription {
             if (throwable != null) {
                 log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(
                         new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                 return;
@@ -869,6 +872,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             dispatcher.afterAckMessages(null, finalPosition);
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         future.complete(null);
                     }
 
@@ -877,6 +881,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         log.error("[{}][{}] Failed to reset subscription to position {}", topicName, subName,
                                 finalPosition, exception);
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         // todo - retry on InvalidCursorPositionException
                         // or should we just ask user to retry one more time?
                         if (exception instanceof InvalidCursorPositionException) {
@@ -891,6 +896,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }).exceptionally((e) -> {
                 log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(new BrokerServiceException(e));
                 return null;
             });
