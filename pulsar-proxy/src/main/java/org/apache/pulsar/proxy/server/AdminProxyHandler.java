@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
@@ -40,7 +39,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -87,12 +85,15 @@ class AdminProxyHandler extends ProxyServlet {
 
     private final ProxyConfiguration config;
     private final BrokerDiscoveryProvider discoveryProvider;
+    private final Authentication proxyClientAuthentication;
     private final String brokerWebServiceUrl;
     private final String functionWorkerWebServiceUrl;
 
-    AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
+    AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider,
+                      Authentication proxyClientAuthentication) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
+        this.proxyClientAuthentication = proxyClientAuthentication;
         this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
                 : config.getBrokerWebServiceURL();
         this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
@@ -256,22 +257,13 @@ class AdminProxyHandler extends ProxyServlet {
     @Override
     protected HttpClient newHttpClient() {
         try {
-            Authentication auth = AuthenticationFactory.create(
-                config.getBrokerClientAuthenticationPlugin(),
-                config.getBrokerClientAuthenticationParameters()
-            );
-
-            Objects.requireNonNull(auth, "No supported auth found for proxy");
-
-            auth.start();
-
             if (config.isTlsEnabledWithBroker()) {
                 try {
                     X509Certificate[] trustCertificates = SecurityUtility
                         .loadCertificatesFromPemFile(config.getBrokerClientTrustCertsFilePath());
 
                     SSLContext sslCtx;
-                    AuthenticationDataProvider authData = auth.getAuthData();
+                    AuthenticationDataProvider authData = proxyClientAuthentication.getAuthData();
                     if (config.isBrokerClientTlsEnabledWithKeyStore()) {
                         KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
                         sslCtx = KeyStoreSSLContext.createClientSslContext(
@@ -311,11 +303,6 @@ class AdminProxyHandler extends ProxyServlet {
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
                     LOG.error("new jetty http client exception ", e);
-                    try {
-                        auth.close();
-                    } catch (IOException ioe) {
-                        LOG.error("Failed to close the authentication service", ioe);
-                    }
                     throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
                 }
             }

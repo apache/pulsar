@@ -52,7 +52,6 @@ import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
@@ -114,8 +113,7 @@ public class DirectProxyHandler {
 
             if (!isEmpty(config.getBrokerClientAuthenticationPlugin())) {
                 try {
-                    authData = AuthenticationFactory.create(config.getBrokerClientAuthenticationPlugin(),
-                            config.getBrokerClientAuthenticationParameters()).getAuthData();
+                    authData = authentication.getAuthData();
                 } catch (PulsarClientException e) {
                     throw new RuntimeException(e);
                 }
