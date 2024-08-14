@@ -34,12 +34,14 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -50,8 +52,13 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -779,6 +786,64 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         int msgInTopic1Partition1 = msgNum / partitionNum;
         int msgInTopic1Partition2 = 1;
         assertEquals(count, (msgInTopic1Partition0 + msgInTopic1Partition1 + msgInTopic1Partition2) * 2);
+    }
+
+    @Test
+    public void testSeekWillNotEncounteredFencedError() throws Exception {
+        String topicName = "persistent://prop/ns-abc/my-topic2";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(3600, 0));
+        // Create a pulsar client with a subscription fenced counter.
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        AtomicInteger receivedFencedErrorCounter = new AtomicInteger();
+        PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
+                new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                    protected void handleError(CommandError error) {
+                        if (error.getMessage() != null && error.getMessage().contains("Subscription is fenced")) {
+                            receivedFencedErrorCounter.incrementAndGet();
+                        }
+                        super.handleError(error);
+                    }
+                });
+
+        // publish some messages.
+        org.apache.pulsar.client.api.Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("s1")
+                .subscribe();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topicName).create();
+        MessageIdImpl msgId1 = (MessageIdImpl) producer.send("0");
+        for (int i = 1; i < 11; i++) {
+            admin.topics().unload(topicName);
+            producer.send(i + "");
+        }
+
+        // Inject a delay for reset-cursor.
+        mockZooKeeper.delay(3000, (op, path) -> {
+            if (path.equals("/managed-ledgers/prop/ns-abc/persistent/my-topic2/s1")) {
+                return op.toString().equalsIgnoreCase("SET");
+            }
+            return false;
+        });
+
+        // Verify: consumer will not receive "subscription fenced" error after a seek.
+        for (int i = 1; i < 11; i++) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            consumer.acknowledge(msg);
+        }
+        consumer.seek(msgId1);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.isConnected());
+        });
+        assertEquals(receivedFencedErrorCounter.get(), 0);
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        client.close();
+        admin.topics().delete(topicName);
     }
 
     @Test
