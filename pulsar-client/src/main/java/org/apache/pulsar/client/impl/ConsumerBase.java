@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -64,6 +66,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -80,6 +83,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
+    protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     protected UnAckedMessageTracker unAckedMessageTracker;
@@ -137,6 +141,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
         this.executorProvider = executorProvider;
+        this.messageListenerExecutor = conf.getMessageListenerExecutor() == null
+                ? (conf.getSubscriptionType() == SubscriptionType.Key_Shared
+                   ? this::executeKeySharedMessageListener
+                   : this::executeMessageListener)
+                : conf.getMessageListenerExecutor();
         this.externalPinnedExecutor = executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
@@ -1125,14 +1134,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         // internal pinned executor thread while the message processing happens
                         final Message<T> finalMsg = msg;
                         MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
-                        if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                            executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
-                                    callMessageListener(finalMsg));
-                        } else {
-                            getExternalExecutor(msg).execute(() -> {
-                                callMessageListener(finalMsg);
-                            });
-                        }
+                        messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
@@ -1143,6 +1145,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
             }
         });
+    }
+
+    private void executeMessageListener(Message<?> message, Runnable runnable) {
+        getExternalExecutor(message).execute(runnable);
+    }
+
+    private void executeKeySharedMessageListener(Message<?> message, Runnable runnable) {
+        executorProvider.getExecutor(peekMessageKey(message)).execute(runnable);
     }
 
     protected void callMessageListener(Message<T> msg) {
@@ -1174,7 +1184,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
-    protected byte[] peekMessageKey(Message<T> msg) {
+    protected byte[] peekMessageKey(Message<?> msg) {
         byte[] key = NONE_KEY;
         if (msg.hasKey()) {
             key = msg.getKeyBytes();
@@ -1241,7 +1251,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
 
-    private ExecutorService getExternalExecutor(Message<T> msg) {
+    private ExecutorService getExternalExecutor(Message<?> msg) {
         ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl) ? ((TopicMessageImpl) msg).receivedByconsumer
                 : null;
         ExecutorService executor = receivedConsumer != null && receivedConsumer.externalPinnedExecutor != null
@@ -1276,8 +1286,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return true;
     }
 
+    protected boolean isSingleMessageAcked(BitSetRecyclable ackBitSet, int batchIndex) {
+        return ackBitSet != null && !ackBitSet.get(batchIndex);
+    }
+
     public boolean hasBatchReceiveTimeout() {
         return batchReceiveTimeout != null;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Consumer<T>> getSubscribeFuture() {
+        return subscribeFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

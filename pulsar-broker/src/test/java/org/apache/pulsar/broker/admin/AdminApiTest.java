@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -56,6 +58,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
@@ -65,7 +68,8 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -75,6 +79,8 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.GetStatsOptions;
@@ -139,7 +145,10 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.awaitility.Awaitility;
@@ -333,10 +342,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
+
+        restartBroker();
     }
 
     @Test
-    public void clusterNamespaceIsolationPolicies() throws PulsarAdminException {
+    public void clusterNamespaceIsolationPolicies() throws Exception {
         try {
             // create
             String policyName1 = "policy-1";
@@ -512,6 +523,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
+        restartBroker();
     }
 
     @Test
@@ -529,7 +541,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(list2.size(), 1);
 
         BrokerInfo leaderBroker = admin.brokers().getLeaderBroker();
-        Assert.assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
+        Assert.assertEquals(leaderBroker.getBrokerId(),
+                pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
@@ -537,7 +550,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
-                    NamespaceService.getHeartbeatNamespace(pulsar.getLookupServiceAddress(), pulsar.getConfiguration())
+                    NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration())
                             + "/0x00000000_0xffffffff")) {
                 assertEquals(nsStatus.broker_assignment, BrokerAssignment.shared);
                 assertFalse(nsStatus.is_controlled);
@@ -545,10 +558,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             }
         }
 
-        String[] parts = list.get(0).split(":");
-        Assert.assertEquals(parts.length, 2);
-        Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test",
-                String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
+        Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test", list.get(0));
         Assert.assertEquals(nsMap2.size(), 2);
 
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
@@ -703,6 +713,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
+        // reset config
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
+        // restart broker
+        restartBroker();
     }
 
     /**
@@ -801,6 +815,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test", "usw")));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
 
@@ -933,8 +949,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
         assertEquals(topicStats.getPublishers().size(), 0);
-        assertEquals(topicStats.getOwnerBroker(),
-                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePortTls().get());
+        assertEquals(topicStats.getOwnerBroker(), pulsar.getBrokerId());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Set.of(Codec.encode(subName)));
@@ -3191,6 +3206,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
         admin.namespaces().createNamespace("prop-xyz/getBundleNs", 100);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/getBundleNs").bundles.getNumBundles(), 100);
 
@@ -3384,6 +3402,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(),
+                        tenantInfo.getAllowedClusters()));
 
         String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
@@ -3437,8 +3458,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetReadPositionWhenJoining() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/testGetReadPositionWhenJoining-" + UUID.randomUUID().toString();
+    public void testGetLastSentPositionWhenJoining() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testGetLastSentPositionWhenJoining-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -3446,34 +3467,189 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(false)
                 .create();
 
+        @Cleanup
+        final Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
         final int messages = 10;
         MessageIdImpl messageId = null;
         for (int i = 0; i < messages; i++) {
             messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
+            consumer1.receive();
         }
 
-        List<Consumer<byte[]>> consumers = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscriptionName(subName)
-                    .subscribe();
-            consumers.add(consumer);
-        }
+        @Cleanup
+        final Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
         SubscriptionStats subStats = stats.getSubscriptions().get(subName);
         Assert.assertNotNull(subStats);
         Assert.assertEquals(subStats.getConsumers().size(), 2);
-        ConsumerStats consumerStats = subStats.getConsumers().get(0);
-        Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
-                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
+        ConsumerStats consumerStats = subStats.getConsumers().stream()
+                .filter(s -> s.getConsumerName().equals(consumer2.getConsumerName())).findFirst().get();
+        Assert.assertEquals(consumerStats.getLastSentPositionWhenJoining(),
+                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()).toString());
+    }
 
-        for (Consumer<byte[]> consumer : consumers) {
-            consumer.close();
+    @Test
+    public void testGetLastSentPosition() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testGetLastSentPosition-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        @Cleanup
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        final AtomicInteger counter = new AtomicInteger();
+        @Cleanup
+        final Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .messageListener((c, msg) -> {
+                    try {
+                        c.acknowledge(msg);
+                        counter.getAndIncrement();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .subscribe();
+
+        TopicStats stats = admin.topics().getStats(topic);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
+        SubscriptionStats subStats = stats.getSubscriptions().get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertNull(subStats.getLastSentPosition());
+
+        final int messages = 10;
+        MessageIdImpl messageId = null;
+        for (int i = 0; i < messages; i++) {
+            messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
         }
+
+        Awaitility.await().untilAsserted(() -> assertEquals(counter.get(), messages));
+
+        stats = admin.topics().getStats(topic);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
+        subStats = stats.getSubscriptions().get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.getLastSentPosition(), PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()).toString());
+    }
+
+    @Test
+    public void testGetIndividuallySentPositions() throws Exception {
+        // The producer sends messages with two types of keys.
+        // The dispatcher sends keyA messages to consumer1.
+        // Consumer1 will not receive any messages. Its receiver queue size is 1.
+        // Consumer2 will receive and ack any messages immediately.
+
+        final String topic = "persistent://prop-xyz/ns1/testGetIndividuallySentPositions-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        @Cleanup
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final String consumer1Name = "c1";
+        final String consumer2Name = "c2";
+
+        @Cleanup
+        final Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .consumerName(consumer1Name)
+                .receiverQueueSize(1)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        final PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topic).get().get().getSubscription(subName).getDispatcher();
+        final String keyA = "key-a";
+        final String keyB = "key-b";
+        final int hashA = Murmur3_32Hash.getInstance().makeHash(keyA.getBytes());
+
+        final Field selectorField = PersistentStickyKeyDispatcherMultipleConsumers.class.getDeclaredField("selector");
+        selectorField.setAccessible(true);
+        final StickyKeyConsumerSelector selector = spy((StickyKeyConsumerSelector) selectorField.get(dispatcher));
+        selectorField.set(dispatcher, selector);
+
+        // the selector returns consumer1 if keyA
+        doAnswer((invocationOnMock -> {
+            final int hash = invocationOnMock.getArgument(0);
+
+            final String consumerName = hash == hashA ? consumer1Name : consumer2Name;
+            return dispatcher.getConsumers().stream().filter(consumer -> consumer.consumerName().equals(consumerName)).findFirst().get();
+        })).when(selector).select(anyInt());
+
+        final AtomicInteger consumer2AckCounter = new AtomicInteger();
+        @Cleanup
+        final Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .consumerName(consumer2Name)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .messageListener((c, msg) -> {
+                    try {
+                        c.acknowledge(msg);
+                        consumer2AckCounter.getAndIncrement();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .subscribe();
+
+        final LongPairRangeSet.LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
+        final LongPairRangeSet<Position> expectedIndividuallySentPositions = new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter);
+
+        TopicStats stats = admin.topics().getStats(topic);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
+        SubscriptionStats subStats = stats.getSubscriptions().get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.getIndividuallySentPositions(), expectedIndividuallySentPositions.toString());
+
+        final Function<String, MessageIdImpl> sendFn = (key) -> {
+            try {
+                return (MessageIdImpl) producer.newMessage().key(key).value(("msg").getBytes()).send();
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        };
+        final List<MessageIdImpl> messageIdList = new ArrayList<>();
+
+        // the dispatcher can send keyA message, but then consumer1's receiver queue will be full
+        messageIdList.add(sendFn.apply(keyA));
+
+        // the dispatcher can send messages other than keyA
+        messageIdList.add(sendFn.apply(keyA));
+        messageIdList.add(sendFn.apply(keyB));
+        messageIdList.add(sendFn.apply(keyA));
+        messageIdList.add(sendFn.apply(keyB));
+        messageIdList.add(sendFn.apply(keyB));
+
+        assertEquals(messageIdList.size(), 6);
+        Awaitility.await().untilAsserted(() -> assertEquals(consumer2AckCounter.get(), 3));
+
+        // set expected value
+        expectedIndividuallySentPositions.addOpenClosed(messageIdList.get(1).getLedgerId(), messageIdList.get(1).getEntryId(),
+                messageIdList.get(2).getLedgerId(), messageIdList.get(2).getEntryId());
+        expectedIndividuallySentPositions.addOpenClosed(messageIdList.get(3).getLedgerId(), messageIdList.get(3).getEntryId(),
+                messageIdList.get(5).getLedgerId(), messageIdList.get(5).getEntryId());
+
+        stats = admin.topics().getStats(topic);
+        Assert.assertEquals(stats.getSubscriptions().size(), 1);
+        subStats = stats.getSubscriptions().get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.getIndividuallySentPositions(), expectedIndividuallySentPositions.toString());
     }
 
     @Test
@@ -3685,5 +3861,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60).build());
         });
 
+    }
+
+    @Test
+    @SneakyThrows
+    public void testPermissions() {
+        String namespace = "prop-xyz/ns1/";
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://" + namespace + random;
+        final String subject =  UUID.randomUUID().toString();
+        assertThrows(NotFoundException.class, () -> admin.topics().getPermissions(topic));
+        assertThrows(NotFoundException.class, () -> admin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce)));
+        assertThrows(NotFoundException.class, () -> admin.topics().revokePermissions(topic, subject));
     }
 }

@@ -28,6 +28,8 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -56,6 +58,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig;
+    private Authentication proxyClientAuthentication;
     private SocatContainer socatContainer;
 
     private String brokerServiceUriSocat;
@@ -79,6 +82,11 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setClusterName(configClusterName);
+
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         startProxyService();
         // use the same port for subsequent restarts
@@ -87,7 +95,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
 
     private void startProxyService() throws Exception {
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))) {
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication) {
             @Override
             protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
                 return new TestLookupProxyHandler(this, proxyConnection);
@@ -105,6 +113,9 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
         if (socatContainer != null) {
             socatContainer.close();

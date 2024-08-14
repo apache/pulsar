@@ -46,8 +46,8 @@ import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
 
-    public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TransactionsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminV3Transactions = web.path("/admin/v3/transactions");
     }
 
@@ -282,5 +282,18 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                   Long entryId, Integer batchIndex)
             throws PulsarAdminException {
         return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
+    }
+
+    @Override
+    public CompletableFuture<Void> abortTransactionAsync(TxnID txnID)  {
+        WebTarget path = adminV3Transactions.path("abortTransaction");
+        path = path.path(String.valueOf(txnID.getMostSigBits()));
+        path = path.path(String.valueOf(txnID.getLeastSigBits()));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void abortTransaction(TxnID txnID) throws PulsarAdminException {
+        sync(() -> abortTransactionAsync(txnID));
     }
 }

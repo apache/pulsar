@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -82,18 +83,18 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
+import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
-import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -103,6 +104,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -226,6 +228,8 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
                 NamespaceName.get("use", "ns-abc"));
@@ -1844,14 +1848,14 @@ public class ServerCnxTest {
         ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
                 producerName, Collections.emptyMap(), false);
         channel.writeInbound(clientCommand1);
-        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        assertThat(getResponse()).isInstanceOf(CommandProducerSuccess.class);
 
         // Call disconnect method on producer to trigger activity similar to unloading
         Producer producer = serverCnx.getProducers().get(1).get();
         assertNotNull(producer);
         producer.disconnect();
         channel.runPendingTasks();
-        assertTrue(getResponse() instanceof CommandCloseProducer);
+        assertThat(getResponse()).isInstanceOf(CommandCloseProducer.class);
 
         // Send message and expect no response
         sendMessage();
@@ -2588,7 +2592,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
-        PositionImpl pos = new PositionImpl(0, 0);
+        Position pos = PositionFactory.create(0, 0);
 
         clientCommand =
                 Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
@@ -2939,7 +2943,7 @@ public class ServerCnxTest {
         // call addComplete on ledger asyncAddEntry
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                    new PositionImpl(-1, -1),
+                    PositionFactory.create(-1, -1),
                     null,
                     invocationOnMock.getArguments()[2]);
             return null;
@@ -3381,8 +3385,9 @@ public class ServerCnxTest {
             };
             // assert error response
             assertTrue(responseAssert.test(responseAssert));
-            // assert consumer-delete event occur
-            assertEquals(1L,
+            // The delete event will only occur after the future is completed.
+            // assert consumer-delete event will not occur.
+            assertEquals(0L,
                     deleteTimesMark.getAllValues().stream().filter(f -> f == existingConsumerFuture).count());
             // Server will not close the connection
             assertTrue(channel.isOpen());
@@ -3569,7 +3574,7 @@ public class ServerCnxTest {
         doReturn(false).when(pulsar).isRunning();
         assertTrue(channel.isActive());
 
-        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1, true);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);

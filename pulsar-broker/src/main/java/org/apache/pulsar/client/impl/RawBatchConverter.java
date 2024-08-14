@@ -134,7 +134,11 @@ public class RawBatchConverter {
                                                       msg.getMessageIdData().getEntryId(),
                                                       msg.getMessageIdData().getPartition(),
                                                       i);
-                if (!singleMessageMetadata.hasPartitionKey()) {
+                if (singleMessageMetadata.isCompactedOut()) {
+                    // we may read compacted out message from the compacted topic
+                    Commands.serializeSingleMessageInBatchWithPayload(emptyMetadata,
+                            Unpooled.EMPTY_BUFFER, batchBuffer);
+                } else if (!singleMessageMetadata.hasPartitionKey()) {
                     if (retainNullKey) {
                         messagesRetained++;
                         Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,

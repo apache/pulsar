@@ -73,6 +73,9 @@ public class ServiceConfigurationTest {
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
+        assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+        assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
+        assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -289,6 +292,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 512);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1024 * 1024 * 4);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 1);
+            assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), false);
         }
         // pulsar_broker_test.conf.
         try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
@@ -301,6 +305,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 44);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 55);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 66);
+            assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         }
         // string input stream.
         StringBuilder stringBuilder = new StringBuilder();
@@ -312,6 +317,7 @@ public class ServiceConfigurationTest {
         stringBuilder.append("transactionPendingAckBatchedWriteMaxRecords=521").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxSize=1025").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxDelayInMillis=20").append(System.lineSeparator());
+        stringBuilder.append("dispatcherPauseOnAckStatePersistentEnabled=true").append(System.lineSeparator());
         try(ByteArrayInputStream inputStream =
                     new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
             configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
@@ -323,6 +329,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 521);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
+            assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         }
     }
 
@@ -369,5 +376,16 @@ public class ServiceConfigurationTest {
         properties.setProperty("allowAutoTopicCreationType", "non-partitioned");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
+    }
+
+    @Test
+    public void testTopicNameCacheConfiguration() throws Exception {
+        ServiceConfiguration conf;
+        final Properties properties = new Properties();
+        properties.setProperty("maxSecondsToClearTopicNameCache", "2");
+        properties.setProperty("topicNameCacheMaxCapacity", "100");
+        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
     }
 }

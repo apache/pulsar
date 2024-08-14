@@ -2179,4 +2179,20 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             asyncRequests(ctx -> namespaces.createNamespace(ctx, nsName.getTenant(), nsName.getCluster(), nsName.getLocalName(), policies));
         }
     }
+
+    @Test
+    public void testDispatcherPauseOnAckStatePersistent() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+
+        admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
+
+        assertFalse(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        // should pass
+        admin.namespaces().setDispatcherPauseOnAckStatePersistent(namespace);
+        assertTrue(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+        admin.namespaces().removeDispatcherPauseOnAckStatePersistent(namespace);
+        assertFalse(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
+
+        admin.namespaces().deleteNamespace(namespace);
+    }
 }

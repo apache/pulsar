@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -209,40 +209,42 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         // init maxReadPosition is PositionImpl.EARLIEST
         Position position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
 
         MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
 
         // send normal message can't change MaxReadPosition when state is None or Initializing
         position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
+
+        // change to None state can recover
+        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
 
         // invoke recover
         Method method = TopicTransactionBuffer.class.getDeclaredMethod("recover");
         method.setAccessible(true);
         method.invoke(topicTransactionBuffer);
 
-        // change to None state can recover
-        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
-
         // recover success again
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
         // change MaxReadPosition to normal message position
-        assertEquals(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+        assertEquals(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                 topicTransactionBuffer.getMaxReadPosition());
     }
 
     private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
                                                   TopicTransactionBuffer topicTransactionBuffer) {
         // recover success
-        Awaitility.await().until(() -> {
+        Awaitility.await().untilAsserted(() -> {
             if (clientEnableTransaction) {
                 // recover success, client enable transaction will change to Ready State
-                return topicTransactionBuffer.getStats(false, false).state.equals(Ready.name());
+                assertEquals(topicTransactionBuffer.getStats(false, false).state,
+                        Ready.name());
             } else {
                 // recover success, client disable transaction will change to NoSnapshot State
-                return topicTransactionBuffer.getStats(false, false).state.equals(NoSnapshot.name());
+                assertEquals(topicTransactionBuffer.getStats(false, false).state,
+                        NoSnapshot.name());
             }
         });
     }

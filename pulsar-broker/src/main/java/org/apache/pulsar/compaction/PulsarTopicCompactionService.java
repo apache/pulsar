@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.COMPACT_LEDGER_EMPTY;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.NEWER_THAN_COMPACTED;
 import static org.apache.pulsar.compaction.CompactedTopicImpl.findStartPoint;
-import static org.apache.pulsar.compaction.CompactedTopicImpl.readEntries;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -33,10 +32,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -77,7 +74,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         CompletableFuture<List<Entry>> resultFuture = new CompletableFuture<>();
 
         Objects.requireNonNull(compactedTopic.getCompactedTopicContextFuture()).thenCompose(
-                (context) -> findStartPoint((PositionImpl) startPosition, context.ledger.getLastAddConfirmed(),
+                (context) -> findStartPoint(startPosition, context.ledger.getLastAddConfirmed(),
                         context.cache).thenCompose((startPoint) -> {
                     if (startPoint == COMPACT_LEDGER_EMPTY || startPoint == NEWER_THAN_COMPACTED) {
                         return CompletableFuture.completedFuture(Collections.emptyList());
@@ -116,7 +113,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
         final Predicate<Entry> predicate = entry -> {
             return Commands.parseMessageMetadata(entry.getDataBuffer()).getPublishTime() >= publishTime;
         };
-        return findFirstMatchEntry(predicate);
+        return compactedTopic.findFirstMatchEntry(predicate);
     }
 
     @Override
@@ -128,57 +125,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
             }
             return brokerEntryMetadata.getIndex() >= entryIndex;
         };
-        return findFirstMatchEntry(predicate);
-    }
-
-    private CompletableFuture<Entry> findFirstMatchEntry(final Predicate<Entry> predicate) {
-        var compactedTopicContextFuture = compactedTopic.getCompactedTopicContextFuture();
-
-        if (compactedTopicContextFuture == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return compactedTopicContextFuture.thenCompose(compactedTopicContext -> {
-            LedgerHandle lh = compactedTopicContext.getLedger();
-            CompletableFuture<Long> promise = new CompletableFuture<>();
-            findFirstMatchIndexLoop(predicate, 0L, lh.getLastAddConfirmed(), promise, null, lh);
-            return promise.thenCompose(index -> {
-                if (index == null) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                return readEntries(lh, index, index).thenApply(entries -> entries.get(0));
-            });
-        });
-    }
-
-    private static void findFirstMatchIndexLoop(final Predicate<Entry> predicate,
-                                           final long start, final long end,
-                                           final CompletableFuture<Long> promise,
-                                           final Long lastMatchIndex,
-                                           final LedgerHandle lh) {
-        if (start > end) {
-            promise.complete(lastMatchIndex);
-            return;
-        }
-
-        long mid = (start + end) / 2;
-        readEntries(lh, mid, mid).thenAccept(entries -> {
-            Entry entry = entries.get(0);
-            final boolean isMatch;
-            try {
-                isMatch = predicate.test(entry);
-            } finally {
-                entry.release();
-            }
-
-            if (isMatch) {
-                findFirstMatchIndexLoop(predicate, start, mid - 1, promise, mid, lh);
-            } else {
-                findFirstMatchIndexLoop(predicate, mid + 1, end, promise, lastMatchIndex, lh);
-            }
-        }).exceptionally(ex -> {
-            promise.completeExceptionally(ex);
-            return null;
-        });
+        return compactedTopic.findFirstMatchEntry(predicate);
     }
 
     public CompactedTopicImpl getCompactedTopic() {

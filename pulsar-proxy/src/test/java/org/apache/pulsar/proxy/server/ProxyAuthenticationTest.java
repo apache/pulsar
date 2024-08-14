@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -58,6 +59,7 @@ import org.testng.annotations.Test;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
+	private static final String CLUSTER_NAME = "test";
 
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
 		private final String authParam;
@@ -178,7 +180,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		providers.add(BasicAuthenticationProvider.class.getName());
 		conf.setAuthenticationProviders(providers);
 
-		conf.setClusterName("test");
+		conf.setClusterName(CLUSTER_NAME);
 		Set<String> proxyRoles = new HashSet<>();
 		proxyRoles.add("proxy");
 		conf.setProxyRoles(proxyRoles);
@@ -222,6 +224,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerProxyAllowedTargetPorts("*");
 		proxyConfig.setWebServicePort(Optional.of(0));
 		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+		proxyConfig.setClusterName(CLUSTER_NAME);
 
 		proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
@@ -233,7 +236,11 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
                 AuthenticationService authenticationService = new AuthenticationService(
                         PulsarConfigurationLoader.convertFrom(proxyConfig));
 		@Cleanup
-		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
+		final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+				proxyConfig.getBrokerClientAuthenticationParameters());
+		proxyClientAuthentication.start();
+		@Cleanup
+		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication);
 
 		proxyService.start();
 		final String proxyServiceUrl = proxyService.getServiceUrl();

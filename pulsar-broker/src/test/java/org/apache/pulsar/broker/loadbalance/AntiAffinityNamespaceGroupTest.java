@@ -26,6 +26,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.OpenTelemetry;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
@@ -103,14 +104,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         setupConfigs(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
-        primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        primaryHost = pulsar1.getBrokerId();
         admin1 = admin;
 
         var config2 = getDefaultConf();
         setupConfigs(config2);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(config2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
-        secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+        secondaryHost = pulsar2.getBrokerId();
 
         primaryLoadManager = getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = getField(pulsar2.getLoadManager().get(), "loadManager");
@@ -136,8 +137,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         if (resources == null) {
-            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
-            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
+            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null, OpenTelemetry.noop());
+            MetadataStoreExtended configStore =
+                    (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null, OpenTelemetry.noop());
             resources = new PulsarResources(localStore, configStore);
         }
         this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),

@@ -30,6 +30,7 @@ import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -66,16 +67,22 @@ public class TopicLookupBase extends PulsarWebResource {
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP, null))
                 .thenCompose(__ -> {
+                    // Case-1: Non-persistent topic.
                     // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists
                     // in the broker, it doesn't have metadata. If the topic is non-persistent and non-partitioned,
-                    // we'll return the true flag.
-                    CompletableFuture<Boolean> existFuture = (!topicName.isPersistent() && !topicName.isPartitioned())
-                            ? CompletableFuture.completedFuture(true)
-                            : pulsar().getNamespaceService().checkTopicExists(topicName)
-                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
-                                        : pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName));
-
-                    return existFuture;
+                    // we'll return the true flag. So either it is a partitioned topic or not, the result will be true.
+                    if (!topicName.isPersistent()) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    // Case-2: Persistent topic.
+                    return pulsar().getNamespaceService().checkTopicExists(topicName).thenCompose(info -> {
+                        boolean exists = info.isExists();
+                        info.recycle();
+                        if (exists) {
+                            return CompletableFuture.completedFuture(true);
+                        }
+                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName);
+                    });
                 })
                 .thenCompose(exist -> {
                     if (!exist) {
@@ -333,13 +340,16 @@ public class TopicLookupBase extends PulsarWebResource {
 
     private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName, String clientAppId,
                                    long requestId, Throwable ex){
-        final Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
+        Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
         final String errorMsg = unwrapEx.getMessage();
+        if (unwrapEx instanceof PulsarServerException) {
+            unwrapEx = FutureUtil.unwrapCompletionException(unwrapEx.getCause());
+        }
         if (unwrapEx instanceof IllegalStateException) {
             // Current broker still hold the bundle's lock, but the bundle is being unloading.
             log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);
             lookupFuture.complete(newLookupErrorResponse(ServerError.MetadataError, errorMsg, requestId));
-        } else if (unwrapEx instanceof MetadataStoreException){
+        } else if (unwrapEx instanceof MetadataStoreException) {
             // Load bundle ownership or acquire lock failed.
             // Differ with "IllegalStateException", print warning log.
             log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);

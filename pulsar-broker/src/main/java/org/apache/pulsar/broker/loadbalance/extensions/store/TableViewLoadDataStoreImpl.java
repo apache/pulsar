@@ -23,24 +23,34 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The load data store, base on {@link TableView <T>}.
  *
  * @param <T> Load data type.
  */
+@Slf4j
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
+    private static final long LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART = 2;
+    private static final long INIT_TIMEOUT_IN_SECS = 5;
+
     private volatile TableView<T> tableView;
+    private volatile long tableViewLastUpdateTimestamp;
 
     private volatile Producer<T> producer;
+
+    private final ServiceConfiguration conf;
 
     private final PulsarClient client;
 
@@ -48,9 +58,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     private final Class<T> clazz;
 
-    public TableViewLoadDataStoreImpl(PulsarClient client, String topic, Class<T> clazz) throws LoadDataStoreException {
+    public TableViewLoadDataStoreImpl(PulsarService pulsar, String topic, Class<T> clazz)
+            throws LoadDataStoreException {
         try {
-            this.client = client;
+            this.conf = pulsar.getConfiguration();
+            this.client = pulsar.getClient();
             this.topic = topic;
             this.clazz = clazz;
         } catch (Exception e) {
@@ -60,40 +72,36 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     @Override
     public synchronized CompletableFuture<Void> pushAsync(String key, T loadData) {
-        if (producer == null) {
-            return FutureUtil.failedFuture(new IllegalStateException("producer has not been started"));
-        }
+        validateProducer();
         return producer.newMessage().key(key).value(loadData).sendAsync().thenAccept(__ -> {});
     }
 
     @Override
     public synchronized CompletableFuture<Void> removeAsync(String key) {
-        if (producer == null) {
-            return FutureUtil.failedFuture(new IllegalStateException("producer has not been started"));
-        }
+        validateProducer();
         return producer.newMessage().key(key).value(null).sendAsync().thenAccept(__ -> {});
     }
 
     @Override
     public synchronized Optional<T> get(String key) {
-        validateTableViewStart();
+        validateTableView();
         return Optional.ofNullable(tableView.get(key));
     }
 
     @Override
     public synchronized void forEach(BiConsumer<String, T> action) {
-        validateTableViewStart();
+        validateTableView();
         tableView.forEach(action);
     }
 
     public synchronized Set<Map.Entry<String, T>> entrySet() {
-        validateTableViewStart();
+        validateTableView();
         return tableView.entrySet();
     }
 
     @Override
     public synchronized int size() {
-        validateTableViewStart();
+        validateTableView();
         return tableView.size();
     }
 
@@ -115,8 +123,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void startTableView() throws LoadDataStoreException {
         if (tableView == null) {
             try {
-                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
-            } catch (PulsarClientException e) {
+                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).createAsync()
+                        .get(INIT_TIMEOUT_IN_SECS, TimeUnit.SECONDS);
+                tableView.forEachAndListen((k, v) ->
+                        tableViewLastUpdateTimestamp = System.currentTimeMillis());
+            } catch (Exception e) {
                 tableView = null;
                 throw new LoadDataStoreException(e);
             }
@@ -127,8 +138,9 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized void startProducer() throws LoadDataStoreException {
         if (producer == null) {
             try {
-                producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
-            } catch (PulsarClientException e) {
+                producer = client.newProducer(Schema.JSON(clazz)).topic(topic).createAsync()
+                        .get(INIT_TIMEOUT_IN_SECS, TimeUnit.SECONDS);
+            } catch (Exception e) {
                 producer = null;
                 throw new LoadDataStoreException(e);
             }
@@ -150,9 +162,44 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
         start();
     }
 
-    private synchronized void validateTableViewStart() {
+    private void validateProducer() {
+        if (producer == null) {
+            try {
+                startProducer();
+                log.info("Restarted producer on {}", topic);
+            } catch (Exception e) {
+                log.error("Failed to restart producer on {}", topic, e);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void validateTableView() {
+        String restartReason = null;
+
         if (tableView == null) {
-            throw new IllegalStateException("table view has not been started");
+            restartReason = "table view is null";
+        } else {
+            long inactiveDuration = System.currentTimeMillis() - tableViewLastUpdateTimestamp;
+            long threshold = TimeUnit.MINUTES.toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes())
+                    * LOAD_DATA_REPORT_UPDATE_MAX_INTERVAL_MULTIPLIER_BEFORE_RESTART;
+            if (inactiveDuration > threshold) {
+                restartReason = String.format("inactiveDuration=%d secs > threshold = %d secs",
+                        TimeUnit.MILLISECONDS.toSeconds(inactiveDuration),
+                        TimeUnit.MILLISECONDS.toSeconds(threshold));
+            }
+        }
+
+        if (StringUtils.isNotBlank(restartReason)) {
+            tableViewLastUpdateTimestamp = 0;
+            try {
+                closeTableView();
+                startTableView();
+                log.info("Restarted tableview on {}, {}", topic, restartReason);
+            } catch (Exception e) {
+                log.error("Failed to restart tableview on {}", topic, e);
+                throw new RuntimeException(e);
+            }
         }
     }
 }

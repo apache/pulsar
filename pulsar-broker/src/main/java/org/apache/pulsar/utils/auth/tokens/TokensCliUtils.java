@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.utils.auth.tokens;
 
-import com.beust.jcommander.DefaultUsageFormatter;
-import com.beust.jcommander.IUsageFormatter;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
+import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
@@ -31,7 +27,6 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -39,35 +34,44 @@ import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyPair;
 import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.cli.converters.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ScopeType;
 
+@Command(name = "tokens", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class TokensCliUtils {
 
-    public static class Arguments {
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
-        private boolean help = false;
-    }
+    private final CommandLine commander;
 
-    @Parameters(commandDescription = "Create a new secret key")
-    public static class CommandCreateSecretKey {
-        @Parameter(names = {"-a",
+    @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
+    private boolean help;
+
+    @Command(description = "Create a new secret key")
+    public static class CommandCreateSecretKey implements Callable<Integer> {
+        @Option(names = {"-a",
                 "--signature-algorithm"}, description = "The signature algorithm for the new secret key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.HS256;
 
-        @Parameter(names = {"-o",
+        @Option(names = {"-o",
                 "--output"}, description = "Write the secret key to a file instead of stdout")
         String outputFile;
 
-        @Parameter(names = {
+        @Option(names = {
                 "-b", "--base64"}, description = "Encode the key in base64")
         boolean base64 = false;
 
-        public void run() throws IOException {
+        @Override
+        public Integer call() throws Exception {
             SecretKey secretKey = AuthTokenUtils.createSecretKey(algorithm);
             byte[] encoded = secretKey.getEncoded();
 
@@ -80,67 +84,78 @@ public class TokensCliUtils {
             } else {
                 System.out.write(encoded);
             }
+
+            return 0;
         }
     }
 
-    @Parameters(commandDescription = "Create a new or pair of keys public/private")
-    public static class CommandCreateKeyPair {
-        @Parameter(names = {"-a",
+    @Command(description = "Create a new or pair of keys public/private")
+    public static class CommandCreateKeyPair implements Callable<Integer> {
+        @Option(names = {"-a",
                 "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(names = {
+        @Option(names = {
                 "--output-private-key"}, description = "File where to write the private key", required = true)
         String privateKeyFile;
-        @Parameter(names = {
+        @Option(names = {
                 "--output-public-key"}, description = "File where to write the public key", required = true)
         String publicKeyFile;
 
-        public void run() throws IOException {
+        @Override
+        public Integer call() throws Exception {
             KeyPair pair = Keys.keyPairFor(algorithm);
 
             Files.write(Paths.get(publicKeyFile), pair.getPublic().getEncoded());
             Files.write(Paths.get(privateKeyFile), pair.getPrivate().getEncoded());
+
+            return 0;
         }
     }
 
-    @Parameters(commandDescription = "Create a new token")
-    public static class CommandCreateToken {
-        @Parameter(names = {"-a",
+    @Command(description = "Create a new token")
+    public static class CommandCreateToken implements Callable<Integer> {
+        @Option(names = {"-a",
                 "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(names = {"-s",
+        @Option(names = {"-s",
                 "--subject"},
                 description = "Specify the 'subject' or 'principal' associate with this token", required = true)
         private String subject;
 
-        @Parameter(names = {"-e",
+        @Option(names = {"-e",
                 "--expiry-time"},
                 description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
                         + " (m=minutes) Default: no expiration",
-                    converter = TimeUnitToSecondsConverter.class)
+                converter = TimeUnitToMillisConverter.class)
         private Long expiryTime = null;
 
-        @Parameter(names = {"-sk",
+        @Option(names = {"-sk",
                 "--secret-key"},
                 description = "Pass the secret key for signing the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = {"-pk",
+        @Option(names = {"-pk",
                 "--private-key"},
                 description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
 
-        public void run() throws Exception {
+        @Option(names = {"-hs",
+                "--headers"},
+                description = "Additional headers to token. Format: --headers key1=value1")
+        private Map<String, Object> headers;
+
+        @Override
+        public Integer call() throws Exception {
             if (secretKey == null && privateKey == null) {
                 System.err.println(
                         "Either --secret-key or --private-key needs to be passed for signing a token");
-                System.exit(1);
+                return 1;
             } else if (secretKey != null && privateKey != null) {
                 System.err.println(
                         "Only one of --secret-key and --private-key needs to be passed for signing a token");
-                System.exit(1);
+                return 1;
             }
 
             Key signingKey;
@@ -157,29 +172,32 @@ public class TokensCliUtils {
                     ? Optional.empty()
                     : Optional.of(new Date(System.currentTimeMillis() + expiryTime));
 
-            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime);
+            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime, Optional.ofNullable(headers));
             System.out.println(token);
+
+            return 0;
         }
     }
 
-    @Parameters(commandDescription = "Show the content of token")
-    public static class CommandShowToken {
+    @Command(description = "Show the content of token")
+    public static class CommandShowToken implements Callable<Integer> {
 
-        @Parameter(description = "The token string", arity = 1)
-        private java.util.List<String> args;
+        @Parameters(description = "The token string", arity = "0..1")
+        private String args;
 
-        @Parameter(names = {"-i",
+        @Option(names = {"-i",
                 "--stdin"}, description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = {"-f",
+        @Option(names = {"-f",
                 "--token-file"}, description = "Read token from a file")
         private String tokenFile;
 
-        public void run() throws Exception {
+        @Override
+        public Integer call() throws Exception {
             String token;
             if (args != null) {
-                token = args.get(0);
+                token = args;
             } else if (stdin) {
                 @Cleanup
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
@@ -192,59 +210,61 @@ public class TokensCliUtils {
                 System.err.println(
                         "Token needs to be either passed as an argument or through `--stdin`,"
                                 + " `--token-file` or by the `TOKEN` environment variable");
-                System.exit(1);
-                return;
+                return 1;
             }
 
             String[] parts = token.split("\\.");
             System.out.println(new String(Decoders.BASE64URL.decode(parts[0])));
             System.out.println("---");
             System.out.println(new String(Decoders.BASE64URL.decode(parts[1])));
+
+            return 0;
         }
     }
 
-    @Parameters(commandDescription = "Validate a token against a key")
-    public static class CommandValidateToken {
+    @Command(description = "Validate a token against a key")
+    public static class CommandValidateToken implements Callable<Integer> {
 
-        @Parameter(names = {"-a",
+        @Option(names = {"-a",
                 "--signature-algorithm"}, description = "The signature algorithm for the key pair if using public key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(description = "The token string", arity = 1)
-        private java.util.List<String> args;
+        @Parameters(description = "The token string", arity = "0..1")
+        private String args;
 
-        @Parameter(names = {"-i",
+        @Option(names = {"-i",
                 "--stdin"}, description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = {"-f",
+        @Option(names = {"-f",
                 "--token-file"}, description = "Read token from a file")
         private String tokenFile;
 
-        @Parameter(names = {"-sk",
+        @Option(names = {"-sk",
                 "--secret-key"},
                 description = "Pass the secret key for validating the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = {"-pk",
+        @Option(names = {"-pk",
                 "--public-key"},
                 description = "Pass the public key for validating the token. This can either be: data:, file:, etc..")
         private String publicKey;
 
-        public void run() throws Exception {
+        @Override
+        public Integer call() throws Exception {
             if (secretKey == null && publicKey == null) {
                 System.err.println(
                         "Either --secret-key or --public-key needs to be passed for signing a token");
-                System.exit(1);
+                return 1;
             } else if (secretKey != null && publicKey != null) {
                 System.err.println(
                         "Only one of --secret-key and --public-key needs to be passed for signing a token");
-                System.exit(1);
+                return 1;
             }
 
             String token;
             if (args != null) {
-                token = args.get(0);
+                token = args;
             } else if (stdin) {
                 @Cleanup
                 BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
@@ -257,8 +277,7 @@ public class TokensCliUtils {
                 System.err.println(
                         "Token needs to be either passed as an argument or through `--stdin`,"
                                 + " `--token-file` or by the `TOKEN` environment variable");
-                System.exit(1);
-                return;
+                return 1;
             }
 
             Key validationKey;
@@ -272,71 +291,52 @@ public class TokensCliUtils {
             }
 
             // Validate the token
-            @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
                     .build()
-                    .parse(token);
+                    .parseClaimsJws(token);
 
             System.out.println(jwt.getBody());
+            return 0;
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander(arguments);
-        IUsageFormatter usageFormatter = new DefaultUsageFormatter(jcommander);
+    @Command
+    static class GenDoc implements Callable<Integer> {
 
-        CommandCreateSecretKey commandCreateSecretKey = new CommandCreateSecretKey();
-        jcommander.addCommand("create-secret-key", commandCreateSecretKey);
+        private final CommandLine rootCmd;
 
-        CommandCreateKeyPair commandCreateKeyPair = new CommandCreateKeyPair();
-        jcommander.addCommand("create-key-pair", commandCreateKeyPair);
-
-        CommandCreateToken commandCreateToken = new CommandCreateToken();
-        jcommander.addCommand("create", commandCreateToken);
-
-        CommandShowToken commandShowToken = new CommandShowToken();
-        jcommander.addCommand("show", commandShowToken);
-
-        CommandValidateToken commandValidateToken = new CommandValidateToken();
-        jcommander.addCommand("validate", commandValidateToken);
-
-        jcommander.addCommand("gen-doc", new Object());
-
-        try {
-            jcommander.parse(args);
-
-            if (arguments.help || jcommander.getParsedCommand() == null) {
-                jcommander.usage();
-                System.exit(1);
-            }
-        } catch (Exception e) {
-            System.err.println(e);
-            String chosenCommand = jcommander.getParsedCommand();
-            usageFormatter.usage(chosenCommand);
-            System.exit(1);
+        public GenDoc(CommandLine rootCmd) {
+            this.rootCmd = rootCmd;
         }
 
-        String cmd = jcommander.getParsedCommand();
-
-        if (cmd.equals("create-secret-key")) {
-            commandCreateSecretKey.run();
-        } else if (cmd.equals("create-key-pair")) {
-            commandCreateKeyPair.run();
-        } else if (cmd.equals("create")) {
-            commandCreateToken.run();
-        } else if (cmd.equals("show")) {
-            commandShowToken.run();
-        } else if (cmd.equals("validate")) {
-            commandValidateToken.run();
-        } else if (cmd.equals("gen-doc")) {
+        @Override
+        public Integer call() throws Exception {
             CmdGenerateDocs genDocCmd = new CmdGenerateDocs("pulsar");
-            genDocCmd.addCommand("tokens", jcommander);
+            genDocCmd.addCommand("tokens", rootCmd);
             genDocCmd.run(null);
-        } else {
-            System.err.println("Invalid command: " + cmd);
-            System.exit(1);
+
+            return 0;
         }
+    }
+
+    TokensCliUtils() {
+        commander = new CommandLine(this);
+        commander.addSubcommand("create-secret-key", CommandCreateSecretKey.class);
+        commander.addSubcommand("create-key-pair", CommandCreateKeyPair.class);
+        commander.addSubcommand("create", CommandCreateToken.class);
+        commander.addSubcommand("show", CommandShowToken.class);
+        commander.addSubcommand("validate", CommandValidateToken.class);
+        commander.addSubcommand("gen-doc", new GenDoc(commander));
+    }
+
+    @VisibleForTesting
+    int execute(String[] args) {
+        return commander.execute(args);
+    }
+
+    public static void main(String[] args) throws Exception {
+        TokensCliUtils tokensCliUtils = new TokensCliUtils();
+        System.exit(tokensCliUtils.execute(args));
     }
 }

@@ -89,7 +89,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
         brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
@@ -125,6 +124,26 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                     brokerContainer.start();
                 }
             });
+            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
+            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
+                    () -> {
+                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
+                                    brokerContainer.getHttpServiceUrl()).build()) {
+                                if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                    return false;
+                                }
+                                try {
+                                    admin.topics().createPartitionedTopic(topicName, 10);
+                                } catch (PulsarAdminException.ConflictException e) {
+                                    // expected
+                                }
+                                admin.lookups().lookupPartitionedTopic(topicName);
+                            }
+                        }
+                        return true;
+                    }
+            );
         }
     }
 
@@ -243,7 +262,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
 
-    @Test(timeOut = 40 * 1000)
+    @Test(timeOut = 120 * 1000)
     public void testStopBroker() throws Exception {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/test-stop-broker-topic";
 
@@ -259,9 +278,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        String broker1 = admin.lookups().lookupTopic(topicName);
+        Awaitility.waitAtMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String broker1 = admin.lookups().lookupTopic(topicName);
+            assertNotEquals(broker1, broker);
+        });
 
-        assertNotEquals(broker1, broker);
     }
 
     @Test(timeOut = 80 * 1000)
@@ -301,7 +322,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 240 * 1000)
+    @Test(timeOut = 300 * 1000)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
@@ -309,9 +330,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
-                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync()
+                            .get(5, TimeUnit.SECONDS);
                     assertEquals(activeBrokers.size(), NUM_BROKERS);
                 }
         );
@@ -350,15 +372,16 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
-                    List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync()
+                            .get(5, TimeUnit.SECONDS);
                     assertEquals(activeBrokers.size(), 2);
                 }
         );
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-            String ownerBroker = admin.lookups().lookupTopic(topic);
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String ownerBroker = admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
             assertEquals(extractBrokerIndex(ownerBroker), 1);
         });
 
@@ -369,20 +392,25 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
             () -> {
-                List<String> activeBrokers = admin.brokers().getActiveBrokers();
+                List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
                 assertEquals(activeBrokers.size(), 1);
             }
         );
-        try {
-            admin.lookups().lookupTopic(topic);
-            fail();
-        } catch (Exception ex) {
-            log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
-                    "Failed to select the new owner broker for bundle");
-        }
+
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+                () -> {
+                    try {
+                        admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
+                        fail();
+                    } catch (Exception ex) {
+                        log.error("Failed to lookup topic: ", ex);
+                        assertThat(ex.getMessage()).contains("Service Unavailable");
+                    }
+                }
+        );
+
     }
 
     private void createNonPartitionedTopicAndRetry(String topicName) throws Exception {

@@ -190,6 +190,7 @@ public class Commands {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
+        flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -300,6 +301,7 @@ public class Commands {
         connected.setProtocolVersion(versionToAdvertise);
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
+        connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         return cmd;
     }
 
@@ -910,11 +912,13 @@ public class Commands {
         return serializeWithSize(newPartitionMetadataResponseCommand(error, errorMsg, requestId));
     }
 
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
+    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId,
+                                                      boolean metadataAutoCreationEnabled) {
         BaseCommand cmd = localCmd(Type.PARTITIONED_METADATA);
         cmd.setPartitionMetadata()
                 .setTopic(topic)
-                .setRequestId(requestId);
+                .setRequestId(requestId)
+                .setMetadataAutoCreationEnabled(metadataAutoCreationEnabled);
         return serializeWithSize(cmd);
     }
 
@@ -1585,6 +1589,9 @@ public class Commands {
         return cmd;
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                        List<String> topics) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
@@ -1600,6 +1607,10 @@ public class Commands {
         return cmd;
     }
 
+    /**
+     * @param deletedTopics topic names deleted(contains the partition suffix).
+     * @param newTopics topics names added(contains the partition suffix).
+     */
     public static BaseCommand newWatchTopicUpdate(long watcherId,
                                               List<String> newTopics, List<String> deletedTopics, String topicsHash) {
         BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);
@@ -1697,7 +1708,8 @@ public class Commands {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
         //   |         2 bytes                    |       4 bytes              |    BROKER_ENTRY_METADATA_SIZE bytes   |
 
-        BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get().clear();
+        BrokerEntryMetadata brokerEntryMetadata = BROKER_ENTRY_METADATA.get();
+        brokerEntryMetadata.clear();
         for (BrokerEntryMetadataInterceptor interceptor : brokerInterceptors) {
             interceptor.intercept(brokerEntryMetadata);
             if (numberOfMessages >= 0) {

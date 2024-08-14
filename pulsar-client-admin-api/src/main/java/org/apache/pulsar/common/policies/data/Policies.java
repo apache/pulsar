@@ -36,6 +36,8 @@ public class Policies {
     public final AuthPolicies auth_policies = AuthPolicies.builder().build();
     @SuppressWarnings("checkstyle:MemberName")
     public Set<String> replication_clusters = new HashSet<>();
+    @SuppressWarnings("checkstyle:MemberName")
+    public Set<String> allowed_clusters = new HashSet<>();
     public BundlesData bundles;
     @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = new HashMap<>();
@@ -128,6 +130,8 @@ public class Policies {
 
     public boolean migrated;
 
+    public Boolean dispatcherPauseOnAckStatePersistentEnabled;
+
     public enum BundleType {
         LARGEST, HOT;
     }
@@ -137,7 +141,7 @@ public class Policies {
 
     @Override
     public int hashCode() {
-        return Objects.hash(auth_policies, replication_clusters,
+        return Objects.hash(auth_policies, replication_clusters, allowed_clusters,
                 backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
@@ -158,7 +162,8 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name, entryFilters, migrated);
+                resource_group_name, entryFilters, migrated,
+                dispatcherPauseOnAckStatePersistentEnabled);
     }
 
     @Override
@@ -167,6 +172,7 @@ public class Policies {
             Policies other = (Policies) obj;
             return Objects.equals(auth_policies, other.auth_policies)
                     && Objects.equals(replication_clusters, other.replication_clusters)
+                    && Objects.equals(allowed_clusters, other.allowed_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
                     && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
                     && Objects.equals(topicDispatchRate, other.topicDispatchRate)
@@ -206,7 +212,9 @@ public class Policies {
                     && Objects.equals(properties, other.properties)
                     && Objects.equals(migrated, other.migrated)
                     && Objects.equals(resource_group_name, other.resource_group_name)
-                    && Objects.equals(entryFilters, other.entryFilters);
+                    && Objects.equals(entryFilters, other.entryFilters)
+                    && Objects.equals(dispatcherPauseOnAckStatePersistentEnabled,
+                    other.dispatcherPauseOnAckStatePersistentEnabled);
         }
 
         return false;

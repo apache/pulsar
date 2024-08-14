@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.common.topics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
+import com.google.re2j.Pattern;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 
 @UtilityClass
@@ -47,13 +49,17 @@ public class TopicList {
     }
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
-        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains(SCHEME_SEPARATOR)
-                ? Pattern.compile(SCHEME_SEPARATOR_PATTERN.split(topicsPattern.toString())[1]) : topicsPattern;
+
+        final Pattern shortenedTopicsPattern = Pattern.compile(removeTopicDomainScheme(topicsPattern.toString()));
 
         return original.stream()
                 .map(TopicName::get)
+                .filter(topicName -> {
+                    String partitionedTopicName = topicName.getPartitionedTopicName();
+                    String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
+                    return shortenedTopicsPattern.matcher(removedScheme).matches();
+                })
                 .map(TopicName::toString)
-                .filter(topic -> shortenedTopicsPattern.matcher(SCHEME_SEPARATOR_PATTERN.split(topic)[1]).matches())
                 .collect(Collectors.toList());
     }
 
@@ -77,5 +83,25 @@ public class TopicList {
         HashSet<String> s1 = new HashSet<>(list1);
         s1.removeAll(list2);
         return s1;
+    }
+
+    @VisibleForTesting
+    static String removeTopicDomainScheme(String originalRegexp) {
+        if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
+            return originalRegexp;
+        }
+        String[] parts = SCHEME_SEPARATOR_PATTERN.split(originalRegexp.toString());
+        String prefix = parts[0];
+        String removedTopicDomain = parts[1];
+        if (prefix.equals(TopicDomain.persistent.value()) || prefix.equals(TopicDomain.non_persistent.value())) {
+            prefix = "";
+        } else if (prefix.endsWith(TopicDomain.non_persistent.value())) {
+            prefix = prefix.substring(0, prefix.length() - TopicDomain.non_persistent.value().length());
+        } else if (prefix.endsWith(TopicDomain.persistent.value())){
+            prefix = prefix.substring(0, prefix.length() - TopicDomain.persistent.value().length());
+        } else {
+            throw new IllegalArgumentException("Does not support topic domain: " + prefix);
+        }
+        return String.format("%s%s", prefix, removedTopicDomain);
     }
 }

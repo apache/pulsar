@@ -43,13 +43,14 @@ on:
 
 env:
   MAVEN_OPTS: -Xss1500k -Xmx1024m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   update-maven-dependencies-cache:
     name: Update Maven dependency cache for ${{ matrix.name }}
     env:
       JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
@@ -63,7 +64,7 @@ jobs:
             mvn_arguments: ''
 
           - name: all modules - macos
-            runs-on: macos-11
+            runs-on: macos-latest
             cache_name: 'm2-dependencies-all'
 
           - name: core-modules
@@ -73,7 +74,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -91,7 +92,7 @@ jobs:
       - name: Cache local Maven repository
         if: ${{ github.event_name == 'schedule' || steps.changes.outputs.poms == 'true' }}
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -103,10 +104,10 @@ jobs:
           # cache would be used as the starting point for a new cache entry
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: 17
 
       - name: Download dependencies

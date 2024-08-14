@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -80,12 +82,18 @@ public class BrokersBase extends AdminResource {
     // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
-    private volatile long threadDumpLoggedTimestamp;
+    // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
+    // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
+    // or we can't propagate the server timeout exception to the client.
+    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
+    private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Timeout", BrokersBase.class, "healthCheckRecursiveReadNext(...)");
+    private static volatile long threadDumpLoggedTimestamp;
 
     @GET
     @Path("/{cluster}")
     @ApiOperation(
-        value = "Get the list of active brokers (web service addresses) in the cluster."
+        value = "Get the list of active brokers (broker ids) in the cluster."
                 + "If authorization is not enabled, any cluster name is valid.",
         response = String.class,
         responseContainer = "Set")
@@ -115,7 +123,7 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @ApiOperation(
-            value = "Get the list of active brokers (web service addresses) in the local cluster."
+            value = "Get the list of active brokers (broker ids) in the local cluster."
                     + "If authorization is not enabled",
             response = String.class,
             responseContainer = "Set")
@@ -141,7 +149,9 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync().thenAccept(__ -> {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    BrokerInfo brokerInfo = BrokerInfo.builder()
+                            .serviceUrl(leaderBroker.getServiceUrl())
+                            .brokerId(leaderBroker.getBrokerId()).build();
                     LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
@@ -153,8 +163,8 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+    @Path("/{clusterName}/{brokerId}/ownedNamespaces")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker id",
             response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
@@ -162,9 +172,9 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
                                    @PathParam("clusterName") String cluster,
-                                   @PathParam("broker-webserviceurl") String broker) {
+                                   @PathParam("brokerId") String brokerId) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> maybeRedirectToBroker(brokerId))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(asyncResponse::resume)
@@ -172,7 +182,7 @@ public class BrokersBase extends AdminResource {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
-                                clientAppId(), cluster, broker);
+                                clientAppId(), cluster, brokerId);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -209,7 +219,7 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value =
             "Delete dynamic ServiceConfiguration into metadata only."
                     + " This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration delete successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -230,7 +240,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration/values")
-    @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
+    @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config",
+            response = String.class, responseContainer = "Map")
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
@@ -248,7 +259,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration")
-    @ApiOperation(value = "Get all updatable dynamic configurations's name")
+    @ApiOperation(value = "Get all updatable dynamic configurations's name",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
@@ -263,7 +275,8 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/configuration/runtime")
-    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.",
+            response = String.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
@@ -320,7 +333,7 @@ public class BrokersBase extends AdminResource {
     @Path("/backlog-quota-check")
     @ApiOperation(value = "An REST endpoint to trigger backlogQuotaCheck")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 204, message = "Everything is OK"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
@@ -358,15 +371,15 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    @ApiParam(value = "Topic Version")
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
+                            @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion) {
         validateSuperUserAccessAsync()
                 .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> internalRunHealthCheck(topicVersion))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
-                    asyncResponse.resume("ok");
+                    asyncResponse.resume(Response.ok("ok").build());
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -394,13 +407,17 @@ public class BrokersBase extends AdminResource {
         }
     }
 
+    public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
+        NamespaceName namespaceName = isV2
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
+                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
+        return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+    }
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        String lookupServiceAddress = pulsar().getLookupServiceAddress();
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(lookupServiceAddress, pulsar().getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(lookupServiceAddress, pulsar().getConfiguration());
-        final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        String brokerId = pulsar().getBrokerId();
+        final String topicName =
+                getHeartbeatTopicName(brokerId, pulsar().getConfiguration(), (topicVersion == TopicVersion.V2));
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
@@ -432,7 +449,10 @@ public class BrokersBase extends AdminResource {
                                     });
                                     throw FutureUtil.wrapToCompletionException(createException);
                                 }).thenCompose(reader -> producer.sendAsync(messageStr)
-                                        .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                        .thenCompose(__ -> FutureUtil.addTimeoutHandling(
+                                                healthCheckRecursiveReadNext(reader, messageStr),
+                                                HEALTH_CHECK_READ_TIMEOUT, pulsar().getBrokerService().executor(),
+                                                () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
                                         .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
                                                     .whenComplete((unused, innerEx) -> {
@@ -513,7 +533,7 @@ public class BrokersBase extends AdminResource {
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
         if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
-            throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+            throw new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
                 if (old != null) {
@@ -528,7 +548,7 @@ public class BrokersBase extends AdminResource {
     @Path("/version")
     @ApiOperation(value = "Get version of current broker")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 200, message = "The Pulsar version", response = String.class),
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
         return PulsarVersion.getVersion();

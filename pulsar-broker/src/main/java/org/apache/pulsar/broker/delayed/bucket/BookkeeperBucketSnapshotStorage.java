@@ -107,7 +107,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 pulsar.getIoEventLoopGroup(),
                 Optional.empty(),
                 null
-        );
+        ).get();
     }
 
     @Override

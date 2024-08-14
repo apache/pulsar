@@ -19,20 +19,16 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -58,7 +54,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -66,8 +61,11 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class PerformanceTransaction {
+@Command(name = "transaction", description = "Test pulsar transaction performance.")
+public class PerformanceTransaction extends PerformanceBaseArguments{
 
     private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
     private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
@@ -90,132 +88,120 @@ public class PerformanceTransaction {
     private static final Recorder messageSendRCumulativeRecorder =
             new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    @Parameters(commandDescription = "Test pulsar transaction performance.")
-    static class Arguments extends PerformanceBaseArguments {
+    @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
+            true)
+    public List<String> consumerTopic = Collections.singletonList("test-consume");
 
-        @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
-                true)
-        public List<String> consumerTopic = Collections.singletonList("test-consume");
+    @Option(names = "--topics-p", description = "All topics that need produce for a transaction",
+            required = true)
+    public List<String> producerTopic = Collections.singletonList("test-produce");
 
-        @Parameter(names = "--topics-p", description = "All topics that need produce for a transaction",
-                required = true)
-        public List<String> producerTopic = Collections.singletonList("test-produce");
+    @Option(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
+            + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
+            + "producer topics, and then commit or abort this transaction. "
+            + "Increasing the number of threads increases the parallelism of the performance test, "
+            + "thereby increasing the intensity of the stress test.")
+    public int numTestThreads = 1;
 
-        @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
-                + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
-                + "producer topics, and then commit or abort this transaction. "
-                + "Increasing the number of threads increases the parallelism of the performance test, "
-                + "thereby increasing the intensity of the stress test.")
-        public int numTestThreads = 1;
+    @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
+    public String adminURL;
 
-        @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
-        public String adminURL;
+    @Option(names = {"-np",
+            "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
+            + "not trying to create a topic")
+    public Integer partitions = null;
 
-        @Parameter(names = {"-np",
-                "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
-                + "not trying to create a topic")
-        public Integer partitions = null;
+    @Option(names = {"-time",
+            "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
+    public long testTime = 0;
 
-        @Parameter(names = {"-time",
-                "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
-        public long testTime = 0;
+    @Option(names = {"-ss",
+            "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
+    public List<String> subscriptions = Collections.singletonList("sub");
 
-        @Parameter(names = {"-ss",
-                "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
-        public List<String> subscriptions = Collections.singletonList("sub");
+    @Option(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
+    public int numSubscriptions = 1;
 
-        @Parameter(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
-        public int numSubscriptions = 1;
+    @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
 
-        @Parameter(names = {"-sp", "--subscription-position"}, description = "Subscription position")
-        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
+    @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
+    public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
-        @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
-        public SubscriptionType subscriptionType = SubscriptionType.Shared;
+    @Option(names = {"-rs", "--replicated" },
+            description = "Whether the subscription status should be replicated")
+    private boolean replicatedSubscription = false;
 
-        @Parameter(names = {"-rs", "--replicated" },
-                description = "Whether the subscription status should be replicated")
-        private boolean replicatedSubscription = false;
+    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
+    public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
-        public int receiverQueueSize = 1000;
+    @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
+            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
+    public long transactionTimeout = 5;
 
-        @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
-                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-        public long transactionTimeout = 5;
+    @Option(names = {"-ntxn",
+            "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
+            + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
+            + "consumes a specified number of messages.")
+    public long numTransactions = 0;
 
-        @Parameter(names = {"-ntxn",
-                "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
-                + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
-                + "consumes a specified number of messages.")
-        public long numTransactions = 0;
+    @Option(names = {"-nmp", "--numMessage-perTransaction-produce"},
+            description = "Set the number of messages produced in  a transaction."
+                    + "If transaction disabled, it means the number of messages produced in a task.")
+    public int numMessagesProducedPerTransaction = 1;
 
-        @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
-                description = "Set the number of messages produced in  a transaction."
-                        + "If transaction disabled, it means the number of messages produced in a task.")
-        public int numMessagesProducedPerTransaction = 1;
+    @Option(names = {"-nmc", "--numMessage-perTransaction-consume"},
+            description = "Set the number of messages consumed in a transaction."
+                    + "If transaction disabled, it means the number of messages consumed in a task.")
+    public int numMessagesReceivedPerTransaction = 1;
 
-        @Parameter(names = {"-nmc", "--numMessage-perTransaction-consume"},
-                description = "Set the number of messages consumed in a transaction."
-                        + "If transaction disabled, it means the number of messages consumed in a task.")
-        public int numMessagesReceivedPerTransaction = 1;
+    @Option(names = {"--txn-disable"}, description = "Disable transaction")
+    public boolean isDisableTransaction = false;
 
-        @Parameter(names = {"--txn-disable"}, description = "Disable transaction")
-        public boolean isDisableTransaction = false;
+    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
+            + "setting to false, -abort takes effect)")
+    public boolean isAbortTransaction = false;
 
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
-                + "setting to false, -abort takes effect)")
-        public boolean isAbortTransaction = false;
-
-        @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
-        public int openTxnRate = 0;
-
-        @Override
-        public void fillArgumentsFromProperties(Properties prop) {
-            if (adminURL == null) {
-                adminURL = prop.getProperty("webServiceUrl");
-            }
-            if (adminURL == null) {
-                adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-            }
-        }
+    @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
+    public int openTxnRate = 0;
+    public PerformanceTransaction() {
+        super("transaction");
     }
 
-    public static void main(String[] args)
-            throws IOException, PulsarAdminException, ExecutionException, InterruptedException {
-        final Arguments arguments = new Arguments();
-        arguments.parseCLI("pulsar-perf transaction", args);
+    @Override
+    public void run() throws Exception {
+        super.parseCLI();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar perf transaction with config: {}", w.writeValueAsString(arguments));
+        log.info("Starting Pulsar perf transaction with config: {}", w.writeValueAsString(this));
 
         final byte[] payloadBytes = new byte[1024];
         Random random = new Random(0);
         for (int i = 0; i < payloadBytes.length; ++i) {
             payloadBytes[i] = (byte) (random.nextInt(26) + 65);
         }
-        if (arguments.partitions != null) {
+        if (this.partitions != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
-                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
+                    .createAdminBuilderFromArguments(this, this.adminURL);
 
             try (PulsarAdmin adminClient = adminBuilder.build()) {
-                for (String topic : arguments.producerTopic) {
-                    log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
+                for (String topic : this.producerTopic) {
+                    log.info("Creating  produce partitioned topic {} with {} partitions", topic, this.partitions);
                     try {
-                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, this.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         if (log.isDebugEnabled()) {
                             log.debug("Topic {} already exists: {}", topic, alreadyExists);
                         }
                         PartitionedTopicMetadata partitionedTopicMetadata =
                                 adminClient.topics().getPartitionedTopicMetadata(topic);
-                        if (partitionedTopicMetadata.partitions != arguments.partitions) {
+                        if (partitionedTopicMetadata.partitions != this.partitions) {
                             log.error(
                                     "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
-                                    topic, partitionedTopicMetadata.partitions, arguments.partitions);
+                                    topic, partitionedTopicMetadata.partitions, this.partitions);
                             PerfClientUtils.exit(1);
                         }
                     }
@@ -223,22 +209,21 @@ public class PerformanceTransaction {
             }
         }
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .memoryLimit(arguments.memoryLimit, SizeUnit.BYTES)
-                        .enableTransaction(!arguments.isDisableTransaction);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
+                .enableTransaction(!this.isDisableTransaction);
 
         try (PulsarClient client = clientBuilder.build()) {
 
-            ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
-                    arguments.numTestThreads,
+            ExecutorService executorService = new ThreadPoolExecutor(this.numTestThreads,
+                    this.numTestThreads,
                     0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>());
 
 
             long startTime = System.nanoTime();
-            long testEndTime = startTime + (long) (arguments.testTime * 1e9);
+            long testEndTime = startTime + (long) (this.testTime * 1e9);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                if (!arguments.isDisableTransaction) {
+                if (!this.isDisableTransaction) {
                     printTxnAggregatedThroughput(startTime);
                 } else {
                     printAggregatedThroughput(startTime);
@@ -249,10 +234,10 @@ public class PerformanceTransaction {
             // start perf test
             AtomicBoolean executing = new AtomicBoolean(true);
 
-            RateLimiter rateLimiter = arguments.openTxnRate > 0
-                    ? RateLimiter.create(arguments.openTxnRate)
+            RateLimiter rateLimiter = this.openTxnRate > 0
+                    ? RateLimiter.create(this.openTxnRate)
                     : null;
-            for (int i = 0; i < arguments.numTestThreads; i++) {
+            for (int i = 0; i < this.numTestThreads; i++) {
                 executorService.submit(() -> {
                     //The producer and consumer clients are built in advance, and then this thread is
                     //responsible for the production and consumption tasks of the transaction through the loop.
@@ -261,11 +246,11 @@ public class PerformanceTransaction {
                     List<List<Consumer<byte[]>>> consumers = null;
                     AtomicReference<Transaction> atomicReference = null;
                     try {
-                        producers = buildProducers(client, arguments);
-                        consumers = buildConsumer(client, arguments);
-                        if (!arguments.isDisableTransaction) {
+                        producers = buildProducers(client);
+                        consumers = buildConsumer(client);
+                        if (!this.isDisableTransaction) {
                             atomicReference = new AtomicReference<>(client.newTransaction()
-                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
                                     .build()
                                     .get());
                         } else {
@@ -279,11 +264,11 @@ public class PerformanceTransaction {
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
                     while (true) {
-                        if (arguments.numTransactions > 0) {
+                        if (this.numTransactions > 0) {
                             if (totalNumTxnOpenTxnFail.sum()
-                                    + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
+                                    + totalNumTxnOpenTxnSuccess.sum() >= this.numTransactions) {
                                 if (totalNumEndTxnOpFailed.sum()
-                                        + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions) {
+                                        + totalNumEndTxnOpSuccess.sum() < this.numTransactions) {
                                     continue;
                                 }
                                 log.info("------------------- DONE -----------------------");
@@ -293,7 +278,7 @@ public class PerformanceTransaction {
                                 break;
                             }
                         }
-                        if (arguments.testTime > 0) {
+                        if (this.testTime > 0) {
                             if (System.nanoTime() > testEndTime) {
                                 log.info("------------------- DONE -----------------------");
                                 executing.compareAndSet(true, false);
@@ -305,7 +290,7 @@ public class PerformanceTransaction {
                         Transaction transaction = atomicReference.get();
                         for (List<Consumer<byte[]>> subscriptions : consumers) {
                             for (Consumer<byte[]> consumer : subscriptions) {
-                                for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
+                                for (int j = 0; j < this.numMessagesReceivedPerTransaction; j++) {
                                     Message<byte[]> message = null;
                                     try {
                                         message = consumer.receive();
@@ -315,7 +300,7 @@ public class PerformanceTransaction {
                                         PerfClientUtils.exit(1);
                                     }
                                     long receiveTime = System.nanoTime();
-                                    if (!arguments.isDisableTransaction) {
+                                    if (!this.isDisableTransaction) {
                                         consumer.acknowledgeAsync(message.getMessageId(), transaction)
                                                 .thenRun(() -> {
                                                     long latencyMicros = NANOSECONDS.toMicros(
@@ -356,9 +341,9 @@ public class PerformanceTransaction {
                         }
 
                         for (Producer<byte[]> producer : producers) {
-                            for (int j = 0; j < arguments.numMessagesProducedPerTransaction; j++) {
+                            for (int j = 0; j < this.numMessagesProducedPerTransaction; j++) {
                                 long sendTime = System.nanoTime();
-                                if (!arguments.isDisableTransaction) {
+                                if (!this.isDisableTransaction) {
                                     producer.newMessage(transaction).value(payloadBytes)
                                             .sendAsync().thenRun(() -> {
                                                 long latencyMicros = NANOSECONDS.toMicros(
@@ -398,8 +383,8 @@ public class PerformanceTransaction {
                         if (rateLimiter != null) {
                             rateLimiter.tryAcquire();
                         }
-                        if (!arguments.isDisableTransaction) {
-                            if (!arguments.isAbortTransaction) {
+                        if (!this.isDisableTransaction) {
+                            if (!this.isAbortTransaction) {
                                 transaction.commit()
                                         .thenRun(() -> {
                                             numTxnOpSuccess.increment();
@@ -432,7 +417,7 @@ public class PerformanceTransaction {
                             while (true) {
                                 try {
                                     Transaction newTransaction = client.newTransaction()
-                                            .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                            .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
                                             .build()
                                             .get();
                                     atomicReference.compareAndSet(transaction, newTransaction);
@@ -484,7 +469,7 @@ public class PerformanceTransaction {
                 double rate = numTxnOpSuccess.sumThenReset() / elapsed;
                 reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
                 reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
-                String txnOrTaskLog = !arguments.isDisableTransaction
+                String txnOrTaskLog = !this.isDisableTransaction
                         ? "Throughput transaction: {} transaction executes --- {} transaction/s"
                         : "Throughput task: {} task executes --- {} task/s";
                 log.info(
@@ -610,24 +595,24 @@ public class PerformanceTransaction {
     private static final Logger log = LoggerFactory.getLogger(PerformanceTransaction.class);
 
 
-    private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
+    private  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client)
             throws ExecutionException, InterruptedException {
         ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES)
-                .subscriptionType(arguments.subscriptionType)
-                .receiverQueueSize(arguments.receiverQueueSize)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
-                .replicateSubscriptionState(arguments.replicatedSubscription);
+                .subscriptionType(this.subscriptionType)
+                .receiverQueueSize(this.receiverQueueSize)
+                .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                .replicateSubscriptionState(this.replicatedSubscription);
 
-        Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
-        List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());
+        Iterator<String> consumerTopicsIterator = this.consumerTopic.iterator();
+        List<List<Consumer<byte[]>>> consumers = new ArrayList<>(this.consumerTopic.size());
         while (consumerTopicsIterator.hasNext()){
             String topic = consumerTopicsIterator.next();
-            final List<Consumer<byte[]>> subscriptions = new ArrayList<>(arguments.numSubscriptions);
+            final List<Consumer<byte[]>> subscriptions = new ArrayList<>(this.numSubscriptions);
             final List<Future<Consumer<byte[]>>> subscriptionFutures =
-                    new ArrayList<>(arguments.numSubscriptions);
+                    new ArrayList<>(this.numSubscriptions);
             log.info("Create subscriptions for topic {}", topic);
-            for (int j = 0; j < arguments.numSubscriptions; j++) {
-                String subscriberName = arguments.subscriptions.get(j);
+            for (int j = 0; j < this.numSubscriptions; j++) {
+                String subscriberName = this.subscriptions.get(j);
                 subscriptionFutures
                         .add(consumerBuilder.clone().topic(topic).subscriptionName(subscriberName)
                                 .subscribeAsync());
@@ -640,14 +625,14 @@ public class PerformanceTransaction {
         return consumers;
     }
 
-    private static List<Producer<byte[]>> buildProducers(PulsarClient client, Arguments arguments)
+    private List<Producer<byte[]>> buildProducers(PulsarClient client)
             throws ExecutionException, InterruptedException {
 
         ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS);
 
         final List<Future<Producer<byte[]>>> producerFutures = new ArrayList<>();
-        for (String topic : arguments.producerTopic) {
+        for (String topic : this.producerTopic) {
             log.info("Create producer for topic {}", topic);
             producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
         }

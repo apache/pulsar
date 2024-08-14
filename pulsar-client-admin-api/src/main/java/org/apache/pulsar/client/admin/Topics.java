@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1653,7 +1654,38 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                       boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously.
@@ -1666,7 +1698,31 @@ public interface Topics {
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+        return peekMessagesAsync(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+      @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return a future that can be used to track when the messages are returned
+     */
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel);
 
     /**
      * Get a message by its messageId via a topic subscription.
@@ -1679,7 +1735,9 @@ public interface Topics {
      * @return the message indexed by the messageId
      * @throws PulsarAdminException
      *            Unexpected error
+     * @deprecated Using {@link #getMessagesById(String, long, long)} instead.
      */
+    @Deprecated
     Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
@@ -1691,8 +1749,31 @@ public interface Topics {
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
+     * @deprecated Using {@link #getMessagesByIdAsync(String, long, long)} instead.
      */
+    @Deprecated
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+
+    /**
+     * Get the messages by messageId.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A set of messages.
+     * @throws PulsarAdminException Unexpected error
+     */
+    List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get the messages by messageId asynchronously.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A future that can be used to track when a set of messages is returned.
+     */
+    CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Get message ID published at or just after this absolute timestamp (in ms).

@@ -82,9 +82,9 @@ public interface TransportCnx {
      * by actively sending a Ping message to the client.
      *
      * @return a completable future where the result is true if the connection is alive, false otherwise. The result
-     * is null if the connection liveness check is disabled.
+     * is empty if the connection liveness check is disabled.
      */
-    CompletableFuture<Boolean> checkConnectionLiveness();
+    CompletableFuture<Optional<Boolean>> checkConnectionLiveness();
 
     /**
      * Increments the counter that controls the throttling of the connection by pausing reads.

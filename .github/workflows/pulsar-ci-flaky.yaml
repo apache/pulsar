@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - master
+      - branch-*
+      - pulsar-*
   schedule:
     # scheduled job with JDK 17
     - cron: '0 12 * * *'
@@ -68,6 +70,7 @@ env:
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
 
 jobs:
   preconditions:
@@ -102,7 +105,7 @@ jobs:
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -145,7 +148,7 @@ jobs:
     env:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
@@ -156,7 +159,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -174,7 +177,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Cache local Maven repository
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         timeout-minutes: 5
         with:
           path: |
@@ -185,9 +188,9 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Build core-modules
@@ -231,7 +234,7 @@ jobs:
 
       - name: Upload Jacoco report files to build artifacts
         if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Jacoco-coverage-report-flaky
           path: target/jacoco_test_coverage_report_flaky.zip
@@ -246,7 +249,7 @@ jobs:
           flags: unittests
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
           name: Unit-BROKER_FLAKY-surefire-reports
@@ -255,7 +258,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload possible heap dump, core dump or crash files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: Unit-BROKER_FLAKY-dumps

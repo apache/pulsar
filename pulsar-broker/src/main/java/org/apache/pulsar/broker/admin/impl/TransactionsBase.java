@@ -34,7 +34,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -547,7 +548,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+            boolean authoritative, String subName, Position position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
@@ -559,5 +560,21 @@ public abstract class TransactionsBase extends AdminResource {
                     return null;
         });
         return completableFuture;
+    }
+
+    protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
+                                                               long leastSigBits) {
+
+        if (mostSigBits < 0 || mostSigBits > Integer.MAX_VALUE) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("mostSigBits out of bounds"));
+        }
+
+        int partitionIdx = (int) mostSigBits;
+
+        return validateTopicOwnershipAsync(
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
+                .thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
+                        .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
 }

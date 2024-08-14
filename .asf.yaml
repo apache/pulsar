@@ -58,6 +58,9 @@ github:
 
       required_signatures: false
 
+      # Requires all conversations on code to be resolved before a pull request can be merged.
+      required_conversation_resolution: true
+
     # The following branch protections only ensure that force pushes are not allowed
     branch-1.15: {}
     branch-1.16: {}

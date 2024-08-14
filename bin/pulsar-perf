@@ -84,37 +84,6 @@ add_maven_deps_to_classpath() {
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
-pulsar_help() {
-    cat <<EOF
-Usage: pulsar-perf <command>
-where command is one of:
-    produce                 Run a producer
-    consume                 Run a consumer
-    transaction             Run a transaction repeatedly
-    read                    Run a topic reader
-
-    websocket-producer      Run a websocket producer
-
-    managed-ledger          Write directly on managed-ledgers
-    monitor-brokers         Continuously receive broker data and/or load reports
-    simulation-client       Run a simulation server acting as a Pulsar client
-    simulation-controller   Run a simulation controller to give commands to servers
-
-    gen-doc                 Generate documentation automatically.
-
-    help                    This help message
-
-or command is the full name of a class with a defined main() method.
-
-Environment variables:
-   PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
-   PULSAR_CLIENT_CONF            Configuration file for client (default: $DEFAULT_CLIENT_CONF)
-   PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
-   PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
-
-These variable can also be set in conf/pulsar_env.sh
-EOF
-}
 
 if [ -d "$PULSAR_HOME/lib" ]; then
 	PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
@@ -134,11 +103,20 @@ PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF` -Djava.net.preferIPv4Stack=true"
 
-IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
-# Start --add-opens options
-# '--add-opens' option is not supported in jdk8
-if [[ -z "$IS_JAVA_8" ]]; then
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+
+if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
   OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+  # Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms
+  # reflection access to java.util.zip.CRC32C
+  OPTS="$OPTS --add-opens java.base/java.util.zip=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
+  # Required by Netty for optimized direct byte buffer access
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -162,36 +140,4 @@ OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
 
-# if no args specified, show usage
-if [ $# = 0 ]; then
-    pulsar_help;
-    exit 1;
-fi
-
-# get arguments
-COMMAND=$1
-shift
-
-if [ "$COMMAND" == "produce" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceProducer --conf-file $PULSAR_PERFTEST_CONF "$@"
-elif [ "$COMMAND" == "consume" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceConsumer --conf-file $PULSAR_PERFTEST_CONF "$@"
-elif [  "$COMMAND" == "transaction" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceTransaction --conf-file $PULSAR_PERFTEST_CONF "$@"
-elif [ "$COMMAND" == "read" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.PerformanceReader --conf-file $PULSAR_PERFTEST_CONF "$@"
-elif [ "$COMMAND" == "monitor-brokers" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.BrokerMonitor "$@"
-elif [ "$COMMAND" == "simulation-client" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationClient "$@"
-elif [ "$COMMAND" == "simulation-controller" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationController "$@"
-elif [ "$COMMAND" == "websocket-producer" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
-elif [ "$COMMAND" == "managed-ledger" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.ManagedLedgerWriter "$@"
-elif [ "$COMMAND" == "gen-doc" ]; then
-    exec $JAVA $OPTS org.apache.pulsar.testclient.CmdGenerateDocumentation "$@"
-else
-    pulsar_help;
-fi
+exec $JAVA $OPTS org.apache.pulsar.testclient.PulsarPerfTestTool $PULSAR_PERFTEST_CONF "$@"

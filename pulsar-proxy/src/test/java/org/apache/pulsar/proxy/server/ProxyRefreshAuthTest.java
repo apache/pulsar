@@ -35,6 +35,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -52,10 +54,12 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
+    private static final String CLUSTER_NAME = "proxy-authorization";
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     protected void doInitConf() throws Exception {
@@ -84,7 +88,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         properties.setProperty("tokenAllowedClockSkewSeconds", "2");
         conf.setProperties(properties);
 
-        conf.setClusterName("proxy-authorization");
+        conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);
 
         conf.setAuthenticationRefreshCheckSeconds(1);
@@ -116,6 +120,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
@@ -125,9 +130,13 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         proxyConfig.setProperties(properties);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(
-                        PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                        PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
     }
 
     @AfterClass(alwaysRun = true)
@@ -135,6 +144,9 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     private void startProxy(boolean forwardAuthData) throws Exception {

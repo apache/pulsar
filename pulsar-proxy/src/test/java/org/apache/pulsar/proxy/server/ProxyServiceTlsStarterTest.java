@@ -55,7 +55,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
-        serviceStarter = new ProxyServiceStarter(ARGS);
+        serviceStarter = new ProxyServiceStarter(ARGS, null, true);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
@@ -68,6 +68,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.getConfig().setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
         serviceStarter.getConfig().setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
+        serviceStarter.getConfig().setClusterName(configClusterName);
         serviceStarter.start();
         serviceUrl = serviceStarter.getProxyService().getServiceUrlTls();
         webPort = serviceStarter.getServer().getListenPortHTTP().get();

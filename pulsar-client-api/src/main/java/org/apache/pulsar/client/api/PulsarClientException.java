@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import lombok.Getter;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -340,6 +341,22 @@ public class PulsarClientException extends IOException {
          *        by the {@link #getMessage()} method)
          */
         public TopicDoesNotExistException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     *  Not found subscription that cannot be created.
+     */
+    public static class SubscriptionNotFoundException extends PulsarClientException {
+        /**
+         * Constructs an {@code SubscriptionNotFoundException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public SubscriptionNotFoundException(String msg) {
             super(msg);
         }
     }
@@ -723,6 +740,30 @@ public class PulsarClientException extends IOException {
         public NotSupportedException(String msg) {
             super(msg);
         }
+    }
+
+    /**
+     * Not supported exception thrown by Pulsar client.
+     */
+    public static class FeatureNotSupportedException extends NotSupportedException {
+
+        @Getter
+        private final FailedFeatureCheck failedFeatureCheck;
+
+        public FeatureNotSupportedException(String msg, FailedFeatureCheck failedFeatureCheck) {
+            super(msg);
+            this.failedFeatureCheck = failedFeatureCheck;
+        }
+    }
+
+    /**
+     * "supports_auth_refresh" was introduced at "2.6" and is no longer supported, so skip this enum.
+     * "supports_broker_entry_metadata" was introduced at "2.8" and is no longer supported, so skip this enum.
+     * "supports_partial_producer" was introduced at "2.10" and is no longer supported, so skip this enum.
+     * "supports_topic_watchers" was introduced at "2.11" and is no longer supported, so skip this enum.
+     */
+    public enum FailedFeatureCheck {
+        SupportsGetPartitionedMetadataWithoutAutoCreation;
     }
 
     /**
@@ -1163,6 +1204,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof NotFoundException
                 || t instanceof IncompatibleSchemaException
                 || t instanceof TopicDoesNotExistException
+                || t instanceof SubscriptionNotFoundException
                 || t instanceof UnsupportedAuthenticationException
                 || t instanceof InvalidMessageException
                 || t instanceof InvalidTopicNameException

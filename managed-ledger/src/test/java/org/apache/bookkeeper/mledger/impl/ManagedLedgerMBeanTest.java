@@ -77,10 +77,12 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 0.0);
         assertEquals(mbean.getAddEntryMessagesRate(), 0.0);
         assertEquals(mbean.getAddEntrySucceed(), 0);
+        assertEquals(mbean.getAddEntrySucceedTotal(), 0);
         assertEquals(mbean.getAddEntryErrors(), 0);
         assertEquals(mbean.getReadEntriesBytesRate(), 0.0);
         assertEquals(mbean.getReadEntriesRate(), 0.0);
         assertEquals(mbean.getReadEntriesSucceeded(), 0);
+        assertEquals(mbean.getReadEntriesSucceededTotal(), 0);
         assertEquals(mbean.getReadEntriesErrors(), 0);
         assertEquals(mbean.getMarkDeleteRate(), 0.0);
 
@@ -105,10 +107,12 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 1600.0);
         assertEquals(mbean.getAddEntryMessagesRate(), 2.0);
         assertEquals(mbean.getAddEntrySucceed(), 2);
+        assertEquals(mbean.getAddEntrySucceedTotal(), 2);
         assertEquals(mbean.getAddEntryErrors(), 0);
         assertEquals(mbean.getReadEntriesBytesRate(), 0.0);
         assertEquals(mbean.getReadEntriesRate(), 0.0);
         assertEquals(mbean.getReadEntriesSucceeded(), 0);
+        assertEquals(mbean.getReadEntriesSucceededTotal(), 0);
         assertEquals(mbean.getReadEntriesErrors(), 0);
         assertTrue(mbean.getMarkDeleteRate() > 0.0);
 
@@ -134,9 +138,13 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         assertEquals(mbean.getReadEntriesBytesRate(), 600.0);
         assertEquals(mbean.getReadEntriesRate(), 1.0);
         assertEquals(mbean.getReadEntriesSucceeded(), 1);
+        assertEquals(mbean.getReadEntriesSucceededTotal(), 1);
         assertEquals(mbean.getReadEntriesErrors(), 0);
         assertEquals(mbean.getNumberOfMessagesInBacklog(), 1);
         assertEquals(mbean.getMarkDeleteRate(), 0.0);
+
+        assertEquals(mbean.getAddEntrySucceed(), 0);
+        assertEquals(mbean.getAddEntrySucceedTotal(), 2);
 
         factory.shutdown();
     }
