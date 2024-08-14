@@ -39,7 +39,16 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -74,6 +83,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private ProxyService proxyService;
     private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @BeforeMethod
     @Override
@@ -120,7 +130,10 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService, proxyClientAuthentication));
         webServer = new WebServer(proxyConfig, authService);
     }
 
@@ -130,11 +143,14 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         super.internalCleanup();
         proxyService.close();
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     private void startProxy() throws Exception {
         proxyService.start();
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null, proxyClientAuthentication);
         webServer.start();
     }
 
@@ -415,7 +431,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         final WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource), proxyClientAuthentication);
         webServer.start();
         @Cleanup
         final Client client = javax.ws.rs.client.ClientBuilder
@@ -440,7 +456,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticateMetricsEndpoint(false);
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource), proxyClientAuthentication);
         webServer.start();
         @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
@@ -453,7 +469,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticateMetricsEndpoint(true);
         webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                new BrokerDiscoveryProvider(proxyConfig, resource));
+                new BrokerDiscoveryProvider(proxyConfig, resource), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();

@@ -21,16 +21,15 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -53,6 +52,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     private final int NUM_CONCURRENT_INBOUND_CONNECTION = 5;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeMethod(alwaysRun = true)
@@ -68,7 +68,10 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -81,6 +84,9 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
     }
 

@@ -20,18 +20,17 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Optional;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -51,6 +50,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private static final Logger LOG = LoggerFactory.getLogger(AuthedAdminProxyHandlerTest.class);
 
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
     private WebServer webServer;
     private BrokerDiscoveryProvider discoveryProvider;
     private PulsarResources resource;
@@ -100,13 +100,17 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
         resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
                 new ZKMetadataStore(mockZooKeeperGlobal));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, resource));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
-        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider));
+        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 
@@ -118,6 +122,9 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
         super.internalCleanup();
     }
 
