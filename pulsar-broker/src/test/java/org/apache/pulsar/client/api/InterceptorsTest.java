@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,8 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
@@ -77,6 +76,12 @@ public class InterceptorsTest extends ProducerConsumerBase {
     @DataProvider(name = "topicPartition")
     public Object[][] getTopicPartition() {
         return new Object[][] {{ 0 }, { 3 }};
+    }
+
+    @DataProvider(name = "topics")
+    public Object[][] getTopics() {
+        return new Object[][] {{ List.of("persistent://my-property/my-ns/my-topic") },
+                { List.of("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1") }};
     }
 
     @Test
@@ -403,9 +408,9 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
+                MessageImpl<String> msg = ((MessageImpl<String>) ((TopicMessageImpl<String>) message).getMessage());
                 msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
-                return msg;
+                return message;
             }
 
             @Override
@@ -449,13 +454,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         int keyCount = 0;
         for (int i = 0; i < 2; i++) {
-            Message<String> received = consumer.receive();
+            Message<String> received;
+            if (i % 2 == 0) {
+                received = consumer.receive();
+            } else {
+                received = consumer.receiveAsync().join();
+            }
             MessageImpl<String> msg = (MessageImpl<String>) ((TopicMessageImpl<String>) received).getMessage();
             for (KeyValue keyValue : msg.getMessageBuilder().getPropertiesList()) {
                 if ("beforeConsumer".equals(keyValue.getKey())) {
                     keyCount++;
                 }
             }
+            Assert.assertEquals(keyCount, i + 1);
             consumer.acknowledge(received);
         }
         Assert.assertEquals(2, keyCount);
@@ -475,9 +486,9 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
-                MessageImpl<String> msg = (MessageImpl<String>) message;
+                MessageImpl<String> msg = ((MessageImpl<String>) ((TopicMessageImpl<String>) message).getMessage());
                 msg.getMessageBuilder().addProperty().setKey("beforeConsumer").setValue("1");
-                return msg;
+                return message;
             }
 
             @Override
@@ -612,8 +623,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testConsumerInterceptorForNegativeAcksSend() throws PulsarClientException, InterruptedException {
+    @Test(dataProvider = "topics")
+    public void testConsumerInterceptorForNegativeAcksSend(List<String> topics) throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -640,6 +651,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                Assert.assertTrue(latch.getCount() > 0);
                 messageIds.forEach(messageId -> latch.countDown());
             }
 
@@ -650,7 +662,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topics(topics)
                 .subscriptionType(SubscriptionType.Failover)
                 .intercept(interceptor)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
@@ -658,7 +670,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topics.get(0))
                 .create();
 
         for (int i = 0; i < totalNumOfMessages; i++) {
@@ -682,8 +694,9 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testConsumerInterceptorForAckTimeoutSend() throws PulsarClientException, InterruptedException {
+    @Test(dataProvider = "topics")
+    public void testConsumerInterceptorForAckTimeoutSend(List<String> topics) throws PulsarClientException,
+            InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -714,16 +727,17 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                Assert.assertTrue(latch.getCount() > 0);
                 messageIds.forEach(messageId -> latch.countDown());
             }
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topics.get(0))
                 .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topics(topics)
                 .subscriptionName("foo")
                 .intercept(interceptor)
                 .ackTimeout(2, TimeUnit.SECONDS)
