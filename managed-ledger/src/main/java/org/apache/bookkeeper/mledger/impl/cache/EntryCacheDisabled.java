@@ -22,6 +22,8 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManaged
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -39,10 +41,12 @@ import org.apache.commons.lang3.tuple.Pair;
 public class EntryCacheDisabled implements EntryCache {
     private final ManagedLedgerImpl ml;
     private final ManagedLedgerInterceptor interceptor;
+    private final boolean enableBookkeeperBatchRead;
 
     public EntryCacheDisabled(ManagedLedgerImpl ml) {
         this.ml = ml;
         this.interceptor = ml.getManagedLedgerInterceptor();
+        this.enableBookkeeperBatchRead = ml.getConfig().isEnableBookkeeperBatchRead();
     }
 
     @Override
@@ -79,26 +83,28 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
-                ledgerEntries -> {
-                    List<Entry> entries = new ArrayList<>();
-                    long totalSize = 0;
-                    try {
-                        for (LedgerEntry e : ledgerEntries) {
-                            // Insert the entries at the end of the list (they will be unsorted for now)
-                            EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
-                            entries.add(entry);
-                            totalSize += entry.getLength();
-                        }
-                    } finally {
-                        ledgerEntries.close();
-                    }
-                    ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
-                    ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
-                    ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
+        final int entriesToRead = (int) (lastEntry - firstEntry + 1);
+        CompletableFuture<LedgerEntries> f = enableBookkeeperBatchRead ?
+                lh.batchReadAsync(firstEntry, entriesToRead, 0) : lh.readAsync(firstEntry, lastEntry);
+        f.thenAcceptAsync(ledgerEntries -> {
+            List<Entry> entries = new ArrayList<>();
+            long totalSize = 0;
+            try {
+                for (LedgerEntry e : ledgerEntries) {
+                    // Insert the entries at the end of the list (they will be unsorted for now)
+                    EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                    entries.add(entry);
+                    totalSize += entry.getLength();
+                }
+            } finally {
+                ledgerEntries.close();
+            }
+            ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
+            ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
+            ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
-                    callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor()).exceptionally(exception -> {
+            callback.readEntriesComplete(entries, ctx);
+        }, ml.getExecutor()).exceptionally(exception -> {
             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
             return null;
         });

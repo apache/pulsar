@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.api.BKException;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -65,6 +66,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache<Position, EntryImpl> entries;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
+    private final boolean enableBookkeeperBatchRead;
 
     private volatile long estimatedEntrySize = 10 * 1024;
 
@@ -80,6 +82,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.readEntryTimeoutMillis = getManagedLedgerConfig().getReadEntryTimeoutSeconds();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
         this.copyEntries = copyEntries;
+        this.enableBookkeeperBatchRead = ml.getConfig().isEnableBookkeeperBatchRead();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -429,37 +432,36 @@ public class RangeEntryCacheImpl implements EntryCache {
     CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
                                                        long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
-                .thenApply(
-                        ledgerEntries -> {
-                            requireNonNull(ml.getName());
-                            requireNonNull(ml.getExecutor());
+        CompletableFuture<LedgerEntries> f = enableBookkeeperBatchRead ?
+                lh.batchReadAsync(firstEntry, entriesToRead, 0) : lh.readAsync(firstEntry, lastEntry);
+        CompletableFuture<List<EntryImpl>> readResult = f.thenApply(ledgerEntries -> {
+            requireNonNull(ml.getName());
+            requireNonNull(ml.getExecutor());
+            try {
+                // We got the entries, we need to transform them to a List<> type
+                long totalSize = 0;
+                final List<EntryImpl> entriesToReturn =
+                        Lists.newArrayListWithExpectedSize(entriesToRead);
+                for (LedgerEntry e : ledgerEntries) {
+                    EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                    entriesToReturn.add(entry);
+                    totalSize += entry.getLength();
+                    if (shouldCacheEntry) {
+                        EntryImpl cacheEntry = EntryImpl.create(entry);
+                        insert(cacheEntry);
+                        cacheEntry.release();
+                    }
+                }
 
-                            try {
-                                // We got the entries, we need to transform them to a List<> type
-                                long totalSize = 0;
-                                final List<EntryImpl> entriesToReturn =
-                                        Lists.newArrayListWithExpectedSize(entriesToRead);
-                                for (LedgerEntry e : ledgerEntries) {
-                                    EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
-                                    entriesToReturn.add(entry);
-                                    totalSize += entry.getLength();
-                                    if (shouldCacheEntry) {
-                                        EntryImpl cacheEntry = EntryImpl.create(entry);
-                                        insert(cacheEntry);
-                                        cacheEntry.release();
-                                    }
-                                }
+                ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
+                manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
+                ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
-                                ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
-                                manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
-                                ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
-
-                                return entriesToReturn;
-                            } finally {
-                                ledgerEntries.close();
-                            }
-                        });
+                return entriesToReturn;
+            } finally {
+                ledgerEntries.close();
+            }
+        });
         // handle LH invalidation
         readResult.exceptionally(exception -> {
             if (exception instanceof BKException

@@ -86,6 +86,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
     private boolean triggerOffloadOnTopicLoad = false;
+    private boolean enableBookkeeperBatchRead = false;
 
     @Getter
     @Setter
@@ -767,6 +768,14 @@ public class ManagedLedgerConfig {
 
     public String getShadowSource() {
         return MapUtils.getString(properties, PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
+    public void setEnableBookkeeperBatchRead(boolean enableBookkeeperBatchRead) {
+        this.enableBookkeeperBatchRead = enableBookkeeperBatchRead;
+    }
+
+    public boolean isEnableBookkeeperBatchRead() {
+        return enableBookkeeperBatchRead;
     }
 
     public static final String PROPERTY_SOURCE_TOPIC_KEY = "PULSAR.SHADOW_SOURCE";
