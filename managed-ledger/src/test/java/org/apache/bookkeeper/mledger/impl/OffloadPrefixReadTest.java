@@ -313,7 +313,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
-            return unsupported();
+            return readAsync(firstEntry, lastEntry);
         }
 
         @Override
