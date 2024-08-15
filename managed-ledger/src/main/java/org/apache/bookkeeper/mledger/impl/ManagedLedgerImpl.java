@@ -4054,6 +4054,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public static ManagedLedgerException createManagedLedgerException(Throwable t) {
         if (t instanceof org.apache.bookkeeper.client.api.BKException) {
             return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) t).getCode());
+        } else if (t instanceof ManagedLedgerException) {
+            return (ManagedLedgerException) t;
         } else if (t instanceof CompletionException
                 && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
             return createManagedLedgerException(t.getCause());
