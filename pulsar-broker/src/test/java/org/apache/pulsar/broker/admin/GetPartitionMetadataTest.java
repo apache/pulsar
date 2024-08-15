@@ -23,10 +23,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -34,6 +36,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -225,6 +229,60 @@ public class GetPartitionMetadataTest {
         }
     }
 
+    @Test(dataProvider = "topicDomains", priority = Integer.MAX_VALUE)
+    public void testCompatibilityForNewClientAndOldBroker(TopicDomain topicDomain) throws Exception {
+        modifyTopicAutoCreation(true, TopicType.PARTITIONED, 3);
+        // Initialize connections.
+        String pulsarUrl = pulsar1.getBrokerServiceUrl();
+        PulsarClientImpl[] clients = getClientsToTest(false);
+        for (PulsarClientImpl client : clients) {
+            client.getLookup(pulsarUrl).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+        }
+        // Inject a not support flag into the connections initialized.
+        Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
+        field.setAccessible(true);
+        for (PulsarClientImpl client : clients) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, false);
+            }
+        }
+
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback to
+        // "getPartitionsForTopic(topic)" behavior.
+        int lookupPermitsBefore = getLookupRequestPermits();
+        for (PulsarClientImpl client : clients) {
+            // Verify: the behavior of topic creation.
+            final String tp = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+            client.getPartitionedTopicMetadata(tp, false, true).join();
+            Optional<PartitionedTopicMetadata> metadata1 = pulsar1.getPulsarResources().getNamespaceResources()
+                    .getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(TopicName.get(tp), true).join();
+            assertTrue(metadata1.isPresent());
+            assertEquals(metadata1.get().partitions, 3);
+
+            // Verify: lookup semaphore has been releases.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+            });
+
+            // Cleanup.
+            admin1.topics().deletePartitionedTopic(tp, false);
+        }
+
+        // reset clients.
+        for (PulsarClientImpl client : clients) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, true);
+            }
+        }
+    }
+
     @DataProvider(name = "autoCreationParamsAll")
     public Object[][] autoCreationParamsAll(){
         return new Object[][]{
@@ -265,7 +323,7 @@ public class GetPartitionMetadataTest {
         for (PulsarClientImpl client : clientArray) {
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response =
-                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled).join();
+                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false).join();
             assertEquals(response.partitions, 0);
             List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
             assertFalse(partitionedTopics.contains(topicNameStr));
@@ -298,7 +356,7 @@ public class GetPartitionMetadataTest {
         for (PulsarClientImpl client : clientArray) {
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response =
-                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled).join();
+                    client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false).join();
             assertEquals(response.partitions, 3);
             verifyNonPartitionedTopicNeverCreated(topicNameStr);
 
@@ -332,7 +390,7 @@ public class GetPartitionMetadataTest {
             // Case-1: normal topic.
             final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
             // Verify: the result of get partitioned topic metadata.
-            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
+            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true, false).join();
             assertEquals(response.partitions, 3);
             // Verify: the behavior of topic creation.
             List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
@@ -347,7 +405,7 @@ public class GetPartitionMetadataTest {
                     topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response2 =
-                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true, false).join();
             assertEquals(response2.partitions, 0);
             // Verify: the behavior of topic creation.
             List<String> partitionedTopics2 =
@@ -380,7 +438,7 @@ public class GetPartitionMetadataTest {
             // Case 1: normal topic.
             final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
             // Verify: the result of get partitioned topic metadata.
-            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true).join();
+            PartitionedTopicMetadata response = client.getPartitionedTopicMetadata(topicNameStr, true, false).join();
             assertEquals(response.partitions, 0);
             // Verify: the behavior of topic creation.
             List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
@@ -392,7 +450,7 @@ public class GetPartitionMetadataTest {
                     topicDomain.value() + "://" + DEFAULT_NS + "/tp") + "-partition-1";
             // Verify: the result of get partitioned topic metadata.
             PartitionedTopicMetadata response2 =
-                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true).join();
+                    client.getPartitionedTopicMetadata(topicNameStrWithSuffix, true, false).join();
             assertEquals(response2.partitions, 0);
             // Verify: the behavior of topic creation.
             List<String> partitionedTopics2 =
@@ -443,7 +501,7 @@ public class GetPartitionMetadataTest {
             final TopicName topicName = TopicName.get(topicNameStr);
             // Verify: the result of get partitioned topic metadata.
             try {
-                client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled)
+                client.getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
                         .join();
                 fail("Expect a not found exception");
             } catch (Exception e) {
@@ -496,7 +554,7 @@ public class GetPartitionMetadataTest {
             // Verify: the result of get partitioned topic metadata.
             try {
                 PartitionedTopicMetadata topicMetadata = client
-                        .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled)
+                        .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
                         .join();
                 log.info("Get topic metadata: {}", topicMetadata.partitions);
                 fail("Expected a not found ex");

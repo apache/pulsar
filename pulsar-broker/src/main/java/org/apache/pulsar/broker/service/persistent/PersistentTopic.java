@@ -4103,8 +4103,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
-        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions
-                || !replicationEnabled) {
+        } else if (isCurrentlyEnabled && (!shouldBeEnabled || !isEnableReplicatedSubscriptions
+                || !replicationEnabled)) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
             replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
@@ -4246,15 +4246,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             decrementPendingWriteOpsAndCheck();
                         })
                         .exceptionally(throwable -> {
-                            throwable = throwable.getCause();
+                            throwable = FutureUtil.unwrapCompletionException(throwable);
                             if (throwable instanceof NotAllowedException) {
                               publishContext.completed((NotAllowedException) throwable, -1, -1);
                               decrementPendingWriteOpsAndCheck();
-                              return null;
-                            } else if (!(throwable instanceof ManagedLedgerException)) {
-                                throwable = new ManagedLedgerException(throwable);
+                            } else {
+                                addFailed(ManagedLedgerException.getManagedLedgerException(throwable), publishContext);
                             }
-                            addFailed((ManagedLedgerException) throwable, publishContext);
                             return null;
                         });
                 break;

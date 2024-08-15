@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-rabbitmq</artifactId>
@@ -85,6 +85,20 @@
       <artifactId>qpid-broker</artifactId>
       <version>9.2.0</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-bdbstore</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-broker-plugins-amqp-1-0-protocol-bdb-link-store</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-broker-plugins-derby-store</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>

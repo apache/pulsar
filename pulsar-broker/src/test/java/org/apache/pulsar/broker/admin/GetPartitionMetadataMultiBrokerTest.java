@@ -18,20 +18,32 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -218,5 +230,81 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                                                   boolean isUsingHttpLookup) throws Exception {
         super.testGetMetadataIfNotAllowedCreateOfNonPersistentTopic(configAllowAutoTopicCreation,
                 paramMetadataAutoCreationEnabled, isUsingHttpLookup);
+    }
+
+    @DataProvider(name = "autoCreationParamsAllForNonPersistentTopic")
+    public Object[][] autoCreationParamsAllForNonPersistentTopic(){
+        return new Object[][]{
+                // configAllowAutoTopicCreation, paramCreateIfAutoCreationEnabled, isUsingHttpLookup.
+                {true, true, true},
+                {true, true, false},
+                {true, false, true},
+                {true, false, false},
+                {false, true, true},
+                {false, true, false},
+                {false, false, true},
+                {false, false, false}
+        };
+    }
+
+    @Test(dataProvider = "autoCreationParamsAllForNonPersistentTopic", priority = Integer.MAX_VALUE)
+    public void testCompatibilityDifferentBrokersForNonPersistentTopic(boolean configAllowAutoTopicCreation,
+                                                  boolean paramMetadataAutoCreationEnabled,
+                                                  boolean isUsingHttpLookup) throws Exception {
+        modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
+
+        // Initialize the connections of internal Pulsar Client.
+        PulsarClientImpl client1 = (PulsarClientImpl) pulsar1.getClient();
+        PulsarClientImpl client2 = (PulsarClientImpl) pulsar2.getClient();
+        client1.getLookup(pulsar2.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+        client2.getLookup(pulsar1.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+
+        // Inject a not support flag into the connections initialized.
+        Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
+        field.setAccessible(true);
+        for (PulsarClientImpl client : Arrays.asList(client1, client2)) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, false);
+            }
+        }
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
+        //   to "getPartitionsForTopic(topic, true)" behavior.
+        int lookupPermitsBefore = getLookupRequestPermits();
+
+        // Verify: we will not get an un-support error.
+        PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
+        for (PulsarClientImpl client : clientArray) {
+            final String topicNameStr = BrokerTestUtil.newUniqueName("non-persistent://" + DEFAULT_NS + "/tp");
+            try {
+                PartitionedTopicMetadata topicMetadata = client
+                        .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
+                        .join();
+                log.info("Get topic metadata: {}", topicMetadata.partitions);
+            } catch (Exception ex) {
+                Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
+                assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException
+                        || unwrapEx instanceof PulsarClientException.NotFoundException);
+                assertFalse(ex.getMessage().contains("getting partitions without auto-creation is not supported from"
+                        + " the broker"));
+            }
+        }
+
+        // Verify: lookup semaphore has been releases.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+        });
+
+        // reset clients.
+        for (PulsarClientImpl client : Arrays.asList(client1, client2)) {
+            ConnectionPool pool = client.getCnxPool();
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+                ClientCnx clientCnx = connectionFuture.join();
+                clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
+                field.set(clientCnx, true);
+            }
+        }
     }
 }

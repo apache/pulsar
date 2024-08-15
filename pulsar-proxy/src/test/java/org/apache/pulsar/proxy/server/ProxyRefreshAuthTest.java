@@ -35,6 +35,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -57,6 +59,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
     private ProxyService proxyService;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     protected void doInitConf() throws Exception {
@@ -127,9 +130,13 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         proxyConfig.setProperties(properties);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(
-                        PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                        PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
     }
 
     @AfterClass(alwaysRun = true)
@@ -137,6 +144,9 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     private void startProxy(boolean forwardAuthData) throws Exception {
