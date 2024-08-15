@@ -27,12 +27,16 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
-                                                      long lastEntry) {
+                                                      long lastEntry, boolean enableBatchRead) {
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
             // the LAC of that read handle. Specifically, it happens when this method is called by a
             // ReadOnlyManagedLedgerImpl object.
-            return handle.readAsync(firstEntry, lastEntry);
+            int entriesToRead = (int) (lastEntry - firstEntry + 1);
+            if (entriesToRead <= 1 || !enableBatchRead) {
+                return handle.readAsync(firstEntry, lastEntry);
+            }
+            return handle.batchReadAsync(firstEntry, entriesToRead, 0);
         }
         // Compare the entry range with the lastConfirmedEntry maintained by the managed ledger because the entry cache
         // of `ShadowManagedLedgerImpl` reads entries via `ReadOnlyLedgerHandle`, which never updates `lastAddConfirmed`

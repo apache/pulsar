@@ -39,10 +39,12 @@ import org.apache.commons.lang3.tuple.Pair;
 public class EntryCacheDisabled implements EntryCache {
     private final ManagedLedgerImpl ml;
     private final ManagedLedgerInterceptor interceptor;
+    private final boolean enableBookkeeperBatchRead;
 
     public EntryCacheDisabled(ManagedLedgerImpl ml) {
         this.ml = ml;
         this.interceptor = ml.getManagedLedgerInterceptor();
+        this.enableBookkeeperBatchRead = ml.getConfig().isEnableBookkeeperBatchRead();
     }
 
     @Override
@@ -79,8 +81,8 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
-                ledgerEntries -> {
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, enableBookkeeperBatchRead)
+                .thenAcceptAsync(ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
                     try {
@@ -98,17 +100,18 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
                     callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor()).exceptionally(exception -> {
-            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-            return null;
-        });
+                }, ml.getExecutor())
+                .exceptionally(exception -> {
+                    callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                    return null;
+                });
     }
 
     @Override
     public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).whenCompleteAsync(
-                (ledgerEntries, exception) -> {
+        ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId(), enableBookkeeperBatchRead)
+                .whenCompleteAsync((ledgerEntries, exception) -> {
                     if (exception != null) {
                         ml.invalidateLedgerHandle(lh);
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
