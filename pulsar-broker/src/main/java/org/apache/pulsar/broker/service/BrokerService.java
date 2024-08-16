@@ -1082,7 +1082,7 @@ public class BrokerService implements Closeable {
                         if (topicName.isPartitioned()) {
                             final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
                             return fetchPartitionedTopicMetadataAsync(topicNameEntity)
-                                    .thenCompose((metadata) -> {
+                                    .thenComposeAsync((metadata) -> {
                                         // Allow crate non-partitioned persistent topic that name includes
                                         // `partition`
                                         if (metadata.partitions == 0
@@ -1098,7 +1098,7 @@ public class BrokerService implements Closeable {
                                             return FutureUtil.failedFuture(
                                                     new BrokerServiceException.NotAllowedException(errorMsg));
                                         }
-                                    });
+                                    }, pulsar.getExecutor());
                         } else {
                             return topics.computeIfAbsent(topicName.toString(), (tpName) ->
                                     loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies));
@@ -1664,6 +1664,7 @@ public class BrokerService implements Closeable {
                         topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
                     }
                 }).exceptionally(ex -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex);
                     return null;
                 });
@@ -1811,6 +1812,7 @@ public class BrokerService implements Closeable {
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
