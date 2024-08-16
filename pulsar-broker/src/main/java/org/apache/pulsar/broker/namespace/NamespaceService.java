@@ -23,6 +23,7 @@ import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
@@ -40,6 +41,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -51,9 +53,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -72,6 +76,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -102,6 +107,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.stats.MetricsUtil;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -123,6 +129,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.pulsar.broker.PulsarService
  */
+@Slf4j
 public class NamespaceService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceService.class);
 
@@ -183,6 +190,9 @@ public class NamespaceService implements AutoCloseable {
             .quantile(1.0)
             .register();
     private final DoubleHistogram lookupLatencyHistogram;
+
+    private ConcurrentHashMap<String, CompletableFuture<List<String>>> inProgressQueryUserTopics =
+            new ConcurrentHashMap<>();
 
     /**
      * Default constructor.
@@ -837,7 +847,7 @@ public class NamespaceService implements AutoCloseable {
                                                          boolean closeWithoutWaitingClientDisconnect) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
-                    .unloadNamespaceBundleAsync(bundle, destinationBroker, false);
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker, false, timeout, timeoutUnit);
         }
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
@@ -1287,7 +1297,8 @@ public class NamespaceService implements AutoCloseable {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             future = extensibleLoadManager.unloadNamespaceBundleAsync(
-                    nsBundle, Optional.empty(), true);
+                    nsBundle, Optional.empty(), true,
+                    pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
         } else {
             future = ownershipCache.removeOwnership(nsBundle);
         }
@@ -1331,7 +1342,13 @@ public class NamespaceService implements AutoCloseable {
                 bundleOwnershipListeners.add(listener);
             }
         }
-        getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+        pulsar.runWhenReadyForIncomingRequests(() -> {
+            try {
+                getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+            } catch (Exception e) {
+                LOG.error("Failed to notify namespace bundle ownership listener", e);
+            }
+        });
     }
 
     public void addNamespaceBundleSplitListener(NamespaceBundleSplitListener... listeners) {
@@ -1400,40 +1417,108 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
-        CompletableFuture<Boolean> future;
-        // If the topic is persistent and the name includes `-partition-`, find the topic from the managed/ledger.
-        if (topic.isPersistent() && topic.isPartitioned()) {
-            future = pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-        } else {
-            future = CompletableFuture.completedFuture(false);
-        }
+    /***
+     * Check topic exists( partitioned or non-partitioned ).
+     */
+    public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
+        return pulsar.getBrokerService()
+            .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
+            .thenCompose(metadata -> {
+                if (metadata.partitions > 0) {
+                    return CompletableFuture.completedFuture(
+                            TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
+                }
+                return checkNonPartitionedTopicExists(topic)
+                    .thenApply(b -> b ? TopicExistsInfo.newNonPartitionedTopicExists()
+                            : TopicExistsInfo.newTopicNotExists());
+            });
+    }
 
-        return future.thenCompose(found -> {
-            if (found != null && found) {
-                return CompletableFuture.completedFuture(true);
+    /***
+     * Check non-partitioned topic exists.
+     */
+    public CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topic) {
+        if (topic.isPersistent()) {
+            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+        } else {
+            return checkNonPersistentNonPartitionedTopicExists(topic.toString());
+        }
+    }
+
+    /**
+     * Regarding non-persistent topic, we do not know whether it exists or not. Redirect the request to the ownership
+     * broker of this topic. HTTP API has implemented the mechanism that redirect to ownership broker, so just call
+     * HTTP API here.
+     */
+    public CompletableFuture<Boolean> checkNonPersistentNonPartitionedTopicExists(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        // "non-partitioned & non-persistent" topics only exist on the owner broker.
+        return checkTopicOwnership(TopicName.get(topic)).thenCompose(isOwned -> {
+            // The current broker is the owner.
+            if (isOwned) {
+               CompletableFuture<Optional<Topic>> nonPersistentTopicFuture = pulsar.getBrokerService()
+                       .getTopic(topic, false);
+               if (nonPersistentTopicFuture != null) {
+                   return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+               } else {
+                   return CompletableFuture.completedFuture(false);
+               }
             }
 
-            return pulsar.getBrokerService()
-                    .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
-                    .thenCompose(metadata -> {
-                        if (metadata.partitions > 0) {
-                            return CompletableFuture.completedFuture(true);
-                        }
-
-                        if (topic.isPersistent()) {
-                            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-                        } else {
-                            // The non-partitioned non-persistent topic only exist in the broker topics.
-                            CompletableFuture<Optional<Topic>> nonPersistentTopicFuture =
-                                    pulsar.getBrokerService().getTopics().get(topic.toString());
-                            if (nonPersistentTopicFuture == null) {
+            // Forward to the owner broker.
+            PulsarClientImpl pulsarClient;
+            try {
+                pulsarClient = (PulsarClientImpl) pulsar.getClient();
+            } catch (Exception ex) {
+                // This error will never occur.
+                log.error("{} Failed to get partition metadata due to create internal admin client fails", topic, ex);
+                return FutureUtil.failedFuture(ex);
+            }
+            LookupOptions lookupOptions = LookupOptions.builder().readOnly(false).authoritative(true).build();
+            return getBrokerServiceUrlAsync(TopicName.get(topic), lookupOptions)
+                .thenCompose(lookupResult -> {
+                    if (!lookupResult.isPresent()) {
+                        log.error("{} Failed to get partition metadata due can not find the owner broker", topic);
+                        return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                                "No broker was available to own " + topicName));
+                    }
+                    LookupData lookupData = lookupResult.get().getLookupData();
+                    String brokerUrl;
+                    if (pulsar.getConfiguration().isBrokerClientTlsEnabled()
+                            && StringUtils.isNotEmpty(lookupData.getBrokerUrlTls())) {
+                        brokerUrl = lookupData.getBrokerUrlTls();
+                    } else {
+                        brokerUrl = lookupData.getBrokerUrl();
+                    }
+                    return pulsarClient.getLookup(brokerUrl)
+                        .getPartitionedTopicMetadata(topicName, false)
+                        .thenApply(metadata -> true)
+                        .exceptionallyCompose(ex -> {
+                            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                            if (actEx instanceof PulsarClientException.NotFoundException
+                                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                                    || actEx instanceof PulsarAdminException.NotFoundException) {
                                 return CompletableFuture.completedFuture(false);
+                            } else if (actEx instanceof PulsarClientException.FeatureNotSupportedException fe){
+                                if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
+                                    // Since the feature PIP-344 isn't supported, restore the behavior to previous
+                                    // behavior before https://github.com/apache/pulsar/pull/22838 changes.
+                                    log.info("{} Checking the existence of a non-persistent non-partitioned topic "
+                                                    + "was performed using the behavior prior to PIP-344 changes, "
+                                                    + "because the broker does not support the PIP-344 feature "
+                                                    + "'supports_get_partitioned_metadata_without_auto_creation'.",
+                                            topic);
+                                    return CompletableFuture.completedFuture(false);
+                                } else {
+                                    log.error("{} Failed to get partition metadata", topic, ex);
+                                    return CompletableFuture.failedFuture(ex);
+                                }
                             } else {
-                                return nonPersistentTopicFuture.thenApply(Optional::isPresent);
+                                log.error("{} Failed to get partition metadata", topic, ex);
+                                return CompletableFuture.failedFuture(ex);
                             }
-                        }
-                    });
+                        });
+            });
         });
     }
 
@@ -1447,6 +1532,23 @@ public class NamespaceService implements AutoCloseable {
             default:
                 return getListOfPersistentTopics(namespaceName);
         }
+    }
+
+    public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
+        String key = String.format("%s://%s", mode, namespaceName);
+        final MutableBoolean initializedByCurrentThread = new MutableBoolean();
+        CompletableFuture<List<String>> queryRes = inProgressQueryUserTopics.computeIfAbsent(key, k -> {
+            initializedByCurrentThread.setTrue();
+            return getListOfTopics(namespaceName, mode).thenApplyAsync(list -> {
+                return TopicList.filterSystemTopic(list);
+            }, pulsar.getExecutor());
+        });
+        if (initializedByCurrentThread.getValue()) {
+            queryRes.whenComplete((ignore, ex) -> {
+                inProgressQueryUserTopics.remove(key, queryRes);
+            });
+        }
+        return queryRes;
     }
 
     public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {

@@ -130,6 +130,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * Defaults to 25 seconds.
+     *
      * @return the client builder instance
      */
     ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);

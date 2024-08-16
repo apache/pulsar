@@ -45,7 +45,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -1167,7 +1167,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopicAsync(authoritative, force)
+
+        getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .partitionedTopicExistsAsync(topicName).thenAccept(exists -> {
+            if (exists) {
+                RestException restException = new RestException(Response.Status.CONFLICT,
+                        String.format("%s is a partitioned topic, instead of calling delete topic, please call"
+                                + " delete-partitioned-topic.", topicName));
+                resumeAsyncResponseExceptionally(asyncResponse, restException);
+                return;
+            }
+            internalDeleteTopicAsync(authoritative, force)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
@@ -1186,6 +1196,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+        });
+
     }
 
     @GET
@@ -1872,7 +1884,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             Optional<Position> positionImpl;
             if (position != null) {
-                positionImpl = Optional.of(new PositionImpl(position.getLedgerId(),
+                positionImpl = Optional.of(PositionFactory.create(position.getLedgerId(),
                         position.getEntryId()));
             } else {
                 positionImpl = Optional.empty();

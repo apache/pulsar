@@ -83,18 +83,18 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
+import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
-import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -104,6 +104,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -227,6 +228,8 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
                 NamespaceName.get("use", "ns-abc"));
@@ -2589,7 +2592,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
-        PositionImpl pos = new PositionImpl(0, 0);
+        Position pos = PositionFactory.create(0, 0);
 
         clientCommand =
                 Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
@@ -2940,7 +2943,7 @@ public class ServerCnxTest {
         // call addComplete on ledger asyncAddEntry
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                    new PositionImpl(-1, -1),
+                    PositionFactory.create(-1, -1),
                     null,
                     invocationOnMock.getArguments()[2]);
             return null;

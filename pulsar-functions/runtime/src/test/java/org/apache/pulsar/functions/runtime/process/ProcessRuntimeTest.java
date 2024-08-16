@@ -297,7 +297,7 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 48;
+        int totalArgCount = 54;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -305,13 +305,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 31;
-            metricsPortArg = 33;
+            portArg = 37;
+            metricsPortArg = 39;
         } else {
             assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
-            portArg = 30;
-            metricsPortArg = 32;
+            portArg = 36;
+            metricsPortArg = 38;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -328,7 +328,11 @@ public class ProcessRuntimeTest {
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " -Dio.netty.tryReflectionSetAccessible=true"
-                + " --add-opens java.base/sun.net=ALL-UNNAMED"
+                + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
+                + " --add-opens java.base/java.nio=ALL-UNNAMED"
+                + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+                + " --add-opens java.base/java.util.zip=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile
                 + " --transform_function_jar " + userJarFile

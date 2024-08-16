@@ -28,8 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -226,8 +226,8 @@ public class BacklogQuotaManager {
                     }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
-                        PositionImpl nextPosition =
-                                PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                        Position nextPosition =
+                                PositionFactory.create(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
                         slowestConsumer.markDelete(nextPosition);
                         continue;
                     }
@@ -235,8 +235,8 @@ public class BacklogQuotaManager {
                     if (ledgerInfo.getTimestamp() > 0
                             && currentMillis - ledgerInfo.getTimestamp() > SECONDS.toMillis(quota.getLimitTime())) {
                         // skip whole ledger for the slowest cursor
-                        PositionImpl nextPosition =
-                                PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
+                        Position nextPosition =
+                                PositionFactory.create(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
                         if (!nextPosition.equals(oldestPosition)) {
                             slowestConsumer.markDelete(nextPosition);
                             continue;

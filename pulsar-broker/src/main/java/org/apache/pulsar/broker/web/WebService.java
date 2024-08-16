@@ -20,12 +20,21 @@ package org.apache.pulsar.broker.web;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -75,7 +84,9 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
+    @Deprecated
     private final WebExecutorStats executorStats;
+    private final WebExecutorThreadPoolStats webExecutorThreadPoolStats;
     private final WebExecutorThreadPool webServiceExecutor;
 
     private final ServerConnector httpConnector;
@@ -101,6 +112,8 @@ public class WebService implements AutoCloseable {
                 "pulsar-web",
                 config.getHttpServerThreadPoolQueueSize());
         this.executorStats = WebExecutorStats.getStats(webServiceExecutor);
+        this.webExecutorThreadPoolStats =
+                new WebExecutorThreadPoolStats(pulsar.getOpenTelemetry().getMeter(), webServiceExecutor);
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
@@ -228,6 +241,7 @@ public class WebService implements AutoCloseable {
         private final FilterHolder authenticationFilterHolder;
         FilterInitializer(PulsarService pulsarService) {
             ServiceConfiguration config = pulsarService.getConfiguration();
+
             if (config.getMaxConcurrentHttpRequests() > 0) {
                 FilterHolder filterHolder = new FilterHolder(QoSFilter.class);
                 filterHolder.setInitParameter("maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
@@ -236,8 +250,13 @@ public class WebService implements AutoCloseable {
 
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
+                                pulsarService.getOpenTelemetry().getMeter())));
             }
+
+            // wait until the PulsarService is ready to serve incoming requests
+            filterHolders.add(
+                    new FilterHolder(new WaitUntilPulsarServiceIsReadyForIncomingRequestsFilter(pulsarService)));
 
             boolean brokerInterceptorEnabled = pulsarService.getBrokerInterceptor() != null;
             if (brokerInterceptorEnabled) {
@@ -280,6 +299,42 @@ public class WebService implements AutoCloseable {
             }
         }
 
+        // Filter that waits until the PulsarService is ready to serve incoming requests
+        private static class WaitUntilPulsarServiceIsReadyForIncomingRequestsFilter implements Filter {
+            private final PulsarService pulsarService;
+
+            public WaitUntilPulsarServiceIsReadyForIncomingRequestsFilter(PulsarService pulsarService) {
+                this.pulsarService = pulsarService;
+            }
+
+            @Override
+            public void init(FilterConfig filterConfig) throws ServletException {
+
+            }
+
+            @Override
+            public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                    throws IOException, ServletException {
+                try {
+                    // Wait until the PulsarService is ready to serve incoming requests
+                    pulsarService.waitUntilReadyForIncomingRequests();
+                } catch (ExecutionException e) {
+                    ((HttpServletResponse) response).sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                            "PulsarService failed to start.");
+                    return;
+                } catch (InterruptedException e) {
+                    ((HttpServletResponse) response).sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                            "PulsarService is not ready.");
+                    return;
+                }
+                chain.doFilter(request, response);
+            }
+
+            @Override
+            public void destroy() {
+
+            }
+        }
     }
 
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
@@ -376,6 +431,7 @@ public class WebService implements AutoCloseable {
                 jettyStatisticsCollector = null;
             }
             webServiceExecutor.join();
+            webExecutorThreadPoolStats.close();
             this.executorStats.close();
             log.info("Web service closed");
         } catch (Exception e) {

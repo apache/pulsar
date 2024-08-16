@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
@@ -87,6 +88,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
@@ -203,6 +207,110 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test
+    public void testBrokerMetrics() throws Exception {
+        cleanup();
+        conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        setup();
+
+        admin.tenants().createTenant("test-tenant",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("test-tenant/test-ns", 4);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic2").create();
+        // system topic
+        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/__test-topic").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        // additional system cursor
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/my-topic2")
+                .subscriptionName("test-cursor")
+                .subscribe();
+
+        Consumer<byte[]> c3 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/__test-topic")
+                .subscriptionName("test-v1")
+                .subscribe();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+            p3.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+            c2.acknowledge(c2.receive());
+            c3.acknowledge(c3.receive());
+        }
+
+        // unsubscribe to test remove cursor impact on metric
+        c1.unsubscribe();
+        c2.unsubscribe();
+
+        admin.topicPolicies().setRetention("persistent://test-tenant/test-ns/my-topic2",
+                        new RetentionPolicies(60, 1024));
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        });
+
+        List<Metric> bytesOutTotal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total");
+        List<Metric> bytesInTotal = (List<Metric>) metrics.get("pulsar_broker_in_bytes_total");
+        List<Metric> topicLevelBytesOutTotal = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+
+        assertEquals(bytesOutTotal.size(), 2);
+        assertEquals(bytesInTotal.size(), 2);
+        assertEquals(topicLevelBytesOutTotal.size(), 3);
+
+        double systemOutBytes = 0.0;
+        double userOutBytes = 0.0;
+        double systemInBytes = 0.0;
+        double userInBytes = 0.0;
+
+        for (Metric metric : bytesOutTotal) {
+            if (metric.tags.get("system_subscription").equals("true")) {
+                systemOutBytes = metric.value;
+            } else {
+                userOutBytes = metric.value;
+            }
+        }
+
+        for (Metric metric : bytesInTotal) {
+            if (metric.tags.get("system_topic").equals("true")) {
+                systemInBytes = metric.value;
+            } else {
+                userInBytes = metric.value;
+            }
+        }
+
+        double systemCursorOutBytes = 0.0;
+        for (Metric metric : topicLevelBytesOutTotal) {
+            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)
+                    || metric.tags.get("subscription").equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                systemCursorOutBytes = metric.value;
+            }
+        }
+
+        assertEquals(systemCursorOutBytes, systemInBytes);
+        assertEquals(userOutBytes / 2, systemOutBytes - systemCursorOutBytes);
+        assertEquals(userOutBytes + systemOutBytes, userInBytes + systemInBytes);
     }
 
     @Test

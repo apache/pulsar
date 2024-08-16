@@ -100,7 +100,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         };
     }
 
-    private synchronized String getOxiaServerConnectString() {
+    protected synchronized String getOxiaServerConnectString() {
         if (oxiaServer == null) {
             oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
             oxiaServer.start();

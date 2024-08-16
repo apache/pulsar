@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>distribution</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-server-distribution</artifactId>
@@ -37,6 +37,19 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-metadata</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>jetcd-core-shaded</artifactId>
+      <version>${project.version}</version>
+      <classifier>shaded</classifier>
     </dependency>
 
     <dependency>

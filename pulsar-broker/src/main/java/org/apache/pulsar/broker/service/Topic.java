@@ -384,4 +384,9 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

@@ -44,7 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
@@ -87,7 +87,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
-    protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
+    protected volatile Range<Position> lastIndividualDeletedRangeFromCursorRecovery;
 
     private CompletableFuture<Void> closeFuture = null;
     protected final MessageRedeliveryController redeliveryMessages;
@@ -97,7 +97,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
-    protected volatile PositionImpl minReplayedPosition = null;
+    protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
@@ -299,12 +299,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (cursor.isClosed()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
-            }
-            return;
-        }
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
@@ -339,8 +333,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 return;
             }
 
-            NavigableSet<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
-            NavigableSet<PositionImpl> messagesToReplayFiltered = filterOutEntriesWillBeDiscarded(messagesToReplayNow);
+            NavigableSet<Position> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
+            NavigableSet<Position> messagesToReplayFiltered = filterOutEntriesWillBeDiscarded(messagesToReplayNow);
             if (!messagesToReplayFiltered.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
@@ -354,8 +348,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         : asyncReplayEntries(messagesToReplayFiltered);
                 // clear already acked positions from replay bucket
 
-                deletedMessages.forEach(position -> redeliveryMessages.remove(((PositionImpl) position).getLedgerId(),
-                        ((PositionImpl) position).getEntryId()));
+                deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
+                        position.getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayFiltered.size() - deletedMessages.size()) == 0) {
@@ -380,7 +374,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                NavigableSet<PositionImpl> toReplay = getMessagesToReplayNow(1);
+                NavigableSet<Position> toReplay = getMessagesToReplayNow(1);
                 if (!toReplay.isEmpty()) {
                     minReplayedPosition = toReplay.first();
                     redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
@@ -390,7 +384,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
                 if (delayedDeliveryTracker.isPresent()) {
-                    Predicate<PositionImpl> skipCondition = null;
+                    Predicate<Position> skipCondition = null;
                     final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
                     if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
                         skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
@@ -897,29 +891,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+
         ReadType readType = (ReadType) ctx;
-        if (readType == ReadType.Normal) {
-            havePendingRead = false;
-        } else {
-            havePendingReplayRead = false;
-            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
-                PositionImpl markDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
-                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
-        }
-        if (shouldRewindBeforeReadingOrReplaying) {
-            shouldRewindBeforeReadingOrReplaying = false;
-            cursor.rewind();
-        }
-        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
-
-        // Do not keep reading more entries if the cursor is already closed.
-        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
-            log.warn("[{}] Cursor was already closed when reading entries", name);
-            return;
-        }
-
         long waitTimeMillis = readFailureBackoff.next();
+
         if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
@@ -943,6 +918,23 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
         }
 
+        if (shouldRewindBeforeReadingOrReplaying) {
+            shouldRewindBeforeReadingOrReplaying = false;
+            cursor.rewind();
+        }
+
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+        } else {
+            havePendingReplayRead = false;
+            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
+                Position markDeletePosition = cursor.getMarkDeletedPosition();
+                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
+        }
+
+        readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
+
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 // If it's a replay read we need to retry even if there's already
@@ -964,7 +956,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return false;
         } else {
             return lastIndividualDeletedRangeFromCursorRecovery.upperEndpoint()
-                    .compareTo((PositionImpl) cursor.getReadPosition()) > 0;
+                    .compareTo(cursor.getReadPosition()) > 0;
         }
     }
 
@@ -1015,7 +1007,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
             if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                redeliveryTracker.incrementAndGetRedeliveryCount((PositionImpl.get(ledgerId, entryId)));
+                redeliveryTracker.incrementAndGetRedeliveryCount((PositionFactory.create(ledgerId, entryId)));
             }
         });
         if (log.isDebugEnabled()) {
@@ -1026,7 +1018,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         positions.forEach(position -> {
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
@@ -1173,15 +1165,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         synchronized (this) {
-            if (!delayedDeliveryTracker.isPresent()) {
+            if (delayedDeliveryTracker.isEmpty()) {
                 if (!msgMetadata.hasDeliverAtTime()) {
                     // No need to initialize the tracker here
                     return false;
                 }
 
                 // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional
-                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                delayedDeliveryTracker = Optional.of(
+                        topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
 
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
@@ -1191,10 +1183,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
         if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            NavigableSet<PositionImpl> messagesAvailableNow =
+            NavigableSet<Position> messagesAvailableNow =
                     delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
@@ -1215,7 +1207,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * - The order guarantee mechanism of Key_Shared mode filtered out all the entries.
      * - Delivery non entry to the client, but we did a BK read.
      */
-    protected NavigableSet<PositionImpl> filterOutEntriesWillBeDiscarded(NavigableSet<PositionImpl> src) {
+    protected NavigableSet<Position> filterOutEntriesWillBeDiscarded(NavigableSet<Position> src) {
         return src;
     }
 
@@ -1333,6 +1325,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected int getStickyKeyHash(Entry entry) {
         return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+    }
+
+
+    public Subscription getSubscription() {
+        return subscription;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);

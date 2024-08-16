@@ -123,7 +123,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
@@ -1384,7 +1384,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
                 Message<byte[]> message4 = consumer.receive();
                 Assert.assertEquals(message4.getKey(), "key2");
-                Assert.assertEquals(new String(message4.getData()), "");
+                assertNull(message4.getData());
 
                 Message<byte[]> message5 = consumer.receive();
                 Assert.assertEquals(message5.getKey(), "key4");

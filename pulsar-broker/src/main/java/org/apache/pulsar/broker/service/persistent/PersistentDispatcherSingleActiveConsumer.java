@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -308,7 +308,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
         redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }

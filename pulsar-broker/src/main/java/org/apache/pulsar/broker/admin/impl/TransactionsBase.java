@@ -34,7 +34,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -548,7 +548,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+            boolean authoritative, String subName, Position position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
@@ -564,8 +564,15 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
                                                                long leastSigBits) {
+
+        if (mostSigBits < 0 || mostSigBits > Integer.MAX_VALUE) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("mostSigBits out of bounds"));
+        }
+
+        int partitionIdx = (int) mostSigBits;
+
         return validateTopicOwnershipAsync(
-                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) mostSigBits), authoritative)
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
                 .thenCompose(__ -> validateSuperUserAccessAsync())
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));

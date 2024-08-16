@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
@@ -137,7 +137,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // Send response containing the current last written message id. The response
         // marker we're publishing locally and then replicating will have a higher
         // message id.
-        PositionImpl lastMsgId = (PositionImpl) topic.getLastPosition();
+        Position lastMsgId = topic.getLastPosition();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received snapshot request. Last msg id: {}", topic.getName(), lastMsgId);
         }
@@ -178,7 +178,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             return;
         }
 
-        Position pos = new PositionImpl(updatedMessageId.getLedgerId(), updatedMessageId.getEntryId());
+        Position pos = PositionFactory.create(updatedMessageId.getLedgerId(), updatedMessageId.getEntryId());
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received update for subscription to {}", topic, update.getSubscriptionName(), pos);
@@ -288,7 +288,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
         }
 
-        this.positionOfLastLocalMarker = new PositionImpl(ledgerId, entryId);
+        this.positionOfLastLocalMarker = PositionFactory.create(ledgerId, entryId);
     }
 
     PersistentTopic topic() {

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.storage;
 
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -47,7 +48,8 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
                     BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup) throws Exception;
+                    EventLoopGroup eventLoopGroup,
+                    OpenTelemetry openTelemetry) throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -87,11 +89,12 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
                                        BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup) throws Exception {
+                                       EventLoopGroup eventLoopGroup,
+                                       OpenTelemetry openTelemetry) throws Exception {
         ManagedLedgerStorage storage =
                 Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
                         Thread.currentThread().getContextClassLoader());
-        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup, openTelemetry);
         return storage;
     }
 

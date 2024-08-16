@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -62,8 +63,11 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicAttributes;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -72,6 +76,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
@@ -116,6 +121,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return new TopicStats();
         }
     };
+
+    private volatile TopicAttributes topicAttributes = null;
+    private static final AtomicReferenceFieldUpdater<NonPersistentTopic, TopicAttributes>
+            TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    NonPersistentTopic.class, TopicAttributes.class, "topicAttributes");
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -933,9 +943,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
+        stats.systemTopicBytesInCounter = getSystemTopicBytesInCounter();
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
             NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
@@ -945,10 +957,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             stats.bytesOutCounter += subStats.bytesOutCounter;
             stats.msgOutCounter += subStats.msgOutCounter;
             stats.getSubscriptions().put(name, subStats);
+
+            if (isSystemCursor(name)) {
+                stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+            }
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStatsImpl replicatorStats = replicator.getStats();
+            NonPersistentReplicatorStatsImpl replicatorStats = replicator.computeStats();
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
@@ -1198,6 +1214,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
                 bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
                 msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+
+                if (isSystemCursor(subscriptionName)
+                        || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                    bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                }
             }
         }, brokerService.executor());
     }
@@ -1226,7 +1247,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     || (!producers.isEmpty())
                     || (numActiveConsumersWithoutAutoSchema != 0)
                     || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
-                return checkSchemaCompatibleForConsumer(schema);
+                return checkSchemaCompatibleForConsumer(schema)
+                        .exceptionally(ex -> {
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            if (realCause instanceof NotExistSchemaException) {
+                                throw FutureUtil.wrapToCompletionException(
+                                        new IncompatibleSchemaException("Failed to add schema to an active topic"
+                                                + " with empty(BYTES) schema: new schema type " + schema.getType()));
+                            }
+                            throw FutureUtil.wrapToCompletionException(realCause);
+                        });
             } else {
                 return addSchema(schema).thenCompose(schemaVersion -> CompletableFuture.completedFuture(null));
             }
@@ -1267,5 +1297,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
         return -1;
+    }
+
+    @Override
+    public TopicAttributes getTopicAttributes() {
+        if (topicAttributes != null) {
+            return topicAttributes;
+        }
+        return TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new TopicAttributes(TopicName.get(topic)));
     }
 }

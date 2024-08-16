@@ -562,9 +562,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+            doc = "Configuration file path for local metadata store."
     )
     private String metadataStoreConfigPath = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for configuration metadata store."
+    )
+    private String configurationStoreConfigPath = null;
 
     @FieldContext(
             dynamic = true,
@@ -593,6 +599,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
     private boolean backlogQuotaCheckEnabled = true;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1344,6 +1365,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The position that replication task start at, it can be set to earliest or latest (default).")
+    private String replicationStartAt = "latest";
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2389,21 +2416,51 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+            doc = "The low threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderLowThreshold = 15;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The high threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderHighThreshold = 40;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the low threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountLowThreshold = 8;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the high threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountHighThreshold = 2;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum message that triggers unload."
     )
     private int minUnloadMessage = 1000;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum throughput that triggers unload."
     )
     private int minUnloadMessageThroughput = 1 * 1024 * 1024;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
+                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
+                    + "evenly between the highest and lowest brokers."
     )
     private double maxUnloadPercentage = 0.2;
 
@@ -2444,16 +2501,59 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithIn Resource Usage Weight"
+            doc = "BandwidthIn Resource Usage Weight"
     )
-    private double loadBalancerBandwithInResourceWeight = 1.0;
+    private double loadBalancerBandwidthInResourceWeight = 1.0;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "BandwithOut Resource Usage Weight"
+            doc = "BandwidthOut Resource Usage Weight"
+    )
+    private double loadBalancerBandwidthOutResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthIn Resource Usage Weight, Deprecated: Use loadBalancerBandwidthInResourceWeight"
+    )
+    private double loadBalancerBandwithInResourceWeight = 1.0;
+
+    @Deprecated
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "BandwidthOut Resource Usage Weight, Deprecated: Use loadBalancerBandwidthOutResourceWeight"
     )
     private double loadBalancerBandwithOutResourceWeight = 1.0;
+
+    /**
+     * Get the load balancer bandwidth in resource weight.
+     * To be compatible with the old configuration, we still support the old configuration.
+     * If a configuration is not the default configuration, use that configuration.
+     * If both the new and the old are configured different from the default value, use the new one.
+     * @return
+     */
+    public double getLoadBalancerBandwidthInResourceWeight() {
+        if (loadBalancerBandwidthInResourceWeight != 1.0) {
+            return loadBalancerBandwidthInResourceWeight;
+        }
+        if (loadBalancerBandwithInResourceWeight != 1.0) {
+            return loadBalancerBandwithInResourceWeight;
+        }
+        return 1.0;
+    }
+
+    public double getLoadBalancerBandwidthOutResourceWeight() {
+        if (loadBalancerBandwidthOutResourceWeight != 1.0) {
+            return loadBalancerBandwidthOutResourceWeight;
+        }
+        if (loadBalancerBandwithOutResourceWeight != 1.0) {
+            return loadBalancerBandwithOutResourceWeight;
+        }
+        return 1.0;
+    }
 
     @FieldContext(
             dynamic = true,
@@ -2469,7 +2569,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Memory Resource Usage Weight. Deprecated: Memory is no longer used as a load balancing item.",
             deprecated = true
     )
-    private double loadBalancerMemoryResourceWeight = 1.0;
+    private double loadBalancerMemoryResourceWeight = 0;
 
     @FieldContext(
             dynamic = true,
