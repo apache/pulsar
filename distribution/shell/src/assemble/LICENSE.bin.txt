@@ -313,17 +313,17 @@ The Apache Software License, Version 2.0
      - picocli-4.7.5.jar
      - picocli-shell-jline3-4.7.5.jar
  * Jackson
-     - jackson-annotations-2.14.2.jar
-     - jackson-core-2.14.2.jar
-     - jackson-databind-2.14.2.jar
-     - jackson-dataformat-yaml-2.14.2.jar
-     - jackson-jaxrs-base-2.14.2.jar
-     - jackson-jaxrs-json-provider-2.14.2.jar
-     - jackson-module-jaxb-annotations-2.14.2.jar
-     - jackson-module-jsonSchema-2.14.2.jar
-     - jackson-datatype-jdk8-2.14.2.jar
-     - jackson-datatype-jsr310-2.14.2.jar
-     - jackson-module-parameter-names-2.14.2.jar
+     - jackson-annotations-2.17.2.jar
+     - jackson-core-2.17.2.jar
+     - jackson-databind-2.17.2.jar
+     - jackson-dataformat-yaml-2.17.2.jar
+     - jackson-jaxrs-base-2.17.2.jar
+     - jackson-jaxrs-json-provider-2.17.2.jar
+     - jackson-module-jaxb-annotations-2.17.2.jar
+     - jackson-module-jsonSchema-2.17.2.jar
+     - jackson-datatype-jdk8-2.17.2.jar
+     - jackson-datatype-jsr310-2.17.2.jar
+     - jackson-module-parameter-names-2.17.2.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
     - gson-2.8.9.jar
