@@ -230,6 +230,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testCreateTopic() {
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
 
         final String topicName = "persistent://prop/use/ns-abc/topic1";
@@ -357,6 +358,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
 
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
@@ -1365,6 +1367,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn("mockCursor").when(cursorMock).getName();
         doReturn(true).when(cursorMock).isDurable();
         // doNothing().when(cursorMock).asyncClose(new CloseCallback() {
@@ -1662,6 +1665,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         String remoteCluster = "remote";
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
         doNothing().when(ledgerMock).asyncDeleteCursor(any(), any(), any());
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
@@ -1721,6 +1725,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
         doNothing().when(ledgerMock).asyncDeleteCursor(any(), any(), any());
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
 
@@ -2111,6 +2116,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetDurableSubscription() throws Exception {
         ManagedLedger mockLedger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(mockLedger).getConfig();
         ManagedCursor mockCursor = mock(ManagedCursorImpl.class);
         Position mockPosition = mock(Position.class);
         doReturn("test").when(mockCursor).getName();
