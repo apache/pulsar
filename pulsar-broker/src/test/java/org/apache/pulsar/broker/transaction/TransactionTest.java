@@ -71,6 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -1648,6 +1649,7 @@ public class TransactionTest extends TransactionTestBase {
         // Mock managedLedger.
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
         ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(managedLedger.getCursors()).thenReturn(managedCursors);
         Position position = PositionFactory.EARLIEST;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
