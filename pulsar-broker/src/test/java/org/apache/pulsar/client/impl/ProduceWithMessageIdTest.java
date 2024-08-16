@@ -28,6 +28,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MockBrokerService;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -40,13 +41,20 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 @Slf4j
-public class ProduceWithMessageIdTest {
+public class ProduceWithMessageIdTest extends ProducerConsumerBase {
     MockBrokerService mockBrokerService;
 
     @BeforeClass(alwaysRun = true)
-    public void setup() {
+    public void setup() throws Exception {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
+        super.internalSetup();
+        super.producerBaseSetup();
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @AfterClass(alwaysRun = true)
@@ -119,22 +127,16 @@ public class ProduceWithMessageIdTest {
     }
 
     @Test
-    public void testSendWithCallBack() throws Exception {
+    public void sendWithCallBack() throws Exception {
 
         int batchSize = 10;
-        @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
-                .serviceUrl(mockBrokerService.getBrokerAddress())
-                .build();
 
-        String topic = "persistent://public/default/t1";
+        String topic = "persistent://public/default/testSendWithCallBack";
         ProducerImpl<byte[]> producer =
-                (ProducerImpl<byte[]>) client.newProducer().topic(topic)
+                (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic)
                         .enableBatching(true)
                         .batchingMaxMessages(batchSize)
                         .create();
-
-
 
         AtomicBoolean result = new AtomicBoolean(false);
         AtomicReference<OpSendMsgStats> sendMsgStats = new AtomicReference<>();
