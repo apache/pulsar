@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
@@ -313,7 +314,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
-    private void readMoreEntries(Consumer consumer) {
+    @VisibleForTesting
+    void readMoreEntries(Consumer consumer) {
         if (cursor.isClosed()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
@@ -507,6 +509,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
         // Do not keep reading messages from a closed cursor.
         if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor was already closed, skipping read more entries", cursor.getName());
+            }
             return;
         }
 
@@ -546,6 +551,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // Reduce read batch size to avoid flooding bookies with retries
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
+        scheduleReadEntriesWithDelay(c, waitTimeMillis);
+    }
+
+    @VisibleForTesting
+    void scheduleReadEntriesWithDelay(Consumer c, long delay) {
         topic.getBrokerService().executor().schedule(() -> {
 
             // Jump again into dispatcher dedicated thread
@@ -567,8 +577,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     }
                 }
             });
-        }, waitTimeMillis, TimeUnit.MILLISECONDS);
-
+        }, delay, TimeUnit.MILLISECONDS);
     }
 
     @Override
