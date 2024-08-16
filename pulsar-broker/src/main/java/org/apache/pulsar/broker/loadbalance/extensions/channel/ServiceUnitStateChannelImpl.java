@@ -334,7 +334,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             "topicCompactionStrategyClassName",
                             ServiceUnitStateCompactionStrategy.class.getName()))
                     .create();
-            tableview.listen((key, value) -> handle(key, value));
+            tableview.listen(this::handleEvent);
+            tableview.forEach(this::handleExisting);
             var strategy = (ServiceUnitStateCompactionStrategy) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
             if (strategy == null) {
                 String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
@@ -662,7 +663,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }).thenApply(__ -> null);
     }
 
-    private void handle(String serviceUnit, ServiceUnitStateData data) {
+    private void handleEvent(String serviceUnit, ServiceUnitStateData data) {
         long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
         if (debug()) {
             log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
@@ -685,6 +686,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to handle the event. serviceUnit:{}, data:{}, handlerFailureCount:{}",
                     serviceUnit, data, getHandlerFailureCounter(data).incrementAndGet(), e);
             throw e;
+        }
+    }
+
+    private void handleExisting(String serviceUnit, ServiceUnitStateData data) {
+        if (debug()) {
+            log.info("Loaded the service unit state data. serviceUnit: {}, data: {}", serviceUnit, data);
+        }
+        ServiceUnitState state = state(data);
+        if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
+            pulsar.getNamespaceService()
+                    .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
         }
     }
 

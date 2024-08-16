@@ -345,6 +345,56 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
     }
 
+    @Test(timeOut = 30 * 1000)
+    public void testNamespaceOwnershipListener() throws Exception {
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic("test-namespace-ownership-listener");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
+
+        String broker = admin.lookups().lookupTopic(topicName.toString());
+        log.info("Assign the bundle {} to {}", bundle, broker);
+
+        checkOwnershipState(broker, bundle);
+
+        AtomicInteger onloadCount = new AtomicInteger(0);
+        AtomicInteger unloadCount = new AtomicInteger(0);
+
+        NamespaceBundleOwnershipListener listener = new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                onloadCount.incrementAndGet();
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                unloadCount.incrementAndGet();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.equals(bundle);
+            }
+        };
+        pulsar1.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
+        pulsar2.getNamespaceService().addNamespaceBundleOwnershipListener(listener);
+
+        // There are a service unit state channel already started, when add listener, it will trigger the onload event.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 1);
+            assertEquals(unloadCount.get(), 0);
+        });
+
+        ServiceUnitStateChannelImpl channel = new ServiceUnitStateChannelImpl(pulsar1);
+        channel.start();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(onloadCount.get(), 2);
+            assertEquals(unloadCount.get(), 0);
+        });
+
+        channel.close();
+    }
+
     private void checkOwnershipState(String broker, NamespaceBundle bundle)
             throws ExecutionException, InterruptedException {
         var targetLoadManager = secondaryLoadManager;
