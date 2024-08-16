@@ -780,7 +780,7 @@ public class ClustersBase extends AdminResource {
         }
         // compile regex patterns once
         List<Pattern> namespacePatterns = policyData.getNamespaces().stream().map(Pattern::compile).toList();
-        // TODO for 4.x, we should include both old and new namespace regex pattern for unload `all` option
+        // TODO for 4.x, we should include both old and new namespace regex pattern for unload `all_matching` option
         return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
             List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
                     .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
@@ -809,6 +809,7 @@ public class ClustersBase extends AdminResource {
             // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
             // actually have been changed.
 
+            log.debug("Old policy: {} ; new policy: {}", oldPolicy, policyData);
             if (oldPolicy != null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
                 // We also compare that the previous primary broker list is same as current, in case all namespaces need
                 // to be placed again anyway.
@@ -817,21 +818,25 @@ public class ClustersBase extends AdminResource {
 
                 if (oldBrokers.isEmpty()) {
                     // list is same, so we continue finding the changed namespaces.
-                    List<Pattern> oldNamespacePatterns = oldPolicy.getNamespaces().stream()
-                            .map(Pattern::compile).toList();
+
                     // We create a union regex list contains old + new regexes
-                    Set<Pattern> combinedPatterns = new HashSet<>(oldNamespacePatterns);
-                    combinedPatterns.addAll(namespacePatterns);
+                    Set<String> combinedNamespaces = new HashSet<>(oldPolicy.getNamespaces());
+                    combinedNamespaces.addAll(policyData.getNamespaces());
                     // We create a intersection of the old and new regexes. These won't need to be unloaded
-                    Set<Pattern> commonPatterns = new HashSet<>(oldNamespacePatterns);
-                    commonPatterns.retainAll(namespacePatterns);
+                    Set<String> commonNamespaces = new HashSet<>(oldPolicy.getNamespaces());
+                    commonNamespaces.retainAll(policyData.getNamespaces());
+
+                    log.debug("combined: regexes{}; common regexes:{}", combinedNamespaces, combinedNamespaces);
 
                     // Find the changed regexes (new - new ∩ old). TODO for 4.x, make this (new U old - new ∩ old)
-                    combinedPatterns.removeAll(commonPatterns);
+                    combinedNamespaces.removeAll(commonNamespaces);
 
-                    // Now we further filter the filtered namespaces based on this combinedPatterns set
+                    log.debug("changed regexes: {}", commonNamespaces);
+
+                    // Now we further filter the filtered namespaces based on this combinedNamespaces set
                     shouldUnloadNamespaces = shouldUnloadNamespaces.stream()
-                            .filter(name -> combinedPatterns.stream()
+                            .filter(name -> combinedNamespaces.stream()
+                                    .map(Pattern::compile)
                                     .anyMatch(pattern -> pattern.matcher(name).matches())
                             ).toList();
 
