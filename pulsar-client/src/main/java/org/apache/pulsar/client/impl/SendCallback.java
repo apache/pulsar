@@ -30,8 +30,9 @@ public interface SendCallback {
      * invoked when send operation completes.
      *
      * @param e
+     * @param opSendMsgStats stats associated with the send operation
      */
-    void sendComplete(Exception e);
+    void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats);
 
     /**
      * used to specify a callback to be invoked on completion of a send operation for individual messages sent in a
