@@ -1077,7 +1077,7 @@ public class BrokerService implements Closeable {
                                 rc.getMessage());
                         log.error(errorInfo, rc);
                         throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenCompose(optionalTopicPolicies -> {
+                    }).thenComposeAsync(optionalTopicPolicies -> {
                         final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
                         if (topicName.isPartitioned()) {
                             final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
@@ -1103,7 +1103,7 @@ public class BrokerService implements Closeable {
                             return topics.computeIfAbsent(topicName.toString(), (tpName) ->
                                     loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies));
                         }
-                    });
+                    }, pulsar.getExecutor());
                 });
             } else {
                 if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -1118,7 +1118,8 @@ public class BrokerService implements Closeable {
                 }
                 if (topicName.isPartitioned()) {
                     final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName)
+                            .thenComposeAsync((metadata) -> {
                         if (topicName.getPartitionIndex() < metadata.partitions) {
                             return topics.computeIfAbsent(topicName.toString(), (name) -> {
                                 topicEventsDispatcher
@@ -1135,19 +1136,22 @@ public class BrokerService implements Closeable {
                         }
                         topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
-                    });
+                    }, pulsar.getExecutor());
                 } else if (createIfMissing) {
-                    return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+                    CompletableFuture<Void> createTopicFuture = new CompletableFuture<>();
+                    return createTopicFuture.thenComposeAsync(__ -> {
+                        return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
-                        CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+                            CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                        CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
-                                .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
-                        topicEventsDispatcher
-                                .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
-                        return res;
-                    });
+                            CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                    .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                            topicEventsDispatcher
+                                    .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                            return res;
+                        });
+                    }, pulsar.getExecutor());
                 } else {
                     CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
                     if (topicFuture == null) {
