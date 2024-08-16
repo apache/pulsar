@@ -1077,12 +1077,12 @@ public class BrokerService implements Closeable {
                                 rc.getMessage());
                         log.error(errorInfo, rc);
                         throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
-                    }).thenComposeAsync(optionalTopicPolicies -> {
+                    }).thenCompose(optionalTopicPolicies -> {
                         final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
                         if (topicName.isPartitioned()) {
                             final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
                             return fetchPartitionedTopicMetadataAsync(topicNameEntity)
-                                    .thenComposeAsync((metadata) -> {
+                                    .thenCompose((metadata) -> {
                                         // Allow crate non-partitioned persistent topic that name includes
                                         // `partition`
                                         if (metadata.partitions == 0
@@ -1098,12 +1098,12 @@ public class BrokerService implements Closeable {
                                             return FutureUtil.failedFuture(
                                                     new BrokerServiceException.NotAllowedException(errorMsg));
                                         }
-                                    }, pulsar.getExecutor());
+                                    });
                         } else {
                             return topics.computeIfAbsent(topicName.toString(), (tpName) ->
                                     loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies));
                         }
-                    }, pulsar.getExecutor());
+                    });
                 });
             } else {
                 if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -1118,8 +1118,7 @@ public class BrokerService implements Closeable {
                 }
                 if (topicName.isPartitioned()) {
                     final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName)
-                            .thenComposeAsync((metadata) -> {
+                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                         if (topicName.getPartitionIndex() < metadata.partitions) {
                             return topics.computeIfAbsent(topicName.toString(), (name) -> {
                                 topicEventsDispatcher
@@ -1136,22 +1135,19 @@ public class BrokerService implements Closeable {
                         }
                         topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
-                    }, pulsar.getExecutor());
+                    });
                 } else if (createIfMissing) {
-                    CompletableFuture<Void> createTopicFuture = new CompletableFuture<>();
-                    return createTopicFuture.thenComposeAsync(__ -> {
-                        return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+                    return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
-                            CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+                        CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                            CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
-                                    .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
-                            topicEventsDispatcher
-                                    .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
-                            return res;
-                        });
-                    }, pulsar.getExecutor());
+                        CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                        topicEventsDispatcher
+                                .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                        return res;
+                    });
                 } else {
                     CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
                     if (topicFuture == null) {
@@ -1772,10 +1768,16 @@ public class BrokerService implements Closeable {
                                             long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
                                                                         - topicCreateTimeMs;
                                             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                            if (topicFuture.isCompletedExceptionally()) {
+                                            if (!topicFuture.complete(Optional.of(persistentTopic))) {
                                                 // Check create persistent topic timeout.
-                                                log.warn("{} future is already completed with failure {}, closing the"
-                                                        + " topic", topic, FutureUtil.getException(topicFuture));
+                                                if (topicFuture.isCompletedExceptionally()) {
+                                                    log.warn("{} future is already completed with failure {}, closing"
+                                                        + " the topic", topic, FutureUtil.getException(topicFuture));
+                                                } else {
+                                                    // It should not happen.
+                                                    log.error("{} future is already completed by another thread, "
+                                                            + "which is not expected. Closing the current one", topic);
+                                                }
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
                                                         topics.remove(topic, topicFuture);
@@ -1787,7 +1789,6 @@ public class BrokerService implements Closeable {
                                                 });
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
-                                                topicFuture.complete(Optional.of(persistentTopic));
                                             }
                                         })
                                         .exceptionally((ex) -> {
