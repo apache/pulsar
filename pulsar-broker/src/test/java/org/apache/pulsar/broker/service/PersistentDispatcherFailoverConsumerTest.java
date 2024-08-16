@@ -180,6 +180,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         cursorMock = mock(ManagedCursorImpl.class);
 
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
