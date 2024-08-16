@@ -272,7 +272,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
-    public void testCreateLedgerFails(boolean injectTimeout) throws Exception {
+    public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
             pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
         }
