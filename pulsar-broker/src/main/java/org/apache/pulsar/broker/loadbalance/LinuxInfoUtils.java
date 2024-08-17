@@ -27,9 +27,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
@@ -60,6 +62,7 @@ public class LinuxInfoUtils {
     private static Method getCpuQuotaMethod;
     private static Method getCpuPeriodMethod;
     private static Method getCpuUsageMethod;
+    private static Set<String> exposeNicLimitFaultCompleted = new HashSet<>();
 
     static {
         try {
@@ -251,7 +254,15 @@ public class LinuxInfoUtils {
             try {
                 return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
             } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to get total nic limit.", e);
+                if (!exposeNicLimitFaultCompleted.contains(nicPath)) {
+                    log.error("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
+                    // logs that fail to read the nic limit are printed at the ERROR level only for the first time
+                    exposeNicLimitFaultCompleted.add(nicPath);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
+                    }
+                }
                 return 0d;
             }
         }).sum(), BitRateUnit.Megabit);
