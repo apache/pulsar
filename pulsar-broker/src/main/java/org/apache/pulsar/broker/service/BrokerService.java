@@ -3728,6 +3728,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+        if (isSystemTopic(topicName)) {
+            return CompletableFuture.completedFuture(null);
+        }
         return pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(optPolicies -> {
