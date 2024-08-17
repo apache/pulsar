@@ -65,7 +65,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache<Position, EntryImpl> entries;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
-    private final boolean enableBookkeeperBatchRead;
+    private final boolean useBookkeeperV2WireProtocol;
 
     private volatile long estimatedEntrySize = 10 * 1024;
 
@@ -81,7 +81,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.readEntryTimeoutMillis = getManagedLedgerConfig().getReadEntryTimeoutSeconds();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
         this.copyEntries = copyEntries;
-        this.enableBookkeeperBatchRead = ml.getConfig().isEnableBookkeeperBatchRead();
+        this.useBookkeeperV2WireProtocol = ml.getConfig().isUseBookkeeperV2WireProtocol();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -251,7 +251,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId(), enableBookkeeperBatchRead)
+            ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId(), useBookkeeperV2WireProtocol)
                     .thenAcceptAsync(ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
@@ -433,7 +433,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                                        long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
         CompletableFuture<List<EntryImpl>> readResult = ReadEntryUtils
-                .readAsync(ml, lh, firstEntry, lastEntry, enableBookkeeperBatchRead)
+                .readAsync(ml, lh, firstEntry, lastEntry, useBookkeeperV2WireProtocol)
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());

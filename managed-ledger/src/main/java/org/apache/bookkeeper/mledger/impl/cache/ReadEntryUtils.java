@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -27,13 +28,16 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
-                                                      long lastEntry, boolean enableBatchRead) {
+                                                      long lastEntry, boolean useBookkeeperV2WireProtocol) {
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
             // the LAC of that read handle. Specifically, it happens when this method is called by a
             // ReadOnlyManagedLedgerImpl object.
             int entriesToRead = (int) (lastEntry - firstEntry + 1);
-            if (entriesToRead <= 1 || !enableBatchRead) {
+            // Batch read is not supported for striped ledgers.
+            LedgerMetadata m = handle.getLedgerMetadata();
+            boolean isStriped = m.getEnsembleSize() != m.getWriteQuorumSize();
+            if (entriesToRead <= 1 || !useBookkeeperV2WireProtocol || isStriped) {
                 return handle.readAsync(firstEntry, lastEntry);
             }
             return handle.batchReadAsync(firstEntry, entriesToRead, 0);

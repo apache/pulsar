@@ -1987,7 +1987,7 @@ public class BrokerService implements Closeable {
                     serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
             managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
                     serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
-            managedLedgerConfig.setEnableBookkeeperBatchRead(serviceConfig.isBookkeeperUseV2WireProtocol());
+            managedLedgerConfig.setUseBookkeeperV2WireProtocol(serviceConfig.isBookkeeperUseV2WireProtocol());
 
             OffloadPoliciesImpl nsLevelOffloadPolicies =
                     (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);

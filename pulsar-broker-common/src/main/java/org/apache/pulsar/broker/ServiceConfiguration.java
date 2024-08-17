@@ -1931,6 +1931,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Enable Bookkeeper client to read entries in batch mode. Default is false."
+    )
+    private boolean bookkeeperEnableBatchRead = false;
+
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
         minValue = 1,

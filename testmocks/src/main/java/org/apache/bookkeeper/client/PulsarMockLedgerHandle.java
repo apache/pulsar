@@ -242,8 +242,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
-        long lastEntry = Math.min(startEntry + maxCount - 1, getLastAddConfirmed());
-        return readAsync(startEntry, lastEntry);
+        return readHandle.batchReadAsync(startEntry, maxCount, maxSize);
     }
 
     @Override

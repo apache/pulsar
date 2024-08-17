@@ -137,6 +137,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
         bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
+        bkConf.setBatchReadEnabled(conf.isBookkeeperEnableBatchRead());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then
