@@ -596,6 +596,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String, Long> properties,
                                                     TransactionImpl txn) {
+        return doAcknowledge(messageId, ackType, properties, txn, Triple.of(null, null, false));
+    }
+
+    @Override
+    protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+                                                    Map<String, Long> properties,
+                                                    TransactionImpl txn,
+                                                    Triple<String, byte[], Boolean> replyResult) {
         consumerAcksCounter.increment();
 
         if (getState() != State.Ready && getState() != State.Connecting) {
@@ -613,7 +621,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return doTransactionAcknowledgeForResponse(messageId, ackType, null, properties,
                     new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
-        return acknowledgmentsGroupingTracker.addAcknowledgment(messageId, ackType, properties);
+        return acknowledgmentsGroupingTracker.addAcknowledgment(messageId, ackType, properties, replyResult);
     }
 
     @Override

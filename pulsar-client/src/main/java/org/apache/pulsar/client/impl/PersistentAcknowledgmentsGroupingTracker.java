@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
@@ -42,6 +41,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -88,6 +89,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private final boolean batchIndexAckEnabled;
     private final boolean ackReceiptEnabled;
 
+    private final ConcurrentHashMap<Pair<Long, Long>, Triple<String, byte[], Boolean>> pendingReplyResults;
+
     public PersistentAcknowledgmentsGroupingTracker(ConsumerImpl<?> consumer, ConsumerConfigurationData<?> conf,
                                                     EventLoopGroup eventLoopGroup) {
         this.consumer = consumer;
@@ -99,6 +102,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         this.ackReceiptEnabled = conf.isAckReceiptEnabled();
         this.currentIndividualAckFuture = new TimedCompletableFuture<>();
         this.currentCumulativeAckFuture = new TimedCompletableFuture<>();
+        this.pendingReplyResults = new ConcurrentHashMap<>();
 
         if (acknowledgementGroupTimeMicros > 0) {
             scheduledTask = eventLoopGroup.next().scheduleWithFixedDelay(catchingAndLoggingThrowables(this::flush),
@@ -191,11 +195,17 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public CompletableFuture<Void> addAcknowledgment(MessageId msgId, AckType ackType,
                                                      Map<String, Long> properties) {
+        return addAcknowledgment(msgId, ackType, properties, Triple.of(null, null, false));
+    }
+
+    @Override
+    public CompletableFuture<Void> addAcknowledgment(MessageId msgId, AckType ackType, Map<String, Long> properties,
+                                                     Triple<String, byte[], Boolean> replyResult) {
         MessageIdAdv msgIdAdv = (MessageIdAdv) msgId;
         if (MessageIdAdvUtils.isBatch(msgIdAdv)) {
             return addAcknowledgment(MessageIdAdvUtils.discardBatch(msgId), ackType, properties, msgIdAdv);
         } else {
-            return addAcknowledgment(msgIdAdv, ackType, properties, null);
+            return addAcknowledgment(msgIdAdv, ackType, properties, null, replyResult);
         }
     }
 
@@ -227,11 +237,19 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                       AckType ackType,
                                                       Map<String, Long> properties,
                                                       @Nullable MessageIdAdv batchMessageId) {
+        return addAcknowledgment(msgId, ackType, properties, batchMessageId, Triple.of(null, null, false));
+    }
+
+    private CompletableFuture<Void> addAcknowledgment(MessageIdAdv msgId,
+                                                      AckType ackType,
+                                                      Map<String, Long> properties,
+                                                      @Nullable MessageIdAdv batchMessageId,
+                                                      Triple<String, byte[], Boolean> replyResult) {
         switch (ackType) {
             case Individual:
                 return addIndividualAcknowledgment(msgId,
                         batchMessageId,
-                        __ -> doIndividualAck(__, properties),
+                        __ -> doIndividualAck(__, properties, replyResult),
                         __ -> doIndividualBatchAck(__, properties));
             case Cumulative:
                 if (batchMessageId != null) {
@@ -252,7 +270,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private CompletableFuture<Void> doIndividualAck(MessageIdAdv messageId, Map<String, Long> properties) {
+    private CompletableFuture<Void> doIndividualAck(MessageIdAdv messageId, Map<String, Long> properties,
+                                                    Triple<String, byte[], Boolean> replyResult) {
         if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
@@ -260,7 +279,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         } else {
             Optional<Lock> readLock = acquireReadLock();
             try {
-                doIndividualAckAsync(messageId);
+                if (replyResult.getMiddle() == null) {
+                    doIndividualAckAsync(messageId);
+                } else {
+                    doIndividualAckAsync(messageId, replyResult);
+                }
                 return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
             } finally {
                 readLock.ifPresent(Lock::unlock);
@@ -271,9 +294,14 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-
     private CompletableFuture<Void> doIndividualAckAsync(MessageIdAdv messageId) {
+        return doIndividualAckAsync(messageId, Triple.of(null, null, false));
+    }
+
+    private CompletableFuture<Void> doIndividualAckAsync(MessageIdAdv messageId,
+                                                         Triple<String, byte[], Boolean> replyResult) {
         pendingIndividualAcks.add(messageId);
+        pendingReplyResults.put(Pair.of(messageId.getLedgerId(), messageId.getEntryId()), replyResult);
         pendingIndividualBatchIndexAcks.remove(messageId);
         return CompletableFuture.completedFuture(null);
     }
@@ -441,7 +469,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck =
                 new ArrayList<>(pendingIndividualAcks.size() + pendingIndividualBatchIndexAcks.size());
         if (!pendingIndividualAcks.isEmpty()) {
-            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
+            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())
+                    && !Commands.peerSupportsRequestReplyMode(cnx.getRemoteEndpointProtocolVersion())) {
                 // We can send 1 single protobuf command with all individual acks
                 while (true) {
                     MessageIdAdv msgId = pendingIndividualAcks.pollFirst();
@@ -471,9 +500,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     if (msgId == null) {
                         break;
                     }
-                    newMessageAckCommandAndWrite(cnx, consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
-                            null, AckType.Individual, Collections.emptyMap(), false,
-                            null, null);
+                    if (!pendingReplyResults.containsKey(Pair.of(msgId.getLedgerId(), msgId.getEntryId()))) {
+                        newMessageAckCommandAndWrite(cnx, consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
+                                null, AckType.Individual, Collections.emptyMap(), false,
+                                null, null);
+                    } else {
+                        newMessageAckCommandAndWrite(cnx, consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
+                                null, AckType.Individual, Collections.emptyMap(), false,
+                                null, null,
+                                pendingReplyResults.remove(Pair.of(msgId.getLedgerId(), msgId.getEntryId())));
+                    }
                     shouldFlush = true;
                 }
             }
@@ -515,6 +551,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         flush();
         lastCumulativeAck.reset();
         pendingIndividualAcks.clear();
+        pendingReplyResults.clear();
     }
 
     @Override
@@ -563,14 +600,30 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             Map<String, Long> properties, boolean flush,
             TimedCompletableFuture<Void> timedCompletableFuture,
             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
+        return newMessageAckCommandAndWrite(cnx, consumerId, ledgerId, entryId, ackSet, ackType, properties, flush,
+                timedCompletableFuture, entriesToAck, Triple.of(null, null, false));
+    }
+
+    private CompletableFuture<Void> newMessageAckCommandAndWrite(
+            ClientCnx cnx, long consumerId, long ledgerId,
+            long entryId, BitSetRecyclable ackSet, AckType ackType,
+            Map<String, Long> properties, boolean flush,
+            TimedCompletableFuture<Void> timedCompletableFuture,
+            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck,
+            Triple<String, byte[], Boolean> result) {
         if (consumer.isAckReceiptEnabled()) {
             final long requestId = consumer.getClient().newRequestId();
-            final ByteBuf cmd;
+            final ByteBufPair cmd;
             if (entriesToAck == null) {
-                cmd = Commands.newAck(consumerId, ledgerId, entryId, ackSet,
-                        ackType, null, properties, requestId);
+                if (result.getMiddle() == null) {
+                    cmd = ByteBufPair.get(Commands.newAck(consumerId, ledgerId, entryId, ackSet,
+                            ackType, null, properties, requestId), null);
+                } else {
+                    cmd = Commands.newAckWithReplyResult(consumerId, ledgerId, entryId, ackSet,
+                            ackType, null, properties, requestId, result);
+                }
             } else {
-                cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, requestId);
+                cmd = ByteBufPair.get(Commands.newMultiMessageAck(consumerId, entriesToAck, requestId), null);
             }
             if (timedCompletableFuture == null) {
                 return cnx.newAckForReceipt(cmd, requestId);
@@ -596,17 +649,30 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     }
                 }
             }
-            final ByteBuf cmd;
+            final ByteBufPair cmd;
             if (entriesToAck == null) {
-                cmd = Commands.newAck(consumerId, ledgerId, entryId, ackSet,
-                        ackType, null, properties, -1);
+                if (result.getMiddle() == null) {
+                    cmd = ByteBufPair.get(Commands.newAck(consumerId, ledgerId, entryId, ackSet,
+                            ackType, null, properties, -1), null);
+                } else {
+                    cmd = Commands.newAckWithReplyResult(consumerId, ledgerId, entryId, ackSet,
+                            ackType, null, properties, -1, result);
+                }
             } else {
-                cmd = Commands.newMultiMessageAck(consumerId, entriesToAck, -1);
+                cmd = ByteBufPair.get(Commands.newMultiMessageAck(consumerId, entriesToAck, -1), null);
             }
             if (flush) {
-                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                if (cmd.getSecond() != null) {
+                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                } else {
+                    cnx.ctx().writeAndFlush(cmd.getFirst(), cnx.ctx().voidPromise());
+                }
             } else {
-                cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                if (cmd.getSecond() != null) {
+                    cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                } else {
+                    cnx.ctx().write(cmd.getFirst(), cnx.ctx().voidPromise());
+                }
             }
             return CompletableFuture.completedFuture(null);
         }

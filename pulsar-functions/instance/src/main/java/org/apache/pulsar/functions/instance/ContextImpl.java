@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ReplyResult;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -679,6 +680,26 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         public TypedMessageBuilder<T> deliverAt(long timestamp) {
             underlyingBuilder.deliverAt(timestamp);
             return this;
+        }
+
+        @Override
+        public ReplyResult request(long timeout, TimeUnit unit) throws PulsarClientException {
+            try {
+                return requestAsync(timeout, unit).get();
+            } catch (Exception e) {
+                throw PulsarClientException.unwrap(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<ReplyResult> requestAsync(long timeout, TimeUnit unit) {
+            return underlyingBuilder.requestAsync(timeout, unit)
+                    .whenComplete((result, cause) -> {
+                        if (null != cause) {
+                            statsManager.incrSysExceptions(cause);
+                            logger.error("Failed to publish to topic with error", cause);
+                        }
+                    });
         }
 
         public void setUnderlyingBuilder(TypedMessageBuilder<T> underlyingBuilder) {

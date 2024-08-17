@@ -1991,6 +1991,26 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
+    protected void handleAck(CommandAck ack, ByteBuf replyPayload) {
+        checkArgument(state == State.Connected);
+        try {
+            // Send replyResult directly to client(producer).
+            MessageIdData messageId = ack.getMessageIdAt(0);
+            BaseCommand command = Commands.newRequestReceiptCommand(ack.getReplyToClient(),
+                    messageId.getLedgerId(),
+                    messageId.getEntryId(),
+                    messageId.getPartition(),
+                    ack.isIsErrorResult());
+            replyPayload.retain();
+            ctx.channel().eventLoop().execute(() -> {
+                ctx.writeAndFlush(Commands.serializeCommandMessageWithSize(command, replyPayload), ctx.voidPromise());
+            });
+        } finally {
+            handleAck(ack);
+        }
+    }
+
+    @Override
     protected void handleFlow(CommandFlow flow) {
         checkArgument(state == State.Connected);
         if (log.isDebugEnabled()) {

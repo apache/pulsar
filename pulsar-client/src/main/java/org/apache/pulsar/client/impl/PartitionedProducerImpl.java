@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
+import org.apache.pulsar.client.api.ReplyResult;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -347,6 +348,12 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
 
         return closeFuture;
+    }
+
+    @Override
+    CompletableFuture<ReplyResult> internalRequestAsync(MessageId msgId, long timeout, TimeUnit unit) {
+        // no-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -199,4 +200,40 @@ public interface Producer<T> extends Closeable {
      * @return the number of partitions per topic.
      */
     int getNumOfPartitions();
+
+    /**
+     * Sends a message synchronously.(Request-Reply mode)
+     *
+     * <p>This call will be blocking until either consumer successfully processed and acknowledged the request
+     * message. Finally, a reply message will be returned.
+     *
+     * <p>Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
+     *
+     * @param message
+     *            request message
+     * @return the reply message from consumer
+     * @throws PulsarClientException.TimeoutException
+     *             if the message was not correctly received and processed by the system within the timeout period
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the producer was already closed
+     */
+    ReplyResult request(T message, long timeout, TimeUnit timeUnit) throws PulsarClientException;
+
+    /**
+     * Send a message asynchronously.(Request-Reply mode)
+     *
+     * <p>When the producer queue is full, by default this method will complete the future with an exception
+     * {@link PulsarClientException.ProducerQueueIsFullError}
+     *
+     * <p>See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
+     *
+     * <p>Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
+     *
+     * @param message
+     *            a byte array with the payload of the message
+     * @return A future that can be used to track when a request message is successfully acknowledged
+     * and returns a reply result
+     */
+    CompletableFuture<ReplyResult> requestAsync(T message, long timeout, TimeUnit timeUnit);
 }

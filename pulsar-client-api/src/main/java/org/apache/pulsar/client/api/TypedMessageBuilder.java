@@ -295,6 +295,56 @@ public interface TypedMessageBuilder<T> extends Serializable {
      */
     TypedMessageBuilder<T> loadConf(Map<String, Object> config);
 
+    /**
+     * Send a message synchronously.(Request-Reply mode)
+     *
+     * <p>This method will block until either consumer successfully acknowledged the message
+     * and returns a reply message.
+     * Finally, the {@link ReplyResult} returned by the Consumer is returned.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * ReplyResult replyResult = producer.newMessage()
+     *                  .key(myKey)
+     *                  .value(myValue)
+     *                  .request();
+     * System.out.println("Reply result: " + replyResult);
+     * }</pre>
+     *
+     * @return the {@link ReplyResult} returned by the Consumer
+     */
+    ReplyResult request(long timeout, TimeUnit unit) throws PulsarClientException;
+
+    /**
+     * Send a message asynchronously.(Request-Reply mode)
+     *
+     * <p>This method returns a future that can be used to track the completion of the request operation and yields the
+     * {@link ReplyResult} send by the consumer to the producer.
+     *
+     * <p>Example:
+     *
+     * <pre>
+     * <code>producer.newMessage()
+     *                  .value(myValue)
+     *                  .requestAsync().thenAccept(replyResult -> {
+     *    System.out.println("Reply result: " + replyResult);
+     * }).exceptionally(e -> {
+     *    System.out.println("Failed to publish " + e);
+     *    return null;
+     * });</code>
+     * </pre>
+     *
+     * <p>When the producer queue is full, by default this method will complete the future with an exception
+     * {@link PulsarClientException.ProducerQueueIsFullError}
+     *
+     * <p>See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
+     *
+     * @return a future that can be used to track when the reply message will have been returned
+     */
+    CompletableFuture<ReplyResult> requestAsync(long timeout, TimeUnit unit);
+
     String CONF_KEY = "key";
     String CONF_PROPERTIES = "properties";
     String CONF_EVENT_TIME = "eventTime";
@@ -303,4 +353,6 @@ public interface TypedMessageBuilder<T> extends Serializable {
     String CONF_DISABLE_REPLICATION = "disableReplication";
     String CONF_DELIVERY_AFTER_SECONDS = "deliverAfterSeconds";
     String CONF_DELIVERY_AT = "deliverAt";
+    String REPLY_TO_CLIENT = "replyToClient";
+    String REQUEST_TIMEOUT_MILLIS = "requestTimeoutInMillis";
 }

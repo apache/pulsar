@@ -82,6 +82,7 @@ import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataRespons
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.CommandRequestReceipt;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -1045,6 +1046,45 @@ public class Commands {
                 properties, -1L, -1L, requestId, -1);
     }
 
+    public static ByteBufPair newAckWithReplyResult(long consumerId, long ledgerId, long entryId,
+                                                    BitSetRecyclable ackSet,
+                                                    AckType ackType, ValidationError validationError,
+                                                    Map<String, Long> properties, long requestId,
+                                                    Triple<String, byte[], Boolean> replyResult) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(ackType);
+        MessageIdData messageIdData = ack.addMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId);
+        if (ackSet != null) {
+            long[] as = ackSet.toLongArray();
+            for (int i = 0; i < as.length; i++) {
+                messageIdData.addAckSet(as[i]);
+            }
+        }
+
+        if (validationError != null) {
+            ack.setValidationError(validationError);
+        }
+        if (requestId >= 0) {
+            ack.setRequestId(requestId);
+        }
+        if (!properties.isEmpty()) {
+            properties.forEach((k, v) -> {
+                ack.addProperty().setKey(k).setValue(v);
+            });
+        }
+
+        byte[] middle = replyResult.getMiddle();
+        ack.setReplyToClient(replyResult.getLeft());
+        ack.setIsErrorResult(replyResult.getRight());
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(middle.length);
+        buf.writeBytes(middle);
+        return serializeCommandMessageWithSize(cmd, buf);
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId, int batchSize) {
@@ -1630,6 +1670,18 @@ public class Commands {
         return cmd;
     }
 
+    public static BaseCommand newRequestReceiptCommand(String replyTo, long ledgerId, long entryId, int partition,
+                                                       boolean isErrorResult) {
+        BaseCommand cmd = localCmd(Type.REQUEST_RECEIPT);
+        CommandRequestReceipt requestReceipt = cmd.setRequestReceipt().setReplyToClient(replyTo);
+        requestReceipt.setRequestMessageId()
+                .setLedgerId(ledgerId)
+                .setEntryId(entryId)
+                .setPartition(partition);
+        requestReceipt.setIsErrorResult(isErrorResult);
+        return cmd;
+    }
+
     public static ByteBuf serializeWithSize(BaseCommand cmd) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD]
@@ -2024,6 +2076,10 @@ public class Commands {
 
     public static boolean peerSupportsCarryAutoConsumeSchemaToBroker(int peerVersion) {
         return peerVersion >= ProtocolVersion.v21.getValue();
+    }
+
+    public static boolean peerSupportsRequestReplyMode(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v22.getValue();
     }
 
     private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(

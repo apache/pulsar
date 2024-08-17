@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ReplyResult;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -38,12 +39,15 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final long serialVersionUID = 0L;
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
+    private static final Logger log = LoggerFactory.getLogger(TypedMessageBuilderImpl.class);
 
     private final transient ProducerBase<?> producer;
     private final transient MessageMetadata msgMetadata = new MessageMetadata();
@@ -261,6 +265,40 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             }
         });
         return this;
+    }
+
+    @Override
+    public ReplyResult request(long timeout, TimeUnit unit) throws PulsarClientException {
+        try {
+            return requestAsync(timeout, unit).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<ReplyResult> requestAsync(long timeout, TimeUnit unit) {
+        CompletableFuture<ReplyResult> requestFuture = new CompletableFuture<>();
+        setRequestMessageProperties(String.valueOf(unit.toMillis(timeout)));
+
+        sendAsync().thenAccept(requestMessageId -> {
+            producer.internalRequestAsync(requestMessageId, timeout, unit)
+                    .thenAccept(requestFuture::complete)
+                    .exceptionally(ex -> {
+                        requestFuture.completeExceptionally(ex);
+                        return null;
+                    });
+        }).exceptionally((e) -> {
+            requestFuture.completeExceptionally(e);
+            return null;
+        });
+
+        return requestFuture;
+    }
+
+    private void setRequestMessageProperties(String timeout) {
+        msgMetadata.addProperty().setKey(REPLY_TO_CLIENT).setValue(producer.getProducerName());
+        msgMetadata.addProperty().setKey(REQUEST_TIMEOUT_MILLIS).setValue(timeout);
     }
 
     public MessageMetadata getMetadataBuilder() {

@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -486,6 +487,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return consumer.doAcknowledgeWithTxn(messageId, ackType, properties, txnImpl)
                 .thenRun(() -> unAckedMessageTracker.remove(messageId));
         }
+    }
+
+    @Override
+    protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType, Map<String, Long> properties,
+                                                    TransactionImpl txn, Triple<String, byte[], Boolean> replyResult) {
+        // no-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

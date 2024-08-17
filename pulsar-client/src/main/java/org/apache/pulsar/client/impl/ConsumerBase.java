@@ -42,6 +42,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -414,15 +415,27 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
-        validateMessageId(message);
-        acknowledge(message.getMessageId());
+        acknowledge(null, null, false, message);
     }
 
     @Override
     public void acknowledge(MessageId messageId) throws PulsarClientException {
+        acknowledge(null, null, false, messageId);
+    }
+
+    @Override
+    public void acknowledge(String replyTo, byte[] replyPayload, boolean isErrorMessage,
+                            Message<?> message) throws PulsarClientException {
+        validateMessageId(message);
+        acknowledge(replyTo, replyPayload, isErrorMessage, message.getMessageId());
+    }
+
+    @Override
+    public void acknowledge(String replyTo, byte[] replyPayload, boolean isErrorMessage,
+                            MessageId messageId) throws PulsarClientException {
         validateMessageId(messageId);
         try {
-            acknowledgeAsync(messageId).get();
+            acknowledgeAsync(replyTo, replyPayload, isErrorMessage, messageId).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -631,16 +644,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
                                                     Transaction txn) {
+        return acknowledgeAsync(null, null, false, messageId, txn);
+    }
+
+    @Override
+    public CompletableFuture<Void> acknowledgeAsync(String replyTo, byte[] replyPayload, boolean isErrorMessage,
+                                                    MessageId messageId, Transaction txn) {
         TransactionImpl txnImpl = null;
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-           if (!txnImpl.checkIfOpen(completableFuture)) {
-               return completableFuture;
-           }
+            if (!txnImpl.checkIfOpen(completableFuture)) {
+                return completableFuture;
+            }
         }
-        return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
+        return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(),
+                txnImpl, Triple.of(replyTo, replyPayload, isErrorMessage));
     }
 
     @Override
@@ -686,15 +706,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
+        return doAcknowledgeWithTxn(messageId, ackType, properties, txn, Triple.of(null, null, false));
+    }
+
+    protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
+                                                           Map<String, Long> properties,
+                                                           TransactionImpl txn,
+                                                           Triple<String, byte[], Boolean> replyResult) {
         CompletableFuture<Void> ackFuture;
         if (txn != null && (this instanceof ConsumerImpl)) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
+                    .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn, replyResult));
             // register the ackFuture as part of the transaction
             txn.registerAckOp(ackFuture);
             return ackFuture;
         } else {
-            ackFuture = doAcknowledge(messageId, ackType, properties, txn);
+            ackFuture = doAcknowledge(messageId, ackType, properties, txn, replyResult);
         }
         return ackFuture;
     }
@@ -702,6 +729,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String, Long> properties,
                                                              TransactionImpl txn);
+
+    protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+                                                             Map<String, Long> properties,
+                                                             TransactionImpl txn,
+                                                             Triple<String, byte[], Boolean> replyResult);
 
     protected abstract CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
                                                     Map<String, Long> properties,

@@ -26,6 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
+import org.apache.pulsar.common.api.proto.CommandRequestReceipt;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
@@ -101,6 +103,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -891,6 +894,26 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleCommandRequestReceipt(CommandRequestReceipt requestReceipt, ByteBuf replyPayload) {
+        checkArgument(state == State.Ready);
+        String replyTo = requestReceipt.getReplyToClient();
+        boolean isErrorResult = requestReceipt.isIsErrorResult();
+
+        int length = replyPayload.readableBytes();
+        byte[] payload = new byte[length];
+        replyPayload.getBytes(replyPayload.readerIndex(), payload);
+
+        producers.forEach((id, producer) -> {
+            if (producer.getProducerName().equals(replyTo)) {
+                long ledgerId = requestReceipt.getRequestMessageId().getLedgerId();
+                long entryId = requestReceipt.getRequestMessageId().getEntryId();
+                long partitionId = requestReceipt.getRequestMessageId().getPartition();
+                producer.replyReceived(ledgerId, entryId, partitionId, payload, isErrorResult);
+            }
+        });
+    }
+
+    @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Ready;
     }
@@ -943,7 +966,16 @@ public class ClientCnx extends PulsarHandler {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, true);
     }
 
+    public CompletableFuture<Void> newAckForReceipt(ByteBufPair request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, true);
+    }
+
     public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
+                                           TimedCompletableFuture<Void> future) {
+        sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
+    }
+
+    public void newAckForReceiptWithFuture(ByteBufPair request, long requestId,
                                            TimedCompletableFuture<Void> future) {
         sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse, false, future);
     }
@@ -1027,9 +1059,21 @@ public class ClientCnx extends PulsarHandler {
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
                                                                  RequestType requestType, boolean flush,
                                                                  TimedCompletableFuture<T> future) {
+        sendRequestAndHandleTimeout(ByteBufPair.get(requestMessage, null), requestId, requestType, flush, future);
+    }
+
+    private <T> void sendRequestAndHandleTimeout(ByteBufPair requestMessage, long requestId,
+                                                 RequestType requestType, boolean flush,
+                                                 TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
         if (flush) {
-            ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
+            ChannelFuture channelFuture;
+            if (requestMessage.getSecond() == null) {
+                channelFuture = ctx.writeAndFlush(requestMessage.getFirst());
+            } else {
+                channelFuture = ctx.writeAndFlush(requestMessage);
+            }
+            channelFuture.addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
                     if (pendingRequests.remove(requestId, future) && !future.isDone()) {
                         log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
@@ -1039,13 +1083,24 @@ public class ClientCnx extends PulsarHandler {
                 }
             });
         } else {
-            ctx.write(requestMessage, ctx().voidPromise());
+            if (requestMessage.getSecond() == null) {
+                ctx.write(requestMessage.getFirst(), ctx().voidPromise());
+            } else {
+                ctx.write(requestMessage, ctx().voidPromise());
+            }
         }
         requestTimeoutQueue.add(new RequestTime(requestId, requestType));
     }
 
     private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
                                                  RequestType requestType, boolean flush) {
+        TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
+        sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
+        return future;
+    }
+
+    private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBufPair requestMessage, long requestId,
+                                                                 RequestType requestType, boolean flush) {
         TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
         sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
         return future;

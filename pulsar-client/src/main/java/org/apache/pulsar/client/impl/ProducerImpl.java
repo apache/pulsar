@@ -44,6 +44,7 @@ import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,12 +56,14 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -73,6 +76,7 @@ import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
+import org.apache.pulsar.client.api.ReplyResult;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -102,6 +106,7 @@ import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,6 +191,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
+
+    protected ConcurrentOpenHashMap<MessageId, CompletableFuture<ReplyResult>> pendingRequestsMap =
+            ConcurrentOpenHashMap.<MessageId, CompletableFuture<ReplyResult>>newBuilder().build();
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -1157,6 +1165,45 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         });
 
         return closeFuture;
+    }
+
+    @Override
+    CompletableFuture<ReplyResult> internalRequestAsync(MessageId msgId, long timeout, TimeUnit unit) {
+        CompletableFuture<ReplyResult> future = new CompletableFuture<>();
+        ScheduledExecutorService executor = (ScheduledExecutorService) client.getScheduledExecutorProvider()
+                .getExecutor();
+
+        // The future that should be completed after timeout.
+        CompletableFuture<ReplyResult> timeoutAfter = FutureUtil.createFutureWithTimeout(
+                Duration.ofMillis(unit.toMillis(timeout)),
+                executor,
+                () -> new TimeoutException("Request timed out"));
+
+        // Merge two future into one. If one is completed first, the merged future will be completed.
+        CompletableFuture<ReplyResult> combinedFuture = future.applyToEither(timeoutAfter, Function.identity());
+        // Save to Map so you can track or cancel.
+        pendingRequestsMap.put(msgId, combinedFuture);
+        // If future completes due to timeout, we should remove this entry from Map.
+        combinedFuture.whenComplete((result, throwable) -> pendingRequestsMap.remove(msgId));
+
+        return combinedFuture;
+    }
+
+    protected void replyReceived(long ledgerId, long entryId, long partitionId,
+                                 byte[] replyPayload, boolean isErrorResult) {
+        MessageIdImpl messageId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
+        if (!pendingRequestsMap.containsKey(messageId)) {
+            log.warn("[{}] [{}] No pending request found for messageId: {}. This may indicate the message has"
+                    + " already been processed or timed out.", topic, producerName, messageId);
+        } else {
+            ReplyResult result;
+            if (isErrorResult) {
+                result = new ReplyResult(messageId, replyPayload, true);
+            } else {
+                result = new ReplyResult(messageId, replyPayload, false);
+            }
+            pendingRequestsMap.get(messageId).complete(result);
+        }
     }
 
     private synchronized void closeAndClearPendingMessages() {

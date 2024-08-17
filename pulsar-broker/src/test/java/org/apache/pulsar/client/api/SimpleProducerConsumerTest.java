@@ -48,6 +48,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -62,6 +63,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -115,6 +117,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -4877,5 +4880,175 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } else {
             return 0;
         }
+    }
+
+    @Test
+    public void testRPCCallMode() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testRPCCallMode";
+        final long rpcTTL = 3000;
+        Map<String, MessageId> receivedMessageIdMap = new ConcurrentHashMap<>();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+                .producerName("requestClient")
+                .create();
+
+        final String REPLY_CONTENT_PREFIX = "reply message content: ";
+        final String REPLY_ERROR_PREFIX = "reply error: ";
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .consumerName("consumer1")
+                .subscriptionName("sub-1")
+                .isAckReceiptEnabled(false)
+                .messageListener((consumer, receivedMsg) -> {
+                    if (receivedMsg.hasProperty(Constants.REQUEST_TIMEOUT_MILLIS) &&
+                            System.currentTimeMillis() >= receivedMsg.getPublishTime() +
+                            Long.parseLong(receivedMsg.getProperty(Constants.REQUEST_TIMEOUT_MILLIS))) {
+                        consumer.acknowledgeAsync(receivedMsg);
+                        return;
+                    }
+
+                    try {
+                        // Do your custom processing here.
+                        // process(receivedMsg);
+
+                        if (receivedMsg.hasProperty(Constants.REQUEST_TIMEOUT_MILLIS) &&
+                                System.currentTimeMillis() >= receivedMsg.getPublishTime() +
+                                        Long.parseLong(receivedMsg.getProperty(Constants.REQUEST_TIMEOUT_MILLIS))) {
+                            // Call your own implemented rollback here.
+                            // rollBack(receivedMsg);
+                            consumer.acknowledgeAsync(receivedMsg);
+                            return;
+                        }
+
+                        String receivedMessage = new String(receivedMsg.getData());
+                        log.info("Received message [{}] in the listener", receivedMessage);
+                        byte[] replyPayload = (REPLY_CONTENT_PREFIX + receivedMessage).getBytes(UTF_8);
+                        consumer.acknowledgeAsync(receivedMsg.getProperty(Constants.REPLY_TO_CLIENT),
+                                replyPayload, false, receivedMsg.getMessageId());
+                    } catch (Exception e) {
+                        byte[] replyErrorPayload = (REPLY_ERROR_PREFIX + e.getCause()).getBytes(UTF_8);
+                        consumer.acknowledgeAsync(receivedMsg.getProperty(Constants.REPLY_TO_CLIENT),
+                                replyErrorPayload, true, receivedMsg.getMessageId());
+                    }
+                }).subscribe();
+
+        final String synchronousMessage = "SynchronousRequest1";
+        final String asynchronousMessage = "AsynchronousRequest1";
+
+        // 1.Synchronous Send.
+        ReplyResult replyResult = producer.newMessage().value(synchronousMessage.getBytes(UTF_8))
+                .request(rpcTTL, TimeUnit.MILLISECONDS);
+        log.info("ReplyResult: " + new String(replyResult.getReplyContent(), UTF_8));
+        receivedMessageIdMap.put(synchronousMessage, replyResult.getRequestMessageId());
+
+        // 2.Asynchronous Send.
+        producer.newMessage().value(asynchronousMessage.getBytes(UTF_8))
+                .requestAsync(rpcTTL, TimeUnit.MILLISECONDS)
+                .whenComplete((replyMessage, e) -> {
+                    if (e != null) {
+                        log.error("error", e);
+                    } else {
+                        log.info("Reply message: " + replyMessage);
+                        receivedMessageIdMap.put(asynchronousMessage, replyMessage.getRequestMessageId());
+                    }
+                });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).until(() ->
+                receivedMessageIdMap.containsKey(synchronousMessage)
+                        && receivedMessageIdMap.containsKey(asynchronousMessage));
+    }
+
+    @Test
+    public void testRPCCallModeRequestTimeout() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testRPCCallModeRequestTimeout";
+        final long rpcTTL = 3000;
+        Map<String, MessageId> receivedMessageIdMap = new ConcurrentHashMap<>();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false)
+                .producerName("requestClient")
+                .create();
+
+        final String REPLY_CONTENT_PREFIX = "reply message content: ";
+        final String REPLY_ERROR_PREFIX = "reply error: ";
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .consumerName("consumer1")
+                .subscriptionName("sub-1")
+                .isAckReceiptEnabled(false)
+                .messageListener((consumer, receivedMsg) -> {
+                    if (receivedMsg.hasProperty(Constants.REQUEST_TIMEOUT_MILLIS) &&
+                            System.currentTimeMillis() >= receivedMsg.getPublishTime() +
+                                    Long.parseLong(receivedMsg.getProperty(Constants.REQUEST_TIMEOUT_MILLIS))) {
+                        consumer.acknowledgeAsync(receivedMsg);
+                        return;
+                    }
+
+                    try {
+                        Thread.sleep(rpcTTL);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    try {
+                        // Do your custom processing here.
+                        // process(receivedMsg);
+
+                        if (receivedMsg.hasProperty(Constants.REQUEST_TIMEOUT_MILLIS) &&
+                                System.currentTimeMillis() >= receivedMsg.getPublishTime() +
+                                        Long.parseLong(receivedMsg.getProperty(Constants.REQUEST_TIMEOUT_MILLIS))) {
+                            // Call your own implemented rollback here.
+                            // rollBack(receivedMsg);
+                            consumer.acknowledgeAsync(receivedMsg);
+                            return;
+                        }
+
+                        String receivedMessage = new String(receivedMsg.getData());
+                        log.info("Received message [{}] in the listener", receivedMessage);
+                        byte[] replyPayload = (REPLY_CONTENT_PREFIX + receivedMessage).getBytes(UTF_8);
+                        consumer.acknowledgeAsync(receivedMsg.getProperty(Constants.REPLY_TO_CLIENT),
+                                replyPayload, false, receivedMsg.getMessageId());
+                    } catch (Exception e) {
+                        byte[] replyErrorPayload = (REPLY_ERROR_PREFIX + e.getCause()).getBytes(UTF_8);
+                        consumer.acknowledgeAsync(receivedMsg.getProperty(Constants.REPLY_TO_CLIENT),
+                                replyErrorPayload, true, receivedMsg.getMessageId());
+                    }
+                }).subscribe();
+
+        final String synchronousMessage = "SynchronousRequest1";
+        final String asynchronousMessage = "AsynchronousRequest1";
+
+        // 1.Synchronous Send.
+        try {
+            ReplyResult replyResult = producer.newMessage().value(synchronousMessage.getBytes(UTF_8))
+                    .request(rpcTTL, TimeUnit.MILLISECONDS);
+            log.info("ReplyResult: " + new String(replyResult.getReplyContent(), UTF_8));
+            receivedMessageIdMap.put(synchronousMessage, replyResult.getRequestMessageId());
+            Assert.fail("Request timed out.");
+        } catch (Exception e) {
+            log.error("An unexpected error occurred while sending the message: " + e.getMessage(), e);
+            receivedMessageIdMap.put(synchronousMessage, MessageId.latest);
+        }
+
+        // 2.Asynchronous Send.
+        producer.newMessage().value(asynchronousMessage.getBytes(UTF_8))
+                .requestAsync(rpcTTL, TimeUnit.MILLISECONDS)
+                .whenComplete((replyMessage, e) -> {
+                    if (e != null) {
+                        log.error("error", e);
+                        receivedMessageIdMap.put(asynchronousMessage, MessageId.latest);
+                        Assert.fail("Request timed out.");
+                    } else {
+                        receivedMessageIdMap.put(asynchronousMessage, replyMessage.getRequestMessageId());
+                        log.info("Reply message: " + replyMessage);
+                    }
+                });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).until(() ->
+                receivedMessageIdMap.containsKey(synchronousMessage)
+                        && receivedMessageIdMap.containsKey(asynchronousMessage));
     }
 }

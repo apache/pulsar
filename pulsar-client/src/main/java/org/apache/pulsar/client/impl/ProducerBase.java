@@ -20,10 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ReplyResult;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -169,6 +171,22 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
             interceptors.onPartitionsChange(topicName, partitions);
         }
     }
+
+    @Override
+    public ReplyResult request(T message, final long timeout, TimeUnit unit) throws PulsarClientException {
+        return newMessage().value(message).request(timeout, unit);
+    }
+
+    @Override
+    public CompletableFuture<ReplyResult> requestAsync(T message, final long timeout, TimeUnit unit) {
+        try {
+            return newMessage().value(message).requestAsync(timeout, unit);
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
+    abstract CompletableFuture<ReplyResult> internalRequestAsync(MessageId msgId, long timeout, TimeUnit unit);
 
     @Override
     public String toString() {
