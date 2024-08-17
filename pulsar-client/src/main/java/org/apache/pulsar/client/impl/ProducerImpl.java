@@ -2227,7 +2227,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // must acquire semaphore before calling
     private void scheduleBatchFlushTask(long batchingDelayMicros) {
-        if (isBatchMessagingEnabled()) {
+        ClientCnx cnx = cnx();
+        if (cnx != null && isBatchMessagingEnabled()) {
             this.batchFlushTask = ((ScheduledExecutorService) this.client.getScheduledExecutorProvider().getExecutor()).schedule(catchingAndLoggingThrowables(this::batchFlushTask),
                     batchingDelayMicros, TimeUnit.MICROSECONDS);
         }
