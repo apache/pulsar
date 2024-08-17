@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -299,6 +300,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
+        if (cursor.isClosed()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor is already closed, skipping read more entries.", cursor.getName());
+            }
+            return;
+        }
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
@@ -895,7 +902,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         ReadType readType = (ReadType) ctx;
         long waitTimeMillis = readFailureBackoff.next();
 
-        if (exception instanceof NoMoreEntriesToReadException) {
+        // Do not keep reading more entries if the cursor is already closed.
+        if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cursor is already closed, skipping read more entries", cursor.getName());
+            }
+            // Set the wait time to -1 to avoid rescheduling the read.
+            waitTimeMillis = -1;
+        } else if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
@@ -934,7 +948,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
+        // Skip read if the waitTimeMillis is a nagetive value.
+        if (waitTimeMillis >= 0) {
+            scheduleReadEntriesWithDelay(exception, readType, waitTimeMillis);
+        }
+    }
 
+    @VisibleForTesting
+    void scheduleReadEntriesWithDelay(Exception e, ReadType readType, long waitTimeMillis) {
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 // If it's a replay read we need to retry even if there's already
@@ -944,11 +965,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.info("[{}] Retrying read operation", name);
                     readMoreEntries();
                 } else {
-                    log.info("[{}] Skipping read retry: havePendingRead {}", name, havePendingRead, exception);
+                    log.info("[{}] Skipping read retry: havePendingRead {}", name, havePendingRead, e);
                 }
             }
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
-
     }
 
     private boolean needTrimAckedMessages() {
