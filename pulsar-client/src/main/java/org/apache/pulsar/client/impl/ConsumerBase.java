@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -1173,7 +1174,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             } else {
                 id = msg.getMessageId();
             }
-            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
+            if (Objects.nonNull(unAckedMessageTracker)) {
+                unAckedMessageTracker.add(id, msg.getRedeliveryCount());
+            }
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
