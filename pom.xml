@@ -163,7 +163,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.version>1.78.1</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
-    <jackson.version>2.14.2</jackson.version>
+    <jackson.version>2.17.2</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -301,7 +301,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-shade-plugin>3.6.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>

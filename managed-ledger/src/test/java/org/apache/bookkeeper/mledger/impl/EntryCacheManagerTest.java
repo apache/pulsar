@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +46,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -392,6 +394,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 
         final CountDownLatch counter = new CountDownLatch(1);
+        when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
+        when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
+                MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
         entryCache.asyncReadEntry(lh, PositionFactory.create(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);
@@ -406,7 +411,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         }, null);
         counter.await();
 
-        verify(lh).readAsync(anyLong(), anyLong());
+        verify(lh).readUnconfirmedAsync(anyLong(), anyLong());
     }
 
 }

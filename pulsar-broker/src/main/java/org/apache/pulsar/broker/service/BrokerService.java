@@ -1664,6 +1664,7 @@ public class BrokerService implements Closeable {
                         topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
                     }
                 }).exceptionally(ex -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex);
                     return null;
                 });
@@ -1767,10 +1768,16 @@ public class BrokerService implements Closeable {
                                             long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
                                                                         - topicCreateTimeMs;
                                             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                            if (topicFuture.isCompletedExceptionally()) {
+                                            if (!topicFuture.complete(Optional.of(persistentTopic))) {
                                                 // Check create persistent topic timeout.
-                                                log.warn("{} future is already completed with failure {}, closing the"
-                                                        + " topic", topic, FutureUtil.getException(topicFuture));
+                                                if (topicFuture.isCompletedExceptionally()) {
+                                                    log.warn("{} future is already completed with failure {}, closing"
+                                                        + " the topic", topic, FutureUtil.getException(topicFuture));
+                                                } else {
+                                                    // It should not happen.
+                                                    log.error("{} future is already completed by another thread, "
+                                                            + "which is not expected. Closing the current one", topic);
+                                                }
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, ex) -> {
                                                         topics.remove(topic, topicFuture);
@@ -1782,7 +1789,6 @@ public class BrokerService implements Closeable {
                                                 });
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
-                                                topicFuture.complete(Optional.of(persistentTopic));
                                             }
                                         })
                                         .exceptionally((ex) -> {
@@ -1811,6 +1817,7 @@ public class BrokerService implements Closeable {
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
@@ -3705,6 +3712,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+        if (isSystemTopic(topicName)) {
+            return CompletableFuture.completedFuture(null);
+        }
         return pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(optPolicies -> {
