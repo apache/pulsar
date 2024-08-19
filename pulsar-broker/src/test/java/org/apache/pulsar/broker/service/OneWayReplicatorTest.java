@@ -1160,4 +1160,22 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.namespaces().deleteNamespace(ns);
         admin2.namespaces().deleteNamespace(ns);
     }
+
+    @Test
+    public void testReplicatedSubscriptionWithoutTopicReplication() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        // Verify: the replicated subscription controller will not be created if the topic level replication was
+        // disabled.
+        Consumer consumer = client1.newConsumer().replicateSubscriptionState(true).topic(topicName)
+                .subscriptionName("s1").subscribe();
+        PersistentTopic persistentTopic = (PersistentTopic) broker1.getTopic(topicName, false).join().get();
+        persistentTopic.checkReplicatedSubscriptionControllerState();
+        assertTrue(persistentTopic.getReplicatedSubscriptionController().isEmpty());
+
+        // cleanup.
+        consumer.close();
+        admin1.topics().delete(topicName, false);
+    }
 }

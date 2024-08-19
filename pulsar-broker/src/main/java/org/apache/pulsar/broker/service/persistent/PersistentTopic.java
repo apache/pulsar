@@ -1873,6 +1873,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    private boolean isEnabledReplication() {
+        if (topicPolicies == null || topicPolicies.getReplicationClusters() == null
+                || CollectionUtils.isEmpty(topicPolicies.getReplicationClusters().get())) {
+            return false;
+        }
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return !topicPolicies.getReplicationClusters().get().stream().filter(v -> !localCluster.equals(v))
+                .findFirst().isEmpty();
+    }
+
     @Override
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
@@ -4076,10 +4086,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public synchronized void checkReplicatedSubscriptionControllerState() {
+        final boolean enabledReplication = isEnabledReplication();
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
         subscriptions.forEach((name, subscription) -> {
             if (subscription.isReplicated()) {
                 shouldBeEnabled.set(true);
+                if (!enabledReplication) {
+                    // It is an incorrect usage of Replicated subscription, so print a warning log here.
+                    log.warn("[{}] Skip to enabled replicated subscription for [{}] because this topic has not enabled"
+                            + " replication yet. It will start after enabled topic replication automatically.",
+                            topic, subscription.getName());
+                }
             }
         });
 
@@ -4089,7 +4106,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
 
-        checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
+        checkReplicatedSubscriptionControllerState(shouldBeEnabled.get() && enabledReplication);
     }
 
     private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
