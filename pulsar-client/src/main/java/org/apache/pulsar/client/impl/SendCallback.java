@@ -20,10 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  *
  */
+@InterfaceStability.Evolving
 public interface SendCallback {
 
     /**
