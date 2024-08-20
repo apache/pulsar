@@ -22,6 +22,7 @@ import static org.apache.pulsar.client.impl.AbstractBatchMessageContainer.INITIA
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -138,14 +139,16 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
                         .batchingMaxMessages(batchSize)
                         .create();
 
-        AtomicBoolean result = new AtomicBoolean(false);
+        CountDownLatch cdl = new CountDownLatch(1);
         AtomicReference<OpSendMsgStats> sendMsgStats = new AtomicReference<>();
         SendCallback sendComplete = new SendCallback() {
             @Override
             public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
                 log.info("sendComplete", e);
-                result.set(e == null);
-                sendMsgStats.set(opSendMsgStats);
+                if (e == null){
+                    cdl.countDown();
+                    sendMsgStats.set(opSendMsgStats);
+                }
             }
 
             @Override
@@ -180,7 +183,7 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
             producer.sendAsync(msg, sendComplete);
         }
 
-        Awaitility.await().untilTrue(result);
+        cdl.await();
         OpSendMsgStats opSendMsgStats = sendMsgStats.get();
         Assert.assertEquals(opSendMsgStats.getUncompressedSize(), totalUncompressedSize + INITIAL_BATCH_BUFFER_SIZE);
         Assert.assertEquals(opSendMsgStats.getSequenceId(), 0);
