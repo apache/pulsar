@@ -250,6 +250,9 @@ class OpFindNewest implements ReadEntryCallback {
         return nextPosition;
     }
 
+    /**
+     * Find the largest entry that matches the given predicate.
+     */
     public void find() {
         if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition)) {
             ledger.asyncReadEntry(searchPosition, this, null);

@@ -801,11 +801,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         // Let the message expire
         for (String topic : topicList) {
+            // The TTL value can not be set to a negative value, the mininum value is 1.
             PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopicIfExists(topic).get().get();
-            persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
-            persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
+            persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(1);
+            persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(1);
         }
+        // Wait 2 seconds to expire message.
+        Thread.sleep(2000);
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
         //wait for checkMessageExpiry
         PersistentSubscription sub = (PersistentSubscription)
