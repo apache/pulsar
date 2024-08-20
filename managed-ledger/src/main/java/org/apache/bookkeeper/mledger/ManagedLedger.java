@@ -703,4 +703,6 @@ public interface ManagedLedger {
     default ManagedLedgerAttributes getManagedLedgerAttributes() {
         return new ManagedLedgerAttributes(this);
     }
+
+    void updateMaxReadPosition(Position position);
 }

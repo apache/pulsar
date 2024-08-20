@@ -62,6 +62,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -3898,10 +3899,169 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadEntriesOrWaitWithMaxPosition() throws Exception {
+    public void testTwoPendingReadRequestExistAndCancel() throws Exception {
+        ManagedLedger ledger = factory.open("testCancelAllWaitPendingReadRequest");
+        ManagedCursor c = ledger.openCursor("c");
+
+        int sendNumber = 20;
+        // add waitingReadOp
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.EARLIEST);
+
+        // waitingReadOp exist, then readPosition in cursor is changed
+        // and it is able to add waitingReadOpByMaxReadPosition
+        Field field1 = ManagedLedgerImpl.class.getDeclaredField("maxReadPosition");
+        field1.setAccessible(true);
+        field1.set(ledger, PositionFactory.create(3, 0));
+
+        Field field2 = ManagedLedgerImpl.class.getDeclaredField("lastConfirmedEntry");
+        field2.setAccessible(true);
+        field2.set(ledger, PositionFactory.create(3, 10));
+
+        Field field3 = ManagedCursorImpl.class.getDeclaredField("readPosition");
+        field3.setAccessible(true);
+        field3.set(c, PositionFactory.create(3, 5));
+
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.LATEST);
+
+        Field field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNotNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNotNull(field.get(c));
+
+        // cancel PendingReadRequest
+        c.cancelPendingReadRequest();
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+    }
+
+    @Test
+    public void testOnePendingReadRequestExistAndCancel() throws Exception {
+        ManagedLedger ledger = factory.open("testCancelAllWaitPendingReadRequest");
+        ManagedCursor c = ledger.openCursor("c");
+
+        int sendNumber = 20;
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.EARLIEST);
+
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.LATEST);
+
+        // waitingReadOp is not null, waitingReadOpByMaxReadPosition is null
+        Field field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNotNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        // cancel PendingReadRequest
+        c.cancelPendingReadRequest();
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        // set readPosition=5, maxReadPosition=0, lastConfirmedEntry=10
+        // waitingReadOpByMaxReadPosition is not null, waitingReadOp is null,
+        Field field1 = ManagedLedgerImpl.class.getDeclaredField("maxReadPosition");
+        field1.setAccessible(true);
+        field1.set(ledger, PositionFactory.create(3, 0));
+
+        Field field2 = ManagedLedgerImpl.class.getDeclaredField("lastConfirmedEntry");
+        field2.setAccessible(true);
+        field2.set(ledger, PositionFactory.create(3, 10));
+
+        Field field3 = ManagedCursorImpl.class.getDeclaredField("readPosition");
+        field3.setAccessible(true);
+        field3.set(c, PositionFactory.create(3, 5));
+
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.EARLIEST);
+
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null, PositionFactory.LATEST);
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNotNull(field.get(c));
+
+        // cancel PendingReadRequest
+        c.cancelPendingReadRequest();
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOp");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+
+        field = ManagedCursorImpl.class.getDeclaredField("waitingReadOpByMaxReadPosition");
+        field.setAccessible(true);
+        assertNull(field.get(c));
+    }
+
+    @Test
+    public void testReadEntriesOrWaitWithMaxPositionWithoutEnableTransaction() throws Exception {
         int readMaxNumber = 10;
         int sendNumber = 20;
-        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxPosition");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)
+                factory.open("testReadEntriesOrWaitWithMaxPosition");
         ManagedCursor c = ledger.openCursor("c");
         Position position = PositionFactory.EARLIEST;
         Position maxCanReadPosition = PositionFactory.EARLIEST;
@@ -3913,8 +4073,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             } else {
                 ledger.addEntry(new byte[1024]);
             }
-
         }
+
+        // when disable transaction, ml.maxReadPosition is always latest,
+        // readPosition is always <= ml.maxReadPosition,
+        // so it won't affect the previous readEntry process
+        Assert.assertEquals(ledger.getLastConfirmedEntry(), maxCanReadPosition);
+        Assert.assertEquals(ledger.getMaxReadPosition(), PositionFactory.LATEST);
+
         CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
         c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
@@ -3945,6 +4111,216 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(number, sendNumber - readMaxNumber);
 
+    }
+
+    @Test
+    public void testReadEntriesOrWaitWithMaxPositionWithEnableTransaction() throws Exception {
+        int readMaxNumber = 10;
+        int sendNumber = 20;
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)
+                factory.open("testReadEntriesOrWaitWithMaxPosition");
+        ManagedCursor c = ledger.openCursor("c");
+        Position position = PositionFactory.EARLIEST;
+        Position lastPosition = PositionFactory.EARLIEST;
+        for (int i = 0; i < sendNumber; i++) {
+            if (i == readMaxNumber - 1) {
+                position = ledger.addEntry(new byte[1024]);
+            } else if (i == sendNumber - 1) {
+                lastPosition = ledger.addEntry(new byte[1024]);
+            } else {
+                ledger.addEntry(new byte[1024]);
+            }
+        }
+
+        // update maxReadPosition to position.
+        // simulate that 0-position is normal add entry,
+        // position-maxCanReadPosition is txn add entry, and txn not commit
+        ledger.updateMaxReadPosition(position);
+
+        Assert.assertEquals(ledger.getLastConfirmedEntry(), lastPosition);
+        Assert.assertEquals(ledger.getMaxReadPosition(), position);
+
+        CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completableFuture.complete(entries.size());
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null, ledger.getMaxReadPosition());
+
+        int number = completableFuture.get();
+        assertEquals(number, readMaxNumber);
+
+
+        CompletableFuture<Integer> completableFuture2 = new CompletableFuture<>();
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completableFuture2.complete(entries.size());
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture2.completeExceptionally(exception);
+            }
+        }, null, lastPosition);
+
+        try {
+            number = completableFuture2.get(2, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException e) {
+            // read op in wait state, so will throw timeout exception
+        }
+
+        // update maxReadPosition to maxCanReadPosition, notify wait cursor to read
+        ledger.updateMaxReadPosition(lastPosition);
+        number = completableFuture2.get(2, TimeUnit.SECONDS);
+        assertEquals(number, sendNumber - readMaxNumber);
+
+
+        // reset cursor to earliest
+        c.resetCursor(PositionFactory.EARLIEST);
+        CompletableFuture<Integer> completableFuture3 = new CompletableFuture<>();
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completableFuture3.complete(entries.size());
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture3.completeExceptionally(exception);
+            }
+        }, null, lastPosition);
+        number = completableFuture3.get(2, TimeUnit.SECONDS);
+        // after reset to earliest, can read from earliest to lastPosition
+        assertEquals(number, sendNumber);
+    }
+
+    @DataProvider(name = "updateMaxReadPositionThenAddEntry")
+    public Object[][] updateMaxReadPositionThenAddEntryProvider() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    @Test(dataProvider = "updateMaxReadPositionThenAddEntry")
+    public void testPendingReadOpWithResetCursor(boolean flag) throws Exception {
+        int readMaxNumber = 10;
+        int sendNumber = 20;
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)
+                factory.open("testReadEntriesOrWaitWithMaxPosition");
+        ManagedCursor c = ledger.openCursor("c");
+        Position middlePosition = PositionFactory.EARLIEST;
+        Position lastPosition = PositionFactory.EARLIEST;
+        for (int i = 0; i < sendNumber; i++) {
+            if (i == readMaxNumber - 1) {
+                middlePosition = ledger.addEntry(new byte[1024]);
+            } else if (i == sendNumber - 1) {
+                lastPosition = ledger.addEntry(new byte[1024]);
+            } else {
+                ledger.addEntry(new byte[1024]);
+            }
+        }
+
+        // update maxReadPosition to earliest.
+        // simulate that all entries is txn add entry, and txn not commit
+        ledger.updateMaxReadPosition(PositionFactory.EARLIEST);
+
+        Assert.assertEquals(ledger.getLastConfirmedEntry(), lastPosition);
+        Assert.assertEquals(ledger.getMaxReadPosition(), PositionFactory.EARLIEST);
+
+        // completableFuture would go into waitingCursorsByMaxReadPosition
+        CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completableFuture.complete(entries.size());
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null, lastPosition);
+
+        int number;
+        try {
+            number = completableFuture.get(2, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException e) {
+            // read op in wait state, so will throw timeout exception
+        }
+
+        // reset cursor to lastPosition.getNext()
+        c.resetCursor(PositionFactory.LATEST);
+        Assert.assertEquals(c.getReadPosition(), lastPosition.getNext());
+
+        // completableFuture2 would go into waitingCursors
+        CompletableFuture<Integer> completableFuture2 = new CompletableFuture<>();
+        c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completableFuture2.complete(entries.size());
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture2.completeExceptionally(exception);
+            }
+        }, null, lastPosition);
+
+        int number2;
+        try {
+            number2 = completableFuture2.get(2, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException e) {
+            // read op in wait state, so will throw timeout exception
+        }
+
+        Assert.assertEquals(ledger.waitingCursors.size(), 1);
+        Assert.assertEquals(ledger.waitingCursorsByMaxReadPosition.size(), 1);
+
+        if (flag) {
+            // update maxReadPosition to lastPosition,
+            // notify waitingCursorsByMaxReadPosition to read
+            ledger.updateMaxReadPosition(lastPosition);
+            number = completableFuture.get(2, TimeUnit.SECONDS);
+            assertEquals(number, 0);
+            try {
+                number2 = completableFuture2.get(2, TimeUnit.SECONDS);
+                fail();
+            } catch (TimeoutException e) {
+                // read op in wait state, so will throw timeout exception
+            }
+
+            // then add entry to move forward lastConfirmedEntry
+            // notify waitingCursors to read
+            ledger.addEntry(new byte[1024]);
+            number2 = completableFuture2.get(2, TimeUnit.SECONDS);
+            assertEquals(number2, 0);
+        } else {
+            // add entry to move forward lastConfirmedEntry
+            // notify waitingCursors to read
+            ledger.addEntry(new byte[1024]);
+            number2 = completableFuture2.get(2, TimeUnit.SECONDS);
+            assertEquals(number2, 0);
+            try {
+                number = completableFuture.get(2, TimeUnit.SECONDS);
+                fail();
+            } catch (TimeoutException e) {
+                // read op in wait state, so will throw timeout exception
+            }
+
+            // then update maxReadPosition to lastPosition,
+            // notify waitingCursorsByMaxReadPosition to read
+            ledger.updateMaxReadPosition(lastPosition);
+            number = completableFuture.get(2, TimeUnit.SECONDS);
+            assertEquals(number, 0);
+        }
     }
 
     @Test
@@ -4348,11 +4724,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         Awaitility.await().atMost(Duration.ofSeconds(1))
                 .untilAsserted(() -> assertEquals(ledger.waitingCursors.size(), 1));
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(ledger.waitingCursorsByMaxReadPosition.size(), 0));
         assertTrue(cursor.cancelPendingReadRequest());
 
         ledger.addEntry(new byte[1]);
         Awaitility.await().atMost(Duration.ofSeconds(1))
                 .untilAsserted(() -> assertTrue(ledger.waitingCursors.isEmpty()));
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertTrue(ledger.waitingCursorsByMaxReadPosition.isEmpty()));
         assertFalse(readEntriesSuccess.get());
 
         assertEquals(exceptions.size(), numReadRequests - 1);
