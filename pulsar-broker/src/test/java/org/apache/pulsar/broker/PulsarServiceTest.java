@@ -67,6 +67,9 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             conf.setWebServicePort(Optional.of(8081));
             conf.setWebServicePortTls(Optional.of(8082));
         }
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
     }
 
     @Test

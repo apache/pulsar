@@ -1389,7 +1389,9 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
+                            data.getBrokerClientSslFactoryPlugin(),
+                            data.getBrokerClientSslFactoryPluginParams()
                     );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
@@ -1404,7 +1406,9 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
                             pulsar.getConfiguration().getBrokerClientKeyFilePath(),
                             pulsar.getConfiguration().getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
+                            pulsar.getConfiguration().getBrokerClientSslFactoryPlugin(),
+                            pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams()
                     );
                 } else {
                     clientBuilder.serviceUrl(
@@ -1435,11 +1439,16 @@ public class BrokerService implements Closeable {
                                    String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
                                    String brokerClientTrustCertsFilePath,
                                    String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
-                                   boolean isTlsHostnameVerificationEnabled) {
+                                   boolean isTlsHostnameVerificationEnabled, String brokerClientSslFactoryPlugin,
+                                   String brokerClientSslFactoryPluginParams) {
         clientBuilder
                 .serviceUrl(serviceUrl)
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+        if (StringUtils.isNotBlank(brokerClientSslFactoryPlugin)) {
+            clientBuilder.sslFactoryPlugin(brokerClientSslFactoryPlugin)
+                    .sslFactoryPluginParams(brokerClientSslFactoryPluginParams);
+        }
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1462,7 +1471,8 @@ public class BrokerService implements Closeable {
                                         String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
                                         String brokerClientTrustCertsFilePath,
                                         String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
-                                        boolean isTlsHostnameVerificationEnabled) {
+                                        boolean isTlsHostnameVerificationEnabled, String brokerClientSslFactoryPlugin,
+                                        String brokerClientSslFactoryPluginParams) {
         if (brokerClientTlsEnabledWithKeyStore) {
             adminBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1477,7 +1487,9 @@ public class BrokerService implements Closeable {
                     .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
         adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
+                .sslFactoryPlugin(brokerClientSslFactoryPlugin)
+                .sslFactoryPluginParams(brokerClientSslFactoryPluginParams);
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -1524,7 +1536,9 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
+                            data.getBrokerClientSslFactoryPlugin(),
+                            data.getBrokerClientSslFactoryPluginParams()
                     );
                 } else if (conf.isBrokerClientTlsEnabled()) {
                     configAdminTlsSettings(builder,
@@ -1539,7 +1553,9 @@ public class BrokerService implements Closeable {
                             conf.getBrokerClientTrustCertsFilePath(),
                             conf.getBrokerClientKeyFilePath(),
                             conf.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled(),
+                            conf.getBrokerClientSslFactoryPlugin(),
+                            conf.getBrokerClientSslFactoryPluginParams()
                     );
                 }
 

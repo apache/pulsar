@@ -291,6 +291,20 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
+     * SSL Factory Plugin used to generate the SSL Context and SSLEngine.
+     * @param sslFactoryPlugin Name of the SSL Factory Class to be used.
+     * @return PulsarAdminBuilder
+     */
+    PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin);
+
+    /**
+     * Parameters used by the SSL Factory Plugin class.
+     * @param sslFactoryPluginParams String parameters to be used by the SSL Factory Class.
+     * @return
+     */
+    PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+
+    /**
      * This sets the connection time out for the pulsar admin client.
      *
      * @param connectionTimeout

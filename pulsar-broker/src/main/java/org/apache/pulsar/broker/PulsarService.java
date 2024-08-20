@@ -1689,6 +1689,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
                     conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
+                    conf.setSslFactoryPlugin(this.getConfiguration().getBrokerClientSslFactoryPlugin());
+                    conf.setSslFactoryPluginParams(this.getConfiguration().getBrokerClientSslFactoryPluginParams());
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                         conf.setUseKeyStoreTls(true);
                         conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());
@@ -1739,15 +1741,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
-                builder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+                builder.loadConf(PropertiesUtils.filterAndMapProperties(conf.getProperties(), "brokerClient_"));
 
                 builder.authentication(
                         conf.getBrokerClientAuthenticationPlugin(),
                         conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
-                            .tlsProtocols(config.getBrokerClientTlsProtocols());
+                    builder.tlsCiphers(conf.getBrokerClientTlsCiphers())
+                            .tlsProtocols(conf.getBrokerClientTlsProtocols())
+                            .sslFactoryPlugin(conf.getBrokerClientSslFactoryPlugin())
+                            .sslFactoryPluginParams(conf.getBrokerClientSslFactoryPluginParams());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true).tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
                                 .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())

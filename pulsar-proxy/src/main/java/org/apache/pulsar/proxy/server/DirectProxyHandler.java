@@ -40,15 +40,14 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.flush.FlushConsolidationHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -60,10 +59,9 @@ import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
-import org.apache.pulsar.common.util.NettyClientSslContextRefresher;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,11 +86,10 @@ public class DirectProxyHandler {
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
     private final boolean tlsHostnameVerificationEnabled;
-    private final boolean tlsEnabledWithKeyStore;
     final boolean tlsEnabledWithBroker;
-    private final SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
-    private final NettySSLContextAutoRefreshBuilder clientSSLContextAutoRefreshBuilder;
+    private PulsarSslFactory sslFactory;
 
+    @SneakyThrows
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection) {
         this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
@@ -104,7 +101,6 @@ public class DirectProxyHandler {
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.tlsEnabledWithBroker = service.getConfiguration().isTlsEnabledWithBroker();
         this.tlsHostnameVerificationEnabled = service.getConfiguration().isTlsHostnameVerificationEnabled();
-        this.tlsEnabledWithKeyStore = service.getConfiguration().isTlsEnabledWithKeyStore();
         this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
         ProxyConfiguration config = service.getConfiguration();
 
@@ -118,41 +114,11 @@ public class DirectProxyHandler {
                     throw new RuntimeException(e);
                 }
             }
-
-            if (tlsEnabledWithKeyStore) {
-                clientSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                        config.getBrokerClientSslProvider(),
-                        config.isTlsAllowInsecureConnection(),
-                        config.getBrokerClientTlsTrustStoreType(),
-                        config.getBrokerClientTlsTrustStore(),
-                        config.getBrokerClientTlsTrustStorePassword(),
-                        config.getBrokerClientTlsKeyStoreType(),
-                        config.getBrokerClientTlsKeyStore(),
-                        config.getBrokerClientTlsKeyStorePassword(),
-                        config.getBrokerClientTlsCiphers(),
-                        config.getBrokerClientTlsProtocols(),
-                        config.getTlsCertRefreshCheckDurationSec(),
-                        authData);
-                clientSslCtxRefresher = null;
-            } else {
-                SslProvider sslProvider = null;
-                if (config.getBrokerClientSslProvider() != null) {
-                    sslProvider = SslProvider.valueOf(config.getBrokerClientSslProvider());
-                }
-                clientSslCtxRefresher = new NettyClientSslContextRefresher(
-                        sslProvider,
-                        config.isTlsAllowInsecureConnection(),
-                        config.getBrokerClientTrustCertsFilePath(),
-                        authData,
-                        config.getBrokerClientTlsCiphers(),
-                        config.getBrokerClientTlsProtocols(),
-                        config.getTlsCertRefreshCheckDurationSec()
-                );
-                clientSSLContextAutoRefreshBuilder = null;
-            }
-        } else {
-            clientSSLContextAutoRefreshBuilder = null;
-            clientSslCtxRefresher = null;
+            PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config, authData);
+            this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
+                    .getConstructor().newInstance();
+            this.sslFactory.initialize(sslConfiguration);
+            this.sslFactory.createInternalSslContext();
         }
     }
 
@@ -193,9 +159,7 @@ public class DirectProxyHandler {
                 if (tlsEnabledWithBroker) {
                     String host = targetBrokerAddress.getHostString();
                     int port = targetBrokerAddress.getPort();
-                    SslHandler handler = tlsEnabledWithKeyStore
-                            ? new SslHandler(clientSSLContextAutoRefreshBuilder.get().createSSLEngine(host, port))
-                            : clientSslCtxRefresher.get().newHandler(ch.alloc(), host, port);
+                    SslHandler handler = new SslHandler(sslFactory.createClientSslEngine(ch.alloc(), host, port));
                     if (tlsHostnameVerificationEnabled) {
                         SecurityUtility.configureSSLHandler(handler);
                     }
@@ -497,6 +461,30 @@ public class DirectProxyHandler {
 
     private void writeAndFlush(ByteBuf cmd) {
         NettyChannelUtil.writeAndFlushWithVoidPromise(outboundChannel, cmd);
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config,
+                                                           AuthenticationDataProvider authData) {
+        return PulsarSslConfiguration.builder()
+                .tlsProvider(config.getBrokerClientSslProvider())
+                .tlsKeyStoreType(config.getBrokerClientTlsKeyStoreType())
+                .tlsKeyStorePath(config.getBrokerClientTlsKeyStore())
+                .tlsKeyStorePassword(config.getBrokerClientTlsKeyStorePassword())
+                .tlsTrustStoreType(config.getBrokerClientTlsTrustStoreType())
+                .tlsTrustStorePath(config.getBrokerClientTlsTrustStore())
+                .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword())
+                .tlsCiphers(config.getBrokerClientTlsCiphers())
+                .tlsProtocols(config.getBrokerClientTlsProtocols())
+                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath())
+                .tlsCertificateFilePath(config.getBrokerClientCertificateFilePath())
+                .tlsKeyFilePath(config.getBrokerClientKeyFilePath())
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(false)
+                .tlsEnabledWithKeystore(config.isBrokerClientTlsEnabledWithKeyStore())
+                .tlsCustomParams(config.getBrokerClientSslFactoryPluginParams())
+                .authData(authData)
+                .serverMode(false)
+                .build();
     }
 
     private static final Logger log = LoggerFactory.getLogger(DirectProxyHandler.class);

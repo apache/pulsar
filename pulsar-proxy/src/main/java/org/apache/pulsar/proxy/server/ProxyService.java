@@ -119,6 +119,7 @@ public class ProxyService implements Closeable {
     protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
+    private ScheduledExecutorService sslContextRefresher;
 
     static final Gauge ACTIVE_CONNECTIONS = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
@@ -245,7 +246,7 @@ public class ProxyService implements Closeable {
             proxyZeroCopyModeEnabled = true;
         }
 
-        bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
+        bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false, null));
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
@@ -258,8 +259,12 @@ public class ProxyService implements Closeable {
         }
 
         if (proxyConfig.getServicePortTls().isPresent()) {
+            this.sslContextRefresher = Executors
+                    .newSingleThreadScheduledExecutor(
+                            new DefaultThreadFactory("proxy-ssl-context-refresher"));
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
+            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true,
+                    sslContextRefresher));
             listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(),
                     proxyConfig.getServicePortTls().get()).sync().channel();
             LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
@@ -387,6 +392,10 @@ public class ProxyService implements Closeable {
 
         if (discoveryProvider != null) {
             discoveryProvider.close();
+        }
+
+        if (this.sslContextRefresher != null) {
+            this.sslContextRefresher.shutdownNow();
         }
 
         if (statsExecutor != null) {

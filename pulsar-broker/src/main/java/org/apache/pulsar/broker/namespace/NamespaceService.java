@@ -1677,7 +1677,9 @@ public class NamespaceService implements AutoCloseable {
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled())
+                        .sslFactoryPlugin(pulsar.getConfiguration().getBrokerClientSslFactoryPlugin())
+                        .sslFactoryPluginParams(pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams());
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

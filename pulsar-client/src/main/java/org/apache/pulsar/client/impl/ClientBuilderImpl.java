@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -428,6 +429,28 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(DefaultPulsarSslFactory.class.getName());
+        } else {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds) {
+        conf.setAutoCertRefreshSeconds(autoCertRefreshSeconds);
         return this;
     }
 

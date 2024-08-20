@@ -206,16 +206,17 @@ public class PulsarClientImpl implements PulsarClient {
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
+            this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
+                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             connectionPoolReference =
                     connectionPool != null ? connectionPool :
-                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup);
+                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup,
+                                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor());
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
-            this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
-                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {

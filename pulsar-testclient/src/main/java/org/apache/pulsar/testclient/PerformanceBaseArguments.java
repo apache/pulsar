@@ -44,6 +44,15 @@ public abstract class PerformanceBaseArguments extends CmdBase{
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "authParams")
     public String authParams;
 
+    @Option(names = { "--ssl-factory-plugin" }, description = "Pulsar SSL Factory plugin class name",
+            descriptionKey = "sslFactoryPlugin")
+    public String sslfactoryPlugin;
+
+    @Option(names = { "--ssl-factory-plugin-params" },
+            description = "Pulsar SSL Factory Plugin parameters in the format: "
+                    + "\"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "sslFactoryPluginParams")
+    public String sslFactoryPluginParams;
+
     @Option(names = {
             "--trust-cert-file" }, description = "Path for the trusted TLS certificate file",
             descriptionKey = "tlsTrustCertsFilePath")
