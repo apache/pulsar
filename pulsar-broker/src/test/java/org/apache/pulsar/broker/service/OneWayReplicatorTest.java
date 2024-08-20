@@ -38,8 +38,11 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -48,7 +51,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.SneakyThrows;
@@ -58,6 +63,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -75,8 +81,12 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -947,6 +957,36 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
     }
 
+    @Test(timeOut = 30 * 1000)
+    public void testCreateRemoteAdminFailed() throws Exception {
+        final TenantInfo tenantInfo = admin1.tenants().getTenantInfo(defaultTenant);
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String randomClusterName = "c_" + UUID.randomUUID().toString().replace("-", "");
+        final String topic = BrokerTestUtil.newUniqueName(ns1 + "/tp");
+        admin1.namespaces().createNamespace(ns1);
+        admin1.topics().createPartitionedTopic(topic, 2);
+
+        // Inject a wrong cluster data which with empty fields.
+        ClusterResources clusterResources = broker1.getPulsar().getPulsarResources().getClusterResources();
+        clusterResources.createCluster(randomClusterName, ClusterData.builder().build());
+        Set<String> allowedClusters = new HashSet<>(tenantInfo.getAllowedClusters());
+        allowedClusters.add(randomClusterName);
+        admin1.tenants().updateTenant(defaultTenant, TenantInfo.builder().adminRoles(tenantInfo.getAdminRoles())
+                .allowedClusters(allowedClusters).build());
+
+        // Verify.
+        try {
+            admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1, randomClusterName));
+            fail("Expected a error due to empty fields");
+        } catch (Exception ex) {
+            // Expected an error.
+        }
+
+        // cleanup.
+        admin1.topics().deletePartitionedTopic(topic);
+        admin1.tenants().updateTenant(defaultTenant, tenantInfo);
+    }
+
     @Test
     public void testConfigReplicationStartAt() throws Exception {
         // Initialize.
@@ -1033,5 +1073,91 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().delete(topic2, false);
         admin1.topics().delete(topic3, false);
         admin2.topics().delete(topic3, false);
+    }
+
+    @DataProvider(name = "replicationModes")
+    public Object[][] replicationModes() {
+        return new Object[][]{
+            {ReplicationMode.OneWay},
+            {ReplicationMode.DoubleWay}
+        };
+    }
+
+    protected enum ReplicationMode {
+        OneWay,
+        DoubleWay;
+    }
+
+    @Test(dataProvider = "replicationModes")
+    public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+
+        // Set topic auto-creation rule.
+        // c1: no-partitioned topic
+        // c2: partitioned topic with 2 partitions.
+        AutoTopicCreationOverride autoTopicCreation =
+                AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                        .topicType("partitioned").defaultNumPartitions(2).build();
+        admin2.namespaces().setAutoTopicCreation(ns, autoTopicCreation);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join().getDefaultNumPartitions(), 2);
+            // Trigger system topic __change_event's initialize.
+            pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get("persistent://" + ns + "/1"));
+        });
+
+        // Create non-partitioned topic.
+        // Enable replication.
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        admin1.topics().createNonPartitionedTopic(tp);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        if (replicationMode.equals(ReplicationMode.DoubleWay)) {
+            admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        }
+
+        // Trigger and wait for replicator starts.
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-1");
+        p1.close();
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        // Verify: the topics are the same between two clusters.
+        Predicate<String> topicNameFilter = t -> {
+            TopicName topicName = TopicName.get(t);
+            if (!topicName.getNamespace().equals(ns)) {
+                return false;
+            }
+            return t.startsWith(tp);
+        };
+        Awaitility.await().untilAsserted(() -> {
+            List<String> topics1 = pulsar1.getBrokerService().getTopics().keys()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            List<String> topics2 = pulsar2.getBrokerService().getTopics().keys()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            Collections.sort(topics1);
+            Collections.sort(topics2);
+            assertEquals(topics1, topics2);
+        });
+
+        // cleanup.
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)));
+        if (replicationMode.equals(ReplicationMode.DoubleWay)) {
+            admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster2)));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertTrue(persistentTopic.getReplicators().isEmpty());
+            if (replicationMode.equals(ReplicationMode.DoubleWay)) {
+                assertTrue(persistentTopic.getReplicators().isEmpty());
+            }
+        });
+        admin1.topics().delete(tp, false);
+        admin2.topics().delete(tp, false);
+        admin1.namespaces().deleteNamespace(ns);
+        admin2.namespaces().deleteNamespace(ns);
     }
 }

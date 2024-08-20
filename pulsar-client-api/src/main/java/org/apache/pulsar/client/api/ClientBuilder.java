@@ -130,6 +130,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * Defaults to 25 seconds.
+     *
      * @return the client builder instance
      */
     ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
@@ -598,7 +600,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      *
      * @param proxyServiceUrl proxy service url
      * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
 
@@ -606,7 +608,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * If enable transaction, start the transactionCoordinatorClient with pulsar client.
      *
      * @param enableTransaction whether enable transaction feature
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
 
@@ -614,35 +616,56 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Set dns lookup bind address and port.
      * @param address dnsBindAddress
      * @param port dnsBindPort
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder dnsLookupBind(String address, int port);
 
     /**
      * Set dns lookup server addresses.
      * @param addresses dnsServerAddresses
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
 
     /**
      *  Set socks5 proxy address.
      * @param socks5ProxyAddress
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
 
     /**
      *  Set socks5 proxy username.
      * @param socks5ProxyUsername
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyUsername(String socks5ProxyUsername);
 
     /**
      *  Set socks5 proxy password.
      * @param socks5ProxyPassword
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.
+     * @param sslFactoryPlugin ssl factory class name
+     * @return the client builder instance
+     */
+    ClientBuilder sslFactoryPlugin(String sslFactoryPlugin);
+
+    /**
+     * Set the SSL Factory Plugin params for the ssl factory plugin to use.
+     * @param sslFactoryPluginParams Params in String format that will be inputted to the SSL Factory Plugin
+     * @return the client builder instance
+     */
+    ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+
+    /**
+     * Set Cert Refresh interval in seconds.
+     * @param autoCertRefreshSeconds
+     * @return the client builder instance
+     */
+    ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds);
 }

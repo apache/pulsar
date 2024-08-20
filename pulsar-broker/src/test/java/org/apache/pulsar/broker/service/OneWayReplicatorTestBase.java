@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_CERT_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEY_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -267,10 +270,18 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
         config.setForceDeleteNamespaceAllowed(true);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setClusterName(clusterName);
+        config.setTlsRequireTrustedClientCertOnConnect(false);
+        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.3");
+        tlsProtocols.add("TLSv1.2");
+        config.setTlsProtocols(tlsProtocols);
     }
 
-    @Override
-    protected void cleanup() throws Exception {
+    protected void cleanupPulsarResources() throws Exception {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
         admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
@@ -283,6 +294,12 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin2.namespaces().deleteNamespace(replicatedNamespace, true);
             admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         }
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
+        // cleanup pulsar resources.
+        cleanupPulsarResources();
 
         // shutdown.
         markCurrentSetupNumberCleaned();

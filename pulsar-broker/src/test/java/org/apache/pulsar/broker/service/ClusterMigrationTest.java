@@ -1104,6 +1104,9 @@ public class ClusterMigrationTest {
             this.conf.setLoadManagerClassName(loadManagerClassName);
             this.conf.setWebServicePortTls(Optional.of(0));
             this.conf.setBrokerServicePortTls(Optional.of(0));
+            this.conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            this.conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            this.conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         }
 
 

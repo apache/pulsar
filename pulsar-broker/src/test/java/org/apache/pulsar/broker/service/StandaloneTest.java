@@ -63,5 +63,7 @@ public class StandaloneTest {
         assertEquals(standalone.getConfig().getAdvertisedListeners(),
                 "internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
         assertEquals(standalone.getConfig().isDispatcherPauseOnAckStatePersistentEnabled(), true);
+        assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
+        assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
     }
 }

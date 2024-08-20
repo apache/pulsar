@@ -953,7 +953,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int numberOfEntriesToRead = applyMaxSizeCap(maxEntries, maxSizeBytes);
 
-        if (hasMoreEntries()) {
+        if (hasMoreEntries() && maxPosition.compareTo(readPosition) >= 0) {
             // If we have available entries, we can read them immediately
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Read entries immediately", ledger.getName(), name);
@@ -3470,6 +3470,19 @@ public class ManagedCursorImpl implements ManagedCursor {
     @VisibleForTesting
     public LongPairRangeSet<Position> getIndividuallyDeletedMessagesSet() {
         return individualDeletedMessages;
+    }
+
+    public Position processIndividuallyDeletedMessagesAndGetMarkDeletedPosition(
+            LongPairRangeSet.RangeProcessor<Position> processor) {
+        final Position mdp;
+        lock.readLock().lock();
+        try {
+            mdp = markDeletePosition;
+            individualDeletedMessages.forEach(processor);
+        } finally {
+            lock.readLock().unlock();
+        }
+        return mdp;
     }
 
     public boolean isMessageDeleted(Position position) {

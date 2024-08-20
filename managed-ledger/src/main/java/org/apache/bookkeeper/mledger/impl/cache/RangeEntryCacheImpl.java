@@ -249,7 +249,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            lh.readAsync(position.getEntryId(), position.getEntryId()).thenAcceptAsync(
+            ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).thenAcceptAsync(
                     ledgerEntries -> {
                         try {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
@@ -429,7 +429,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
                                                        long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
+        CompletableFuture<List<EntryImpl>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry)
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());

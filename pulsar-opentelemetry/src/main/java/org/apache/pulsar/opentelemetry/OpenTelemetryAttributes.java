@@ -112,6 +112,17 @@ public interface OpenTelemetryAttributes {
      */
     AttributeKey<String> PULSAR_CLIENT_VERSION = AttributeKey.stringKey("pulsar.client.version");
 
+    AttributeKey<String> PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME =
+            AttributeKey.stringKey("pulsar.connection.rate_limit.operation.name");
+    enum ConnectionRateLimitOperationName {
+        PAUSED,
+        RESUMED,
+        THROTTLED,
+        UNTHROTTLED;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_CONNECTION_RATE_LIMIT_OPERATION_NAME, name().toLowerCase());
+    }
+
     /**
      * The status of the Pulsar transaction.
      */
@@ -195,6 +206,14 @@ public interface OpenTelemetryAttributes {
         SUCCESS,
         FAILURE;
         public final Attributes attributes = Attributes.of(ML_CURSOR_OPERATION_STATUS, name().toLowerCase());
+    }
+
+    AttributeKey<String> MANAGED_LEDGER_READ_INFLIGHT_USAGE =
+            AttributeKey.stringKey("pulsar.managed_ledger.inflight.read.usage.state");
+    enum InflightReadLimiterUtilization {
+        USED,
+        FREE;
+        public final Attributes attributes = Attributes.of(MANAGED_LEDGER_READ_INFLIGHT_USAGE, name().toLowerCase());
     }
 
     /**

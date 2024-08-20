@@ -295,6 +295,7 @@ message CommandConnect {
     optional string proxy_version = 11; // Version of the proxy. Should only be forwarded by a proxy.
 }
 
+// Please also add a new enum for the class "PulsarClientException.FailedFeatureCheck" when adding a new feature flag.
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
