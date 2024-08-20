@@ -41,7 +41,15 @@ public class AuthenticationMetricsToken extends AuthenticationMetrics {
     private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
             .name("pulsar_expiring_token_minutes")
             .help("The remaining time of expiring token in minutes")
-            .buckets(5, 10, 60, 240)
+            .buckets(5, 10, 60, 240,
+                    TimeUnit.DAYS.toMinutes(1),
+                    TimeUnit.DAYS.toMinutes(7),
+                    TimeUnit.DAYS.toMinutes(14),
+                    TimeUnit.DAYS.toMinutes(30),
+                    TimeUnit.DAYS.toMinutes(90),
+                    TimeUnit.DAYS.toMinutes(180),
+                    TimeUnit.DAYS.toMinutes(270),
+                    TimeUnit.DAYS.toMinutes(365))
             .register();
     public static final String EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME = "pulsar.authentication.token.expiry.duration";
     private DoubleHistogram expiringTokenSeconds;
