@@ -3333,8 +3333,9 @@ public class PersistentTopicsBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).thenCompose(__ -> {
                     if (!pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                        log.info("[{}] Skip creating partitions for topic {} for the remote clusters {}",
-                                clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
+                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters {}",
+                                clientAppId(), topicName, replicationClusters.stream().filter(v ->
+                                        !pulsar().getConfig().getClusterName().equals(v)).collect(Collectors.toList()));
                         return CompletableFuture.completedFuture(null);
                     }
                     // Sync to create partitioned topic on the remote cluster if needed.

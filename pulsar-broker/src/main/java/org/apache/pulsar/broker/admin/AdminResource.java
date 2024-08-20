@@ -612,11 +612,11 @@ public abstract class AdminResource extends PulsarWebResource {
                     if (!createLocalTopicOnly && topicName.isGlobal()
                             && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
                         internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
-                        log.info("[{}] Successfully created partitions for topic {} for the remote clusters {}",
-                                clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
+                        log.info("[{}] Successfully created partitioned for topic {} for the remote clusters",
+                                clientAppId());
                     } else {
-                        log.info("[{}] Skip creating partitions for topic {} for the remote clusters {}",
-                                clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
+                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters",
+                                clientAppId(), topicName);
                     }
                     asyncResponse.resume(Response.noContent().build());
                 })
