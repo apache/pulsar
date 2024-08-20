@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -1601,6 +1602,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
@@ -1635,27 +1637,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Metric countMetric = ((List<Metric>) metrics.get("pulsar_expiring_token_minutes_count")).get(0);
         assertEquals(countMetric.value, tokenRemainTime.length);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_expiring_token_minutes_bucket");
-        assertEquals(cm.size(), 5);
+        var buckets = cm.stream().map(m -> m.tags.get("le")).collect(Collectors.toSet());
+        assertThat(buckets).isEqualTo(Set.of("5.0", "10.0", "60.0", "240.0", "1440.0", "10080.0", "20160.0", "43200.0",
+                "129600.0", "259200.0", "388800.0", "525600.0", "+Inf"));
         cm.forEach((e) -> {
-            switch (e.tags.get("le")) {
-                case "5.0":
-                    assertEquals(e.value, 1);
-                    break;
-                case "10.0":
-                    assertEquals(e.value, 2);
-                    break;
-                case "60.0":
-                    assertEquals(e.value, 3);
-                    break;
-                case "240.0":
-                    assertEquals(e.value, 4);
-                    break;
-                default:
-                    assertEquals(e.value, 5);
-                    break;
-            }
+            var expectedValue = switch(e.tags.get("le")) {
+                case "5.0" -> 1;
+                case "10.0" -> 2;
+                case "60.0" -> 3;
+                case "240.0" -> 4;
+                default -> 5;
+            };
+            assertEquals(e.value, expectedValue);
         });
-        provider.close();
     }
 
     @Test
