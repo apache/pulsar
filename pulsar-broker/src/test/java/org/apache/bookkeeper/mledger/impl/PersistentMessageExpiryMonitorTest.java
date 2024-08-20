@@ -16,28 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
+package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -59,6 +62,11 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void doInitConf() throws Exception {
+        conf.setMessageExpiryCheckIntervalInMinutes(60);
+    }
+
     /***
      * Confirm the anti-concurrency mechanism "expirationCheckInProgressUpdater" works.
      */
@@ -76,7 +84,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(cursorName);
-        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        ManagedCursorImpl spyCursor = spy(cursor);
 
         // Make the mark-deleting delay.
         CountDownLatch firstFindingCompleted = new CountDownLatch(1);
@@ -98,14 +106,6 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             calledFindPositionCount.incrementAndGet();
             return invocationOnMock.callRealMethod();
         }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any(), any(), any(), anyBoolean());
-        doAnswer(invocationOnMock -> {
-            calledFindPositionCount.incrementAndGet();
-            return invocationOnMock.callRealMethod();
-        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any(), anyBoolean());
-        doAnswer(invocationOnMock -> {
-            calledFindPositionCount.incrementAndGet();
-            return invocationOnMock.callRealMethod();
-        }).when(spyCursor).asyncFindNewestMatching(any(), any(), any(), any());
 
         // Sleep 2s to make "find(1s)" get a position.
         Thread.sleep(2000);
@@ -133,6 +133,59 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         // Verify: since the other 2 tasks have been prevented, the count of calling find position is 1.
         Thread.sleep(1000);
         assertEquals(1, calledFindPositionCount.get());
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
+    /***
+     * Verify finding position task only executes once for multiple subscriptions of a topic.
+     */
+    @Test(invocationCount = 2)
+    void testTopicExpireMessages() throws Exception {
+        // Create topic.
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        final String cursorName1 = "s1";
+        final String cursorName2 = "s2";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
+        admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
+        admin.topicPolicies().setMessageTTL(topicName, 1);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(1, persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get().intValue());
+        });
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ml.getConfig().setMaxEntriesPerLedger(2);
+        ml.getConfig().setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        long firstLedger = ml.currentLedger.getId();
+        System.out.println("maxEntriesPerLedger 1 : " + ml.getConfig().getMaxEntriesPerLedger());
+        // Trigger 3 ledgers creation.
+        for (int i = 0; i < 5; i++) {
+            producer.send("" + i);
+            Thread.sleep(100);
+        }
+        System.out.println("maxEntriesPerLedger 2 : " + ml.getConfig().getMaxEntriesPerLedger());
+        assertEquals(3, ml.getLedgersInfo().size());
+        // Do a injection to count the access of the first ledger.
+        AtomicInteger accessedCount = new AtomicInteger();
+        ReadHandle readHandle = ml.getLedgerHandle(firstLedger).get();
+        ReadHandle spyReadHandle = spy(readHandle);
+        doAnswer(invocationOnMock -> {
+            long startEntry = (long) invocationOnMock.getArguments()[0];
+            if (startEntry == 0) {
+                accessedCount.incrementAndGet();
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(spyReadHandle).readAsync(anyLong(), anyLong());
+        ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
+        // Verify: the first ledger will be accessed only once after expiry for two subscriptions.
+        persistentTopic.checkMessageExpiry();
+        Thread.sleep(2000);
+        assertEquals(1, accessedCount.get());
 
         // cleanup.
         producer.close();

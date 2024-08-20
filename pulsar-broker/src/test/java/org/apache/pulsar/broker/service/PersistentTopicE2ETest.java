@@ -1119,12 +1119,12 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         rolloverPerIntervalStats();
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs - 1));
         runMessageExpiryCheck();
 
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(messageTTLSecs / 2));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(1 + messageTTLSecs / 2));
         runMessageExpiryCheck();
 
         assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
