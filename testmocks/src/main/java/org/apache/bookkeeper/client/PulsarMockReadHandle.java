@@ -91,6 +91,11 @@ class PulsarMockReadHandle implements ReadHandle {
         return readAsync(firstEntry, lastEntry);
     }
 
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long firstEntry, int maxCount, int maxSize) {
+        int lastEntry = (int) Math.min(firstEntry + maxCount - 1, getLastAddConfirmed());
+        return batchReadAsync(firstEntry, lastEntry, maxSize);
+    }
+
     @Override
     public CompletableFuture<Long> readLastAddConfirmedAsync() {
         return CompletableFuture.completedFuture(getLastAddConfirmed());

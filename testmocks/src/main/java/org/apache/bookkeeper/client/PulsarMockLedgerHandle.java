@@ -45,6 +45,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.commons.collections4.IteratorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,6 +249,24 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
         return readHandle.readUnconfirmedAsync(firstEntry, lastEntry);
+    }
+
+    @Override
+    public void asyncBatchReadUnconfirmedEntries(long startEntry, int maxCount, long maxSize, ReadCallback cb,
+                                                 Object ctx) {
+        PulsarMockReadHandle readHandle = (PulsarMockReadHandle) this.readHandle;
+        CompletableFuture<LedgerEntries> f = readHandle.batchReadUnconfirmedAsync(startEntry, maxCount, (int) maxSize);
+        f.whenComplete((entries, exception) -> {
+            if (exception != null) {
+                cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception), this, null, ctx);
+            } else {
+                List<org.apache.bookkeeper.client.LedgerEntry> entries0 = new ArrayList<>(maxCount);
+                for (org.apache.bookkeeper.client.api.LedgerEntry entry : entries) {
+                    entries0.add(new org.apache.bookkeeper.client.LedgerEntry((LedgerEntryImpl) entry));
+                }
+                cb.readComplete(BKException.Code.OK, this, IteratorUtils.asEnumeration(entries0.iterator()), ctx);
+            }
+        });
     }
 
     @Override

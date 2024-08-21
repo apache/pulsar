@@ -1943,7 +1943,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
-            doc = "Enable Bookkeeper client to read entries in batch mode. Default is false."
+            doc = "Enable Bookkeeper client to read entries in batch mode. Default is false. Note: "
+                    + "this feature only works when bookkeeperUseV2WireProtocol is enabled and ensemble "
+                    + "size equals to write quorum size."
     )
     private boolean bookkeeperEnableBatchRead = false;
 
