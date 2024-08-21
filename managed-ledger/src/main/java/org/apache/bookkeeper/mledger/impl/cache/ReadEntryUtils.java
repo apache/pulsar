@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -45,10 +44,7 @@ public class ReadEntryUtils {
     public static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry, boolean useBookkeeperV2WireProtocol) {
         int entriesToRead = (int) (lastEntry - firstEntry + 1);
-        // Batch read is not supported for striped ledgers.
-        LedgerMetadata m = handle.getLedgerMetadata();
-        boolean isStriped = m.getEnsembleSize() != m.getWriteQuorumSize();
-        boolean useBatchRead = useBatchRead(entriesToRead, useBookkeeperV2WireProtocol, isStriped);
+        boolean useBatchRead = useBatchRead(entriesToRead, handle, useBookkeeperV2WireProtocol);
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
             // the LAC of that read handle. Specifically, it happens when this method is called by a
@@ -80,7 +76,10 @@ public class ReadEntryUtils {
         return handle.readUnconfirmedAsync(firstEntry, lastEntry);
     }
 
-    private static boolean useBatchRead(int entriesToRead, boolean useBookkeeperV2WireProtocol, boolean isStriped) {
+    private static boolean useBatchRead(int entriesToRead, ReadHandle handle, boolean useBookkeeperV2WireProtocol) {
+        // Batch read is not supported for striped ledgers.
+        LedgerMetadata m = handle.getLedgerMetadata();
+        boolean isStriped = m.getEnsembleSize() != m.getWriteQuorumSize();
         return entriesToRead > 1 && useBookkeeperV2WireProtocol && !isStriped;
     }
 
