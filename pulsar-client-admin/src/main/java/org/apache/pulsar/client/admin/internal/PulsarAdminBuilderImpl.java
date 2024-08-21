@@ -215,6 +215,20 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isNotBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols) {
         conf.setTlsProtocols(tlsProtocols);
         return this;

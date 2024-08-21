@@ -18,29 +18,21 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import lombok.Cleanup;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.testng.annotations.Test;
 
-public class ClientInitializationTest {
+public interface OpSendMsgStats {
+    long getUncompressedSize();
 
-    @Test
-    public void testInitializeAuthWithTls() throws PulsarClientException {
-        Authentication auth = mock(Authentication.class);
+    long getSequenceId();
 
-        @Cleanup
-        PulsarClient pulsarClient =
-                PulsarClient.builder()
-                .serviceUrl("pulsar+ssl://my-host:6650")
-                .authentication(auth)
-                .build();
+    int getRetryCount();
 
-        verify(auth).start();
-        verify(auth, times(1)).getAuthData();
-    }
+    long getBatchSizeByte();
+
+    int getNumMessagesInBatch();
+
+    long getHighestSequenceId();
+
+    int getTotalChunks();
+
+    int getChunkId();
 }

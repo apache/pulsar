@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -51,6 +52,12 @@ import org.awaitility.reflect.WhiteboxImpl;
 @Slf4j
 public abstract class NetworkErrorTestBase extends TestRetrySupport {
 
+    protected final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    protected final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    protected final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
     protected final String cluster1 = "r1";
@@ -176,6 +183,9 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         config.setForceDeleteNamespaceAllowed(true);
         config.setLoadManagerClassName(PreferBrokerModularLoadManager.class.getName());
         config.setMetadataStoreSessionTimeoutMillis(5000);
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
     }
 
     @Override

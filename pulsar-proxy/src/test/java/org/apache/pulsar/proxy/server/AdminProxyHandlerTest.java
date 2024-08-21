@@ -43,7 +43,7 @@ public class AdminProxyHandlerTest {
     private AdminProxyHandler adminProxyHandler;
 
     @BeforeClass
-    public void setupMocks() throws ServletException {
+    public void setupMocks() throws Exception {
         // given
         HttpClient httpClient = mock(HttpClient.class);
         adminProxyHandler = new AdminProxyHandler(mock(ProxyConfiguration.class),
