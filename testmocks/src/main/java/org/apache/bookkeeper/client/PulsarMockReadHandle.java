@@ -67,8 +67,8 @@ class PulsarMockReadHandle implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long _maxSize) {
-        long maxSize = _maxSize > 0 ? _maxSize : maxFrameSize;
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize0) {
+        long maxSize = maxSize0 > 0 ? maxSize0 : maxFrameSize;
         long lastEntry = Math.min(startEntry + maxCount - 1, getLastAddConfirmed());
         MutableInt size = new MutableInt(0);
         return bk.getProgrammedFailure().thenComposeAsync(res -> {
