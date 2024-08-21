@@ -125,8 +125,7 @@ public class SimpleProducerConsumerMLInitializeDelayTest extends ProducerConsume
         ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
         config.setMaxEntriesPerLedger(2);
         config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
-        // Inject a delay for the initialization of ML, to make the consumer to register twice.
-        // Consumer register twice: the first will be timeout, and try again.
+        // Inject a delay for switching ledgers, so publishing requests will be push in to the pending queue.
         AtomicInteger delayTimes = new AtomicInteger();
         mockZooKeeper.delay(10, (op, s) -> {
             if (op.toString().equals("SET") && s.contains(TopicName.get(topicName).getPersistenceNamingEncoding())) {
