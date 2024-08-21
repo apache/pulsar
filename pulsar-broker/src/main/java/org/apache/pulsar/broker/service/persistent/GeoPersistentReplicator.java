@@ -58,7 +58,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
             return CompletableFuture.completedFuture(null);
         } else {
             CompletableFuture<Void> topicCheckFuture = new CompletableFuture<>();
-            replicationClient.getPartitionedTopicMetadata(localTopic.getName(), false, false).whenComplete((metadata, ex) -> {
+            replicationClient.getPartitionedTopicMetadata(localTopic.getName(), false, false)
+                    .whenComplete((metadata, ex) -> {
                 if (ex == null) {
                     if (metadata.partitions == 0) {
                         topicCheckFuture.complete(null);
