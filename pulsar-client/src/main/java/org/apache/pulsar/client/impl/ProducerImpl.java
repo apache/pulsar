@@ -414,7 +414,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         @Override
-        public void sendComplete(Exception e) {
+        public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
             SendCallback loopingCallback = this;
             MessageImpl<?> loopingMsg = currentMsg;
             while (loopingCallback != null) {
@@ -424,7 +424,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
 
-        private void onSendComplete(Exception e, SendCallback sendCallback, MessageImpl<?> msg) {
+        private void onSendComplete(Throwable e, SendCallback sendCallback, MessageImpl<?> msg) {
             long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
                     ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
             long latencyNanos = System.nanoTime() - createdAt;
@@ -842,7 +842,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
                 if (t instanceof PulsarClientException.IncompatibleSchemaException) {
                     msg.setSchemaState(MessageImpl.SchemaState.Broken);
-                    callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
+                    callback.sendComplete(t, null);
                 }
             } else {
                 log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
@@ -985,19 +985,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             case Closing:
             case Closed:
                 callback.sendComplete(
-                        new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId));
+                        new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId), null);
                 return false;
             case ProducerFenced:
-                callback.sendComplete(new PulsarClientException.ProducerFencedException("Producer was fenced"));
+                callback.sendComplete(new PulsarClientException.ProducerFencedException("Producer was fenced"), null);
                 return false;
             case Terminated:
                 callback.sendComplete(
-                        new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId));
+                        new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId), null);
                 return false;
             case Failed:
             case Uninitialized:
             default:
-                callback.sendComplete(new PulsarClientException.NotConnectedException(sequenceId));
+                callback.sendComplete(new PulsarClientException.NotConnectedException(sequenceId), null);
                 return false;
         }
     }
@@ -1012,20 +1012,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
-                            "Producer send queue is full", sequenceId));
+                            "Producer send queue is full", sequenceId), null);
                     return false;
                 }
 
                 if (!client.getMemoryLimitController().tryReserveMemory(payloadSize)) {
                     semaphore.ifPresent(Semaphore::release);
                     callback.sendComplete(new PulsarClientException.MemoryBufferIsFullError(
-                            "Client memory buffer is full", sequenceId));
+                            "Client memory buffer is full", sequenceId), null);
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            callback.sendComplete(new PulsarClientException(e, sequenceId));
+            callback.sendComplete(new PulsarClientException(e, sequenceId), null);
             return false;
         }
 
@@ -1302,7 +1302,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {
         semaphore.ifPresent(Semaphore::release);
         client.getMemoryLimitController().releaseMemory(payloadSize);
-        callback.sendComplete(exception);
+        callback.sendComplete(exception, null);
     }
 
     /**
@@ -1595,7 +1595,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
                 }
 
-                callback.sendComplete(finalEx);
+                OpSendMsgStats opSendMsgStats = OpSendMsgStatsImpl.builder()
+                        .uncompressedSize(uncompressedSize)
+                        .sequenceId(sequenceId)
+                        .retryCount(retryCount)
+                        .batchSizeByte(batchSizeByte)
+                        .numMessagesInBatch(numMessagesInBatch)
+                        .highestSequenceId(highestSequenceId)
+                        .totalChunks(totalChunks)
+                        .chunkId(chunkId)
+                        .build();
+                callback.sendComplete(finalEx, opSendMsgStats);
             }
         }
 
