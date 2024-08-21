@@ -103,37 +103,52 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     }
 
     @Test
-    public void testOffloadAndRead() throws Exception {
+    public void testOffloadAndRead_BatchRead() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
+        LedgerEntries batchEntries = toTest.batchRead(0, numberOfEntries, 0);
+        Iterator<LedgerEntry> batchIter = batchEntries.iterator();
         LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
         while(toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
+            LedgerEntry batchEntry = batchIter.next();
 
             assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
             assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+
+            assertEquals(toWriteEntry.getLedgerId(), batchEntry.getLedgerId());
+            assertEquals(toWriteEntry.getEntryId(), batchEntry.getEntryId());
+            assertEquals(toWriteEntry.getLength(), batchEntry.getLength());
+            assertEquals(toWriteEntry.getEntryBuffer(), batchEntry.getEntryBuffer());
         }
         toTestEntries = toTest.read(1, numberOfEntries - 1);
         toWriteEntries = toWrite.read(1,numberOfEntries - 1);
+        batchEntries = toTest.batchRead(1, numberOfEntries - 1, 0);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
+        batchIter = batchEntries.iterator();
         while(toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
+            LedgerEntry batchEntry = batchIter.next();
 
             assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
             assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+            assertEquals(toWriteEntry.getLedgerId(), batchEntry.getLedgerId());
+            assertEquals(toWriteEntry.getEntryId(), batchEntry.getEntryId());
+            assertEquals(toWriteEntry.getLength(), batchEntry.getLength());
+            assertEquals(toWriteEntry.getEntryBuffer(), batchEntry.getEntryBuffer());
         }
     }
 

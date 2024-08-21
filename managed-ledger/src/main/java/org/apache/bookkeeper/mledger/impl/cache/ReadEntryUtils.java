@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -25,9 +26,11 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 
-class ReadEntryUtils {
+@VisibleForTesting
+public class ReadEntryUtils {
 
-    static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
+    @VisibleForTesting
+    public static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry, boolean useBookkeeperV2WireProtocol) {
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
@@ -37,7 +40,7 @@ class ReadEntryUtils {
             // Batch read is not supported for striped ledgers.
             LedgerMetadata m = handle.getLedgerMetadata();
             boolean isStriped = m.getEnsembleSize() != m.getWriteQuorumSize();
-            if (entriesToRead <= 1 || !useBookkeeperV2WireProtocol || isStriped) {
+            if (!useBatchRead(entriesToRead, useBookkeeperV2WireProtocol, isStriped)) {
                 return handle.readAsync(firstEntry, lastEntry);
             }
             return handle.batchReadAsync(firstEntry, entriesToRead, 0);
@@ -58,5 +61,9 @@ class ReadEntryUtils {
                     + lastConfirmedEntry + " when reading entry " + lastEntry));
         }
         return handle.readUnconfirmedAsync(firstEntry, lastEntry);
+    }
+
+    private static boolean useBatchRead(int entriesToRead, boolean useBookkeeperV2WireProtocol, boolean isStriped) {
+        return entriesToRead > 1 && useBookkeeperV2WireProtocol && !isStriped;
     }
 }

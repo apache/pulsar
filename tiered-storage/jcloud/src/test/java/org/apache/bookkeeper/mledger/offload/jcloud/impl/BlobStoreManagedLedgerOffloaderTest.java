@@ -165,6 +165,35 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
+    @Test
+    public void testBatchRead() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        LedgerOffloader offloader = getOffloader();
+
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        int entryCount = (int) (toTest.getLastAddConfirmed() + 1);
+
+        try (LedgerEntries entries = toTest.read(0, toWrite.getLastAddConfirmed());
+             LedgerEntries batch = toTest.batchRead(0, entryCount, 0)) {
+            Iterator<LedgerEntry> entryIterator = entries.iterator();
+            Iterator<LedgerEntry> batchIterator = batch.iterator();
+            while (entryIterator.hasNext() && batchIterator.hasNext()) {
+                LedgerEntry toWriteEntry = entryIterator.next();
+                LedgerEntry toTestEntry = batchIterator.next();
+                assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
+                assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
+                assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
+                assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+            }
+            Assert.assertFalse(entryIterator.hasNext());
+            Assert.assertFalse(batchIterator.hasNext());
+        }
+    }
+
     @Test(timeOut = 60000)
     public void testReadHandlerState() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
