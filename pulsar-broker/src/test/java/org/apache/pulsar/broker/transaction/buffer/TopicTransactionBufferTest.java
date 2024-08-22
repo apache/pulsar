@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.RandomUtils;
@@ -516,8 +517,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         // transaction buffer recover completely.
         TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
                 .getTransactionBuffer();
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        topicTransactionBuffer.setTransactionBufferFuture(completableFuture);
+        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Position> originalFuture = topicTransactionBuffer.getPublishFuture();
+        topicTransactionBuffer.setPublishFuture(completableFuture);
         topicTransactionBuffer.setState(TopicTransactionBufferState.State.Ready);
         // Register this topic to the transaction in advance to avoid the sending request pending here.
         ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
@@ -526,7 +528,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
             producer.newMessage(transaction).value(i).sendAsync();
         }
         // 4. Test the messages sent after transaction buffer ready is in order.
-        completableFuture.complete(null);
+        completableFuture.complete(originalFuture.get());
         for (int i = 50; i < 100; i++) {
             producer.newMessage(transaction).value(i).sendAsync();
         }
