@@ -1645,8 +1645,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (existsOp.ledger != null) {
                     existsOp = existsOp.duplicateAndClose(currentLedgerTimeoutTriggered);
                 } else {
-                    // This scenario should not happen.
-                    log.warn("[{}] An OpAddEntry's ledger is empty.", name);
+                    // It may happen when the following operations execute at the same time, so it is expected.
+                    // - Adding entry.
+                    // - Switching ledger.
                     existsOp.setTimeoutTriggered(currentLedgerTimeoutTriggered);
                 }
                 existsOp.setLedger(currentLedger);
