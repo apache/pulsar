@@ -412,7 +412,7 @@ public class PulsarClientImpl implements PulsarClient {
         getPartitionedTopicMetadata(topic, !forceNoPartitioned, true).thenAccept(metadata -> {
             if (forceNoPartitioned && metadata.partitions > 0) {
                 String errorMsg = String.format("Can not create the producer[%s] for the topic[%s] that contains %s"
-                                + " partitions, but the producer does not support for a partitioned topic.",
+                                + " partitions b,ut the producer does not support for a partitioned topic.",
                         producerNameForLog, topic, metadata.partitions);
                 log.error(errorMsg);
                 checkPartitions.completeExceptionally(
