@@ -226,7 +226,8 @@ public class BrokerService implements Closeable {
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
+    @Getter
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>>
             multiLayerTopicsMap;
     // Keep track of topics and partitions served by this broker for fast lookup.
     @Getter
@@ -343,9 +344,7 @@ public class BrokerService implements Closeable {
                 ConcurrentOpenHashMap.<String, Consumer<?>>newBuilder().build();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
 
-        this.multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
-                ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
+        this.multiLayerTopicsMap = new ConcurrentHashMap<>();
         this.owningTopics = ConcurrentOpenHashMap.<String,
                 ConcurrentOpenHashSet<Integer>>newBuilder()
                 .build();
@@ -567,13 +566,9 @@ public class BrokerService implements Closeable {
     }
 
     public Map<String, TopicStatsImpl> getTopicStats(NamespaceBundle bundle) {
-        ConcurrentOpenHashMap<String, Topic> topicMap = getMultiLayerTopicMap()
-                .computeIfAbsent(bundle.getNamespaceObject().toString(), k -> {
-                    return ConcurrentOpenHashMap
-                            .<String, ConcurrentOpenHashMap<String, Topic>>newBuilder().build();
-                }).computeIfAbsent(bundle.toString(), k -> {
-                    return ConcurrentOpenHashMap.<String, Topic>newBuilder().build();
-                });
+        final var topicMap = multiLayerTopicsMap
+                .computeIfAbsent(bundle.getNamespaceObject().toString(), __ -> new ConcurrentHashMap<>())
+                .computeIfAbsent(bundle.toString(), __ -> new ConcurrentHashMap<>());
 
         Map<String, TopicStatsImpl> topicStatsMap = new HashMap<>();
         topicMap.forEach((name, topic) -> {
@@ -2055,13 +2050,9 @@ public class BrokerService implements Closeable {
                     if (namespaceBundle != null) {
                         synchronized (multiLayerTopicsMap) {
                             String serviceUnit = namespaceBundle.toString();
-                            multiLayerTopicsMap //
-                                    .computeIfAbsent(topicName.getNamespace(),
-                                            k -> ConcurrentOpenHashMap.<String,
-                                                    ConcurrentOpenHashMap<String, Topic>>newBuilder()
-                                                    .build()) //
-                                    .computeIfAbsent(serviceUnit,
-                                            k -> ConcurrentOpenHashMap.<String, Topic>newBuilder().build()) //
+                            multiLayerTopicsMap.computeIfAbsent(topicName.getNamespace(), __
+                                    -> new ConcurrentHashMap<>()
+                            ).computeIfAbsent(serviceUnit, __ -> new ConcurrentHashMap<>())
                                     .put(topicName.toString(), topic);
                         }
                     }
@@ -2426,10 +2417,9 @@ public class BrokerService implements Closeable {
         topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
 
         synchronized (multiLayerTopicsMap) {
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
-                    .get(namespaceName);
+            final var namespaceMap = multiLayerTopicsMap.get(namespaceName);
             if (namespaceMap != null) {
-                ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
+                final var bundleMap = namespaceMap.get(bundleName);
                 if (bundleMap != null) {
                     bundleMap.remove(topic);
                     if (bundleMap.isEmpty()) {
@@ -2691,17 +2681,17 @@ public class BrokerService implements Closeable {
     }
 
     public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> map1 = multiLayerTopicsMap.get(namespace);
+        final var map1 = multiLayerTopicsMap.get(namespace);
         if (map1 == null) {
             return Collections.emptyList();
         }
 
-        ConcurrentOpenHashMap<String, Topic> map2 = map1.get(bundle);
+        final var map2 = map1.get(bundle);
         if (map2 == null) {
             return Collections.emptyList();
         }
 
-        return map2.values();
+        return new ArrayList<>(map2.values());
     }
 
     /**
@@ -3333,11 +3323,6 @@ public class BrokerService implements Closeable {
 
     public OrderedExecutor getTopicOrderedExecutor() {
         return topicOrderedExecutor;
-    }
-
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
-    getMultiLayerTopicMap() {
-        return multiLayerTopicsMap;
     }
 
     /**
