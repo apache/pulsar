@@ -63,6 +63,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -216,7 +217,8 @@ public class BrokerService implements Closeable {
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
 
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics;
+    @Getter
+    private final ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>> topics;
 
     private final ConcurrentOpenHashMap<String, PulsarClient> replicationClients;
     private final ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins;
@@ -332,9 +334,7 @@ public class BrokerService implements Closeable {
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
-        this.topics =
-                ConcurrentOpenHashMap.<String, CompletableFuture<Optional<Topic>>>newBuilder()
-                .build();
+        this.topics = new ConcurrentHashMap<>();
         this.replicationClients =
                 ConcurrentOpenHashMap.<String, PulsarClient>newBuilder().build();
         this.clusterAdmins =
@@ -496,7 +496,7 @@ public class BrokerService implements Closeable {
 
     public void addTopicEventListener(TopicEventsListener... listeners) {
         topicEventsDispatcher.addTopicEventListener(listeners);
-        getTopics().keys().forEach(topic ->
+        getTopics().keySet().forEach(topic ->
                 TopicEventsDispatcher.notify(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
     }
 
@@ -2362,7 +2362,7 @@ public class BrokerService implements Closeable {
     }
 
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
-        for (String topic : topics.keys()) {
+        for (String topic : topics.keySet()) {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
@@ -2470,11 +2470,6 @@ public class BrokerService implements Closeable {
         });
         return this.numberOfNamespaceBundles;
     }
-
-    public ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> getTopics() {
-        return topics;
-    }
-
 
     private void handleMetadataChanges(Notification n) {
         if (n.getType() == NotificationType.Modified && NamespaceResources.pathIsFromNamespace(n.getPath())) {

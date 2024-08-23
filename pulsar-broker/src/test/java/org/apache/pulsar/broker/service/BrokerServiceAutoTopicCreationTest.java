@@ -552,8 +552,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         admin.topics().createNonPartitionedTopic(ExtensibleLoadManagerImpl.TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
 
         // clear the topics to test the auto creation of non-persistent topics.
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                pulsar.getBrokerService().getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> oldTopics = new ConcurrentOpenHashMap<>();
         topics.forEach((key, val) -> oldTopics.put(key, val));
         topics.clear();

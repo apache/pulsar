@@ -390,7 +390,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         int pendingAckCount = 0;
         for (PulsarService pulsarService : getPulsarServiceList()) {
-            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keySet()) {
                 if (key.contains(topic)) {
                     Field field = clazz.getDeclaredField("pendingAckHandle");
                     field.setAccessible(true);
