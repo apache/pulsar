@@ -222,7 +222,7 @@ public class BrokerService implements Closeable {
 
     @Getter
     private final ConcurrentHashMap<String, PulsarClient> replicationClients;
-    private final ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins;
+    private final ConcurrentHashMap<String, PulsarAdmin> clusterAdmins;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
@@ -337,8 +337,7 @@ public class BrokerService implements Closeable {
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentHashMap<>();
         this.replicationClients = new ConcurrentHashMap<>();
-        this.clusterAdmins =
-                ConcurrentOpenHashMap.<String, PulsarAdmin>newBuilder().build();
+        this.clusterAdmins = new ConcurrentHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
         this.configRegisteredListeners =
                 ConcurrentOpenHashMap.<String, Consumer<?>>newBuilder().build();
