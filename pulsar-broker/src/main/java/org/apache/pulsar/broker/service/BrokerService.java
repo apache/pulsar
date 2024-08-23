@@ -177,7 +177,6 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -217,30 +216,25 @@ public class BrokerService implements Closeable {
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
 
-    @Getter
     private final ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>> topics;
-
-    @Getter
     private final ConcurrentHashMap<String, PulsarClient> replicationClients;
     private final ConcurrentHashMap<String, PulsarAdmin> clusterAdmins;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
-    @Getter
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>>
             multiLayerTopicsMap;
     // Keep track of topics and partitions served by this broker for fast lookup.
-    @Getter
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
+    private final ConcurrentHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
     private final OrderedExecutor topicOrderedExecutor;
     // offline topic backlog cache
-    private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
-    private final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap;
-    private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
+    private final ConcurrentHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
+    private final ConcurrentHashMap<String, ConfigField> dynamicConfigurationMap;
+    private final ConcurrentHashMap<String, Consumer<?>> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
 
@@ -340,18 +334,13 @@ public class BrokerService implements Closeable {
         this.replicationClients = new ConcurrentHashMap<>();
         this.clusterAdmins = new ConcurrentHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
-        this.configRegisteredListeners =
-                ConcurrentOpenHashMap.<String, Consumer<?>>newBuilder().build();
+        this.configRegisteredListeners = new ConcurrentHashMap<>();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
 
         this.multiLayerTopicsMap = new ConcurrentHashMap<>();
-        this.owningTopics = ConcurrentOpenHashMap.<String,
-                ConcurrentOpenHashSet<Integer>>newBuilder()
-                .build();
+        this.owningTopics = new ConcurrentHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
-        this.offlineTopicStatCache =
-                ConcurrentOpenHashMap.<TopicName,
-                        PersistentOfflineTopicStats>newBuilder().build();
+        this.offlineTopicStatCache = new ConcurrentHashMap<>();
 
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
                 .numThreads(pulsar.getConfiguration().getTopicOrderedExecutorThreadNum())
@@ -3116,16 +3105,7 @@ public class BrokerService implements Closeable {
     }
 
     public List<String> getDynamicConfiguration() {
-        return dynamicConfigurationMap.keys();
-    }
-
-    public Map<String, String> getRuntimeConfiguration() {
-        Map<String, String> configMap = new HashMap<>();
-        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = getRuntimeConfigurationMap();
-        runtimeConfigurationMap.forEach((key, value) -> {
-            configMap.put(key, String.valueOf(value));
-        });
-        return configMap;
+        return new ArrayList<>(dynamicConfigurationMap.keySet());
     }
 
     public boolean isDynamicConfiguration(String key) {
@@ -3139,9 +3119,8 @@ public class BrokerService implements Closeable {
         return true;
     }
 
-    private ConcurrentOpenHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
-        ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
-                ConcurrentOpenHashMap.<String, ConfigField>newBuilder().build();
+    private ConcurrentHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
+        final var dynamicConfigurationMap = new ConcurrentHashMap<String, ConfigField>();
         try {
             for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
                 if (field != null && field.isAnnotationPresent(FieldContext.class)) {
@@ -3160,15 +3139,15 @@ public class BrokerService implements Closeable {
         return dynamicConfigurationMap;
     }
 
-    private ConcurrentOpenHashMap<String, Object> getRuntimeConfigurationMap() {
-        ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap =
-                ConcurrentOpenHashMap.<String, Object>newBuilder().build();
+    public HashMap<String, String> getRuntimeConfiguration() {
+        final var runtimeConfigurationMap = new HashMap<String, String>();
         for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
             if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                 field.setAccessible(true);
                 try {
-                    Object configValue = field.get(pulsar.getConfiguration());
-                    runtimeConfigurationMap.put(field.getName(), configValue == null ? "" : configValue);
+                    Object configValue = String.valueOf(field.get(pulsar.getConfiguration()));
+                    runtimeConfigurationMap.put(field.getName(),
+                            configValue == null ? "" : String.valueOf(configValue));
                 } catch (Exception e) {
                     log.error("Failed to get value of field {}, {}", field.getName(), e.getMessage());
                 }
