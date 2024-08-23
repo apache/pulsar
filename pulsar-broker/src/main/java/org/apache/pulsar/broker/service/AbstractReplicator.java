@@ -141,6 +141,10 @@ public abstract class AbstractReplicator implements Replicator {
         return remoteCluster;
     }
 
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        return CompletableFuture.completedFuture(null);
+    }
+
     public void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
@@ -167,12 +171,15 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
+
         // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
         // the remote cluster.
-        ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
-        builderImpl.getConf().setNonPartitionedTopicExpected(true);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            setProducerAndTriggerReadEntries(producer);
+        prepareCreateProducer().thenCompose(ignore -> {
+            ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
+            builderImpl.getConf().setNonPartitionedTopicExpected(true);
+            return producerBuilder.createAsync().thenAccept(producer -> {
+                setProducerAndTriggerReadEntries(producer);
+            });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
@@ -197,6 +204,7 @@ public abstract class AbstractReplicator implements Replicator {
             }
             return null;
         });
+
     }
 
     /***
