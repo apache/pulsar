@@ -75,6 +75,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(config.isCreateTopicToRemoteClusterForReplication(), false);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -291,6 +292,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 512);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1024 * 1024 * 4);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 1);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), true);
         }
         // pulsar_broker_test.conf.
         try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
@@ -303,6 +305,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 44);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 55);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 66);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
         // string input stream.
         StringBuilder stringBuilder = new StringBuilder();
@@ -314,6 +317,7 @@ public class ServiceConfigurationTest {
         stringBuilder.append("transactionPendingAckBatchedWriteMaxRecords=521").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxSize=1025").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxDelayInMillis=20").append(System.lineSeparator());
+        stringBuilder.append("createTopicToRemoteClusterForReplication=false").append(System.lineSeparator());
         try(ByteArrayInputStream inputStream =
                     new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
             configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
@@ -325,6 +329,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 521);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
     }
 
