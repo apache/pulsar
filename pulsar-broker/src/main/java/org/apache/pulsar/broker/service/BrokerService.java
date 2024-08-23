@@ -220,7 +220,8 @@ public class BrokerService implements Closeable {
     @Getter
     private final ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>> topics;
 
-    private final ConcurrentOpenHashMap<String, PulsarClient> replicationClients;
+    @Getter
+    private final ConcurrentHashMap<String, PulsarClient> replicationClients;
     private final ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins;
 
     // Multi-layer topics map:
@@ -335,8 +336,7 @@ public class BrokerService implements Closeable {
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentHashMap<>();
-        this.replicationClients =
-                ConcurrentOpenHashMap.<String, PulsarClient>newBuilder().build();
+        this.replicationClients = new ConcurrentHashMap<>();
         this.clusterAdmins =
                 ConcurrentOpenHashMap.<String, PulsarAdmin>newBuilder().build();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
@@ -2442,10 +2442,9 @@ public class BrokerService implements Closeable {
                     multiLayerTopicsMap.remove(namespaceName);
                     final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
                             .getClusterReplicationMetrics();
-                    replicationClients.forEach((cluster, client) -> {
+                    replicationClients.keySet().forEach(cluster ->
                         clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
-                                cluster));
-                    });
+                                cluster)));
                 }
             }
         }
@@ -2662,10 +2661,6 @@ public class BrokerService implements Closeable {
 
     public EventLoopGroup executor() {
         return workerGroup;
-    }
-
-    public ConcurrentOpenHashMap<String, PulsarClient> getReplicationClients() {
-        return replicationClients;
     }
 
     public boolean isAuthenticationEnabled() {
