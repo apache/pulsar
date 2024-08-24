@@ -24,6 +24,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +45,6 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -73,9 +72,12 @@ public class WebSocketService implements Closeable {
     private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
     private ClusterData localCluster;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<ProducerHandler, Boolean>> topicProducerMap =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<ConsumerHandler, Boolean>> topicConsumerMap =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<ReaderHandler, Boolean>> topicReaderMap =
+            new ConcurrentHashMap<>();
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -88,17 +90,6 @@ public class WebSocketService implements Closeable {
                 .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
                         new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
-        this.topicProducerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
-                        .build();
-        this.topicConsumerMap =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
-                        .build();
-        this.topicReaderMap =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
-                        .build();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -286,13 +277,11 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addProducer(ProducerHandler producer) {
-        return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(),
-                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
-                .add(producer);
+        return topicProducerMap.computeIfAbsent(producer.getProducer().getTopic(), __ -> new ConcurrentHashMap<>())
+                .putIfAbsent(producer, true) == null;
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> getProducers() {
+    public ConcurrentHashMap<String, ConcurrentHashMap<ProducerHandler, Boolean>> getProducers() {
         return topicProducerMap;
     }
 
@@ -305,13 +294,11 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addConsumer(ConsumerHandler consumer) {
-        return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
-                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
-                .add(consumer);
+        return topicConsumerMap.computeIfAbsent(consumer.getConsumer().getTopic(), __ -> new ConcurrentHashMap<>())
+                .putIfAbsent(consumer, true) == null;
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> getConsumers() {
+    public ConcurrentHashMap<String, ConcurrentHashMap<ConsumerHandler, Boolean>> getConsumers() {
         return topicConsumerMap;
     }
 
@@ -324,12 +311,11 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
-                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
-                .add(reader);
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), __ -> new ConcurrentHashMap<>())
+                .putIfAbsent(reader, true) == null;
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> getReaders() {
+    public ConcurrentHashMap<String, ConcurrentHashMap<ReaderHandler, Boolean>> getReaders() {
         return topicReaderMap;
     }
 

@@ -68,7 +68,7 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
         }
         ProxyTopicStat topicStat = new ProxyTopicStat();
         if (service().getProducers().containsKey(topicNameStr)) {
-            service().getProducers().get(topicNameStr).forEach(handler -> {
+            service().getProducers().get(topicNameStr).keySet().forEach(handler -> {
                 ProducerStats stat = new ProducerStats(handler);
                 topicStat.producerStats.add(stat);
 
@@ -76,13 +76,13 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
         }
 
         if (service().getConsumers().containsKey(topicNameStr)) {
-            service().getConsumers().get(topicNameStr).forEach(handler -> {
+            service().getConsumers().get(topicNameStr).keySet().forEach(handler -> {
                 topicStat.consumerStats.add(new ConsumerStats(handler));
             });
         }
 
         if (service().getReaders().containsKey(topicNameStr)) {
-            service().getReaders().get(topicNameStr).forEach(handler -> {
+            service().getReaders().get(topicNameStr).keySet().forEach(handler -> {
                 topicStat.consumerStats.add(new ConsumerStats(handler));
             });
         }
@@ -95,17 +95,17 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
 
         service().getProducers().forEach((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
-            handlers.forEach(handler -> topicStat.producerStats.add(new ProducerStats(handler)));
+            handlers.keySet().forEach(handler -> topicStat.producerStats.add(new ProducerStats(handler)));
             statMap.put(topicName, topicStat);
         });
         service().getConsumers().forEach((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
-            handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
+            handlers.keySet().forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
             statMap.put(topicName, topicStat);
         });
         service().getReaders().forEach((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
-            handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
+            handlers.keySet().forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
             statMap.put(topicName, topicStat);
         });
 
