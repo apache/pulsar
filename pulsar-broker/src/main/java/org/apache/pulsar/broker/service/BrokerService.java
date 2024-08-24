@@ -177,7 +177,6 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -225,7 +224,7 @@ public class BrokerService implements Closeable {
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>>
             multiLayerTopicMap;
     // Keep track of topics and partitions served by this broker for fast lookup.
-    private final ConcurrentHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<Integer, Boolean>> owningTopics;
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -293,7 +292,7 @@ public class BrokerService implements Closeable {
     private final int maxUnackedMessages;
     public final int maxUnackedMsgsPerDispatcher;
     private final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
-    private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
+    private final ConcurrentHashMap<PersistentDispatcherMultipleConsumers, Boolean> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
@@ -386,8 +385,7 @@ public class BrokerService implements Closeable {
                 .numThreads(1)
                 .build();
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
-        this.blockedDispatchers =
-                ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
+        this.blockedDispatchers = new ConcurrentHashMap<>();
         this.topicFactory = createPersistentTopicFactory();
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
@@ -3325,7 +3323,7 @@ public class BrokerService implements Closeable {
                     log.info("[{}] dispatcher reached to max unack msg limit on blocked-broker {}",
                             dispatcher.getName(), dispatcher.getTotalUnackedMessages());
                     dispatcher.blockDispatcherOnUnackedMsgs();
-                    blockedDispatchers.add(dispatcher);
+                    blockedDispatchers.put(dispatcher, true);
                 } finally {
                     lock.readLock().unlock();
                 }
@@ -3355,7 +3353,7 @@ public class BrokerService implements Closeable {
         } else if (blockedDispatcherOnHighUnackedMsgs.get() && unAckedMessages < maxUnackedMessages / 2) {
             // unblock broker-dispatching if received enough acked messages back
             if (blockedDispatcherOnHighUnackedMsgs.compareAndSet(true, false)) {
-                unblockDispatchersOnUnAckMessages(blockedDispatchers.values());
+                unblockDispatchersOnUnAckMessages(new ArrayList<>(blockedDispatchers.keySet()));
             }
         }
 
@@ -3379,7 +3377,7 @@ public class BrokerService implements Closeable {
                             log.info("[{}] Blocking dispatcher due to reached max broker limit {}",
                                     dispatcher.getName(), dispatcher.getTotalUnackedMessages());
                             dispatcher.blockDispatcherOnUnackedMsgs();
-                            blockedDispatchers.add(dispatcher);
+                            blockedDispatchers.put(dispatcher, true);
                         }
                     }
                 });

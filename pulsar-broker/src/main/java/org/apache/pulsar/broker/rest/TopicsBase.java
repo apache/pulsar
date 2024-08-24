@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
@@ -95,7 +96,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -122,8 +122,8 @@ public class TopicsBase extends PersistentTopicsBase {
                         .thenAccept(schemaMeta -> {
                             // Both schema version and schema data are necessary.
                             if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                                internalPublishMessages(topicName, request, pulsar().getBrokerService()
-                                                .getOwningTopics().get(topic).values(), asyncResponse,
+                                internalPublishMessages(topicName, request, new ArrayList<>(pulsar().getBrokerService()
+                                                .getOwningTopics().get(topic).keySet()), asyncResponse,
                                         AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()),
                                         schemaMeta.getRight());
                             } else {
@@ -446,8 +446,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
                 pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
                                 .getPartitionedTopicName(),
-                        (key) -> ConcurrentOpenHashSet.<Integer>newBuilder().build())
-                        .add(partitionedTopicName.getPartitionIndex());
+                        __ -> new ConcurrentHashMap<>()).put(partitionedTopicName.getPartitionIndex(), true);
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             } else {
                 // Current broker doesn't own the topic or doesn't know who own the topic.
@@ -516,8 +515,8 @@ public class TopicsBase extends PersistentTopicsBase {
     private CompletableFuture<SchemaVersion> addSchema(SchemaData schemaData) {
         // Only need to add to first partition the broker owns since the schema id in schema registry are
         // same for all partitions which is the partitionedTopicName
-        List<Integer> partitions = pulsar().getBrokerService().getOwningTopics()
-                .get(topicName.getPartitionedTopicName()).values();
+        List<Integer> partitions = new ArrayList<>(pulsar().getBrokerService().getOwningTopics()
+                .get(topicName.getPartitionedTopicName()).keySet());
         CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
         for (int index = 0; index < partitions.size(); index++) {
             CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
