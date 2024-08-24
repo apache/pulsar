@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -190,7 +191,6 @@ import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -210,10 +210,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final ManagedLedger ledger;
 
     // Subscriptions to this topic
-    private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
+    private final ConcurrentHashMap<String, PersistentSubscription> subscriptions;
 
-    private final ConcurrentOpenHashMap<String/*RemoteCluster*/, Replicator> replicators;
-    private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
+    private final ConcurrentHashMap<String/*RemoteCluster*/, Replicator> replicators;
+    private final ConcurrentHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
     @Getter
     private volatile List<String> shadowTopics;
     private final TopicName shadowSourceTopic;
@@ -395,18 +395,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
                 : null;
         this.ledger = ledger;
-        this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
-        this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
+        this.subscriptions = new ConcurrentHashMap<>();
+        this.replicators = new ConcurrentHashMap<>();
+        this.shadowReplicators = new ConcurrentHashMap<>();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
@@ -477,41 +468,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isEncryptionRequired = false;
                     return null;
                 }));
-    }
-
-    // for testing purposes
-    @VisibleForTesting
-    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger,
-                    MessageDeduplication messageDeduplication) {
-        super(topic, brokerService);
-        // null check for backwards compatibility with tests which mock the broker service
-        this.orderedExecutor = brokerService.getTopicOrderedExecutor() != null
-                ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
-                : null;
-        this.ledger = ledger;
-        this.messageDeduplication = messageDeduplication;
-        this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        this.backloggedCursorThresholdEntries =
-                brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-
-        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this);
-        } else {
-            this.transactionBuffer = new TransactionBufferDisable(this);
-        }
-        shadowSourceTopic = null;
     }
 
     private void initializeDispatchRateLimiterIfNeeded() {
@@ -2122,7 +2078,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     topic, remoteCluster, transferring);
                             return;
                         }
-                        Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
+                        replicators.computeIfAbsent(remoteCluster, r -> {
                             try {
                                 return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
                                         remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
@@ -2131,10 +2087,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             }
                             return null;
                         });
-                        // clean up replicator if startup is failed
-                        if (replicator == null) {
-                            replicators.removeNullValue(remoteCluster);
-                        }
                     } finally {
                         lock.readLock().unlock();
                     }
@@ -2198,7 +2150,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .getClusterAsync(localCluster)
                         .thenApply(clusterData -> brokerService.getReplicationClient(localCluster, clusterData)))
                 .thenAccept(replicationClient -> {
-                    Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
+                    shadowReplicators.computeIfAbsent(shadowTopic, r -> {
                         try {
                             TopicName sourceTopicName = TopicName.get(getName());
                             String shadowPartitionTopic = shadowTopic;
@@ -2212,11 +2164,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                         return null;
                     });
-
-                    // clean up replicator if startup is failed
-                    if (replicator == null) {
-                        shadowReplicators.removeNullValue(shadowTopic);
-                    }
                 });
     }
 
@@ -2276,7 +2223,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions() {
+    public Map<String, PersistentSubscription> getSubscriptions() {
         return subscriptions;
     }
 
@@ -2286,12 +2233,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
+    public Map<String, Replicator> getReplicators() {
         return replicators;
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, Replicator> getShadowReplicators() {
+    public Map<String, Replicator> getShadowReplicators() {
         return shadowReplicators;
     }
 
@@ -3117,8 +3064,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Void> checkAndDisconnectReplicators() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
-        replicators.forEach((r, replicator) -> {
+        getReplicators().values().forEach(replicator -> {
             if (replicator.getNumberOfEntriesInBacklog() <= 0) {
                 futures.add(replicator.terminate());
             }
@@ -3132,12 +3078,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public boolean isReplicationBacklogExist() {
-        ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
-        if (replicators != null) {
-            for (Replicator replicator : replicators.values()) {
-                if (replicator.getNumberOfEntriesInBacklog() > 0) {
-                    return true;
-                }
+        for (Replicator replicator : getReplicators().values()) {
+            if (replicator.getNumberOfEntriesInBacklog() > 0) {
+                return true;
             }
         }
         return false;
@@ -3786,9 +3729,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> clearBacklog() {
         log.info("[{}] Clearing backlog on all cursors in the topic.", topic);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        List<String> cursors = getSubscriptions().keys();
-        cursors.addAll(getReplicators().keys());
-        cursors.addAll(getShadowReplicators().keys());
+        List<String> cursors = new ArrayList<>(getSubscriptions().keySet());
+        cursors.addAll(getReplicators().keySet());
+        cursors.addAll(getShadowReplicators().keySet());
         for (String cursor : cursors) {
             futures.add(clearBacklog(cursor));
         }
@@ -4190,7 +4133,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkShadowReplication();
     }
 
-    private void removeTerminatedReplicators(ConcurrentOpenHashMap<String, Replicator> replicators) {
+    private void removeTerminatedReplicators(ConcurrentHashMap<String, Replicator> replicators) {
         Map<String, Replicator> terminatedReplicators = new HashMap<>();
         replicators.forEach((cluster, replicator) -> {
             if (replicator.isTerminated()) {

@@ -44,7 +44,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -184,7 +183,7 @@ public interface Topic {
 
     CompletableFuture<Void> unsubscribe(String subName);
 
-    ConcurrentOpenHashMap<String, ? extends Subscription> getSubscriptions();
+    Map<String, ? extends Subscription> getSubscriptions();
 
     CompletableFuture<Void> delete();
 
@@ -266,9 +265,9 @@ public interface Topic {
 
     Subscription getSubscription(String subscription);
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+    Map<String, ? extends Replicator> getReplicators();
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
+    Map<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
