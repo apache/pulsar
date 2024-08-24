@@ -38,7 +38,6 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
@@ -48,14 +47,12 @@ import org.testng.annotations.Test;
 public class NamespaceStatsAggregatorTest {
     protected PulsarService pulsar;
     private BrokerService broker;
-    private ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
+    private ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>>
             multiLayerTopicsMap;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
+        multiLayerTopicsMap = new ConcurrentHashMap<>();
         pulsar = Mockito.mock(PulsarService.class);
         broker = Mockito.mock(BrokerService.class);
         doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicMap();
@@ -71,8 +68,8 @@ public class NamespaceStatsAggregatorTest {
         final String namespace = "tenant/cluster/ns";
 
         // prepare multi-layer topic map
-        ConcurrentOpenHashMap bundlesMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap topicsMap = ConcurrentOpenHashMap.newBuilder().build();
+        final var bundlesMap = new ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>();
+        final var topicsMap = new ConcurrentHashMap<String, Topic>();
         final var subscriptionsMaps = new ConcurrentHashMap<String, PersistentSubscription>();
         bundlesMap.put("my-bundle", topicsMap);
         multiLayerTopicsMap.put(namespace, bundlesMap);

@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -45,7 +46,6 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -553,7 +553,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         // clear the topics to test the auto creation of non-persistent topics.
         final var topics = pulsar.getBrokerService().getTopics();
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> oldTopics = new ConcurrentOpenHashMap<>();
+        final var oldTopics = new ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>>();
         topics.forEach((key, val) -> oldTopics.put(key, val));
         topics.clear();
 

@@ -109,7 +109,6 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
@@ -236,9 +235,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Field replClientField = BrokerService.class.getDeclaredField("replicationClients");
         replClientField.setAccessible(true);
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients =
-                (ConcurrentOpenHashMap<String, PulsarClient>) replClientField
-                .get(pulsar1.getBrokerService());
+        final var replicationClients = pulsar1.getBrokerService().getReplicationClients();
         replicationClients.put("r3", pulsarClient);
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));

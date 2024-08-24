@@ -24,6 +24,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +42,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -226,8 +226,7 @@ public class ManagedLedgerOfflineBacklog {
         BookKeeper bk = factory.getBookKeeper().get();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = -1;
-        ConcurrentOpenHashMap<String, Long> ledgerRetryMap =
-                ConcurrentOpenHashMap.<String, Long>newBuilder().build();
+        final var ledgerRetryMap = new ConcurrentHashMap<String, Long>();
 
         final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
         final Position lastLedgerPosition =

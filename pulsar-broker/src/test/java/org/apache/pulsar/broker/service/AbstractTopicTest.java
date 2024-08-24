@@ -24,16 +24,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class AbstractTopicTest {
-    private AbstractSubscription subscription;
+    private PersistentSubscription subscription;
     private AbstractTopic topic;
 
     @BeforeMethod
@@ -42,7 +43,7 @@ public class AbstractTopicTest {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
         BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
-        subscription = mock(AbstractSubscription.class);
+        subscription = mock(PersistentSubscription.class);
 
         when(brokerService.pulsar()).thenReturn(pulsarService);
         doReturn(pulsarService).when(brokerService).getPulsar();
@@ -54,11 +55,7 @@ public class AbstractTopicTest {
                 .useConstructor("topic", brokerService)
                 .defaultAnswer(CALLS_REAL_METHODS));
 
-        ConcurrentOpenHashMap<String, Subscription> subscriptions =
-                ConcurrentOpenHashMap.<String, Subscription>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
+        final var subscriptions = new ConcurrentHashMap<String, PersistentSubscription>();
         subscriptions.put("subscription", subscription);
         when(topic.getSubscriptions()).thenAnswer(invocation -> subscriptions);
     }

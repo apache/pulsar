@@ -47,7 +47,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -73,7 +72,6 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -414,12 +412,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 topic = TopicName.get(TOPIC_OUTPUT).getPartition(partition).toString();
                 boolean exist = false;
                 for (int i = 0; i < getPulsarServiceList().size(); i++) {
-
-                    Field field = BrokerService.class.getDeclaredField("topics");
-                    field.setAccessible(true);
-                    ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                            (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                    .get(getPulsarServiceList().get(i).getBrokerService());
+                    final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                     CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
                     if (topicFuture != null) {
@@ -719,12 +712,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         topic = TopicName.get(topic).getPartition(0).toString();
         boolean exist = false;
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
-
-            Field field = BrokerService.class.getDeclaredField("topics");
-            field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {
@@ -1190,12 +1178,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         topic = TopicName.get(topic).toString();
         boolean exist = false;
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
-
-            Field field = BrokerService.class.getDeclaredField("topics");
-            field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {
@@ -1203,7 +1186,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 if (topicOptional.isPresent()) {
                     PersistentSubscription persistentSubscription =
                             (PersistentSubscription) topicOptional.get().getSubscription(subName);
-                    field = persistentSubscription.getClass().getDeclaredField("dispatcher");
+                    final var field = persistentSubscription.getClass().getDeclaredField("dispatcher");
                     field.setAccessible(true);
                     field.set(persistentSubscription, null);
                     exist = true;
