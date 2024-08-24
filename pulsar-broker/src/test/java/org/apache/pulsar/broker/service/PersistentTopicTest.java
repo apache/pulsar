@@ -1299,7 +1299,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             try {
                 barrier.await();
                 // do subscription delete
-                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(5,0);
                 log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
@@ -1681,7 +1681,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
         topic.initialize().join();
         String remoteReplicatorName = topic.getReplicatorPrefix() + "." + remoteCluster;
-        ConcurrentOpenHashMap<String, Replicator> replicatorMap = topic.getReplicators();
+        final var replicatorMap = topic.getReplicators();
 
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();

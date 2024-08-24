@@ -234,7 +234,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         pendingSnapshotsMetric.inc();
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
-                topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
+                topic.getReplicators().keySet().stream().toList(), topic.getBrokerService().pulsar().getConfiguration(),
+                Clock.systemUTC());
         pendingSnapshots.put(builder.getSnapshotId(), builder);
         builder.start();
 

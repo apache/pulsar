@@ -49,7 +49,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -344,8 +343,7 @@ public class ClusterMigrationTest {
         assertFalse(topic2.getSubscriptions().isEmpty());
 
         topic1.checkClusterMigration().get();
-        ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
-        replicators.forEach((r, replicator) -> {
+        topic1.getReplicators().forEach((r, replicator) -> {
             assertFalse(replicator.isConnected());
         });
 
@@ -798,21 +796,18 @@ public class ClusterMigrationTest {
             blueTopicNs2_1.checkClusterMigration().get();
         }
 
-        ConcurrentOpenHashMap<String, ? extends Replicator> replicators = blueTopicNs1_1.getReplicators();
-        replicators.forEach((r, replicator) -> {
+        blueTopicNs1_1.getReplicators().forEach((r, replicator) -> {
             assertFalse(replicator.isConnected());
         });
         assertTrue(blueTopicNs1_1.getSubscriptions().isEmpty());
 
         if (isClusterMigrate) {
-            ConcurrentOpenHashMap<String, ? extends Replicator> replicatorsNm = blueTopicNs2_1.getReplicators();
-            replicatorsNm.forEach((r, replicator) -> {
+            blueTopicNs2_1.getReplicators().forEach((r, replicator) -> {
                 assertFalse(replicator.isConnected());
             });
             assertTrue(blueTopicNs2_1.getSubscriptions().isEmpty());
         } else {
-            ConcurrentOpenHashMap<String, ? extends Replicator> replicatorsNm = blueTopicNs2_1.getReplicators();
-            replicatorsNm.forEach((r, replicator) -> {
+            blueTopicNs2_1.getReplicators().forEach((r, replicator) -> {
                 assertTrue(replicator.isConnected());
             });
             assertFalse(blueTopicNs2_1.getSubscriptions().isEmpty());

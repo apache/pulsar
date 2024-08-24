@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
@@ -28,9 +30,8 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -72,7 +73,7 @@ public class NamespaceStatsAggregatorTest {
         // prepare multi-layer topic map
         ConcurrentOpenHashMap bundlesMap = ConcurrentOpenHashMap.newBuilder().build();
         ConcurrentOpenHashMap topicsMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap subscriptionsMaps = ConcurrentOpenHashMap.newBuilder().build();
+        final var subscriptionsMaps = new ConcurrentHashMap<String, PersistentSubscription>();
         bundlesMap.put("my-bundle", topicsMap);
         multiLayerTopicsMap.put(namespace, bundlesMap);
 
@@ -88,7 +89,7 @@ public class NamespaceStatsAggregatorTest {
 
         // Prepare topic and subscription
         PersistentTopic topic = Mockito.mock(PersistentTopic.class);
-        Subscription subscription = Mockito.mock(Subscription.class);
+        PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         Consumer consumer = Mockito.mock(Consumer.class);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
         when(consumer.getStats()).thenReturn(consumerStats);
@@ -100,7 +101,7 @@ public class NamespaceStatsAggregatorTest {
         when(topic.getStats(false, false, false)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
-        when(topic.getReplicators()).thenReturn(ConcurrentOpenHashMap.<String,Replicator>newBuilder().build());
+        when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
         when(topic.getManagedLedger()).thenReturn(ml);
         when(topic.getBacklogQuota(Mockito.any())).thenReturn(Mockito.mock(BacklogQuota.class));
         PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
