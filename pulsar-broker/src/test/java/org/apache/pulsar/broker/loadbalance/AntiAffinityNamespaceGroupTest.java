@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Cleanup;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -59,8 +60,6 @@ import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -169,7 +168,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
 
     protected Object getBundleOwnershipData(){
-        return ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
+        return new ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>();
     }
 
 
@@ -366,15 +365,12 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {
 
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                brokerToNamespaceToBundleRange =
-                (ConcurrentOpenHashMap<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>) ownershipData;
-        ConcurrentOpenHashSet<String> bundleSet =
-                ConcurrentOpenHashSet.<String>newBuilder().build();
-        bundleSet.add(assignedBundleName);
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build();
+        final var brokerToNamespaceToBundleRange =
+                (ConcurrentHashMap<String,
+                        ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>) ownershipData;
+        final var bundleSet = new ConcurrentHashMap<String, Boolean>();
+        bundleSet.put(assignedBundleName, true);
+        final var nsToBundleMap = new ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>();
         nsToBundleMap.put(namespace, bundleSet);
         brokerToNamespaceToBundleRange.put(broker, nsToBundleMap);
     }
@@ -487,17 +483,17 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         // add ns-0 to broker-0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-0", namespace + "0", assignedNamespace);
         String currentBroker = "broker-0";
-        boolean shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle,
+        boolean shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0",
                 currentBroker, pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-1 to broker-1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
-        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-2 to broker-2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
-        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertFalse(shouldUnload);
 
@@ -562,9 +558,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         if (ownershipData instanceof Set) {
             LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
                     (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, brokerToDomainMap);
-        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
+        } else if (ownershipData instanceof ConcurrentHashMap<?,?>) {
             LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
-                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
+                    (ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>)
                             ownershipData, brokerToDomainMap);
         } else {
             throw new RuntimeException("Unknown ownershipData class type");
@@ -573,19 +569,18 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     private static boolean shouldAntiAffinityNamespaceUnload(
             String namespace,
-            String bundle,
             String currentBroker,
             PulsarService pulsar,
             Object ownershipData,
             Set<String> candidate) throws Exception {
 
         if (ownershipData instanceof Set) {
-            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
+            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace,
                     currentBroker, pulsar, (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, candidate);
-        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
-            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
+        } else if (ownershipData instanceof ConcurrentHashMap<?,?>) {
+            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace,
                     currentBroker, pulsar,
-                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
+                    (ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>)
                             ownershipData, candidate);
         } else {
             throw new RuntimeException("Unknown ownershipData class type");

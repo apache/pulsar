@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.Set;
-
-import com.google.common.collect.Sets;
-
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -37,10 +34,7 @@ public class LoadManagerSharedTest {
         String assignedBundle = namespace + "/0x00000000_0x40000000";
 
         Set<String> candidates = new HashSet<>();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
-                        .build();
+        final var map = new ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>();
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, map);
         Assert.assertEquals(candidates.size(), 0);
 
@@ -82,14 +76,11 @@ public class LoadManagerSharedTest {
     }
 
     private static void fillBrokerToNamespaceToBundleMap(
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map,
+            ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>> map,
             String broker, String namespace, String bundle) {
-        map.computeIfAbsent(broker,
-                k -> ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashSet<String>>newBuilder().build())
-                .computeIfAbsent(namespace,
-                        k -> ConcurrentOpenHashSet.<String>newBuilder().build())
-                .add(bundle);
+        map.computeIfAbsent(broker, __ -> new ConcurrentHashMap<>())
+                .computeIfAbsent(namespace, __ -> new ConcurrentHashMap<>())
+                .put(bundle, true);
     }
 
 }

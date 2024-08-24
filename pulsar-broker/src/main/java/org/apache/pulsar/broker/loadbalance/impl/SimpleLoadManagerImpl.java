@@ -62,8 +62,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -109,8 +107,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evenly across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
-            ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Boolean>>>
+            brokerToNamespaceToBundleRange;
 
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
@@ -205,10 +203,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         bundleLossesCache = new HashSet<>();
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
-        brokerToNamespaceToBundleRange =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
-                        .build();
+        brokerToNamespaceToBundleRange = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerId) {
@@ -853,14 +848,10 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 ResourceQuota quota = this.getResourceQuota(serviceUnitId);
                 // Add preallocated bundle range so incoming bundles from the same namespace are not assigned to the
                 // same broker.
-                brokerToNamespaceToBundleRange
-                        .computeIfAbsent(selectedRU.getResourceId(),
-                                k -> ConcurrentOpenHashMap.<String,
-                                        ConcurrentOpenHashSet<String>>newBuilder()
-                                        .build())
-                        .computeIfAbsent(namespaceName, k ->
-                                ConcurrentOpenHashSet.<String>newBuilder().build())
-                        .add(bundleRange);
+                brokerToNamespaceToBundleRange.computeIfAbsent(selectedRU.getResourceId(),
+                                __ -> new ConcurrentHashMap<>())
+                        .computeIfAbsent(namespaceName, __ -> new ConcurrentHashMap<>())
+                        .put(bundleRange, true);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
             }
@@ -1272,12 +1263,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             final String broker = resourceUnit.getResourceId();
             final Set<String> loadedBundles = ranking.getLoadedBundles();
             final Set<String> preallocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
-                    brokerToNamespaceToBundleRange
-                            .computeIfAbsent(broker,
-                                    k -> ConcurrentOpenHashMap.<String,
-                                            ConcurrentOpenHashSet<String>>newBuilder()
-                                            .build());
+            final var namespaceToBundleRange = brokerToNamespaceToBundleRange.computeIfAbsent(broker,
+                                    __ -> new ConcurrentHashMap<>());
             namespaceToBundleRange.clear();
             LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);
             LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundles, namespaceToBundleRange);

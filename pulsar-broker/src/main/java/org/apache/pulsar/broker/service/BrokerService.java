@@ -223,7 +223,7 @@ public class BrokerService implements Closeable {
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, ConcurrentHashMap<String, Topic>>>
-            multiLayerTopicsMap;
+            multiLayerTopicMap;
     // Keep track of topics and partitions served by this broker for fast lookup.
     private final ConcurrentHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
     private long numberOfNamespaceBundles = 0;
@@ -337,7 +337,7 @@ public class BrokerService implements Closeable {
         this.configRegisteredListeners = new ConcurrentHashMap<>();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
 
-        this.multiLayerTopicsMap = new ConcurrentHashMap<>();
+        this.multiLayerTopicMap = new ConcurrentHashMap<>();
         this.owningTopics = new ConcurrentHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentHashMap<>();
@@ -555,7 +555,7 @@ public class BrokerService implements Closeable {
     }
 
     public Map<String, TopicStatsImpl> getTopicStats(NamespaceBundle bundle) {
-        final var topicMap = multiLayerTopicsMap
+        final var topicMap = multiLayerTopicMap
                 .computeIfAbsent(bundle.getNamespaceObject().toString(), __ -> new ConcurrentHashMap<>())
                 .computeIfAbsent(bundle.toString(), __ -> new ConcurrentHashMap<>());
 
@@ -2037,9 +2037,9 @@ public class BrokerService implements Closeable {
         pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
                     if (namespaceBundle != null) {
-                        synchronized (multiLayerTopicsMap) {
+                        synchronized (multiLayerTopicMap) {
                             String serviceUnit = namespaceBundle.toString();
-                            multiLayerTopicsMap.computeIfAbsent(topicName.getNamespace(), __
+                            multiLayerTopicMap.computeIfAbsent(topicName.getNamespace(), __
                                     -> new ConcurrentHashMap<>()
                             ).computeIfAbsent(serviceUnit, __ -> new ConcurrentHashMap<>())
                                     .put(topicName.toString(), topic);
@@ -2065,8 +2065,8 @@ public class BrokerService implements Closeable {
                     addTopicToStatsMaps(TopicName.get(t.getName()), t);
                 });
                 // remove old bundle from the map
-                synchronized (multiLayerTopicsMap) {
-                    multiLayerTopicsMap.get(oldBundle.getNamespaceObject().toString()).remove(oldBundle.toString());
+                synchronized (multiLayerTopicMap) {
+                    multiLayerTopicMap.get(oldBundle.getNamespaceObject().toString()).remove(oldBundle.toString());
                     pulsarStats.invalidBundleStats(oldBundle.toString());
                 }
             }
@@ -2106,7 +2106,7 @@ public class BrokerService implements Closeable {
 
     public void updateRates() {
         synchronized (pulsarStats) {
-            pulsarStats.updateStats(multiLayerTopicsMap);
+            pulsarStats.updateStats(multiLayerTopicMap);
 
             Summary.rotateLatencyCollection();
         }
@@ -2405,8 +2405,8 @@ public class BrokerService implements Closeable {
 
         topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
 
-        synchronized (multiLayerTopicsMap) {
-            final var namespaceMap = multiLayerTopicsMap.get(namespaceName);
+        synchronized (multiLayerTopicMap) {
+            final var namespaceMap = multiLayerTopicMap.get(namespaceName);
             if (namespaceMap != null) {
                 final var bundleMap = namespaceMap.get(bundleName);
                 if (bundleMap != null) {
@@ -2417,7 +2417,7 @@ public class BrokerService implements Closeable {
                 }
 
                 if (namespaceMap.isEmpty()) {
-                    multiLayerTopicsMap.remove(namespaceName);
+                    multiLayerTopicMap.remove(namespaceName);
                     final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
                             .getClusterReplicationMetrics();
                     replicationClients.keySet().forEach(cluster ->
@@ -2442,7 +2442,7 @@ public class BrokerService implements Closeable {
 
     public long getNumberOfNamespaceBundles() {
         this.numberOfNamespaceBundles = 0;
-        this.multiLayerTopicsMap.forEach((namespaceName, bundles) -> {
+        this.multiLayerTopicMap.forEach((namespaceName, bundles) -> {
             this.numberOfNamespaceBundles += bundles.size();
         });
         return this.numberOfNamespaceBundles;
@@ -2670,7 +2670,7 @@ public class BrokerService implements Closeable {
     }
 
     public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
-        final var map1 = multiLayerTopicsMap.get(namespace);
+        final var map1 = multiLayerTopicMap.get(namespace);
         if (map1 == null) {
             return Collections.emptyList();
         }
