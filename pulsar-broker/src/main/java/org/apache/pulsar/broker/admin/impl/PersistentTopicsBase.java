@@ -1269,7 +1269,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse) {
         getTopicReferenceAsync(topicName)
-                .thenAccept(topic -> asyncResponse.resume(topic.getSubscriptions().keySet().stream().toList()))
+                .thenAccept(topic -> asyncResponse.resume(topic.getSubscriptions().keySet()))
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
