@@ -1205,8 +1205,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   - pulsar_replication_disconnected_count
         JerseyClient httpClient = JerseyClientBuilder.createClient();
         Awaitility.await().untilAsserted(() -> {
-            int topicConnected = 0;
-            int topicDisconnected = 0;
+            double topicConnected = 0D;
+            double topicDisconnected = 0D;
 
             String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
@@ -1229,8 +1229,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 }
             }
             log.info("{}, {},", topicConnected, topicDisconnected);
-            assertEquals(topicConnected, 0);
-            assertEquals(topicDisconnected, 1);
+            assertEquals(topicConnected, 0D);
+            assertEquals(topicDisconnected, 1D);
         });
 
         // Let replicator connect successfully.
@@ -1246,8 +1246,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   - pulsar_replication_connected_count
         //   - pulsar_replication_disconnected_count
         Awaitility.await().atMost(Duration.ofSeconds(130)).untilAsserted(() -> {
-            int topicConnected = 0;
-            int topicDisconnected = 0;
+            double topicConnected = 0;
+            double topicDisconnected = 0;
 
             String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
@@ -1270,8 +1270,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 }
             }
             log.info("{}, {}", topicConnected, topicDisconnected);
-            assertEquals(topicConnected, 1);
-            assertEquals(topicDisconnected, 0);
+            assertEquals(topicConnected, 1D);
+            assertEquals(topicDisconnected, 0D);
         });
 
         // cleanup.
