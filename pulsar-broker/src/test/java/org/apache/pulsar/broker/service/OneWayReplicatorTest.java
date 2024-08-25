@@ -1205,8 +1205,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   - pulsar_replication_disconnected_count
         JerseyClient httpClient = JerseyClientBuilder.createClient();
         Awaitility.await().untilAsserted(() -> {
-            double topicConnected = 0D;
-            double topicDisconnected = 0D;
+            int topicConnected = 0;
+            int topicDisconnected = 0;
 
             String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
@@ -1218,19 +1218,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (cluster1.equals(metric.tags.get("cluster"))
                         && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
                         && topicName.equals(metric.tags.get("topic"))) {
-                    topicConnected += metric.value;
+                    topicConnected += Double.valueOf(metric.value).intValue();
                 }
             }
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
                 if (cluster1.equals(metric.tags.get("cluster"))
                         && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
                         && topicName.equals(metric.tags.get("topic"))) {
-                    topicDisconnected += metric.value;
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
             log.info("{}, {},", topicConnected, topicDisconnected);
-            assertEquals(topicConnected, 0D);
-            assertEquals(topicDisconnected, 1D);
+            assertEquals(topicConnected, 0);
+            assertEquals(topicDisconnected, 1);
         });
 
         // Let replicator connect successfully.
@@ -1246,8 +1246,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   - pulsar_replication_connected_count
         //   - pulsar_replication_disconnected_count
         Awaitility.await().atMost(Duration.ofSeconds(130)).untilAsserted(() -> {
-            double topicConnected = 0D;
-            double topicDisconnected = 0D;
+            int topicConnected = 0;
+            int topicDisconnected = 0;
 
             String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
@@ -1259,19 +1259,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (cluster1.equals(metric.tags.get("cluster"))
                         && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
                         && topicName.equals(metric.tags.get("topic"))) {
-                    topicConnected += metric.value;
+                    topicConnected += Double.valueOf(metric.value).intValue();
                 }
             }
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
                 if (cluster1.equals(metric.tags.get("cluster"))
                         && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
                         && topicName.equals(metric.tags.get("topic"))) {
-                    topicDisconnected += metric.value;
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
             log.info("{}, {}", topicConnected, topicDisconnected);
-            assertEquals(topicConnected, 1D);
-            assertEquals(topicDisconnected, 0D);
+            assertEquals(topicConnected, 1);
+            assertEquals(topicDisconnected, 0);
         });
 
         // cleanup.
