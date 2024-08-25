@@ -1246,8 +1246,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         //   - pulsar_replication_connected_count
         //   - pulsar_replication_disconnected_count
         Awaitility.await().atMost(Duration.ofSeconds(130)).untilAsserted(() -> {
-            double topicConnected = 0;
-            double topicDisconnected = 0;
+            double topicConnected = 0D;
+            double topicDisconnected = 0D;
 
             String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
