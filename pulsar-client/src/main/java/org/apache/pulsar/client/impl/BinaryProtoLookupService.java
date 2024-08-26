@@ -178,7 +178,8 @@ public class BinaryProtoLookupService implements LookupService {
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId,
+                    client.getConfiguration().getLookupProperties());
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed

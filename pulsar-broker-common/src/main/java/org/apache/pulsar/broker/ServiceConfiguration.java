@@ -21,9 +21,11 @@ package org.apache.pulsar.broker;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -2947,6 +2949,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Properties properties = new Properties();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The properties whose name starts with this prefix will be uploaded to the metadata store for "
+                    + " the topic lookup"
+    )
+    private String lookupPropertyPrefix = "lookup.";
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to "
@@ -3742,5 +3751,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
         return topicLevelPoliciesEnabled && systemTopicEnabled;
+    }
+
+    public Map<String, String> lookupProperties() {
+        final var map = new HashMap<String, String>();
+        properties.forEach((key, value) -> {
+            if (key instanceof String && value instanceof String && ((String) key).startsWith(lookupPropertyPrefix)) {
+                map.put((String) key, (String) value);
+            }
+        });
+        return map;
     }
 }

@@ -28,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -412,6 +413,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private String description;
 
+    private Map<String, String> lookupProperties;
+
     private transient OpenTelemetry openTelemetry;
 
     /**
@@ -476,5 +479,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    public void setLookupProperties(Map<String, String> lookupProperties) {
+        this.lookupProperties = Collections.unmodifiableMap(lookupProperties);
+    }
+
+    public Map<String, String> getLookupProperties() {
+        return (lookupProperties == null) ? Collections.emptyMap() : Collections.unmodifiableMap(lookupProperties);
     }
 }
