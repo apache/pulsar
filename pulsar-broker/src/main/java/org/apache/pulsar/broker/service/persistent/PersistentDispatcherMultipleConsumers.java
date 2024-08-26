@@ -135,7 +135,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
-
     protected enum ReadType {
         Normal, Replay
     }
@@ -1350,6 +1349,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public Subscription getSubscription() {
         return subscription;
+    }
+
+    public long getNumberOfMessagesInReplay() {
+        return redeliveryMessages.size();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
