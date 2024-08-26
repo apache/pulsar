@@ -22,7 +22,10 @@ import com.google.common.collect.ComparisonChain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Predicate;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -146,8 +149,33 @@ public class MessageRedeliveryController {
         return false;
     }
 
-    public NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
-        return messagesToRedeliver.items(maxMessagesToRead, PositionFactory::create);
+    public boolean containsStickyKeyHash(int stickyKeyHash) {
+        return !allowOutOfOrderDelivery && hashesRefCount.containsKey(stickyKeyHash);
+    }
+
+    public Optional<Position> getFirstPositionInReplay() {
+        NavigableSet<Position> items = messagesToRedeliver.items(1, PositionFactory::create);
+        return items.isEmpty() ? Optional.empty() : Optional.of(items.first());
+    }
+
+    /**
+     * Get the messages to replay now.
+     *
+     * @param maxMessagesToRead
+     *            the max messages to read
+     * @param filter
+     *            the filter to use to select the messages to replay
+     * @return the messages to replay now
+     */
+    public NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, Predicate<Position> filter) {
+        NavigableSet<Position> items = new TreeSet<>();
+        messagesToRedeliver.processItems(PositionFactory::create, item -> {
+            if (filter.test(item)) {
+                items.add(item);
+            }
+            return items.size() < maxMessagesToRead;
+        });
+        return items;
     }
 
     /**

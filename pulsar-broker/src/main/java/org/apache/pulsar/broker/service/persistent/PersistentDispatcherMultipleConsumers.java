@@ -346,25 +346,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
 
             NavigableSet<Position> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
-            NavigableSet<Position> messagesToReplayFiltered = filterOutEntriesWillBeDiscarded(messagesToReplayNow);
-            if (!messagesToReplayFiltered.isEmpty()) {
+            if (!messagesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
-                            messagesToReplayFiltered.size(), consumerList.size());
+                            messagesToReplayNow.size(), consumerList.size());
                 }
-
                 havePendingReplayRead = true;
-                minReplayedPosition = messagesToReplayNow.first();
+                updateMinReplayedPosition();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayFiltered)
-                        : asyncReplayEntries(messagesToReplayFiltered);
+                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                        : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
-
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayFiltered.size() - deletedMessages.size()) == 0) {
+                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntriesAsync();
                 }
@@ -386,13 +383,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                NavigableSet<Position> toReplay = getMessagesToReplayNow(1);
-                if (!toReplay.isEmpty()) {
-                    minReplayedPosition = toReplay.first();
-                    redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
-                } else {
-                    minReplayedPosition = null;
-                }
+                updateMinReplayedPosition();
 
                 // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
                 if (delayedDeliveryTracker.isPresent()) {
@@ -424,6 +415,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
+        }
+    }
+
+    private void updateMinReplayedPosition() {
+        Optional<Position> firstPositionInReplay = getFirstPositionInReplay();
+        if (firstPositionInReplay.isPresent()) {
+            minReplayedPosition = firstPositionInReplay.get();
+        } else {
+            minReplayedPosition = null;
         }
     }
 
@@ -1232,16 +1232,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
-
         if (!redeliveryMessages.isEmpty()) {
-            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
+            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead, createFilterForReplay());
         } else {
             return Collections.emptyNavigableSet();
         }
     }
 
+    protected Optional<Position> getFirstPositionInReplay() {
+        return redeliveryMessages.getFirstPositionInReplay();
+    }
+
     /**
-     * This is a mode method designed for Key_Shared mode.
+     * Creates a stateful filter for filtering replay positions.
+     * This is only used for Key_Shared mode to skip replaying certain entries.
      * Filter out the entries that will be discarded due to the order guarantee mechanism of Key_Shared mode.
      * This method is in order to avoid the scenario below:
      * - Get positions from the Replay queue.
@@ -1249,8 +1253,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * - The order guarantee mechanism of Key_Shared mode filtered out all the entries.
      * - Delivery non entry to the client, but we did a BK read.
      */
-    protected NavigableSet<Position> filterOutEntriesWillBeDiscarded(NavigableSet<Position> src) {
-        return src;
+    protected Predicate<Position> createFilterForReplay() {
+        // pick all positions from the replay
+        return position -> true;
     }
 
     /**

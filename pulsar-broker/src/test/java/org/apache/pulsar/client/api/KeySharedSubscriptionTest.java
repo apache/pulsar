@@ -1296,7 +1296,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         redeliveryMessagesField.setAccessible(true);
         final MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField.get(dispatcher);
 
-        final Set<Position> replayMsgSet = redeliveryMessages.getMessagesToReplayNow(3);
+        final Set<Position> replayMsgSet = redeliveryMessages.getMessagesToReplayNow(3, item -> true);
         assertEquals(replayMsgSet.size(), 1);
         final Position replayMsg = replayMsgSet.stream().findAny().get();
         assertEquals(replayMsg, PositionFactory.create(msg1Id.getLedgerId(), msg1Id.getEntryId()));
