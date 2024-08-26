@@ -167,4 +167,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
         super.testDifferentTopicCreationRule(replicationMode);
     }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicationCountMetrics() throws Exception {
+        super.testReplicationCountMetrics();
+    }
 }
