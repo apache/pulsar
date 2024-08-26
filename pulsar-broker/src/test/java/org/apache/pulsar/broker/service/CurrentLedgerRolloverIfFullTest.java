@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.awaitility.Awaitility.await;
+
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -81,7 +83,8 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        // 10 msg, 2 entries per ledger. 5 is full, another one is created. Await to avoid race condition
+        await().until(() -> managedLedger.getLedgersInfoAsList().size() == 6); //
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -91,7 +94,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         // all the messages have been acknowledged
         // and all the ledgers have been removed except the the last ledger
-        Awaitility.await()
+        await()
                 .pollInterval(Duration.ofMillis(500L))
                 .untilAsserted(() -> {
                             Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
@@ -105,7 +108,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         managedLedger.rollCurrentLedgerIfFull();
 
         // the last ledger will be closed and removed and we have one ledger for empty
-        Awaitility.await()
+        await()
                 .pollInterval(Duration.ofMillis(1000L))
                 .untilAsserted(() -> {
                     Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
