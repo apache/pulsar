@@ -85,6 +85,10 @@ import org.slf4j.LoggerFactory;
  */
 public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements Dispatcher, ReadEntriesCallback {
+    // rescheduling a read after no entries are dispatches will be delayed by this duration using a backoff
+    private static final int RESCHEDULE_READ_INITIAL_DELAY_MS = 100;
+    // maximum delay for rescheduling a read after no entries are dispatched
+    private static final int RESCHEDULE_READ_INITIAL_MAX_DELAY_MS = 5000;
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
@@ -134,7 +138,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
-
+    protected int lastNumberOfEntriesDispatched;
+    private final Backoff rescheduleReadBackoff = new Backoff(RESCHEDULE_READ_INITIAL_DELAY_MS, TimeUnit.MILLISECONDS,
+            RESCHEDULE_READ_INITIAL_MAX_DELAY_MS, TimeUnit.MILLISECONDS, 0,
+            TimeUnit.MILLISECONDS);
     protected enum ReadType {
         Normal, Replay
     }
@@ -437,16 +444,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void reScheduleRead() {
+        reScheduleReadInMs(MESSAGE_RATE_BACKOFF_MS);
+    }
+
+    protected void reScheduleReadInMs(long readAfterMs) {
         if (isRescheduleReadInProgress.compareAndSet(false, true)) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, readAfterMs);
             }
             topic.getBrokerService().executor().schedule(
                     () -> {
                         isRescheduleReadInProgress.set(false);
                         readMoreEntries();
                         },
-                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                    readAfterMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -659,8 +670,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-        long size = entries.stream().mapToLong(Entry::getLength).sum();
-        updatePendingBytesToDispatch(size);
+        long totalBytesSize = entries.stream().mapToLong(Entry::getLength).sum();
+        updatePendingBytesToDispatch(totalBytesSize);
 
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
@@ -670,19 +681,28 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
             dispatchMessagesThread.execute(() -> {
-                if (sendMessagesToConsumers(readType, entries, false)) {
-                    updatePendingBytesToDispatch(-size);
-                    readMoreEntries();
-                } else {
-                    updatePendingBytesToDispatch(-size);
-                }
+                handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
         } else {
-            if (sendMessagesToConsumers(readType, entries, true)) {
-                updatePendingBytesToDispatch(-size);
-                readMoreEntriesAsync();
-            } else {
-                updatePendingBytesToDispatch(-size);
+            handleSendingMessagesAndReadingMore(readType, entries, true, totalBytesSize);
+        }
+    }
+
+    private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
+                                                                  boolean needAcquireSendInProgress,
+                                                                  long totalBytesSize) {
+        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        int entriesDispatched = lastNumberOfEntriesDispatched;
+        updatePendingBytesToDispatch(-totalBytesSize);
+        if (triggerReadingMore) {
+            if (entriesDispatched > 0) {
+                // Reset the backoff when we successfully dispatched messages
+                rescheduleReadBackoff.reset();
+                // Call readMoreEntries in the same thread to trigger the next read
+                readMoreEntries();
+            } else if (entriesDispatched == 0) {
+                // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
+                reScheduleReadInMs(rescheduleReadBackoff.next());
             }
         }
     }
@@ -721,6 +741,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
+        lastNumberOfEntriesDispatched = 0;
 
         int entriesToDispatch = entries.size();
         // Trigger read more messages
@@ -828,6 +849,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
             });
+
+            lastNumberOfEntriesDispatched = entriesToDispatch;
         }
         return true;
     }
@@ -890,6 +913,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
+        lastNumberOfEntriesDispatched = (int) totalEntries;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         return numConsumers.get() == 0; // trigger a new readMoreEntries() call
