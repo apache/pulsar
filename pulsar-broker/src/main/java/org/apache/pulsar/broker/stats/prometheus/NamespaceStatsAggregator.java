@@ -304,7 +304,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
             aggReplStats.msgRateExpired += replStats.msgRateExpired;
-            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            if (replStats.connected) {
+                aggReplStats.connectedCount += 1;
+            } else {
+                aggReplStats.disconnectedCount += 1;
+            }
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
 
@@ -513,6 +517,8 @@ public class NamespaceStatsAggregator {
                 replStats -> replStats.replicationBacklog, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_connected_count", stats,
                 replStats -> replStats.connectedCount, cluster, namespace);
+        writeReplicationStat(stream, "pulsar_replication_disconnected_count", stats,
+                replStats -> replStats.disconnectedCount, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_rate_expired", stats,
                 replStats -> replStats.msgRateExpired, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_delay_in_seconds", stats,

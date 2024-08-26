@@ -32,6 +32,7 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -74,6 +75,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -103,6 +105,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -1394,5 +1398,122 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
             assertEquals(valueLocal, publishRateAddLocal2);
         });
+    }
+
+    @Test
+    public void testReplicationCountMetrics() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        // 1.Create topic, does not enable replication now.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // We inject an error to make the internal producer fail to connect.
+        final AtomicInteger createProducerCounter = new AtomicInteger();
+        final AtomicBoolean failedCreateProducer = new AtomicBoolean(true);
+        Runnable taskToClearInjection = injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
+            if (topicName.equals(producerCnf.getTopicName())) {
+                // There is a switch to determine create producer successfully or not.
+                if (failedCreateProducer.get()) {
+                    log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                    // Release producer and fail callback.
+                    originalProducer.closeAsync();
+                    throw new RuntimeException("mock error");
+                }
+                return originalProducer;
+            }
+            return originalProducer;
+        });
+
+        // 2.Enable replication.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+
+        // Verify: metrics.
+        // Cluster level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Namespace level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Topic level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        Awaitility.await().untilAsserted(() -> {
+            int topicConnected = 0;
+            int topicDisconnected = 0;
+
+            String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_replication_disconnected_count")) {
+                fail("Expected 1 disconnected replicator.");
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_connected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicConnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            log.info("{}, {},", topicConnected, topicDisconnected);
+            assertEquals(topicConnected, 0);
+            assertEquals(topicDisconnected, 1);
+        });
+
+        // Let replicator connect successfully.
+        failedCreateProducer.set(false);
+        // Verify: metrics.
+        // Cluster level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Namespace level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Topic level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        Awaitility.await().atMost(Duration.ofSeconds(130)).untilAsserted(() -> {
+            int topicConnected = 0;
+            int topicDisconnected = 0;
+
+            String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_replication_disconnected_count")) {
+                fail("Expected 1 disconnected replicator.");
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_connected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicConnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            log.info("{}, {}", topicConnected, topicDisconnected);
+            assertEquals(topicConnected, 1);
+            assertEquals(topicDisconnected, 0);
+        });
+
+        // cleanup.
+        taskToClearInjection.run();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        admin1.topics().delete(topicName, false);
+        admin2.topics().delete(topicName, false);
     }
 }

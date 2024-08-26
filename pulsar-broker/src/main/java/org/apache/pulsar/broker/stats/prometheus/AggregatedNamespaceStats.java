@@ -134,6 +134,7 @@ public class AggregatedNamespaceStats {
             replStats.replicationBacklog += as.replicationBacklog;
             replStats.msgRateExpired += as.msgRateExpired;
             replStats.connectedCount += as.connectedCount;
+            replStats.disconnectedCount += as.disconnectedCount;
             replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 

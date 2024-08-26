@@ -410,6 +410,8 @@ class TopicStats {
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_disconnected_count", replStats.disconnectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_delay_in_seconds", replStats.replicationDelayInSeconds,
