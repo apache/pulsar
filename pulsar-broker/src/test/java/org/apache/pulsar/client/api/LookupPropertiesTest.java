@@ -54,7 +54,7 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
 
     @Override
     protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
-        return addCustomConfigs(getDefaultConf(), additionalBrokerIndex);
+        return addCustomConfigs(getDefaultConf(), additionalBrokerIndex + 10);
     }
 
     private static ServiceConfiguration addCustomConfigs(ServiceConfiguration config, int index) {
@@ -75,8 +75,9 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
         final var topic = "test-lookup-property";
         admin.topics().createPartitionedTopic(topic, 16);
         @Cleanup final var client = (PulsarClientImpl) PulsarClient.builder()
-                .serviceUrl(additionalBrokers.get(1).getBrokerServiceUrl())
-                .lookupProperties(Collections.singletonMap(CLIENT_KEY, "broker-0"))
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .lookupProperties(
+                        Collections.singletonMap(CLIENT_KEY, "broker-10")) // broker-10 refers to additionalBrokers[0]
                 .build();
         @Cleanup final var producer = (PartitionedProducerImpl<byte[]>) client.newProducer().topic(topic).create();
         Assert.assertNotNull(producer);
@@ -88,7 +89,6 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
         Assert.assertEquals(port, additionalBrokers.get(0).getBrokerListenPort().orElseThrow());
     }
 
-    @Slf4j
     public static class BrokerIdAwareLoadManager extends ExtensibleLoadManagerImpl {
         @Override
         public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle, Set<String> excludeBrokerSet,
