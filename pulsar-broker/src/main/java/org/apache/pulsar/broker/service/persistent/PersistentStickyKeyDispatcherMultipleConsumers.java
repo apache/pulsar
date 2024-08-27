@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
@@ -55,6 +56,8 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -413,24 +416,39 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = selector.select(stickyKeyHash);
             MutableInt availablePermits = null;
             boolean dispatchEntry = false;
+            EntryAndMetadata entryAndMetadata = null;
+            int numberOfMessages = 1;
             // a consumer was found for the sticky key hash and the consumer can get more entries
             if (consumer != null && !remainingEntriesFilteredForConsumer.contains(consumer)) {
                 // lookup the available permits for the consumer
                 availablePermits =
                         availablePermitsByConsumer.computeIfAbsent(consumer,
                                 k -> new MutableInt(getAvailablePermits(consumer)));
-                // check if the entry can be dispatched to the consumer
-                dispatchEntry =
-                        canDispatchEntry(consumer, entry, availablePermits.intValue(), readType,
-                                stickyKeyHash);
+                if (availablePermits.intValue() > 0 && canDispatchEntry(consumer, entry, readType, stickyKeyHash)) {
+                    // parse the metadata to get the number of messages in the batch
+                    MessageMetadata metadata = Commands
+                            .peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+                    entryAndMetadata = EntryAndMetadata.create(entry, metadata);
+                    numberOfMessages =
+                            Math.max(metadata.hasNumMessagesInBatch() ? metadata.getNumMessagesInBatch() : 0, 1);
+                    // check if the consumer has enough permits to dispatch the entry
+                    // this ignores acknowledgmentAtBatchIndexLevelEnabled / enableBatchIndexAcknowledgment
+                    // since the approximate number of messages is sufficient for filtering
+                    dispatchEntry = availablePermits.intValue() >= numberOfMessages;
+                }
             }
             if (dispatchEntry) {
-                // decrement the available permits for the consumer
-                availablePermits.decrement();
                 // add the entry to consumer's entry list for dispatching
                 List<Entry> consumerEntries =
                         entriesGroupedByConsumer.computeIfAbsent(consumer, k -> new ArrayList<>());
-                consumerEntries.add(entry);
+                // decrement the number of messages from the remaining available permits for the consumer
+                // this ignores acknowledgmentAtBatchIndexLevelEnabled / enableBatchIndexAcknowledgment
+                // since the approximate number of messages is sufficient for filtering
+                availablePermits.add(-numberOfMessages);
+                // add the EntryAndMetadata instance to the consumer's entry list
+                // EntryAndMetadata is used to keep the entry and metadata together and avoids the need to
+                // parse the metadata again when the entry is dispatched
+                consumerEntries.add(entryAndMetadata);
             } else {
                 // add the message to replay
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
@@ -444,12 +462,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     // checks if the entry can be dispatched to the consumer
-    private boolean canDispatchEntry(Consumer consumer, Entry entry, int availablePermits,
-                                     ReadType readType, int stickyKeyHash) {
-        if (availablePermits <= 0) {
-            return false;
-        }
-
+    private boolean canDispatchEntry(Consumer consumer, Entry entry, ReadType readType, int stickyKeyHash) {
+        // check if the entry can be replayed to a recently joined consumer
         Position maxLastSentPosition = resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType);
         if (maxLastSentPosition != null && entry.getPosition().compareTo(maxLastSentPosition) > 0) {
             return false;
@@ -489,12 +503,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (isAllowOutOfOrderDelivery()) {
                 return true;
             }
-            // lookup the sticky key hash for the message at the replay position
+            // lookup the sticky key hash for the entry at the replay position
             Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
             if (stickyKeyHash == null) {
                 // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
                 // dispatch after reading the entry from the ledger
-                log.debug("[{}] replay of message at position {} doesn't contain sticky key hash.", name, position);
+                log.debug("[{}] replay of entry at position {} doesn't contain sticky key hash.", name, position);
                 return true;
             }
             // find the consumer for the sticky key hash
@@ -511,15 +525,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (availablePermits.intValue() <= 0) {
                 return false;
             }
-            // check if the message position can be replayed to a recently joined consumer
+            // check if the entry position can be replayed to a recently joined consumer
             Position maxLastSentPosition =
                     resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, ReadType.Replay);
             if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
                 return false;
             }
-            // the message position can be replayed,
+            // the position can be replayed,
             // decrement the available permits for the consumer which is tracked for the duration of the filter usage
-            availablePermits.decrement();
+            // this is an approximation, the actual permits are decremented when the entry is dispatched
+            int requiredPermits = -Math.max(consumer.getAvgMessagesPerEntry(), 1);
+            availablePermits.add(requiredPermits);
             return true;
         }
     }

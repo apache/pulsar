@@ -756,8 +756,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int remainingMessages = 0;
         boolean hasChunk = false;
         for (int i = 0; i < metadataArray.length; i++) {
-            final MessageMetadata metadata = Commands.peekAndCopyMessageMetadata(
-                    entries.get(i).getDataBuffer(), subscription.toString(), -1);
+            Entry entry = entries.get(i);
+            MessageMetadata metadata = entry instanceof EntryAndMetadata ? ((EntryAndMetadata) entry).getMetadata()
+                    : Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
                 if (!hasChunk && metadata.hasUuid()) {
