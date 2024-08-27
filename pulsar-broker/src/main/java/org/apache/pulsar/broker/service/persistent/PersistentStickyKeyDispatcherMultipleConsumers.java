@@ -44,7 +44,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
@@ -56,8 +55,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -406,49 +403,22 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private Map<Consumer, List<Entry>> filterAndGroupEntriesForDispatching(List<Entry> entries, ReadType readType) {
         // entries grouped by consumer
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
-        // state of the available permits for each consumer
-        Map<Consumer, MutableInt> availablePermitsByConsumer = new HashMap<>();
         // consumers for which all remaining entries should be discarded
         Set<Consumer> remainingEntriesFilteredForConsumer = new HashSet<>();
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
-            MutableInt availablePermits = null;
             boolean dispatchEntry = false;
-            EntryAndMetadata entryAndMetadata = null;
-            int numberOfMessages = 1;
             // a consumer was found for the sticky key hash and the consumer can get more entries
             if (consumer != null && !remainingEntriesFilteredForConsumer.contains(consumer)) {
-                // lookup the available permits for the consumer
-                availablePermits =
-                        availablePermitsByConsumer.computeIfAbsent(consumer,
-                                k -> new MutableInt(getAvailablePermits(consumer)));
-                if (availablePermits.intValue() > 0 && canDispatchEntry(consumer, entry, readType, stickyKeyHash)) {
-                    // parse the metadata to get the number of messages in the batch
-                    MessageMetadata metadata = Commands
-                            .peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
-                    entryAndMetadata = EntryAndMetadata.create(entry, metadata);
-                    numberOfMessages =
-                            Math.max(metadata.hasNumMessagesInBatch() ? metadata.getNumMessagesInBatch() : 0, 1);
-                    // check if the consumer has enough permits to dispatch the entry
-                    // this ignores acknowledgmentAtBatchIndexLevelEnabled / enableBatchIndexAcknowledgment
-                    // since the approximate number of messages is sufficient for filtering
-                    dispatchEntry = availablePermits.intValue() >= numberOfMessages;
-                }
+                dispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
             }
             if (dispatchEntry) {
                 // add the entry to consumer's entry list for dispatching
                 List<Entry> consumerEntries =
                         entriesGroupedByConsumer.computeIfAbsent(consumer, k -> new ArrayList<>());
-                // decrement the number of messages from the remaining available permits for the consumer
-                // this ignores acknowledgmentAtBatchIndexLevelEnabled / enableBatchIndexAcknowledgment
-                // since the approximate number of messages is sufficient for filtering
-                availablePermits.add(-numberOfMessages);
-                // add the EntryAndMetadata instance to the consumer's entry list
-                // EntryAndMetadata is used to keep the entry and metadata together and avoids the need to
-                // parse the metadata again when the entry is dispatched
-                consumerEntries.add(entryAndMetadata);
+                consumerEntries.add(entry);
             } else {
                 // add the message to replay
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
