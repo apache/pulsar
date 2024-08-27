@@ -348,7 +348,7 @@ public class LoadManagerShared {
         int leastBundles = Integer.MAX_VALUE;
 
         for (final String broker : candidates) {
-            int bundles = brokerToNamespaceToBundleRange.getBundles(broker, namespaceName);
+            int bundles = brokerToNamespaceToBundleRange.getBundleRangeCount(broker, namespaceName);
             leastBundles = Math.min(leastBundles, bundles);
             if (leastBundles == 0) {
                 break;
@@ -360,7 +360,7 @@ public class LoadManagerShared {
 
         final int finalLeastBundles = leastBundles;
         candidates.removeIf(broker ->
-                brokerToNamespaceToBundleRange.getBundles(broker, namespaceName) > finalLeastBundles);
+                brokerToNamespaceToBundleRange.getBundleRangeCount(broker, namespaceName) > finalLeastBundles);
     }
 
     /**
@@ -550,14 +550,16 @@ public class LoadManagerShared {
             }
             final String antiAffinityGroup = antiAffinityGroupOptional.get();
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
-            final var futures = brokerToNamespaceToBundleRange.runTasks((broker, namespace) -> {
-                final var future = new CompletableFuture<Void>();
-                countAntiAffinityNamespaceOwnedBrokers(broker, namespace, future,
-                        pulsar, antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
-                return future;
-            });
-            FutureUtil.waitForAll(futures)
-                    .thenAccept(r -> antiAffinityNsBrokersResult.complete(brokerToAntiAffinityNamespaceCount));
+            final var brokerToNamespaces = brokerToNamespaceToBundleRange.getBrokerToNamespacesMap();
+            FutureUtil.waitForAll(brokerToNamespaces.entrySet().stream().flatMap(e -> {
+                final var broker = e.getKey();
+                return e.getValue().stream().map(namespace -> {
+                    final var future = new CompletableFuture<Void>();
+                    countAntiAffinityNamespaceOwnedBrokers(broker, namespace, future,
+                            pulsar, antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
+                    return future;
+                });
+            }).toList()).thenAccept(__ -> antiAffinityNsBrokersResult.complete(brokerToAntiAffinityNamespaceCount));
         }).exceptionally(ex -> {
             // namespace-policies has not been created yet
             antiAffinityNsBrokersResult.complete(null);

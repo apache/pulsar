@@ -846,7 +846,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 ResourceQuota quota = this.getResourceQuota(serviceUnitId);
                 // Add preallocated bundle range so incoming bundles from the same namespace are not assigned to the
                 // same broker.
-                brokerToNamespaceToBundleRange.addBundleRange(selectedRU.getResourceId(), namespaceName, bundleRange);
+                brokerToNamespaceToBundleRange.add(selectedRU.getResourceId(), namespaceName, bundleRange);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
             }

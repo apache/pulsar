@@ -18,14 +18,22 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+/**
+ * The cache for the bundle ranges.
+ * The first key is the broker id and the second key is the namespace name, the value is the set of bundle ranges of
+ * that namespace. When the broker key is accessed if the associated value is not present, an empty map will be created
+ * as the initial value that will never be removed.
+ * Therefore, for each broker, there could only be one internal map during the whole lifetime. Then it will be safe
+ * to apply the synchronized key word on the value for thread safe operations.
+ */
 public class BundleRangeCache {
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
@@ -33,38 +41,44 @@ public class BundleRangeCache {
     private final Map<String, Map<String, Set<String>>> data = new ConcurrentHashMap<>();
 
     public void reloadFromBundles(String broker, Stream<String> bundles) {
-        final var namespaceToBundleRange = new ConcurrentHashMap<String, Set<String>>();
-        bundles.forEach(bundleName -> {
-            final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
-            final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
-            initConcurrentHashSet(namespaceToBundleRange, namespace).add(bundleRange);
-        });
-        data.put(broker, namespaceToBundleRange);
+        final var namespaceToBundleRange = data.computeIfAbsent(broker, __ -> new HashMap<>());
+        synchronized (namespaceToBundleRange) {
+            namespaceToBundleRange.clear();
+            bundles.forEach(bundleName -> {
+                final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
+                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
+                namespaceToBundleRange.computeIfAbsent(namespace, __ -> new HashSet<>()).add(bundleRange);
+            });
+        }
     }
 
-    public void addBundleRange(String broker, String namespace, String bundleRange) {
-        getBundleRangeSet(broker, namespace).add(bundleRange);
+    public void add(String broker, String namespace, String bundleRange) {
+        final var namespaceToBundleRange = data.computeIfAbsent(broker, __ -> new HashMap<>());
+        synchronized (namespaceToBundleRange) {
+            namespaceToBundleRange.computeIfAbsent(namespace, __ -> new HashSet<>()).add(bundleRange);
+        }
     }
 
-    public int getBundles(String broker, String namespace) {
-        return getBundleRangeSet(broker, namespace).size();
+    public int getBundleRangeCount(String broker, String namespace) {
+        final var namespaceToBundleRange = data.computeIfAbsent(broker, __ -> new HashMap<>());
+        synchronized (namespaceToBundleRange) {
+            final var bundleRangeSet = namespaceToBundleRange.get(namespace);
+            return bundleRangeSet != null ? bundleRangeSet.size() : 0;
+        }
     }
 
-    public List<CompletableFuture<Void>> runTasks(
-            BiFunction<String/* broker */, String/* namespace */, CompletableFuture<Void>> task) {
-        return data.entrySet().stream().flatMap(e -> {
-            final var broker = e.getKey();
-            return e.getValue().entrySet().stream().filter(__ -> !__.getValue().isEmpty()).map(Map.Entry::getKey)
-                    .map(namespace -> task.apply(broker, namespace));
-        }).toList();
-    }
-
-    private Set<String> getBundleRangeSet(String broker, String namespace) {
-        return initConcurrentHashSet(data.computeIfAbsent(broker, __ -> new ConcurrentHashMap<>()), namespace);
-    }
-
-    private static Set<String> initConcurrentHashSet(Map<String, Set<String>> namespaceToBundleRangeSet,
-                                                     String namespace) {
-        return namespaceToBundleRangeSet.computeIfAbsent(namespace, __ -> ConcurrentHashMap.newKeySet());
+    /**
+     * Get the map whose key is the broker and value is the namespace that has at least 1 cached bundle range.
+     */
+    public Map<String, List<String>> getBrokerToNamespacesMap() {
+        final var brokerToNamespaces = new HashMap<String, List<String>>();
+        for (var entry : data.entrySet()) {
+            final var broker = entry.getKey();
+            final var namespaceToBundleRange = entry.getValue();
+            synchronized (namespaceToBundleRange) {
+                brokerToNamespaces.put(broker, namespaceToBundleRange.keySet().stream().toList());
+            }
+        }
+        return brokerToNamespaces;
     }
 }

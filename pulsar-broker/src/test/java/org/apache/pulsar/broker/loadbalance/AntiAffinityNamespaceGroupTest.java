@@ -360,7 +360,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             String broker, String namespace, String assignedBundleName) {
 
         final var brokerToNamespaceToBundleRange = (BundleRangeCache) ownershipData;
-        brokerToNamespaceToBundleRange.addBundleRange(broker, namespace, assignedBundleName);
+        brokerToNamespaceToBundleRange.add(broker, namespace, assignedBundleName);
     }
 
     /**

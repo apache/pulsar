@@ -43,7 +43,7 @@ public class LoadManagerSharedTest {
         Assert.assertTrue(candidates.contains("broker1"));
 
         candidates = Sets.newHashSet("broker1");
-        cache.addBundleRange("broker1", namespace, "0x40000000_0x80000000");
+        cache.add("broker1", namespace, "0x40000000_0x80000000");
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
         Assert.assertEquals(candidates.size(), 1);
         Assert.assertTrue(candidates.contains("broker1"));
@@ -54,20 +54,20 @@ public class LoadManagerSharedTest {
         Assert.assertTrue(candidates.contains("broker2"));
 
         candidates = Sets.newHashSet("broker1", "broker2");
-        cache.addBundleRange("broker2", namespace, "0x80000000_0xc0000000");
+        cache.add("broker2", namespace, "0x80000000_0xc0000000");
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
         Assert.assertEquals(candidates.size(), 2);
         Assert.assertTrue(candidates.contains("broker1"));
         Assert.assertTrue(candidates.contains("broker2"));
 
         candidates = Sets.newHashSet("broker1", "broker2");
-        cache.addBundleRange("broker2", namespace, "0xc0000000_0xd0000000");
+        cache.add("broker2", namespace, "0xc0000000_0xd0000000");
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
         Assert.assertEquals(candidates.size(), 1);
         Assert.assertTrue(candidates.contains("broker1"));
 
         candidates = Sets.newHashSet("broker1", "broker2", "broker3");
-        cache.addBundleRange("broker3", namespace, "0xd0000000_0xffffffff");
+        cache.add("broker3", namespace, "0xd0000000_0xffffffff");
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
         Assert.assertEquals(candidates.size(), 2);
         Assert.assertTrue(candidates.contains("broker1"));

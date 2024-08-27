@@ -857,7 +857,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-        brokerToNamespaceToBundleRange.addBundleRange(broker, namespaceName, bundleRange);
+        brokerToNamespaceToBundleRange.add(broker, namespaceName, bundleRange);
     }
 
     @VisibleForTesting
