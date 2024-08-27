@@ -949,6 +949,48 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " back and unack count reaches to `limit/2`. Using a value of 0, is disabling unackedMessage-limit"
             + " check and broker doesn't block dispatchers")
     private int maxUnackedMessagesPerBroker = 0;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, if messages cannot be dispatched to consumers due to a slow consumer"
+                    + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
+                    + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
+                    + " messages reaches the calculated threshold.\n"
+                    + "Formula: threshold = max(keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription)"
+                    + ".\n"
+                    + "Setting this value to 0 will disable the limit calculated per consumer.",
+            dynamic = true
+    )
+    private int keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer = 1000;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, if messages cannot be dispatched to consumers due to a slow consumer"
+                    + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
+                    + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
+                    + " messages reaches the calculated threshold.\n"
+                    + "Formula: threshold = max(keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription)"
+                    + ".\n"
+                    + "This value should be set to a value less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
+                    + "Setting this value to 0 will disable the limit calculated per subscription.\n",
+            dynamic = true
+    )
+    private int keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription = 10000;
+
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, if messages cannot be dispatched to consumers due to a slow consumer"
+                    + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
+                    + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
+                    + " messages reaches the calculated threshold.\n"
+                    + "This setting controls whether look ahead is enabled when recently joined consumers are present.",
+            dynamic = true
+    )
+    private boolean keySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist = false;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher "

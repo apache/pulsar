@@ -20,14 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +66,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
 
-    private boolean isDispatcherStuckOnReplays = false;
+    private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
 
     /**
@@ -362,7 +360,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // acquire message-dispatch permits for already delivered messages
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
-        if (totalMessagesSent == 0 && (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
+        if (totalMessagesSent == 0 && isLookAheadAllowed()) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:
             //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)
@@ -375,10 +373,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // ahead in the stream while the new consumers are not ready to accept the new messages,
             // therefore would be most likely only increase the distance between read-position and mark-delete
             // position.
-            isDispatcherStuckOnReplays = true;
+            skipNextReplayToTriggerLookAhead = true;
             return true;
         } else if (entriesByConsumerForDispatching.size() == 0) {
+            // There should be a backoff delay before retrying
             return true;
+        }
+        return false;
+    }
+
+    private boolean isLookAheadAllowed() {
+        if (serviceConfig.isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist()
+                || (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
+            long keySharedNumberOfReplayMessagesThresholdForLookAhead = Math.max(
+                    serviceConfig.getKeySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer()
+                            * consumerList.size(),
+                    serviceConfig.getKeySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription());
+            if (keySharedNumberOfReplayMessagesThresholdForLookAhead == 0
+                    || redeliveryMessages.size() < keySharedNumberOfReplayMessagesThresholdForLookAhead) {
+                return true;
+            }
         }
         return false;
     }
@@ -558,17 +572,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return lastSentPosition;
     }
 
+    /**
+     * The dispatcher will skip replaying messages when all messages in the replay queue are filtered out when
+     * isDispatcherStuckOnReplays=true. The flag gets resetted after the call.
+     *
+     * If we're stuck on replay, we want to move forward reading on the topic (until the configured look ahead
+     * limits kick in), instead of keep replaying the same old messages, since the consumer that these
+     * messages are routing to might be busy at the moment.
+     *
+     * Please see {@link ServiceConfiguration#keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer},
+     * {@link ServiceConfiguration#keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription} and
+     * {@link ServiceConfiguration#keySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist} for configuring
+     * the limits.
+     */
     @Override
-    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
-        if (isDispatcherStuckOnReplays) {
-            // If we're stuck on replay, we want to move forward reading on the topic (until the overall max-unacked
-            // messages kicks in), instead of keep replaying the same old messages, since the consumer that these
-            // messages are routing to might be busy at the moment
-            this.isDispatcherStuckOnReplays = false;
-            return Collections.emptyNavigableSet();
-        } else {
-            return super.getMessagesToReplayNow(maxMessagesToRead);
+    protected synchronized boolean canReplayMessages() {
+        if (skipNextReplayToTriggerLookAhead) {
+            skipNextReplayToTriggerLookAhead = false;
+            return false;
         }
+        return true;
     }
 
     private int getAvailablePermits(Consumer c) {

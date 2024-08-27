@@ -345,7 +345,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 return;
             }
 
-            NavigableSet<Position> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
+            Set<Position> messagesToReplayNow =
+                    canReplayMessages() ? getMessagesToReplayNow(messagesToRead) : Collections.emptySet();
             if (!messagesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
@@ -416,6 +417,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    /**
+     * Controls whether replaying entries is currently enabled.
+     * Subclasses can override this method to temporarily disable replaying entries.
+     * @return true if replaying entries is currently enabled
+     */
+    protected boolean canReplayMessages() {
+        return true;
     }
 
     private void updateMinReplayedPosition() {
