@@ -429,12 +429,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     private void updateMinReplayedPosition() {
-        Optional<Position> firstPositionInReplay = getFirstPositionInReplay();
-        if (firstPositionInReplay.isPresent()) {
-            minReplayedPosition = firstPositionInReplay.get();
-        } else {
-            minReplayedPosition = null;
-        }
+        minReplayedPosition = getFirstPositionInReplay().orElse(null);
     }
 
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
