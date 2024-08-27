@@ -534,8 +534,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // the position can be replayed,
             // decrement the available permits for the consumer which is tracked for the duration of the filter usage
             // this is an approximation, the actual permits are decremented when the entry is dispatched
-            int requiredPermits = -Math.max(consumer.getAvgMessagesPerEntry(), 1);
-            availablePermits.add(requiredPermits);
+            int requiredPermits = Math.max(consumer.getAvgMessagesPerEntry(), 1);
+            availablePermits.add(-requiredPermits);
             return true;
         }
     }
