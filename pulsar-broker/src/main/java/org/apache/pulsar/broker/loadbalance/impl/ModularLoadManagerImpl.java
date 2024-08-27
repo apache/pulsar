@@ -879,6 +879,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                                 k -> ConcurrentOpenHashMap.<String,
                                         ConcurrentOpenHashSet<String>>newBuilder()
                                         .build());
+        Set<String> myConcurrentSet = ConcurrentHashMap.newKeySet();
         synchronized (namespaceToBundleRange) {
             namespaceToBundleRange.computeIfAbsent(namespaceName,
                     k -> ConcurrentOpenHashSet.<String>newBuilder().build())

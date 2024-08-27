@@ -122,6 +122,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     public static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
 
+    public static final int MAX_RETRY = 5;
+
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
     public static final Set<String> INTERNAL_TOPICS =
@@ -394,17 +396,40 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         });
                     });
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
-            this.brokerRegistry.start();
+
             this.splitManager = new SplitManager(splitCounter);
             this.unloadManager = new UnloadManager(unloadCounter, pulsar.getBrokerId());
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
             pulsar.runWhenReadyForIncomingRequests(() -> {
-                try {
-                    this.serviceUnitStateChannel.start();
-                } catch (Exception e) {
-                    failStarting(e);
+                int retry = 0;
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        this.brokerRegistry.start();
+                        this.serviceUnitStateChannel.start();
+                        break;
+                    } catch (Exception e) {
+                        log.warn("The broker:{} failed to start service unit state channel. Retrying {} th ...",
+                                pulsar.getBrokerId(), ++retry, e);
+                        try {
+                            TimeUnit.SECONDS.sleep(Math.min(retry * 10L, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
+                        } catch (InterruptedException ex) {
+                            log.warn("Interrupted while sleeping.");
+                            // preserve thread's interrupt status
+                            Thread.currentThread().interrupt();
+                        }
+                        failStarting(e);
+                        if (retry >= MAX_RETRY) {
+                            log.error("Failed to start the service unit state channel after retry {} th. "
+                                    + "Closing pulsar service.", retry, e);
+                            try {
+                                pulsar.close();
+                            } catch (PulsarServerException ex) {
+                                log.error("Failed to close pulsar service.", ex);
+                            }
+                        }
+                    }
                 }
             });
             this.antiAffinityGroupPolicyHelper =
@@ -500,6 +525,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             try {
                 brokerRegistry.close();
             } catch (PulsarServerException e) {
+                // ignore
+            }
+        }
+        if (this.serviceUnitStateChannel != null) {
+            try {
+                serviceUnitStateChannel.close();
+            } catch (IOException e) {
                 // ignore
             }
         }
