@@ -100,6 +100,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
@@ -396,7 +397,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         });
                     });
             this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
-
+            this.brokerRegistry.start();
             this.splitManager = new SplitManager(splitCounter);
             this.unloadManager = new UnloadManager(unloadCounter, pulsar.getBrokerId());
             this.serviceUnitStateChannel.listen(unloadManager);
@@ -406,7 +407,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 int retry = 0;
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
-                        this.brokerRegistry.start();
+                        brokerRegistry.register();
                         this.serviceUnitStateChannel.start();
                         break;
                     } catch (Exception e) {
@@ -523,8 +524,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 this.brokerRegistry, ex);
         if (this.brokerRegistry != null) {
             try {
-                brokerRegistry.close();
-            } catch (PulsarServerException e) {
+                brokerRegistry.unregister();
+            } catch (MetadataStoreException e) {
                 // ignore
             }
         }
