@@ -397,48 +397,60 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
+    // groups the entries by consumer and filters out the entries that should not be dispatched
+    // the entries are handled in the order they are received instead of first grouping them by consumer and
+    // then filtering them
     private Map<Consumer, List<Entry>> filterAndGroupEntriesForDispatching(List<Entry> entries, ReadType readType) {
-        Map<Consumer, List<Entry>> groupedByConsumer = new HashMap<>();
-        Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
+        // entries grouped by consumer
+        Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
+        // state of the available permits for each consumer
+        Map<Consumer, MutableInt> availablePermitsByConsumer = new HashMap<>();
+        // consumers for which all remaining entries should be discarded
         Set<Consumer> remainingEntriesFilteredForConsumer = new HashSet<>();
+
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
             MutableInt availablePermits = null;
             boolean dispatchEntry = false;
-            if (consumer != null) {
-                if (remainingEntriesFilteredForConsumer.contains(consumer)) {
-                    dispatchEntry = false;
-                } else {
-                    availablePermits =
-                            availablePermitsMap.computeIfAbsent(consumer,
-                                    k -> new MutableInt(getAvailablePermits(consumer)));
-                    dispatchEntry =
-                            canDispatchEntry(consumer, entry, availablePermits.intValue(), readType,
-                                    stickyKeyHash);
-                }
+            // a consumer was found for the sticky key hash and the consumer can get more entries
+            if (consumer != null && !remainingEntriesFilteredForConsumer.contains(consumer)) {
+                // lookup the available permits for the consumer
+                availablePermits =
+                        availablePermitsByConsumer.computeIfAbsent(consumer,
+                                k -> new MutableInt(getAvailablePermits(consumer)));
+                // check if the entry can be dispatched to the consumer
+                dispatchEntry =
+                        canDispatchEntry(consumer, entry, availablePermits.intValue(), readType,
+                                stickyKeyHash);
             }
             if (dispatchEntry) {
+                // decrement the available permits for the consumer
                 availablePermits.decrement();
-                groupedByConsumer.computeIfAbsent(consumer, k -> new ArrayList<>()).add(entry);
+                // add the entry to consumer's entry list for dispatching
+                List<Entry> consumerEntries =
+                        entriesGroupedByConsumer.computeIfAbsent(consumer, k -> new ArrayList<>());
+                consumerEntries.add(entry);
             } else {
-                // stop sending further messages to this consumer so that ordering is preserved
-                remainingEntriesFilteredForConsumer.add(consumer);
-                // If the consumer is not selected for dispatching, we need to add the message to replay
+                // add the message to replay
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                // release the entry as it will not be dispatched
                 entry.release();
+                // stop sending further entries to this consumer so that ordering is preserved
+                remainingEntriesFilteredForConsumer.add(consumer);
             }
         }
-        return groupedByConsumer;
+        return entriesGroupedByConsumer;
     }
 
+    // checks if the entry can be dispatched to the consumer
     private boolean canDispatchEntry(Consumer consumer, Entry entry, int availablePermits,
                                      ReadType readType, int stickyKeyHash) {
         if (availablePermits <= 0) {
             return false;
         }
 
-        Position maxLastSentPosition = resolveMaxLastSentPosition(consumer, readType);
+        Position maxLastSentPosition = resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType);
         if (maxLastSentPosition != null && entry.getPosition().compareTo(maxLastSentPosition) > 0) {
             return false;
         }
@@ -452,40 +464,72 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return true;
     }
 
+    /**
+     * Creates a filter for replaying messages. The filter is stateful and shouldn't be cached or reused.
+     * @see PersistentDispatcherMultipleConsumers#createFilterForReplay()
+     */
     @Override
     protected Predicate<Position> createFilterForReplay() {
-        Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
-        return new Predicate<Position>() {
-            @Override
-            public boolean test(Position position) {
-                if (isAllowOutOfOrderDelivery()) {
-                    return true;
-                }
-                Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
-                if (stickyKeyHash == null) {
-                    return true;
-                }
-                Consumer consumer = selector.select(stickyKeyHash.intValue());
-                if (consumer == null) {
-                    return false;
-                }
-                MutableInt availablePermits =
-                        availablePermitsMap.computeIfAbsent(consumer,
-                                k -> new MutableInt(getAvailablePermits(consumer)));
-                if (availablePermits.intValue() <= 0) {
-                    return false;
-                }
-                Position maxLastSentPosition = resolveMaxLastSentPosition(consumer, ReadType.Replay);
-                if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
-                    return false;
-                }
-                availablePermits.decrement();
-                return true;
-            }
-        };
+        return new ReplayPositionFilter();
     }
 
-    private Position resolveMaxLastSentPosition(Consumer consumer, ReadType readType) {
+    /**
+     * Filter for replaying messages. The filter is stateful for a single invocation and shouldn't be cached, shared
+     * or reused. This is a short-lived object, and optimizing it for the "no garbage" coding style of Pulsar is
+     * unnecessary since the JVM can optimize allocations for short-lived objects.
+     */
+    private class ReplayPositionFilter implements Predicate<Position> {
+        // tracks the available permits for each consumer for the duration of the filter usage
+        // the filter is stateful and shouldn't be shared or reused later
+        private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
+
+        @Override
+        public boolean test(Position position) {
+            // if out of order delivery is allowed, then any position will be replayed
+            if (isAllowOutOfOrderDelivery()) {
+                return true;
+            }
+            // lookup the sticky key hash for the message at the replay position
+            Long stickyKeyHash = redeliveryMessages.getHash(position.getLedgerId(), position.getEntryId());
+            if (stickyKeyHash == null) {
+                // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
+                // dispatch after reading the entry from the ledger
+                log.debug("[{}] replay of message at position {} doesn't contain sticky key hash.", name, position);
+                return true;
+            }
+            // find the consumer for the sticky key hash
+            Consumer consumer = selector.select(stickyKeyHash.intValue());
+            // skip replaying the message position if there's no assigned consumer
+            if (consumer == null) {
+                return false;
+            }
+            // lookup the available permits for the consumer
+            MutableInt availablePermits =
+                    availablePermitsMap.computeIfAbsent(consumer,
+                            k -> new MutableInt(getAvailablePermits(consumer)));
+            // skip replaying the message position if the consumer has no available permits
+            if (availablePermits.intValue() <= 0) {
+                return false;
+            }
+            // check if the message position can be replayed to a recently joined consumer
+            Position maxLastSentPosition =
+                    resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, ReadType.Replay);
+            if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
+                return false;
+            }
+            // the message position can be replayed,
+            // decrement the available permits for the consumer which is tracked for the duration of the filter usage
+            availablePermits.decrement();
+            return true;
+        }
+    }
+
+    /**
+     * Contains the logic to resolve the max last sent position for a consumer
+     * when the consumer has recently joined. This is only applicable for key shared mode when
+     * allowOutOfOrderDelivery=false.
+     */
+    private Position resolveMaxLastSentPositionForRecentlyJoinedConsumer(Consumer consumer, ReadType readType) {
         if (recentlyJoinedConsumers == null) {
             return null;
         }
@@ -688,5 +732,4 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
-
 }
