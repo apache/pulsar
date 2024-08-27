@@ -153,8 +153,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
-        Assert.assertEquals(pubMessages.size(), totalMsg);
-        Assert.assertEquals(pubMessages.size(), recMessages.size());
+        Assert.assertEquals(totalMsg, pubMessages.size());
+        Assert.assertEquals(recMessages.size(), pubMessages.size());
         Assert.assertTrue(recMessages.containsAll(pubMessages));
 
         // cleanup
