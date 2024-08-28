@@ -94,7 +94,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 pulsar.getConfiguration().isEnableNonPersistentTopics(),
                 conf.getLoadManagerClassName(),
                 System.currentTimeMillis(),
-                pulsar.getBrokerVersion());
+                pulsar.getBrokerVersion(),
+                pulsar.getConfig().lookupProperties());
         this.state = State.Init;
     }
 

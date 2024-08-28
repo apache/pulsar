@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-docker-image</artifactId>
@@ -72,7 +72,6 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                  <goal>tag</goal>
                   <goal>push</goal>
                 </goals>
                 <configuration>
@@ -123,13 +122,12 @@
         </plugins>
       </build>
     </profile>
-
     <profile>
       <id>docker-push</id>
       <properties>
         <docker.skip.push>false</docker.skip.push>
+        <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
       </properties>
     </profile>
-
   </profiles>
 </project>

@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -133,6 +132,7 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
+    private volatile CompletableFuture<Void> inProgressResetCursorFuture;
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
         return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
@@ -221,6 +221,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
+        if (inProgressResetCursorFuture != null) {
+            return inProgressResetCursorFuture.handle((ignore, ignoreEx) -> null)
+                    .thenCompose(ignore -> addConsumerInternal(consumer));
+        } else {
+            return addConsumerInternal(consumer);
+        }
+    }
+
+    private CompletableFuture<Void> addConsumerInternal(Consumer consumer) {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
@@ -332,17 +342,18 @@ public class PersistentSubscription extends AbstractSubscription {
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().execute(() -> {
-                    topic.removeSubscription(subName);
-                    // Also need remove the cursor here, otherwise the data deletion will not work well.
-                    // Because data deletion depends on the mark delete position of all cursors.
-                    if (!isResetCursor) {
-                        try {
-                            topic.getManagedLedger().deleteCursor(cursor.getName());
-                            topic.getManagedLedger().removeWaitingCursor(cursor);
-                        } catch (InterruptedException | ManagedLedgerException e) {
-                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                    topic.removeSubscription(subName).thenRunAsync(() -> {
+                        // Also need remove the cursor here, otherwise the data deletion will not work well.
+                        // Because data deletion depends on the mark delete position of all cursors.
+                        if (!isResetCursor) {
+                            try {
+                                topic.getManagedLedger().deleteCursor(cursor.getName());
+                                topic.getManagedLedger().removeWaitingCursor(cursor);
+                            } catch (InterruptedException | ManagedLedgerException e) {
+                                log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                            }
                         }
-                    }
+                    }, topic.getBrokerService().pulsar().getExecutor());
                 });
             } else {
                 topic.getManagedLedger().removeWaitingCursor(cursor);
@@ -775,7 +786,8 @@ public class PersistentSubscription extends AbstractSubscription {
                 } else {
                     finalPosition = position.getNext();
                 }
-                resetCursor(finalPosition, future);
+                CompletableFuture<Void> resetCursorFuture = resetCursor(finalPosition);
+                FutureUtil.completeAfter(future, resetCursorFuture);
             }
 
             @Override
@@ -794,18 +806,13 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        resetCursor(position, future);
-        return future;
-    }
-
-    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
+    public CompletableFuture<Void> resetCursor(Position finalPosition) {
         if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
-            return;
+            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
@@ -825,6 +832,7 @@ public class PersistentSubscription extends AbstractSubscription {
             if (throwable != null) {
                 log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(
                         new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                 return;
@@ -864,6 +872,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             dispatcher.afterAckMessages(null, finalPosition);
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         future.complete(null);
                     }
 
@@ -872,6 +881,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         log.error("[{}][{}] Failed to reset subscription to position {}", topicName, subName,
                                 finalPosition, exception);
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         // todo - retry on InvalidCursorPositionException
                         // or should we just ask user to retry one more time?
                         if (exception instanceof InvalidCursorPositionException) {
@@ -886,10 +896,12 @@ public class PersistentSubscription extends AbstractSubscription {
             }).exceptionally((e) -> {
                 log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(new BrokerServiceException(e));
                 return null;
             });
         });
+        return future;
     }
 
     @Override
@@ -1200,7 +1212,7 @@ public class PersistentSubscription extends AbstractSubscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
+    public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1273,21 +1285,6 @@ public class PersistentSubscription extends AbstractSubscription {
         } else {
             subStats.backlogSize = -1;
         }
-        if (getStatsOptions.isGetEarliestTimeInBacklog()) {
-            if (subStats.msgBacklog > 0) {
-                ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-                Position markDeletedPosition = cursor.getMarkDeletedPosition();
-                long result = 0;
-                try {
-                    result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    result = -1;
-                }
-                subStats.earliestMsgPublishTimeInBacklog = result;
-            } else {
-                subStats.earliestMsgPublishTimeInBacklog = -1;
-            }
-        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
@@ -1329,7 +1326,20 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =
                 cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
-        return subStats;
+        if (!getStatsOptions.isGetEarliestTimeInBacklog()) {
+            return CompletableFuture.completedFuture(subStats);
+        }
+        if (subStats.msgBacklog > 0) {
+            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            return managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).thenApply(v -> {
+                subStats.earliestMsgPublishTimeInBacklog = v;
+                return subStats;
+            });
+        } else {
+            subStats.earliestMsgPublishTimeInBacklog = -1;
+            return CompletableFuture.completedFuture(subStats);
+        }
     }
 
     @Override

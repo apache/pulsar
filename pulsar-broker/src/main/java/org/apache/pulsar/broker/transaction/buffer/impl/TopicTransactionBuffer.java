@@ -660,7 +660,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         this, topic.getName());
                 return;
             }
-            abortedTxnProcessor.recoverFromSnapshot().thenAcceptAsync(startReadCursorPosition -> {
+            abortedTxnProcessor.recoverFromSnapshot().thenAccept(startReadCursorPosition -> {
                 //Transaction is not use for this topic, so just make maxReadPosition as LAC.
                 if (startReadCursorPosition == null) {
                     callBack.noNeedToRecover();
@@ -706,8 +706,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                 closeCursor(SUBSCRIPTION_NAME);
                 callBack.recoverComplete();
-            }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                    .getExecutor(this)).exceptionally(e -> {
+            }).exceptionally(e -> {
                 callBack.recoverExceptionally(e.getCause());
                 log.error("[{}]Transaction buffer failed to recover snapshot!", topic.getName(), e);
                 return null;

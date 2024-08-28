@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
@@ -201,6 +202,7 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
     protected CompletableFuture<Reader<T>> newReaderAsyncInternal() {
         return client.newReader(Schema.AVRO(schemaType))
                 .topic(topicName.toString())
+                .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
                 .createAsync()

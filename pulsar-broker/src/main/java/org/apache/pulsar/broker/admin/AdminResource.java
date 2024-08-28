@@ -609,11 +609,15 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
                 .thenRun(() -> {
-                    if (!createLocalTopicOnly && topicName.isGlobal()) {
+                    if (!createLocalTopicOnly && topicName.isGlobal()
+                            && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
                         internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
+                        log.info("[{}] Successfully created partitioned for topic {} for the remote clusters",
+                                clientAppId());
+                    } else {
+                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters",
+                                clientAppId(), topicName);
                     }
-                    log.info("[{}] Successfully created partitions for topic {} in cluster {}",
-                            clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {

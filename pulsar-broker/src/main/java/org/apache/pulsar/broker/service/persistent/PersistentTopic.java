@@ -84,7 +84,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
@@ -426,7 +425,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.transactionBuffer = new TransactionBufferDisable(this);
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), true);
-        if (ledger instanceof ShadowManagedLedgerImpl) {
+        if (ledger.getConfig().getShadowSource() != null) {
             shadowSourceTopic = TopicName.get(ledger.getConfig().getShadowSource());
         } else {
             shadowSourceTopic = null;
@@ -684,12 +683,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
-        if (brokerService.isBrokerEntryMetadataEnabled()) {
-            ledger.asyncAddEntry(headersAndPayload,
-                    (int) publishContext.getNumberOfMessages(), this, publishContext);
-        } else {
-            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-        }
+        ledger.asyncAddEntry(headersAndPayload,
+            (int) publishContext.getNumberOfMessages(), this, publishContext);
     }
 
     public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
@@ -1402,18 +1397,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }, null);
     }
 
-    void removeSubscription(String subscriptionName) {
+    CompletableFuture<Void> removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         if (sub != null) {
             // preserve accumulative stats form removed subscription
-            SubscriptionStatsImpl stats = sub.getStats(new GetStatsOptions(false, false, false, false, false));
-            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+            return sub
+                    .getStatsAsync(new GetStatsOptions(false, false, false, false, false))
+                    .thenAccept(stats -> {
+                        bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+                        msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
 
-            if (isSystemCursor(subscriptionName)) {
-                bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
-            }
+                        if (isSystemCursor(subscriptionName)
+                                || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                            bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                        }
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -2583,7 +2583,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions) {
 
-        CompletableFuture<TopicStatsImpl> statsFuture = new CompletableFuture<>();
         TopicStatsImpl stats = new TopicStatsImpl();
 
         ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
@@ -2615,32 +2614,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
         stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
         stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
-
-        subscriptions.forEach((name, subscription) -> {
-            SubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
-
-            stats.msgRateOut += subStats.msgRateOut;
-            stats.msgThroughputOut += subStats.msgThroughputOut;
-            stats.bytesOutCounter += subStats.bytesOutCounter;
-            stats.msgOutCounter += subStats.msgOutCounter;
-            stats.subscriptions.put(name, subStats);
-            stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
-            stats.nonContiguousDeletedMessagesRangesSerializedSize +=
-                    subStats.nonContiguousDeletedMessagesRangesSerializedSize;
-            stats.delayedMessageIndexSizeInBytes += subStats.delayedMessageIndexSizeInBytes;
-
-            subStats.bucketDelayedIndexStats.forEach((k, v) -> {
-                TopicMetricBean topicMetricBean =
-                        stats.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
-                topicMetricBean.name = v.name;
-                topicMetricBean.labelsAndValues = v.labelsAndValues;
-                topicMetricBean.value += v.value;
-            });
-
-            if (isSystemCursor(name)) {
-                stats.bytesOutInternalCounter += subStats.bytesOutCounter;
-            }
-        });
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
@@ -2691,21 +2664,52 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return compactionRecord;
         });
 
-        if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.backlogSize != 0) {
-            ledger.getEarliestMessagePublishTimeInBacklog().whenComplete((earliestTime, e) -> {
-                if (e != null) {
-                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);
-                    statsFuture.completeExceptionally(e);
-                } else {
-                    stats.earliestMsgPublishTimeInBacklogs = earliestTime;
-                    statsFuture.complete(stats);
-                }
-            });
-        } else {
-            statsFuture.complete(stats);
-        }
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        subscriptions.forEach((name, subscription) -> {
+            subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
+        });
+        return FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore -> {
+            for (Map.Entry<String, CompletableFuture<SubscriptionStatsImpl>> e : subscriptionFutures.entrySet()) {
+                String name = e.getKey();
+                SubscriptionStatsImpl subStats = e.getValue().join();
+                stats.msgRateOut += subStats.msgRateOut;
+                stats.msgThroughputOut += subStats.msgThroughputOut;
+                stats.bytesOutCounter += subStats.bytesOutCounter;
+                stats.msgOutCounter += subStats.msgOutCounter;
+                stats.subscriptions.put(name, subStats);
+                stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
+                stats.nonContiguousDeletedMessagesRangesSerializedSize +=
+                        subStats.nonContiguousDeletedMessagesRangesSerializedSize;
+                stats.delayedMessageIndexSizeInBytes += subStats.delayedMessageIndexSizeInBytes;
 
-        return statsFuture;
+                subStats.bucketDelayedIndexStats.forEach((k, v) -> {
+                    TopicMetricBean topicMetricBean =
+                            stats.bucketDelayedIndexStats.computeIfAbsent(k, ignore2 -> new TopicMetricBean());
+                    topicMetricBean.name = v.name;
+                    topicMetricBean.labelsAndValues = v.labelsAndValues;
+                    topicMetricBean.value += v.value;
+                });
+
+                if (isSystemCursor(name) || name.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                    stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+                }
+            }
+            if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.backlogSize != 0) {
+                CompletableFuture finalRes = ledger.getEarliestMessagePublishTimeInBacklog()
+                    .thenApply((earliestTime) -> {
+                        stats.earliestMsgPublishTimeInBacklogs = earliestTime;
+                        return stats;
+                    });
+                // print error log.
+                finalRes.exceptionally(ex -> {
+                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, ex);
+                    return null;
+                });
+                return finalRes;
+            } else {
+                return CompletableFuture.completedFuture(stats);
+            }
+        });
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
@@ -4094,8 +4098,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.info("[{}] Enabling replicated subscriptions controller", topic);
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
-        } else if (isCurrentlyEnabled && !shouldBeEnabled || !isEnableReplicatedSubscriptions
-                || !replicationEnabled) {
+        } else if (isCurrentlyEnabled && (!shouldBeEnabled || !isEnableReplicatedSubscriptions
+                || !replicationEnabled)) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);
             replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
             replicatedSubscriptionsController = Optional.empty();
@@ -4237,15 +4241,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             decrementPendingWriteOpsAndCheck();
                         })
                         .exceptionally(throwable -> {
-                            throwable = throwable.getCause();
+                            throwable = FutureUtil.unwrapCompletionException(throwable);
                             if (throwable instanceof NotAllowedException) {
                               publishContext.completed((NotAllowedException) throwable, -1, -1);
                               decrementPendingWriteOpsAndCheck();
-                              return null;
-                            } else if (!(throwable instanceof ManagedLedgerException)) {
-                                throwable = new ManagedLedgerException(throwable);
+                            } else {
+                                addFailed(ManagedLedgerException.getManagedLedgerException(throwable), publishContext);
                             }
-                            addFailed((ManagedLedgerException) throwable, publishContext);
                             return null;
                         });
                 break;

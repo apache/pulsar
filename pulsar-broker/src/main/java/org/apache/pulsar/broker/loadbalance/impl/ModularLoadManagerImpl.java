@@ -158,8 +158,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Policies used to determine which brokers are available for particular namespaces.
     private SimpleResourceAllocationPolicies policies;
 
+    @VisibleForTesting
     // Pulsar service used to initialize this.
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
 
     private PulsarResources pulsarResources;
 
@@ -274,11 +275,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // if the placement strategy is also a load shedding strategy
             // we need to check two strategies are the same
             if (!conf.getLoadBalancerLoadSheddingStrategy().equals(
-                    conf.getLoadBalancerPlacementStrategy())) {
+                    conf.getLoadBalancerLoadPlacementStrategy())) {
                 throw new IllegalArgumentException("The load shedding strategy: "
                         + conf.getLoadBalancerLoadSheddingStrategy()
                         + " can't work with the placement strategy: "
-                        + conf.getLoadBalancerPlacementStrategy());
+                        + conf.getLoadBalancerLoadPlacementStrategy());
             }
             // bind the load shedding strategy and the placement strategy
             loadSheddingStrategy = (LoadSheddingStrategy) placementStrategy;
@@ -349,8 +350,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
-                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
+            return getAvailableBrokersAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();

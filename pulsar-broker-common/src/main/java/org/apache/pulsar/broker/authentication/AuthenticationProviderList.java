@@ -120,7 +120,8 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                             if (log.isDebugEnabled()) {
                                 log.debug("Authentication failed for auth provider " + authState.getClass() + ": ", ex);
                             }
-                            authenticateRemainingAuthStates(authChallengeFuture, authData, ex, states.size() - 1);
+                            authenticateRemainingAuthStates(authChallengeFuture, authData, ex,
+                                    states.isEmpty() ? -1 : 0);
                         }
                     });
             return authChallengeFuture;
@@ -130,7 +131,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                                                      AuthData clientAuthData,
                                                      Throwable previousException,
                                                      int index) {
-            if (index < 0) {
+            if (index < 0 || index >= states.size()) {
                 if (previousException == null) {
                     previousException = new AuthenticationException("Authentication required");
                 }
@@ -142,7 +143,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             AuthenticationState state = states.get(index);
             if (state == authState) {
                 // Skip the current auth state
-                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, null, index - 1);
+                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, null, index + 1);
             } else {
                 state.authenticateAsync(clientAuthData)
                         .whenComplete((authChallenge, ex) -> {
@@ -155,7 +156,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                                     log.debug("Authentication failed for auth provider "
                                             + authState.getClass() + ": ", ex);
                                 }
-                                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, ex, index - 1);
+                                authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, ex, index + 1);
                             }
                         });
             }
@@ -228,7 +229,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     @Override
     public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
         CompletableFuture<String> roleFuture = new CompletableFuture<>();
-        authenticateRemainingAuthProviders(roleFuture, authData, null, providers.size() - 1);
+        authenticateRemainingAuthProviders(roleFuture, authData, null, providers.isEmpty() ? -1 : 0);
         return roleFuture;
     }
 
@@ -236,7 +237,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                                                     AuthenticationDataSource authData,
                                                     Throwable previousException,
                                                     int index) {
-        if (index < 0) {
+        if (index < 0 || index >= providers.size()) {
             if (previousException == null) {
                 previousException = new AuthenticationException("Authentication required");
             }
@@ -254,7 +255,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                         if (log.isDebugEnabled()) {
                             log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ex);
                         }
-                        authenticateRemainingAuthProviders(roleFuture, authData, ex, index - 1);
+                        authenticateRemainingAuthProviders(roleFuture, authData, ex, index + 1);
                     }
                 });
         }

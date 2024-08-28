@@ -92,6 +92,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // from assuming hardcoded value. However, it will increase the size of the message even further.
     public static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
     public static final String AESGCM = "AES/GCM/NoPadding";
+    private static final String AESGCM_PROVIDER_NAME;
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
@@ -123,6 +124,15 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Initial seed
         secureRandom.nextBytes(new byte[IV_LEN]);
 
+        // Prefer SunJCE provider for AES-GCM for performance reason.
+        // For cases where SunJCE is not available (e.g. non-hotspot JVM), use BouncyCastle as fallback.
+        String sunJceProviderName = "SunJCE";
+        if (Security.getProvider(sunJceProviderName) != null) {
+            AESGCM_PROVIDER_NAME = sunJceProviderName;
+        } else {
+            AESGCM_PROVIDER_NAME = BouncyCastleProvider.PROVIDER_NAME;
+        }
+
         // Add provider only if it's not in the JVM
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
             Security.addProvider(new BouncyCastleProvider());
@@ -145,7 +155,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         try {
 
-            cipher = Cipher.getInstance(AESGCM, BouncyCastleProvider.PROVIDER_NAME);
+            cipher = Cipher.getInstance(AESGCM, AESGCM_PROVIDER_NAME);
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
                 // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case

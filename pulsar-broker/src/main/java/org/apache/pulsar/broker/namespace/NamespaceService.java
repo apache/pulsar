@@ -23,6 +23,7 @@ import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
@@ -1342,7 +1343,11 @@ public class NamespaceService implements AutoCloseable {
             }
         }
         pulsar.runWhenReadyForIncomingRequests(() -> {
-            getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+            try {
+                getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
+            } catch (Exception e) {
+                LOG.error("Failed to notify namespace bundle ownership listener", e);
+            }
         });
     }
 
@@ -1494,8 +1499,22 @@ public class NamespaceService implements AutoCloseable {
                                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                                     || actEx instanceof PulsarAdminException.NotFoundException) {
                                 return CompletableFuture.completedFuture(false);
+                            } else if (actEx instanceof PulsarClientException.FeatureNotSupportedException fe){
+                                if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
+                                    // Since the feature PIP-344 isn't supported, restore the behavior to previous
+                                    // behavior before https://github.com/apache/pulsar/pull/22838 changes.
+                                    log.info("{} Checking the existence of a non-persistent non-partitioned topic "
+                                                    + "was performed using the behavior prior to PIP-344 changes, "
+                                                    + "because the broker does not support the PIP-344 feature "
+                                                    + "'supports_get_partitioned_metadata_without_auto_creation'.",
+                                            topic);
+                                    return CompletableFuture.completedFuture(false);
+                                } else {
+                                    log.error("{} Failed to get partition metadata", topic, ex);
+                                    return CompletableFuture.failedFuture(ex);
+                                }
                             } else {
-                                log.error("{} Failed to get partition metadata due to redirecting fails", topic, ex);
+                                log.error("{} Failed to get partition metadata", topic, ex);
                                 return CompletableFuture.failedFuture(ex);
                             }
                         });
@@ -1658,7 +1677,9 @@ public class NamespaceService implements AutoCloseable {
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled())
+                        .sslFactoryPlugin(pulsar.getConfiguration().getBrokerClientSslFactoryPlugin())
+                        .sslFactoryPluginParams(pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams());
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

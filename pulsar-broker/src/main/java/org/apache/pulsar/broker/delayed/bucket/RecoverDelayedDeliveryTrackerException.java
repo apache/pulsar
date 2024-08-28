@@ -16,27 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.broker.delayed.bucket;
 
-import java.util.Collections;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.netty.ssl.DefaultSslEngineFactory;
-
-public class WithSNISslEngineFactory extends DefaultSslEngineFactory {
-    private final String host;
-
-    public WithSNISslEngineFactory(String host) {
-        this.host = host;
-    }
-
-    @Override
-    protected void configureSslEngine(SSLEngine sslEngine, AsyncHttpClientConfig config) {
-        super.configureSslEngine(sslEngine, config);
-        SSLParameters params = sslEngine.getSSLParameters();
-        params.setServerNames(Collections.singletonList(new SNIHostName(host)));
-        sslEngine.setSSLParameters(params);
+public class RecoverDelayedDeliveryTrackerException extends Exception {
+    public RecoverDelayedDeliveryTrackerException(Throwable cause) {
+        super(cause);
     }
 }

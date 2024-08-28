@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import lombok.Getter;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -739,6 +740,30 @@ public class PulsarClientException extends IOException {
         public NotSupportedException(String msg) {
             super(msg);
         }
+    }
+
+    /**
+     * Not supported exception thrown by Pulsar client.
+     */
+    public static class FeatureNotSupportedException extends NotSupportedException {
+
+        @Getter
+        private final FailedFeatureCheck failedFeatureCheck;
+
+        public FeatureNotSupportedException(String msg, FailedFeatureCheck failedFeatureCheck) {
+            super(msg);
+            this.failedFeatureCheck = failedFeatureCheck;
+        }
+    }
+
+    /**
+     * "supports_auth_refresh" was introduced at "2.6" and is no longer supported, so skip this enum.
+     * "supports_broker_entry_metadata" was introduced at "2.8" and is no longer supported, so skip this enum.
+     * "supports_partial_producer" was introduced at "2.10" and is no longer supported, so skip this enum.
+     * "supports_topic_watchers" was introduced at "2.11" and is no longer supported, so skip this enum.
+     */
+    public enum FailedFeatureCheck {
+        SupportsGetPartitionedMetadataWithoutAutoCreation;
     }
 
     /**

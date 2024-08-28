@@ -687,37 +687,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException {
-        final CountDownLatch counter = new CountDownLatch(1);
-        // Result list will contain the status exception and the resulting
-        // position
-        class Result {
-            ManagedLedgerException status = null;
-            Position position = null;
-        }
-        final Result result = new Result();
-
-        asyncAddEntry(data, offset, length, new AddEntryCallback() {
-            @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                result.position = position;
-                counter.countDown();
-            }
-
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                result.status = exception;
-                counter.countDown();
-            }
-        }, null);
-
-        counter.await();
-
-        if (result.status != null) {
-            log.error("[{}] Error adding entry", name, result.status);
-            throw result.status;
-        }
-
-        return result.position;
+        return addEntry(data, 1, offset, length);
     }
 
     @Override
@@ -777,19 +747,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
-        }
-
-        // retain buffer in this thread
-        buffer.retain();
-
-        // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, callback, ctx,
-                    currentLedgerTimeoutTriggered);
-            internalAsyncAddEntry(addOperation);
-        });
+        asyncAddEntry(buffer, 1, callback, ctx);
     }
 
     @Override
@@ -988,7 +946,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (uninitializedCursors.containsKey(cursorName)) {
             uninitializedCursors.get(cursorName).thenAccept(cursor -> callback.openCursorComplete(cursor, ctx))
                     .exceptionally(ex -> {
-                callback.openCursorFailed((ManagedLedgerException) ex, ctx);
+                callback.openCursorFailed(ManagedLedgerException
+                        .getManagedLedgerException(FutureUtil.unwrapCompletionException(ex)), ctx);
                 return null;
             });
             return;
@@ -1686,8 +1645,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (existsOp.ledger != null) {
                     existsOp = existsOp.duplicateAndClose(currentLedgerTimeoutTriggered);
                 } else {
-                    // This scenario should not happen.
-                    log.warn("[{}] An OpAddEntry's ledger is empty.", name);
+                    // It may happen when the following operations execute at the same time, so it is expected.
+                    // - Adding entry.
+                    // - Switching ledger.
                     existsOp.setTimeoutTriggered(currentLedgerTimeoutTriggered);
                 }
                 existsOp.setLedger(currentLedger);
@@ -2975,9 +2935,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         truncateFuture.whenComplete((ignore, exc) -> {
             if (exc != null) {
                 log.error("[{}] Error truncating ledger for deletion", name, exc);
-                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
-                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
-                        ctx);
+                callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(
+                        FutureUtil.unwrapCompletionException(exc)), ctx);
             } else {
                 asyncDeleteInternal(callback, ctx);
             }
@@ -4050,6 +4009,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public static ManagedLedgerException createManagedLedgerException(Throwable t) {
         if (t instanceof org.apache.bookkeeper.client.api.BKException) {
             return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) t).getCode());
+        } else if (t instanceof ManagedLedgerException) {
+            return (ManagedLedgerException) t;
         } else if (t instanceof CompletionException
                 && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
             return createManagedLedgerException(t.getCause());

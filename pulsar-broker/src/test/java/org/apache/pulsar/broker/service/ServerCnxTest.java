@@ -2919,6 +2919,7 @@ public class ServerCnxTest {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
@@ -2942,12 +2943,12 @@ public class ServerCnxTest {
 
         // call addComplete on ledger asyncAddEntry
         doAnswer((Answer<Object>) invocationOnMock -> {
-            ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
+            ((AddEntryCallback) invocationOnMock.getArguments()[2]).addComplete(
                     PositionFactory.create(-1, -1),
                     null,
-                    invocationOnMock.getArguments()[2]);
+                    invocationOnMock.getArguments()[3]);
             return null;
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> true).when(cursorMock).isDurable();
 

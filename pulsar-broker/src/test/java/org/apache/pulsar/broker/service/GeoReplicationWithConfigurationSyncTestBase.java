@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Optional;
@@ -39,6 +40,12 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
 
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    final static String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    final static String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     protected final String cluster1 = "r1";
     protected URL url1;
@@ -175,6 +182,9 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
     }
 
     @Override
