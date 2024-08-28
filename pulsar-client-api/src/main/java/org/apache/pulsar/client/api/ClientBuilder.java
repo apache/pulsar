@@ -668,4 +668,16 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds);
+
+    /**
+     * Set the properties used for topic lookup.
+     * <p>
+     * When the broker performs topic lookup, these lookup properties will be taken into consideration in a customized
+     * load manager.
+     * <p>
+     * Note: The lookup properties are only used in topic lookup when:
+     * - The protocol is binary protocol, i.e. the service URL starts with "pulsar://" or "pulsar+ssl://"
+     * - The `loadManagerClassName` config in broker is a class that implements the `ExtensibleLoadManager` interface
+     */
+    ClientBuilder lookupProperties(Map<String, String> properties);
 }

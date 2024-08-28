@@ -936,10 +936,11 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return newLookup(topic, null, authoritative, requestId);
+        return newLookup(topic, null, authoritative, requestId, null);
     }
 
-    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId) {
+    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId,
+                                    Map<String, String> properties) {
         BaseCommand cmd = localCmd(Type.LOOKUP);
         CommandLookupTopic lookup = cmd.setLookupTopic()
                 .setTopic(topic)
@@ -947,6 +948,9 @@ public class Commands {
                 .setAuthoritative(authoritative);
         if (StringUtils.isNotBlank(listenerName)) {
             lookup.setAdvertisedListenerName(listenerName);
+        }
+        if (properties != null) {
+            properties.forEach((key, value) -> lookup.addProperty().setKey(key).setValue(value));
         }
         return serializeWithSize(cmd);
     }

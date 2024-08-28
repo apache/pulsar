@@ -35,6 +35,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -392,5 +393,18 @@ public class ServiceConfigurationTest {
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
         assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
+    }
+
+    @Test
+    public void testLookupProperties() throws Exception {
+        var confFile = "lookup.key1=value1\nkey=value\nlookup.key2=value2";
+        var conf = (ServiceConfiguration) PulsarConfigurationLoader.create(
+                new ByteArrayInputStream(confFile.getBytes()), ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key1", "value1", "lookup.key2", "value2"));
+
+        confFile = confFile + "\nlookupPropertyPrefix=lookup.key2";
+        conf = PulsarConfigurationLoader.create(new ByteArrayInputStream(confFile.getBytes()),
+                ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key2", "value2"));
     }
 }

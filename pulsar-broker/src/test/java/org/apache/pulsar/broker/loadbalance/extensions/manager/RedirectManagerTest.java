@@ -33,6 +33,8 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.testng.annotations.Test;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -106,6 +108,6 @@ public class RedirectManagerTest {
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                loadManagerClassName, startTimeStamp, "3.0.0");
+                loadManagerClassName, startTimeStamp, "3.0.0", Collections.emptyMap());
     }
 }

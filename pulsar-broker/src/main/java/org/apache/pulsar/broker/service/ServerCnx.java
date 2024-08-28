@@ -47,6 +47,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -544,9 +545,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
+                    final Map<String, String> properties;
+                    if (lookup.getPropertiesCount() > 0) {
+                        properties = new HashMap<>();
+                        for (int i = 0; i < lookup.getPropertiesCount(); i++) {
+                            final var keyValue = lookup.getPropertyAt(i);
+                            properties.put(keyValue.getKey(), keyValue.getValue());
+                        }
+                    } else {
+                        properties = Collections.emptyMap();
+                    }
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             getPrincipal(), getAuthenticationData(),
-                            requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
+                            requestId, advertisedListenerName, properties).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     writeAndFlush(lookupResponse);
                                 } else {

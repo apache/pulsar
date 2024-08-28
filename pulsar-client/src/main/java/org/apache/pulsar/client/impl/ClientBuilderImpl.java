@@ -476,4 +476,10 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setDescription(description);
         return this;
     }
+
+    @Override
+    public ClientBuilder lookupProperties(Map<String, String> properties) {
+        conf.setLookupProperties(properties);
+        return this;
+    }
 }
