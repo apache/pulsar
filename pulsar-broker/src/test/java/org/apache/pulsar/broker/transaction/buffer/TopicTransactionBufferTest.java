@@ -492,7 +492,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     public void testMessagePublishInOrder() throws Exception {
         // 1. Prepare test environment.
         this.pulsarServiceList.forEach(pulsarService ->  {
-            pulsarService.setTransactionExecutorProvider(new TransactionBufferTestProvider());
+            pulsarService.setTransactionBufferProvider(new TransactionBufferTestProvider());
         });
         String topic = "persistent://" + NAMESPACE1 + "/testMessagePublishInOrder" + RandomUtils.nextLong();
         admin.topics().createNonPartitionedTopic(topic);
@@ -547,7 +547,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     public void testRefCountWhenAppendBufferToTxn() throws Exception {
         // 1. Prepare test resource
         this.pulsarServiceList.forEach(pulsarService ->  {
-            pulsarService.setTransactionExecutorProvider(new TransactionBufferTestProvider());
+            pulsarService.setTransactionBufferProvider(new TransactionBufferTestProvider());
         });
         String topic = "persistent://" + NAMESPACE1 + "/testRefCountWhenAppendBufferToTxn";
         admin.topics().createNonPartitionedTopic(topic);
