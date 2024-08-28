@@ -166,6 +166,10 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         }
     }
 
+    protected Object getBundleOwnershipData(){
+        return new BundleRangeCache();
+    }
+
     protected String getLoadManagerClassName() {
         return ModularLoadManagerImpl.class.getName();
     }
@@ -228,7 +232,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         brokerToDomainMap.put("brokerName-3", "domain-1");
 
         Set<String> candidate = new HashSet<>();
-        Object brokerToNamespaceToBundleRange = new BundleRangeCache();
+        Object brokerToNamespaceToBundleRange = getBundleOwnershipData();
 
         assertEquals(brokers.size(), totalBrokers);
 
@@ -311,7 +315,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
         Set<String> brokers = new HashSet<>();
         Set<String> candidate = new HashSet<>();
-        Object brokerToNamespaceToBundleRange = new BundleRangeCache();
+        Object brokerToNamespaceToBundleRange = getBundleOwnershipData();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
@@ -459,7 +463,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
         Set<String> brokers = new HashSet<>();
         Set<String> candidate = new HashSet<>();
-        Object brokerToNamespaceToBundleRange = new BundleRangeCache();
+        Object brokerToNamespaceToBundleRange = getBundleOwnershipData();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
