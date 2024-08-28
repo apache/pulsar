@@ -956,13 +956,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
                     + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
                     + " messages reaches the calculated threshold.\n"
-                    + "Formula: threshold = max(keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer *"
-                    + " connected consumer count, keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription)"
+                    + "Formula: threshold = max(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
                     + ".\n"
                     + "Setting this value to 0 will disable the limit calculated per consumer.",
             dynamic = true
     )
-    private int keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer = 1000;
+    private int keySharedLookAheadMsgInReplayThresholdPerConsumer = 1000;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -970,14 +970,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
                     + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
                     + " messages reaches the calculated threshold.\n"
-                    + "Formula: threshold = max(keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer *"
-                    + " connected consumer count, keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription)"
+                    + "Formula: threshold = max(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
                     + ".\n"
                     + "This value should be set to a value less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
                     + "Setting this value to 0 will disable the limit calculated per subscription.\n",
             dynamic = true
     )
-    private int keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription = 10000;
+    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 10000;
 
 
     @FieldContext(

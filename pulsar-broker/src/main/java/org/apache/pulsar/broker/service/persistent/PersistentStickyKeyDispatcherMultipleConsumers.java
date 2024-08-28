@@ -386,9 +386,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         if (serviceConfig.isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist()
                 || (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
             long keySharedNumberOfReplayMessagesThresholdForLookAhead = Math.max(
-                    serviceConfig.getKeySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer()
+                    serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerConsumer()
                             * consumerList.size(),
-                    serviceConfig.getKeySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription());
+                    serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerSubscription());
             if (keySharedNumberOfReplayMessagesThresholdForLookAhead == 0
                     || redeliveryMessages.size() < keySharedNumberOfReplayMessagesThresholdForLookAhead) {
                 return true;
@@ -610,8 +610,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * limits kick in), instead of keep replaying the same old messages, since the consumer that these
      * messages are routing to might be busy at the moment.
      *
-     * Please see {@link ServiceConfiguration#keySharedLookAheadNumberOfReplayMessagesThresholdPerConsumer},
-     * {@link ServiceConfiguration#keySharedLookAheadNumberOfReplayMessagesThresholdPerSubscription} and
+     * Please see {@link ServiceConfiguration#keySharedLookAheadMsgInReplayThresholdPerConsumer},
+     * {@link ServiceConfiguration#keySharedLookAheadMsgInReplayThresholdPerSubscription} and
      * {@link ServiceConfiguration#keySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist} for configuring
      * the limits.
      */
