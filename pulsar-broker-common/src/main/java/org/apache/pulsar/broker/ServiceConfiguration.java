@@ -1175,6 +1175,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
+                    + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
+                    + "delay. This parameter sets the initial backoff delay in milliseconds.")
+    private int dispatcherRetryBackoffInitialTimeInMs = 100;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
+                    + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
+                    + "delay. This parameter sets the maximum backoff delay in milliseconds.")
+    private int dispatcherRetryBackoffMaxTimeInMs = 1000;
+
+    @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
             doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
