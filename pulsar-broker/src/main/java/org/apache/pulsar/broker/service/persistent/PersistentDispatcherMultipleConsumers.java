@@ -1270,5 +1270,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return subscription;
     }
 
+    public long getNumberOfMessagesInReplay() {
+        return redeliveryMessages.size();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }
