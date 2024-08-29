@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -85,11 +86,6 @@ import org.slf4j.LoggerFactory;
  */
 public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements Dispatcher, ReadEntriesCallback {
-    // rescheduling a read after no entries are dispatches will be delayed by this duration using a backoff
-    private static final int RESCHEDULE_READ_INITIAL_DELAY_MS = 100;
-    // maximum delay for rescheduling a read after no entries are dispatched
-    private static final int RESCHEDULE_READ_INITIAL_MAX_DELAY_MS = 5000;
-
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Range<Position> lastIndividualDeletedRangeFromCursorRecovery;
@@ -139,9 +135,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     protected int lastNumberOfEntriesDispatched;
-    private final Backoff rescheduleReadBackoff = new Backoff(RESCHEDULE_READ_INITIAL_DELAY_MS, TimeUnit.MILLISECONDS,
-            RESCHEDULE_READ_INITIAL_MAX_DELAY_MS, TimeUnit.MILLISECONDS, 0,
-            TimeUnit.MILLISECONDS);
+    private final Backoff retryBackoff;
     protected enum ReadType {
         Normal, Replay
     }
@@ -166,10 +160,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay);
+        ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
         this.readFailureBackoff = new Backoff(
-                topic.getBrokerService().pulsar().getConfiguration().getDispatcherReadFailureBackoffInitialTimeInMs(),
+                serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs(),
                 TimeUnit.MILLISECONDS,
                 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        retryBackoff = new Backoff(
+                serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs(), TimeUnit.MILLISECONDS,
+                serviceConfiguration.getDispatcherRetryBackoffMaxTimeInMs(), TimeUnit.MILLISECONDS,
+                0, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -697,12 +696,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (triggerReadingMore) {
             if (entriesDispatched > 0) {
                 // Reset the backoff when we successfully dispatched messages
-                rescheduleReadBackoff.reset();
+                retryBackoff.reset();
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
             } else if (entriesDispatched == 0) {
                 // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
-                reScheduleReadInMs(rescheduleReadBackoff.next());
+                reScheduleReadInMs(retryBackoff.next());
             }
         }
     }
