@@ -836,8 +836,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
-        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnabled);
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely() {
+        return getTransactionBuffer().checkIfTBRecoverCompletely();
     }
 
     @Override
