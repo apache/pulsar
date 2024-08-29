@@ -148,4 +148,13 @@ public class MessageRedeliveryController {
     public NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         return messagesToRedeliver.items(maxMessagesToRead, PositionImpl::new);
     }
+
+    /**
+     * Get the number of messages registered for replay in the redelivery controller.
+     *
+     * @return number of messages
+     */
+    public int size() {
+        return messagesToRedeliver.size();
+    }
 }

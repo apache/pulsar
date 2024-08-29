@@ -1223,6 +1223,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 subStats.unackedMessages = d.getTotalUnackedMessages();
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
+                subStats.msgInReplay = d.getNumberOfMessagesInReplay();
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
