@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -60,10 +61,10 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -117,7 +118,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
         doReturn(true).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
         doReturn(false).when(configMock).isAllowOverrideEntryFilters();
-
+        doReturn(10).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
+        doReturn(50).when(configMock).getDispatcherRetryBackoffMaxTimeInMs();
         pulsarMock = mock(PulsarService.class);
         doReturn(configMock).when(pulsarMock).getConfiguration();
 
@@ -820,6 +822,42 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 Arrays.asList(EntryImpl.create(2, 1, createMessage("test", 1))), true);
         assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
         assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
+    }
+
+    @Test(timeOut = 20000)
+    public void testBackoffDelayWhenNoMessagesDispatched() throws Exception {
+        persistentDispatcher.close();
+
+        List<Long> retryDelays = new CopyOnWriteArrayList<>();
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+            @Override
+            protected void reScheduleReadInMs(long readAfterMs) {
+                retryDelays.add(readAfterMs);
+            }
+        };
+
+        // add a consumer without permits to trigger the retry behavior
+        when(consumerMock.getAvailablePermits()).thenReturn(0);
+        persistentDispatcher.addConsumer(consumerMock);
+
+        // call "readEntriesComplete" directly to test the retry behavior
+        List<Entry> entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
+        persistentDispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 1);
+                    assertEquals(retryDelays.get(0), 10, "Initial retry delay should be 10ms");
+                }
+        );
+        entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
+        persistentDispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 2);
+                    double delay = retryDelays.get(1);
+                    assertEquals(delay, 20.0, 2.0,"Second retry delay should be around 20ms");
+                }
+        );
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {
