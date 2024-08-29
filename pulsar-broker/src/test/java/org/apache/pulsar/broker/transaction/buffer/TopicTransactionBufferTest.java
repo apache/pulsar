@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.fail;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import lombok.Cleanup;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.util.Collections;
@@ -35,11 +37,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.Cleanup;
+
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -50,16 +54,23 @@ import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
+import org.apache.pulsar.broker.transaction.buffer.utils.TransactionBufferTestImpl;
+import org.apache.pulsar.broker.transaction.buffer.utils.TransactionBufferTestProvider;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -228,9 +239,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         String topic = "persistent://" + NAMESPACE1 + "/testGetMaxReadyPositionAfterTBReady";
         // 1.1 Mock component.
         TransactionBuffer transactionBuffer = Mockito.spy(TransactionBuffer.class);
-        when(transactionBuffer.checkIfTBRecoverCompletely(anyBoolean()))
-                // Handle producer will check transaction buffer recover completely.
-                .thenReturn(CompletableFuture.completedFuture(null))
+        when(transactionBuffer.checkIfTBRecoverCompletely())
                 // If the Transaction buffer failed to recover, we can not get the correct last max read id.
                 .thenReturn(CompletableFuture.failedFuture(new Throwable("Mock fail")))
                 // If the transaction buffer recover successfully, the max read position can be acquired successfully.
@@ -405,4 +414,174 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         assertEquals(expected.getLedgerId(), actual.getLedgerId());
     }
 
+    /**
+     * This test verifies the state changes of a TransactionBuffer within a topic under different conditions.
+     * Initially, the TransactionBuffer is in a NoSnapshot state upon topic creation.
+     * It remains in the NoSnapshot state even after a normal message is sent.
+     * The state changes to Ready only after a transactional message is sent.
+     * The test also ensures that the TransactionBuffer can be correctly recovered after the topic is unloaded.
+     */
+    @Test
+    public void testWriteSnapshotWhenFirstTxnMessageSend() throws Exception {
+        // 1. Prepare test environment.
+        String topic = "persistent://" + NAMESPACE1 + "/testWriteSnapshotWhenFirstTxnMessageSend";
+        String txnMsg = "transaction message";
+        String normalMsg = "normal message";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .subscribe();
+        // 2. Test the state of transaction buffer after building producer with no new messages.
+        // The TransactionBuffer should be in NoSnapshot state before transaction message sent.
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+        });
+        // 3. Test the state of transaction buffer after sending normal messages.
+        // The TransactionBuffer should still be in NoSnapshot state after a normal message is sent.
+        producer.newMessage().value(normalMsg).send();
+        Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.NoSnapshot);
+        // 4. Test the state of transaction buffer after sending transaction messages.
+        // The transaction buffer should be in Ready state at this time.
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build()
+                .get();
+        producer.newMessage(transaction).value(txnMsg).send();
+        Assert.assertEquals(topicTransactionBuffer.getState(), TopicTransactionBufferState.State.Ready);
+        // 5. Test transaction buffer can be recovered correctly.
+        // There are 4 message sent to this topic, 2 normal message and 2 transaction message |m1|m2-txn1|m3-txn1|m4|.
+        // Aborting the transaction and unload the topic and then redelivering unacked messages,
+        // only normal messages can be received.
+        transaction.abort().get(5, TimeUnit.SECONDS);
+        producer.newMessage().value(normalMsg).send();
+        admin.topics().unload(topic);
+        PersistentTopic persistentTopic2 = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        TopicTransactionBuffer topicTransactionBuffer2 = (TopicTransactionBuffer) persistentTopic2
+                .getTransactionBuffer();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(topicTransactionBuffer2.getState(), TopicTransactionBufferState.State.Ready);
+        });
+        consumer.redeliverUnacknowledgedMessages();
+        for (int i = 0; i < 2; i++) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertEquals(message.getValue(), normalMsg);
+        }
+        Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+    }
+
+    /**
+     * Send some messages before transaction buffer ready and then send some messages after transaction buffer ready,
+     * these messages should be received in order.
+     */
+    @Test
+    public void testMessagePublishInOrder() throws Exception {
+        // 1. Prepare test environment.
+        this.pulsarServiceList.forEach(pulsarService ->  {
+            pulsarService.setTransactionBufferProvider(new TransactionBufferTestProvider());
+        });
+        String topic = "persistent://" + NAMESPACE1 + "/testMessagePublishInOrder" + RandomUtils.nextLong();
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.HOURS)
+                .build().get();
+
+        // 2. Set a new future in transaction buffer as `transactionBufferFuture` to simulate whether the
+        // transaction buffer recover completely.
+        TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
+                .getTransactionBuffer();
+        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Position> originalFuture = topicTransactionBuffer.getPublishFuture();
+        topicTransactionBuffer.setPublishFuture(completableFuture);
+        topicTransactionBuffer.setState(TopicTransactionBufferState.State.Ready);
+        // Register this topic to the transaction in advance to avoid the sending request pending here.
+        ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
+        // 3. Test the messages sent before transaction buffer ready is in order.
+        for (int i = 0; i < 50; i++) {
+            producer.newMessage(transaction).value(i).sendAsync();
+        }
+        // 4. Test the messages sent after transaction buffer ready is in order.
+        completableFuture.complete(originalFuture.get());
+        for (int i = 50; i < 100; i++) {
+            producer.newMessage(transaction).value(i).sendAsync();
+        }
+        transaction.commit().get();
+        for (int i = 0; i < 100; i++) {
+            Message<Integer> message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertEquals(message.getValue(), i);
+        }
+    }
+
+    /**
+     * Test `testMessagePublishInOrder` will test the ref count work as expected with no exception.
+     * And this test is used to test the memory leak due to ref count.
+     */
+    @Test
+    public void testRefCountWhenAppendBufferToTxn() throws Exception {
+        // 1. Prepare test resource
+        this.pulsarServiceList.forEach(pulsarService ->  {
+            pulsarService.setTransactionBufferProvider(new TransactionBufferTestProvider());
+        });
+        String topic = "persistent://" + NAMESPACE1 + "/testRefCountWhenAppendBufferToTxn";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
+                .getTransactionBuffer();
+        // 2. Test reference count does not change in the method `appendBufferToTxn`.
+        // 2.1 Test sending first transaction message, this will take a snapshot.
+        ByteBuf byteBuf1 = Unpooled.buffer();
+        topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
+                .get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf1.refCnt(), 1));
+        // 2.2 Test send the second transaction message, this will not take snapshots.
+        ByteBuf byteBuf2 = Unpooled.buffer();
+        topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
+                .get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf2.refCnt(), 1));
+        // 2.3 Test sending message failed.
+        topicTransactionBuffer.setPublishFuture(FutureUtil.failedFuture(new Exception("fail")));
+        ByteBuf byteBuf3 = Unpooled.buffer();
+        try {
+            topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
+                    .get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getMessage(), "fail");
+        }
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf3.refCnt(), 1));
+        // 3. release resource
+        byteBuf1.release();
+        byteBuf2.release();
+        byteBuf3.release();
+    }
 }

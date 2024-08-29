@@ -49,9 +49,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -204,16 +206,17 @@ public class PulsarClientImpl implements PulsarClient {
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();
+            this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
+                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             connectionPoolReference =
                     connectionPool != null ? connectionPool :
-                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup);
+                            new ConnectionPool(instrumentProvider, conf, this.eventLoopGroup,
+                                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor());
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
-            this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
-                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
@@ -382,26 +385,55 @@ public class PulsarClientImpl implements PulsarClient {
 
     }
 
+    private CompletableFuture<Integer> checkPartitions(String topic, boolean forceNoPartitioned,
+                                                       @Nullable String producerNameForLog) {
+        CompletableFuture<Integer> checkPartitions = new CompletableFuture<>();
+        getPartitionedTopicMetadata(topic, !forceNoPartitioned, true).thenAccept(metadata -> {
+            if (forceNoPartitioned && metadata.partitions > 0) {
+                String errorMsg = String.format("Can not create the producer[%s] for the topic[%s] that contains %s"
+                                + " partitions b,ut the producer does not support for a partitioned topic.",
+                        producerNameForLog, topic, metadata.partitions);
+                log.error(errorMsg);
+                checkPartitions.completeExceptionally(
+                        new PulsarClientException.NotConnectedException(errorMsg));
+            } else {
+                checkPartitions.complete(metadata.partitions);
+            }
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (forceNoPartitioned && actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                checkPartitions.complete(0);
+            } else {
+                checkPartitions.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return checkPartitions;
+    }
+
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
                                                                    ProducerConfigurationData conf,
                                                                    Schema<T> schema,
                                                                    ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+
+
+        checkPartitions(topic, conf.isNonPartitionedTopicExpected(), conf.getProducerName()).thenAccept(partitions -> {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
+                log.debug("[{}] Received topic metadata. partitions: {}", topic, partitions);
             }
 
             ProducerBase<T> producer;
-            if (metadata.partitions > 0) {
+            if (partitions > 0) {
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
-                        metadata);
+                        partitions);
             } else {
                 producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture,
                         Optional.empty());
             }
-
             producers.add(producer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
@@ -422,7 +454,6 @@ public class PulsarClientImpl implements PulsarClient {
      * @param schema topic schema
      * @param interceptors producer interceptors
      * @param producerCreatedFuture future for signaling completion of async producer creation
-     * @param metadata partitioned topic metadata
      * @param <T> message type class
      * @return new PartitionedProducerImpl instance
      */
@@ -432,8 +463,8 @@ public class PulsarClientImpl implements PulsarClient {
                                                                         ProducerInterceptors interceptors,
                                                                         CompletableFuture<Producer<T>>
                                                                                 producerCreatedFuture,
-                                                                        PartitionedTopicMetadata metadata) {
-        return new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                                                                        int partitions) {
+        return new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, partitions,
                 producerCreatedFuture, schema, interceptors);
     }
 
@@ -530,7 +561,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         String topic = conf.getSingleTopic();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -680,7 +711,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
-        getPartitionedTopicMetadata(topic, true).thenAccept(metadata -> {
+        getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
@@ -1101,8 +1132,15 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    /**
+     * @param useFallbackForNonPIP344Brokers <p>If true, fallback to the prior behavior of the method
+     *                                       getPartitionedTopicMetadata if the broker does not support the PIP-344
+     *                                       feature 'supports_get_partitioned_metadata_without_auto_creation'. This
+     *                                       parameter only affects the behavior when
+     *                                       {@param metadataAutoCreationEnabled} is false.</p>
+     */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            String topic, boolean metadataAutoCreationEnabled) {
+            String topic, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
@@ -1114,8 +1152,8 @@ public class PulsarClientImpl implements PulsarClient {
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                     .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
-            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs,
-                                        metadataFuture, new ArrayList<>(), metadataAutoCreationEnabled);
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture, new ArrayList<>(),
+                    metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
@@ -1127,10 +1165,11 @@ public class PulsarClientImpl implements PulsarClient {
                                              AtomicLong remainingTime,
                                              CompletableFuture<PartitionedTopicMetadata> future,
                                              List<Throwable> previousExceptions,
-                                             boolean metadataAutoCreationEnabled) {
+                                             boolean metadataAutoCreationEnabled,
+                                             boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
-        CompletableFuture<PartitionedTopicMetadata> queryFuture =
-                lookup.getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled);
+        CompletableFuture<PartitionedTopicMetadata> queryFuture = lookup.getPartitionedTopicMetadata(topicName,
+                metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         queryFuture.thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
@@ -1151,7 +1190,7 @@ public class PulsarClientImpl implements PulsarClient {
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions,
-                        metadataAutoCreationEnabled);
+                        metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });
@@ -1159,7 +1198,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled) {
-        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled).thenApply(metadata -> {
+        return getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled, false).thenApply(metadata -> {
             if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);

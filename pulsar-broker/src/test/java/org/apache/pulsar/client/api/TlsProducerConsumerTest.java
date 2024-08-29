@@ -199,6 +199,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .enableTls(true).allowTlsInsecureConnection(false)
+                .autoCertRefreshSeconds(1)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         AtomicInteger certIndex = new AtomicInteger(1);
         AtomicInteger keyIndex = new AtomicInteger(0);
@@ -223,7 +224,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         } catch (PulsarClientException e) {
             // Ok..
         }
-
+        sleepSeconds(2);
         certIndex.set(0);
         try {
             consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
@@ -232,8 +233,9 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         } catch (PulsarClientException e) {
             // Ok..
         }
-
+        sleepSeconds(2);
         trustStoreIndex.set(0);
+        sleepSeconds(2);
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         consumer.close();

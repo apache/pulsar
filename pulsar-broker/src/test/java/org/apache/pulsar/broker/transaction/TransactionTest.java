@@ -71,6 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -594,6 +595,11 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic).enableBatching(true)
                 .create();
 
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+        producer.newMessage(transaction).send();
+        transaction.abort().get();
+
         Awaitility.await().untilAsserted(() -> {
             Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
@@ -607,7 +613,7 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().untilAsserted(() -> {
             Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
-            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 3);
         });
     }
 
@@ -715,7 +721,7 @@ public class TransactionTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topicTransactionBuffer.checkIfReady()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topicTransactionBuffer.checkIfNoSnapshot()));
         //test publishing txn messages will not change maxReadPosition if don`t commit or abort.
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
@@ -1648,6 +1654,7 @@ public class TransactionTest extends TransactionTestBase {
         // Mock managedLedger.
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
         ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(managedLedger.getCursors()).thenReturn(managedCursors);
         Position position = PositionFactory.EARLIEST;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
@@ -1655,7 +1662,7 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
         try {
             // Do check.
-            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
+            persistentTopic.get().checkIfTransactionBufferRecoverCompletely().get(5, TimeUnit.SECONDS);
             fail("Expect failure by TB closed, but it is finished.");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
@@ -1813,8 +1820,6 @@ public class TransactionTest extends TransactionTestBase {
                 .createAsync();
         getTopic("persistent://" + topic + "-partition-0");
         Thread.sleep(3000);
-        // the producer shouldn't be created, because the transaction buffer snapshot writer future didn't finish.
-        assertFalse(producerFuture.isDone());
 
         // The topic will be closed, because the transaction buffer snapshot writer future is failed,
         // the failed writer future will be removed, the producer will be reconnected and work well.

@@ -161,4 +161,16 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
             pulsar1.getConfiguration().getReplicationStartAt().equalsIgnoreCase("latest");
         });
     }
+
+    @Test(enabled = false)
+    @Override
+    public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
+        super.testDifferentTopicCreationRule(replicationMode);
+    }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicationCountMetrics() throws Exception {
+        super.testReplicationCountMetrics();
+    }
 }

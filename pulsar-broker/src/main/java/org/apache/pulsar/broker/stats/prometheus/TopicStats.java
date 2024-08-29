@@ -310,6 +310,8 @@ class TopicStats {
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                     subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_in_replay",
+                    subsStats.msgInReplay, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_redeliver",
                     subsStats.msgRateRedeliver, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_unacked_messages",
@@ -407,6 +409,8 @@ class TopicStats {
                 writeMetric(stream, "pulsar_replication_backlog", replStats.replicationBacklog,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_disconnected_count", replStats.disconnectedCount,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);

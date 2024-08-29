@@ -313,17 +313,17 @@ The Apache Software License, Version 2.0
      - picocli-4.7.5.jar
      - picocli-shell-jline3-4.7.5.jar
  * Jackson
-     - jackson-annotations-2.14.2.jar
-     - jackson-core-2.14.2.jar
-     - jackson-databind-2.14.2.jar
-     - jackson-dataformat-yaml-2.14.2.jar
-     - jackson-jaxrs-base-2.14.2.jar
-     - jackson-jaxrs-json-provider-2.14.2.jar
-     - jackson-module-jaxb-annotations-2.14.2.jar
-     - jackson-module-jsonSchema-2.14.2.jar
-     - jackson-datatype-jdk8-2.14.2.jar
-     - jackson-datatype-jsr310-2.14.2.jar
-     - jackson-module-parameter-names-2.14.2.jar
+     - jackson-annotations-2.17.2.jar
+     - jackson-core-2.17.2.jar
+     - jackson-databind-2.17.2.jar
+     - jackson-dataformat-yaml-2.17.2.jar
+     - jackson-jaxrs-base-2.17.2.jar
+     - jackson-jaxrs-json-provider-2.17.2.jar
+     - jackson-module-jaxb-annotations-2.17.2.jar
+     - jackson-module-jsonSchema-2.17.2.jar
+     - jackson-datatype-jdk8-2.17.2.jar
+     - jackson-datatype-jsr310-2.17.2.jar
+     - jackson-module-parameter-names-2.17.2.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
     - gson-2.8.9.jar
@@ -417,6 +417,7 @@ The Apache Software License, Version 2.0
     - avro-1.11.3.jar
     - avro-protobuf-1.11.3.jar
  * RE2j -- re2j-1.7.jar
+ * Spotify completable-futures -- completable-futures-0.3.6.jar
 
 BSD 3-clause "New" or "Revised" License
  * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
@@ -446,12 +447,12 @@ CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
     - aopalliance-repackaged-2.6.1.jar
     - osgi-resource-locator-1.0.3.jar
  * Jersey
-    - jersey-client-2.41.jar
-    - jersey-common-2.41.jar
-    - jersey-entity-filtering-2.41.jar
-    - jersey-media-json-jackson-2.41.jar
-    - jersey-media-multipart-2.41.jar
-    - jersey-hk2-2.41.jar
+    - jersey-client-2.42.jar
+    - jersey-common-2.42.jar
+    - jersey-entity-filtering-2.42.jar
+    - jersey-media-json-jackson-2.42.jar
+    - jersey-media-multipart-2.42.jar
+    - jersey-hk2-2.42.jar
  * Mimepull -- mimepull-1.9.15.jar
 
 Eclipse Distribution License 1.0 -- ../licenses/LICENSE-EDL-1.0.txt

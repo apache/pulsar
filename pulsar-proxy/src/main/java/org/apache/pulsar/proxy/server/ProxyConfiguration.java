@@ -42,6 +42,8 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+
 
 @Getter
 @Setter
@@ -614,6 +616,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String tlsTrustStorePassword = null;
 
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
+
     /**
      * KeyStore TLS config variables used for proxy to auth with broker.
      */
@@ -682,6 +694,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
+                    + "The default class used is DefaultSslFactory.")
+    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters used by internal client.")
+    private String brokerClientSslFactoryPluginParams = "";
 
     // HTTP
 

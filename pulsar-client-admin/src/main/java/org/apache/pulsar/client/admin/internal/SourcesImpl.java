@@ -33,13 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -50,12 +50,13 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     private final WebTarget source;
-    private final AsyncHttpClient asyncHttpClient;
+    private final AsyncHttpRequestExecutor asyncHttpRequestExecutor;
 
-    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpRequestExecutor asyncHttpRequestExecutor,
+                       long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.source = web.path("/admin/v3/source");
-        this.asyncHttpClient = asyncHttpClient;
+        this.asyncHttpRequestExecutor = asyncHttpRequestExecutor;
     }
 
     @Override
@@ -124,7 +125,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -202,7 +203,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {

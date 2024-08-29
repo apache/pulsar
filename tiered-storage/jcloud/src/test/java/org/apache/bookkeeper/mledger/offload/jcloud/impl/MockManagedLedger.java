@@ -274,7 +274,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedLedgerConfig getConfig() {
-        return null;
+        return new ManagedLedgerConfig();
     }
 
     @Override

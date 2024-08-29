@@ -136,6 +136,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
             when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean())).thenAnswer(
                     i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+            when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean())).thenAnswer(
+                    i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
             when(mockLookup.getBroker(any())).thenAnswer(ignored -> {
                 InetSocketAddress brokerAddress =
                         new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());

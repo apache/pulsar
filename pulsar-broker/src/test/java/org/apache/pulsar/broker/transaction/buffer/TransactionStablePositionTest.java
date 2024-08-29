@@ -195,6 +195,15 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(topicName)
                 .create();
 
+        if (clientEnableTransaction) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS)
+                    .build()
+                    .get();
+            producer.newMessage(transaction).send();
+            transaction.commit().get();
+        }
+
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(TopicName.get(topicName).toString(), false).get().get();
 

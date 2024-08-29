@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import io.prometheus.client.Gauge;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,10 +37,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 final class ServerCnxThrottleTracker {
-    private static final Gauge throttledConnections = Gauge.build()
-            .name("pulsar_broker_throttled_connections")
-            .help("Counter of connections throttled because of per-connection limit")
-            .register();
 
     private static final AtomicIntegerFieldUpdater<ServerCnxThrottleTracker> THROTTLE_COUNT_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(
@@ -58,6 +53,7 @@ final class ServerCnxThrottleTracker {
     private volatile int throttleCount;
     private volatile int pendingSendRequestsExceeded;
     private volatile int publishBufferLimiting;
+
 
     public ServerCnxThrottleTracker(ServerCnx serverCnx) {
         this.serverCnx = serverCnx;
@@ -94,10 +90,10 @@ final class ServerCnxThrottleTracker {
         }
         // update the metrics that track throttling
         if (autoRead) {
-            serverCnx.getBrokerService().resumedConnections(1);
+            serverCnx.getBrokerService().recordConnectionResumed();
         } else if (isChannelActive()) {
             serverCnx.increasePublishLimitedTimesForTopics();
-            serverCnx.getBrokerService().pausedConnections(1);
+            serverCnx.getBrokerService().recordConnectionPaused();
         }
     }
 
@@ -114,9 +110,9 @@ final class ServerCnxThrottleTracker {
         if (changed) {
             // update the metrics that track throttling due to pending send requests
             if (throttlingEnabled) {
-                throttledConnections.inc();
+                serverCnx.getBrokerService().recordConnectionThrottled();
             } else {
-                throttledConnections.dec();
+                serverCnx.getBrokerService().recordConnectionUnthrottled();
             }
         }
     }

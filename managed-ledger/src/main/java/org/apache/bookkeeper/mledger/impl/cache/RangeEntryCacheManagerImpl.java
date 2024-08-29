@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -56,10 +57,10 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private static final double evictionTriggerThresholdPercent = 0.98;
 
 
-    public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory) {
+    public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory, OpenTelemetry openTelemetry) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
         this.inflightReadsLimiter = new InflightReadsLimiter(
-                factory.getConfig().getManagedLedgerMaxReadsInFlightSize());
+                factory.getConfig().getManagedLedgerMaxReadsInFlightSize(), openTelemetry);
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = factory.getConfig().getCacheEvictionWatermark();
         this.evictionPolicy = new EntryCacheDefaultEvictionPolicy();

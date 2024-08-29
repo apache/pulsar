@@ -21,9 +21,11 @@ package org.apache.pulsar.broker;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -49,6 +51,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -562,9 +565,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+            doc = "Configuration file path for local metadata store."
     )
     private String metadataStoreConfigPath = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for configuration metadata store."
+    )
+    private String configurationStoreConfigPath = null;
 
     @FieldContext(
             dynamic = true,
@@ -593,6 +602,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
     private boolean backlogQuotaCheckEnabled = true;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1560,6 +1584,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Specify whether Client certificates are required for TLS Reject.\n"
             + "the Connection if the Client Certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
 
     /***** --- Authentication. --- ****/
     @FieldContext(
@@ -2858,6 +2891,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
     private int replicationPolicyCheckDurationSeconds = 600;
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            doc = "Whether the internal replicator will trigger topic auto-creation on the remote cluster."
+        )
+    private boolean createTopicToRemoteClusterForReplication = true;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -2909,6 +2947,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @ToString.Exclude
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Properties properties = new Properties();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The properties whose name starts with this prefix will be uploaded to the metadata store for "
+                    + " the topic lookup"
+    )
+    private String lookupPropertyPrefix = "lookup.";
 
     @FieldContext(
         dynamic = true,
@@ -3525,6 +3570,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
+                    + "The default class used is DefaultSslFactory.")
+    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters used by internal client.")
+    private String brokerClientSslFactoryPluginParams = "";
 
     /* packages management service configurations (begin) */
 
@@ -3697,5 +3751,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
         return topicLevelPoliciesEnabled && systemTopicEnabled;
+    }
+
+    public Map<String, String> lookupProperties() {
+        final var map = new HashMap<String, String>();
+        properties.forEach((key, value) -> {
+            if (key instanceof String && value instanceof String && ((String) key).startsWith(lookupPropertyPrefix)) {
+                map.put((String) key, (String) value);
+            }
+        });
+        return map;
     }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.io.Resources;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -36,6 +37,13 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
+
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    final static String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    final static String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     public void testHasNICSpeed() throws Exception {
         if (!LinuxInfoUtils.isLinux()) {
@@ -57,6 +65,9 @@ public class SimpleBrokerStartTest {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setAdvertisedAddress("localhost");
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (hasNicSpeeds) {
             @Cleanup
@@ -85,6 +96,9 @@ public class SimpleBrokerStartTest {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setAdvertisedAddress("localhost");
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
         boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
         if (!hasNicSpeeds) {
             @Cleanup

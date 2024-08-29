@@ -76,6 +76,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
@@ -257,7 +258,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely() {
         return  CompletableFuture.completedFuture(null);
     }
 
@@ -1213,6 +1214,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
                 bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
                 msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+
+                if (isSystemCursor(subscriptionName)
+                        || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                    bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                }
             }
         }, brokerService.executor());
     }

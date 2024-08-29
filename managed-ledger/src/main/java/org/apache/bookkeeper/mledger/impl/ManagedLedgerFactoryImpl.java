@@ -213,7 +213,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedCursorInfo);
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
+        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, openTelemetry);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -449,7 +449,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     });
             return future;
         }).thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
-            callback.openLedgerFailed((ManagedLedgerException) exception.getCause(), ctx);
+            callback.openLedgerFailed(ManagedLedgerException
+                    .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
         });
     }
@@ -475,7 +476,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
                 }).exceptionally(e -> {
                     log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
-                    callback.openReadOnlyManagedLedgerFailed((ManagedLedgerException) e.getCause(), ctx);
+                    callback.openReadOnlyManagedLedgerFailed(ManagedLedgerException
+                            .getManagedLedgerException(FutureUtil.unwrapCompletionException(e)), ctx);
                     return null;
                 });
     }

@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.OpSendMsgStats;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
@@ -154,6 +155,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
         Pair<Boolean, State> changeStateRes;
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
+            if (!(producer instanceof ProducerImpl)) {
+                log.error("[{}] The partitions count between two clusters is not the same, the replicator can not be"
+                        + " created successfully: {}", replicatorId, state);
+                doCloseProducerAsync(producer, () -> {});
+                throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
+            }
             this.producer = (ProducerImpl) producer;
             HAVE_PENDING_READ_UPDATER.set(this, FALSE);
             // Trigger a new read.
@@ -371,7 +378,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         private MessageImpl msg;
 
         @Override
-        public void sendComplete(Exception exception) {
+        public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
                 // cursor should be rewinded since it was incremented when readMoreEntries

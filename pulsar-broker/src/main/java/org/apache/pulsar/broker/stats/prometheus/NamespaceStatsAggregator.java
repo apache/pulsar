@@ -134,6 +134,7 @@ public class NamespaceStatsAggregator {
         subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
+        subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
         subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
         subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
@@ -303,7 +304,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
             aggReplStats.msgRateExpired += replStats.msgRateExpired;
-            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            if (replStats.connected) {
+                aggReplStats.connectedCount += 1;
+            } else {
+                aggReplStats.disconnectedCount += 1;
+            }
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
 
@@ -420,6 +425,8 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
 
+        writeMetric(stream, "pulsar_subscription_in_replay", stats.msgInReplay, cluster, namespace);
+
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
 
@@ -510,6 +517,8 @@ public class NamespaceStatsAggregator {
                 replStats -> replStats.replicationBacklog, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_connected_count", stats,
                 replStats -> replStats.connectedCount, cluster, namespace);
+        writeReplicationStat(stream, "pulsar_replication_disconnected_count", stats,
+                replStats -> replStats.disconnectedCount, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_rate_expired", stats,
                 replStats -> replStats.msgRateExpired, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_delay_in_seconds", stats,

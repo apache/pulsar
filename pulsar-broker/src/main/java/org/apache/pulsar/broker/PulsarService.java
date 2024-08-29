@@ -393,11 +393,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
                                                           OpenTelemetry openTelemetry)
             throws MetadataStoreException {
+        String configFilePath = config.getMetadataStoreConfigPath();
+        if (StringUtils.isNotBlank(config.getConfigurationStoreConfigPath())) {
+            configFilePath = config.getConfigurationStoreConfigPath();
+        }
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
                         .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
-                        .configFilePath(config.getMetadataStoreConfigPath())
+                        .configFilePath(configFilePath)
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
@@ -995,7 +999,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 MLTransactionMetadataStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
                 MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
 
-                this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(getClient());
+                this.transactionBufferSnapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(this);
 
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
@@ -1323,7 +1327,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (isRunning()) {
             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
                     .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
-            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
+            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor,
+                    config, getManagedLedgerFactory());
             loadSheddingTask.start();
             loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
@@ -1687,6 +1692,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
                     conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
+                    conf.setSslFactoryPlugin(this.getConfiguration().getBrokerClientSslFactoryPlugin());
+                    conf.setSslFactoryPluginParams(this.getConfiguration().getBrokerClientSslFactoryPluginParams());
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                         conf.setUseKeyStoreTls(true);
                         conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());
@@ -1737,15 +1744,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
-                builder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+                builder.loadConf(PropertiesUtils.filterAndMapProperties(conf.getProperties(), "brokerClient_"));
 
                 builder.authentication(
                         conf.getBrokerClientAuthenticationPlugin(),
                         conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
-                            .tlsProtocols(config.getBrokerClientTlsProtocols());
+                    builder.tlsCiphers(conf.getBrokerClientTlsCiphers())
+                            .tlsProtocols(conf.getBrokerClientTlsProtocols())
+                            .sslFactoryPlugin(conf.getBrokerClientSslFactoryPlugin())
+                            .sslFactoryPluginParams(conf.getBrokerClientSslFactoryPluginParams());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true).tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
                                 .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
@@ -2018,7 +2027,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     @VisibleForTesting
-    public void setTransactionExecutorProvider(TransactionBufferProvider transactionBufferProvider) {
+    public void setTransactionBufferProvider(TransactionBufferProvider transactionBufferProvider) {
         this.transactionBufferProvider = transactionBufferProvider;
     }
 

@@ -154,7 +154,7 @@ public class MultiTopicsConsumerImplTest {
         int completionDelayMillis = 100;
         Schema<byte[]> schema = Schema.BYTES;
         PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
-        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean()))
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
                 .thenAnswer(invocation -> createDelayedCompletedFuture(
                 new PartitionedTopicMetadata(), completionDelayMillis));
         MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(
@@ -203,7 +203,7 @@ public class MultiTopicsConsumerImplTest {
         int completionDelayMillis = 10;
         Schema<byte[]> schema = Schema.BYTES;
         PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
-        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean()))
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
                 .thenAnswer(invocation -> createExceptionFuture(
                 new PulsarClientException.InvalidConfigurationException("a mock exception"), completionDelayMillis));
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();
@@ -240,7 +240,7 @@ public class MultiTopicsConsumerImplTest {
 
         // Simulate non partitioned topics
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(0);
-        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean()))
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(metadata));
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();
 
@@ -252,7 +252,7 @@ public class MultiTopicsConsumerImplTest {
 
         // getPartitionedTopicMetadata should have been called only the first time, for each of the 3 topics,
         // but not anymore since the topics are not partitioned.
-        verify(clientMock, times(3)).getPartitionedTopicMetadata(any(), anyBoolean());
+        verify(clientMock, times(3)).getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean());
     }
 
 }
