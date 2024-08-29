@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -90,7 +89,7 @@ public class AuthenticationProviderListTest {
         );
         ServiceConfiguration confA = new ServiceConfiguration();
         confA.setProperties(propertiesA);
-        providerA.initialize(confA);
+        providerA.initialize(AuthenticationProvider.Context.builder().config(confA).build());
 
         Properties propertiesB = new Properties();
         propertiesB.setProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX, "b");
@@ -103,7 +102,7 @@ public class AuthenticationProviderListTest {
         );
         ServiceConfiguration confB = new ServiceConfiguration();
         confB.setProperties(propertiesB);
-        providerB.initialize(confB);
+        providerB.initialize(AuthenticationProvider.Context.builder().config(confB).build());
 
         this.authProvider = new AuthenticationProviderList(Lists.newArrayList(
             providerA, providerB
