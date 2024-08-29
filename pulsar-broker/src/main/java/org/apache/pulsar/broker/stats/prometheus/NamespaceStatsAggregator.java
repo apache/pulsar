@@ -131,6 +131,7 @@ public class NamespaceStatsAggregator {
         subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
+        subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
         subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
         subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
@@ -383,6 +384,8 @@ public class NamespaceStatsAggregator {
                 stats.managedLedgerStats.storageReadCacheMissesRate, cluster, namespace);
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
+
+        writeMetric(stream, "pulsar_subscription_in_replay", stats.msgInReplay, cluster, namespace);
 
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);

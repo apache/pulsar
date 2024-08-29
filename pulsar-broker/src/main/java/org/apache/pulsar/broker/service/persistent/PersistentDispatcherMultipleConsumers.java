@@ -1239,5 +1239,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
     }
 
+    public long getNumberOfMessagesInReplay() {
+        return redeliveryMessages.size();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
 }
