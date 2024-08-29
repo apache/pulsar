@@ -67,7 +67,7 @@ RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://m
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install netcat dnsutils less procps iputils-ping \
-                 curl ca-certificates wget apt-transport-https \
+                 curl ca-certificates wget apt-transport-https vim \
      && apt-get -y install --no-install-recommends python3 python3-kazoo python3-pip
 
 # Install Eclipse Temurin Package
