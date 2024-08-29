@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -85,7 +86,6 @@ import org.slf4j.LoggerFactory;
  */
 public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements Dispatcher, ReadEntriesCallback {
-
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
@@ -134,7 +134,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
-
+    protected int lastNumberOfEntriesDispatched;
+    private final Backoff retryBackoff;
     protected enum ReadType {
         Normal, Replay
     }
@@ -159,10 +160,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay);
+        ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
         this.readFailureBackoff = new Backoff(
-                topic.getBrokerService().pulsar().getConfiguration().getDispatcherReadFailureBackoffInitialTimeInMs(),
+                serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs(),
                 TimeUnit.MILLISECONDS,
                 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        retryBackoff = new Backoff(
+                serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs(), TimeUnit.MILLISECONDS,
+                serviceConfiguration.getDispatcherRetryBackoffMaxTimeInMs(), TimeUnit.MILLISECONDS,
+                0, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -437,16 +443,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void reScheduleRead() {
+        reScheduleReadInMs(MESSAGE_RATE_BACKOFF_MS);
+    }
+
+    protected void reScheduleReadInMs(long readAfterMs) {
         if (isRescheduleReadInProgress.compareAndSet(false, true)) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, readAfterMs);
             }
             topic.getBrokerService().executor().schedule(
                     () -> {
                         isRescheduleReadInProgress.set(false);
                         readMoreEntries();
                         },
-                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                    readAfterMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -659,8 +669,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-        long size = entries.stream().mapToLong(Entry::getLength).sum();
-        updatePendingBytesToDispatch(size);
+        long totalBytesSize = entries.stream().mapToLong(Entry::getLength).sum();
+        updatePendingBytesToDispatch(totalBytesSize);
 
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
@@ -670,19 +680,28 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
             dispatchMessagesThread.execute(() -> {
-                if (sendMessagesToConsumers(readType, entries, false)) {
-                    updatePendingBytesToDispatch(-size);
-                    readMoreEntries();
-                } else {
-                    updatePendingBytesToDispatch(-size);
-                }
+                handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
         } else {
-            if (sendMessagesToConsumers(readType, entries, true)) {
-                updatePendingBytesToDispatch(-size);
-                readMoreEntriesAsync();
-            } else {
-                updatePendingBytesToDispatch(-size);
+            handleSendingMessagesAndReadingMore(readType, entries, true, totalBytesSize);
+        }
+    }
+
+    private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
+                                                                  boolean needAcquireSendInProgress,
+                                                                  long totalBytesSize) {
+        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        int entriesDispatched = lastNumberOfEntriesDispatched;
+        updatePendingBytesToDispatch(-totalBytesSize);
+        if (triggerReadingMore) {
+            if (entriesDispatched > 0) {
+                // Reset the backoff when we successfully dispatched messages
+                retryBackoff.reset();
+                // Call readMoreEntries in the same thread to trigger the next read
+                readMoreEntries();
+            } else if (entriesDispatched == 0) {
+                // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
+                reScheduleReadInMs(retryBackoff.next());
             }
         }
     }
@@ -721,6 +740,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
+        lastNumberOfEntriesDispatched = 0;
 
         int entriesToDispatch = entries.size();
         // Trigger read more messages
@@ -828,6 +848,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
             });
+
+            lastNumberOfEntriesDispatched = entriesToDispatch;
         }
         return true;
     }
@@ -890,6 +912,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
+        lastNumberOfEntriesDispatched = (int) totalEntries;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         return numConsumers.get() == 0; // trigger a new readMoreEntries() call
