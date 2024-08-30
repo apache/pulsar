@@ -1810,6 +1810,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
+    private boolean isClosed() {
+        if (closeFutures == null) {
+            return false;
+        }
+        if (closeFutures.transferring != null
+                && closeFutures.transferring.isDone()
+                && !closeFutures.transferring.isCompletedExceptionally()) {
+            return true;
+        }
+        if (closeFutures.notWaitDisconnectClients != null
+                && closeFutures.notWaitDisconnectClients.isDone()
+                && !closeFutures.notWaitDisconnectClients.isCompletedExceptionally()) {
+            return true;
+        }
+        if (closeFutures.waitDisconnectClients != null
+                && closeFutures.waitDisconnectClients.isDone()
+                && !closeFutures.waitDisconnectClients.isCompletedExceptionally()) {
+            return true;
+        }
+        return false;
+    }
+
     private void disposeTopic(CompletableFuture<?> closeFuture) {
         brokerService.removeTopicFromCache(PersistentTopic.this)
                 .thenRun(() -> {
@@ -1832,6 +1854,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @VisibleForTesting
     CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
+        if (isClosed()) {
+            return CompletableFuture.completedFuture(null);
+        }
         CompletableFuture<Void> result = new CompletableFuture<Void>();
         checkReplication().thenAccept(res -> {
             result.complete(null);
