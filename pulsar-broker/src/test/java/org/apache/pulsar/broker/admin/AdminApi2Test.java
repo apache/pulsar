@@ -3479,7 +3479,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(partitionedTp);
     }
 
-    private NamespaceIsolationData createPolicyData(NamespaceIsolationPolicyUnloadScope scope, List<String> namespaces) {
+    private NamespaceIsolationData createPolicyData(NamespaceIsolationPolicyUnloadScope scope, List<String> namespaces,
+                                                    List<String> primaryBrokers
+    ) {
         // setup ns-isolation-policy in both the clusters.
         Map<String, String> parameters1 = new HashMap<>();
         parameters1.put("min_limit", "1");
@@ -3489,7 +3491,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         return NamespaceIsolationData.builder()
                 // "prop-ig/ns1" is present in test cluster, policy set on test2 should work
                 .namespaces(nsRegexList)
-                .primary(Collections.singletonList(".*"))
+                .primary(primaryBrokers)
                 .secondary(Collections.singletonList(""))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
@@ -3548,7 +3550,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                                                        NamespaceIsolationPolicyUnloadScope initialScope,
                                                        List<String> initialNamespaceRegex, List<String> initialLoadedNS,
                                                        NamespaceIsolationPolicyUnloadScope updatedScope,
-                                                       List<String> updatedNamespaceRegex, List<String> updatedLoadedNS)
+                                                       List<String> updatedNamespaceRegex, List<String> updatedLoadedNS,
+                                                       List<String> updatedBrokerRegex)
             throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException {
 
         // Create all namespaces
@@ -3561,7 +3564,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         loadTopics(allTopics);
 
         // Create the policy
-        NamespaceIsolationData nsPolicyData1 = createPolicyData(initialScope, initialNamespaceRegex);
+        NamespaceIsolationData nsPolicyData1 = createPolicyData(
+                initialScope, initialNamespaceRegex, Collections.singletonList(".*")
+        );
         admin.clusters().createNamespaceIsolationPolicy("test", policyName, nsPolicyData1);
 
         List<String> initialLoadedTopics = new ArrayList<>();
@@ -3588,7 +3593,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         loadTopics(allTopics);
 
         // Update policy using updatedScope with updated namespace regex
-        nsPolicyData1 = createPolicyData(updatedScope, updatedNamespaceRegex);
+        nsPolicyData1 = createPolicyData(updatedScope, updatedNamespaceRegex, updatedBrokerRegex);
         admin.clusters().updateNamespaceIsolationPolicy("test", policyName, nsPolicyData1);
 
         List<String> updatedLoadedTopics = new ArrayList<>();
@@ -3619,7 +3624,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         testIsolationPolicyUnloadsNSWithScope(
                 topicType, "policy-all", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
                 all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
-                all_matching, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2")
+                all_matching, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2"),
+                Collections.singletonList(".*")
         );
     }
 
@@ -3629,7 +3635,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         testIsolationPolicyUnloadsNSWithScope(
                 topicType, "policy-changed", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
                 all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
-                changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2")
+                changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2"),
+                Collections.singletonList(".*")
         );
     }
 
@@ -3639,7 +3646,20 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         testIsolationPolicyUnloadsNSWithScope(
                 topicType, "policy-none", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
                 all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
-                none, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2", "c1")
+                none, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2", "c1"),
+                Collections.singletonList(".*")
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testIsolationPolicyUnloadsNSWithPrimaryChanged(final String topicType) throws Exception {
+        String nsPrefix = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        // As per changed flag, only c1 should unload, but due to primary change, both a* and c* will.
+        testIsolationPolicyUnloadsNSWithScope(
+                topicType, "policy-primary-changed", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
+                changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2"),
+                List.of(".*", "broker.*")
         );
     }
 }
