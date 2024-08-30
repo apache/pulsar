@@ -2712,11 +2712,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Producer<byte[]> cryptoProducer = pulsarClient.newProducer()
                 .topic(topicName).addEncryptionKey("client-ecdsa.pem")
+                .compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             cryptoProducer.send(message.getBytes());
         }
+
+        // admin api should be able to fetch compressed and encrypted message
+        List<Message<byte[]>> msgs = admin.topics().peekMessages(topicName, "my-subscriber-name", 1);
+        assertNotNull(msgs);
 
         Message<byte[]> msg;
 
