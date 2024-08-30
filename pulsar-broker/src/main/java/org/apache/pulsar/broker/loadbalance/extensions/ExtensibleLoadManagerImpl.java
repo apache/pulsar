@@ -420,7 +420,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         log.warn("The broker:{} failed to start service unit state channel. Retrying {} th ...",
                                 pulsar.getBrokerId(), ++retry, e);
                         try {
-                            TimeUnit.SECONDS.sleep(backoff.next());
+                            Thread.sleep(backoff.next());
                         } catch (InterruptedException ex) {
                             log.warn("Interrupted while sleeping.");
                             // preserve thread's interrupt status
