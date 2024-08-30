@@ -813,7 +813,7 @@ public class ClustersBase extends AdminResource {
             if (oldPolicy != null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
                 // We also compare that the previous primary broker list is same as current, in case all namespaces need
                 // to be placed again anyway.
-                List<String> oldBrokers = new ArrayList<>(policyData.getPrimary());
+                List<String> oldBrokers = new ArrayList<>(oldPolicy.getPrimary());
                 oldBrokers.removeAll(policyData.getPrimary());
 
                 if (oldBrokers.isEmpty()) {
