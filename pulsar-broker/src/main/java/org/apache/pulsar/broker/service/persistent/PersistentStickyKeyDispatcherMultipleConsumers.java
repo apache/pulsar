@@ -478,7 +478,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (stickyKeyHash == null) {
                 // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
                 // dispatch after reading the entry from the ledger
-                log.debug("[{}] replay of entry at position {} doesn't contain sticky key hash.", name, position);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] replay of entry at position {} doesn't contain sticky key hash.", name, position);
+                }
                 return true;
             }
             // find the consumer for the sticky key hash
