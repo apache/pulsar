@@ -409,6 +409,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // consumers for which all remaining entries should be discarded
         Set<Consumer> remainingEntriesFilteredForConsumer = new HashSet<>();
+        // permits for consumer, won't be adjusted with batch message counts at initial filtering
+        Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
@@ -417,6 +419,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // a consumer was found for the sticky key hash and the consumer can get more entries
             if (consumer != null && !remainingEntriesFilteredForConsumer.contains(consumer)) {
                 dispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
+                MutableInt permits = permitsForConsumer.computeIfAbsent(consumer,
+                        k -> new MutableInt(getAvailablePermits(consumer)));
+                if (permits.intValue() > 0) {
+                    // use 1 permit per batch at this stage to avoid parsing the message metadata here
+                    permits.decrement();
+                } else {
+                    dispatchEntry = false;
+                }
             }
             if (dispatchEntry) {
                 // add the entry to consumer's entry list for dispatching
