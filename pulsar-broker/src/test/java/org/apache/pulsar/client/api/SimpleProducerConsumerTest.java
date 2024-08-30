@@ -48,6 +48,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -116,6 +117,8 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -4861,6 +4864,89 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         assertEquals(consumer.batchReceive().size(), maxBatchSize);
     }
+
+    /**
+    *
+    * This test validates that consumer correctly sends permits for batch message that should be discarded.
+    * @throws Exception
+    */
+   @Test
+   public void testEncryptionFailureWithBatchPublish() throws Exception {
+       log.info("-- Starting {} test --", methodName);
+       String topicName = "persistent://my-property/my-ns/batchFailureTest-" + System.currentTimeMillis();
+
+       class EncKeyReader implements CryptoKeyReader {
+
+           final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+           @Override
+           public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+               String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+               if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                   try {
+                       keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                       return keyInfo;
+                   } catch (IOException e) {
+                       Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                   }
+               } else {
+                   Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+               }
+               return null;
+           }
+
+           @Override
+           public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+               String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+               if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                   try {
+                       keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                       return keyInfo;
+                   } catch (IOException e) {
+                       Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                   }
+               } else {
+                   Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+               }
+               return null;
+           }
+       }
+
+       final int totalMsg = 2000;
+
+       String subName = "without-cryptoreader";
+       @Cleanup
+       Consumer<byte[]> normalConsumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+               .messageListener((c, msg) -> {
+                   log.info("Failed to consume message {}", msg.getMessageId());
+                   c.acknowledgeAsync(msg);
+               }).cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD).ackTimeout(1, TimeUnit.SECONDS)
+               .receiverQueueSize(totalMsg / 20).subscribe();
+
+       @Cleanup
+       Producer<byte[]> cryptoProducer = pulsarClient.newProducer().topic(topicName)
+               .addEncryptionKey("client-ecdsa.pem").enableBatching(true).batchingMaxMessages(5)
+               .batchingMaxPublishDelay(1, TimeUnit.SECONDS).cryptoKeyReader(new EncKeyReader()).create();
+       for (int i = 0; i < totalMsg; i++) {
+           String message = "my-message-" + i;
+           cryptoProducer.sendAsync(message.getBytes());
+       }
+       cryptoProducer.flush();
+
+       Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+           PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
+           CursorStats stats = internalStats.cursors.get(subName);
+           String readPosition = stats.readPosition;
+           assertEquals(getMessageId(readPosition, 0, 1), (getMessageId(internalStats.lastConfirmedEntry, 0, 0)));
+       });
+
+       log.info("-- Exiting {} test --", methodName);
+   }
+
+   private MessageId getMessageId(String messageId, long subLedgerId, long subEntryId) {
+       String[] ids = messageId.split(":");
+       return new MessageIdImpl(Long.parseLong(ids[0]) - subLedgerId, Long.parseLong(ids[1]) - subEntryId, -1);
+   }
 
     private int compareMessageIds(MessageIdImpl messageId1, MessageIdImpl messageId2) {
         if (messageId2.getLedgerId() < messageId1.getLedgerId()) {
