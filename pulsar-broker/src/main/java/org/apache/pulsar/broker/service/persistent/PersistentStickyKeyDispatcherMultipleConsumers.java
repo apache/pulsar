@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -44,6 +45,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.DispatcherDiscardFilter;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
@@ -55,6 +57,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -283,8 +286,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForConsumer.size());
-            totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
-                    batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+            DispatcherDiscardFilter discardFilter = createDispatcherDiscardFilter(getAvailablePermits(consumer));
+            totalEntries += filterEntriesForConsumer(null, 0, entriesForConsumer, batchSizes, sendMessageInfo,
+                    batchIndexesAcks, cursor, readType == ReadType.Replay, consumer, discardFilter);
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -634,6 +638,30 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             availablePermits = Math.min(availablePermits, remainUnAckedMessages);
         }
         return availablePermits;
+    }
+
+
+    @Override
+    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int maxMessagesInThisBatch) {
+        DispatcherDiscardFilter discardFilter = new DispatcherDiscardFilter() {
+            int remainingMessagePermits = maxMessagesInThisBatch;
+            @Override
+            public boolean shouldDiscardEntry(Consumer consumer, Entry entry, MessageMetadata msgMetadata,
+                                              boolean isReplayRead, Supplier<Integer> unackedMessagesInEntry) {
+                if (remainingMessagePermits <= 0) {
+                    addEntryToReplay(entry);
+                    return true;
+                }
+                int requiredPermits = unackedMessagesInEntry.get();
+                if (requiredPermits > remainingMessagePermits) {
+                    addEntryToReplay(entry);
+                    return true;
+                }
+                remainingMessagePermits -= requiredPermits;
+                return false;
+            }
+        };
+        return discardFilter;
     }
 
     /**

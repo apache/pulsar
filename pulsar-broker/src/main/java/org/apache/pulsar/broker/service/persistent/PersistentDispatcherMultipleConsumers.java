@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.DispatcherDiscardFilter;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -802,11 +803,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         c, c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
-                    serviceConfig.getDispatcherMaxRoundRobinBatchSize());
-            messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
+            int maxMessagesInThisBatch = Math.max(Math.min(Math.min(remainingMessages, availablePermits),
+                    serviceConfig.getDispatcherMaxRoundRobinBatchSize()), 1);
+            int maxEntriesInThisBatch = Math.max(maxMessagesInThisBatch / avgBatchSizePerMsg, 1);
 
-            int end = Math.min(start + messagesForC, entries.size());
+            int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
             // remove positions first from replay list first : sendMessages recycles entries
@@ -820,17 +821,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
+
+            DispatcherDiscardFilter discardFilter = createDispatcherDiscardFilter(maxMessagesInThisBatch);
+
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                    readType == ReadType.Replay, c);
+                    readType == ReadType.Replay, c, discardFilter);
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
-            start += messagesForC;
-            entriesToDispatch -= messagesForC;
+            start += maxEntriesInThisBatch;
+            entriesToDispatch -= maxEntriesInThisBatch;
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
                     -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
             if (log.isDebugEnabled()) {
@@ -850,14 +854,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         entries.size() - start);
             }
             entries.subList(start, entries.size()).forEach(entry -> {
-                long stickyKeyHash = getStickyKeyHash(entry);
-                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                addEntryToReplay(entry);
                 entry.release();
             });
 
             lastNumberOfEntriesDispatched = entriesToDispatch;
         }
         return true;
+    }
+
+    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int maxMessagesInThisBatch) {
+        return null;
+    }
+
+    protected void addEntryToReplay(Entry entry) {
+        long stickyKeyHash = getStickyKeyHash(entry);
+        addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,

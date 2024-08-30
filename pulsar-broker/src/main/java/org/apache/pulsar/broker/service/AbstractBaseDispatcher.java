@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpt
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(null, 0, entries, batchSizes,
                 sendMessageInfo, indexesAcks, cursor,
-                isReplayRead, consumer);
+                isReplayRead, consumer, null);
     }
 
     /**
@@ -117,7 +118,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                                         List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         SendMessageInfo sendMessageInfo,
                                         EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor,
-                                        boolean isReplayRead, Consumer consumer) {
+                                        boolean isReplayRead, Consumer consumer,
+                                        DispatcherDiscardFilter discardFilter) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -270,6 +272,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 } else {
                     indexesAcks.setIndexesAcks(i, null);
                 }
+            }
+
+
+            long[] finalAckSet = ackSet;
+            if (discardFilter != null && discardFilter.shouldDiscardEntry(consumer, entry, msgMetadata, isReplayRead,
+                    () -> batchSize - (finalAckSet != null ? BitSet.valueOf(finalAckSet).cardinality() : 0))) {
+                entries.set(i, null);
+                indexesAcks.setIndexesAcks(i, null);
+                entry.release();
+                continue;
             }
 
             totalEntries++;
