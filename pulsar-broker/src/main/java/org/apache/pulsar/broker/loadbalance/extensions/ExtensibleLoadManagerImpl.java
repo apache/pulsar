@@ -99,6 +99,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -404,6 +406,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
             pulsar.runWhenReadyForIncomingRequests(() -> {
+                Backoff backoff = new BackoffBuilder()
+                        .setInitialTime(100, TimeUnit.MILLISECONDS)
+                        .setMax(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                        .create();
                 int retry = 0;
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
@@ -414,7 +420,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         log.warn("The broker:{} failed to start service unit state channel. Retrying {} th ...",
                                 pulsar.getBrokerId(), ++retry, e);
                         try {
-                            TimeUnit.SECONDS.sleep(Math.min(retry * 10L, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
+                            TimeUnit.SECONDS.sleep(backoff.next());
                         } catch (InterruptedException ex) {
                             log.warn("Interrupted while sleeping.");
                             // preserve thread's interrupt status
