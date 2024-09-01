@@ -32,6 +32,7 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -73,10 +74,19 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
                 required = true, split = ",")
         private Map<String, String> autoFailoverPolicyParams;
 
+        @Option(names = "--unload-scope", description = "configure the type of unload to do -"
+                + " ['all_matching', 'none', 'changed'] namespaces. By default, all namespaces matching the namespaces"
+                + " regex will be unloaded and placed again. You can choose to not unload any namespace while setting"
+                + " this new policy by choosing `none` or choose to unload only the namespaces whose placement will"
+                + " actually change. If you chose 'none', you will need to manually unload the namespaces for them to"
+                + " be placed correctly, or wait till some namespaces get load balanced automatically based on load"
+                + " shedding configurations.")
+        private NamespaceIsolationPolicyUnloadScope unloadScope;
+
         void run() throws PulsarAdminException {
             // validate and create the POJO
             NamespaceIsolationData namespaceIsolationData = createNamespaceIsolationData(namespaces, primary, secondary,
-                    autoFailoverPolicyTypeName, autoFailoverPolicyParams);
+                    autoFailoverPolicyTypeName, autoFailoverPolicyParams, unloadScope);
 
             getAdmin().clusters().createNamespaceIsolationPolicy(clusterName, policyName, namespaceIsolationData);
         }
@@ -167,7 +177,8 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
                                                                 List<String> primary,
                                                                 List<String> secondary,
                                                                 String autoFailoverPolicyTypeName,
-                                                                Map<String, String> autoFailoverPolicyParams) {
+                                                                Map<String, String> autoFailoverPolicyParams,
+                                                                NamespaceIsolationPolicyUnloadScope unload) {
 
         // validate
         namespaces = validateList(namespaces);
@@ -233,6 +244,8 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             // either we don't handle the new type or user has specified a bad type
             throw new ParameterException("Unknown auto failover policy type specified : " + autoFailoverPolicyTypeName);
         }
+
+        nsIsolationDataBuilder.unloadScope(unload);
 
         return nsIsolationDataBuilder.build();
     }
