@@ -620,7 +620,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     /**
      * The dispatcher will skip replaying messages when all messages in the replay queue are filtered out when
-     * isDispatcherStuckOnReplays=true. The flag gets resetted after the call.
+     * skipNextReplayToTriggerLookAhead=true. The flag gets resetted after the call.
      *
      * If we're stuck on replay, we want to move forward reading on the topic (until the configured look ahead
      * limits kick in), instead of keep replaying the same old messages, since the consumer that these
