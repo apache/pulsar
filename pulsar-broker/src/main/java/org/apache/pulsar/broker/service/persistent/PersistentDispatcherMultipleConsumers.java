@@ -1029,7 +1029,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (consumer != null && !consumer.isBlocked()) {
+            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()) {
                 int availablePermits = consumer.getAvailablePermits();
                 if (availablePermits > 0) {
                     return availablePermits;
@@ -1053,7 +1053,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
-        return consumer != null && !consumer.isBlocked() && consumer.getAvailablePermits() > 0;
+        return consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()
+                && consumer.getAvailablePermits() > 0;
     }
 
     @Override
