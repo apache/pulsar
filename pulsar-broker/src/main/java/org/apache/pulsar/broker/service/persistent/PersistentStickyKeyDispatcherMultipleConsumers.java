@@ -422,7 +422,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 MutableInt permits = permitsForConsumer.computeIfAbsent(consumer,
                         k -> new MutableInt(getAvailablePermits(consumer)));
                 if (permits.intValue() > 0) {
-                    // use 1 permit per batch at this stage to avoid parsing the message metadata here
                     permits.decrement();
                 } else {
                     dispatchEntry = false;
@@ -517,11 +516,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
                 return false;
             }
-            // the position can be replayed,
-            // decrement the available permits for the consumer which is tracked for the duration of the filter usage
-            // this is an approximation, the actual permits are decremented when the entry is dispatched
-            int requiredPermits = Math.max(consumer.getAvgMessagesPerEntry(), 1);
-            availablePermits.add(-requiredPermits);
+            availablePermits.decrement();
             return true;
         }
     }
@@ -643,9 +638,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private int getAvailablePermits(Consumer c) {
         int availablePermits = Math.max(c.getAvailablePermits(), 0);
         if (c.getMaxUnackedMessages() > 0) {
-            // Avoid negative number
-            int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
-            availablePermits = Math.min(availablePermits, remainUnAckedMessages);
+            // Calculate the maximum number of additional unacked messages allowed
+            int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+            // Estimate the remaining permits based on the average messages per entry
+            int estimatedRemainingPermits = maxAdditionalUnackedMessages / Math.max(c.getAvgMessagesPerEntry(), 1);
+            // Update available permits to be the minimum of current available permits and estimated remaining permits
+            availablePermits = Math.min(availablePermits, estimatedRemainingPermits);
         }
         return availablePermits;
     }
