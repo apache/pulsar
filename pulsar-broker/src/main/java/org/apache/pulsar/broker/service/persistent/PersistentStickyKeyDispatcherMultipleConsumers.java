@@ -408,7 +408,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // consumers for which all remaining entries should be discarded
         Set<Consumer> remainingEntriesFilteredForConsumer = new HashSet<>();
-        // permits for consumer, won't be adjusted with batch message counts at initial filtering
+        // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
 
         for (Entry entry : entries) {
