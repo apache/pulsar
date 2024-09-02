@@ -31,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -45,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1159,5 +1161,47 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().delete(tp, false);
         admin1.namespaces().deleteNamespace(ns);
         admin2.namespaces().deleteNamespace(ns);
+    }
+
+    /**
+     * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
+     */
+    @Test
+    public void testCloseTopicAfterStartReplicationFailed() throws Exception {
+        Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
+        fieldTopicNameCache.setAccessible(true);
+        ConcurrentHashMap<String, TopicName> topicNameCache =
+                (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        // 1.Create topic, does not enable replication now.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // We inject an error to make "start replicator" to fail.
+        AsyncLoadingCache<String, Boolean> existsCache =
+                WhiteboxImpl.getInternalState(pulsar1.getConfigurationMetadataStore(), "existsCache");
+        String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
+        existsCache.put(path, CompletableFuture.completedFuture(true));
+
+        // 2.Enable replication and unload topic after failed to start replicator.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        Thread.sleep(3000);
+        producer1.close();
+        existsCache.synchronous().invalidate(path);
+        admin1.topics().unload(topicName);
+        // Verify: the "start replicator retry task" will be skipped after the topic is closed.
+        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
+        // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
+        //   Replication again.
+        Thread.sleep(10 * 1000);
+        topicNameCache.remove(topicName);
+        Thread.sleep(60 * 1000);
+        assertTrue(!topicNameCache.containsKey(topicName));
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        admin1.topics().delete(topicName, false);
     }
 }
