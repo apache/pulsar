@@ -483,10 +483,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 decreaseIncomingMessageSize(message);
                 checkState(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
-                resumeReceivingFromPausedConsumersIfNeeded();
+                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());                
                 result.complete(message);
             }
+            resumeReceivingFromPausedConsumersIfNeeded();
         });
         return result;
     }
