@@ -640,15 +640,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return 0;
         }
         int availablePermits = Math.max(c.getAvailablePermits(), 0);
-        if (c.getMaxUnackedMessages() > 0) {
+        if (availablePermits > 0 && c.getMaxUnackedMessages() > 0) {
             // Calculate the maximum number of additional unacked messages allowed
             int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+            if (maxAdditionalUnackedMessages == 0) {
+                // if the consumer has reached the max unacked messages, then no more messages can be dispatched
+                return 0;
+            }
             // Estimate the remaining permits based on the average messages per entry
-            int estimatedRemainingPermits = maxAdditionalUnackedMessages / Math.max(c.getAvgMessagesPerEntry(), 1);
-            // Update available permits to be the minimum of current available permits and estimated remaining permits
-            availablePermits = Math.min(availablePermits, estimatedRemainingPermits);
+            // add "avgMessagesPerEntry - 1" to round up the division to the next integer without the need to use
+            // floating point arithmetic
+            int avgMessagesPerEntry = Math.max(c.getAvgMessagesPerEntry(), 1);
+            int estimatedRemainingPermits =
+                    (maxAdditionalUnackedMessages + avgMessagesPerEntry - 1) / avgMessagesPerEntry;
+            // return the minimum of current available permits and estimated remaining permits
+            return Math.min(availablePermits, estimatedRemainingPermits);
+        } else {
+            return availablePermits;
         }
-        return availablePermits;
     }
 
 
