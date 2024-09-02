@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.service;
 
-import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
@@ -34,10 +33,8 @@ public interface DispatcherDiscardFilter {
      * @param entry The entry to be dispatched
      * @param msgMetadata The metadata of the message
      * @param isReplayRead If the entry is being read during a replay
-     * @param unackedMessagesInEntry The number of unacked messages in the entry batch
      * @return true if the entry should be discarded, false otherwise
      */
     boolean shouldDiscardEntry(Consumer consumer, Entry entry,
-                               MessageMetadata msgMetadata, boolean isReplayRead,
-                               Supplier<Integer> unackedMessagesInEntry);
+                               MessageMetadata msgMetadata, boolean isReplayRead);
 }

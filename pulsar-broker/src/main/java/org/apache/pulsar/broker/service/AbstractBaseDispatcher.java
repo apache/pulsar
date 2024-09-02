@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpt
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -274,10 +273,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 }
             }
 
-
-            long[] finalAckSet = ackSet;
-            if (discardFilter != null && discardFilter.shouldDiscardEntry(consumer, entry, msgMetadata, isReplayRead,
-                    () -> batchSize - (finalAckSet != null ? BitSet.valueOf(finalAckSet).cardinality() : 0))) {
+            if (discardFilter != null && discardFilter.shouldDiscardEntry(consumer, entry, msgMetadata, isReplayRead)) {
                 entries.set(i, null);
                 indexesAcks.setIndexesAcks(i, null);
                 entry.release();

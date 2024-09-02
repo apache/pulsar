@@ -863,7 +863,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return true;
     }
 
-    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int maxMessagesInThisBatch) {
+    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
         return null;
     }
 

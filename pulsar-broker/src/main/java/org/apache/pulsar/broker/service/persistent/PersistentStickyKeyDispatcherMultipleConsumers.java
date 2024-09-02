@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -650,22 +649,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
 
     @Override
-    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int maxMessagesInThisBatch) {
+    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
         DispatcherDiscardFilter discardFilter = new DispatcherDiscardFilter() {
-            int remainingMessagePermits = maxMessagesInThisBatch;
+            int remainingPermits = availablePermits;
             @Override
             public boolean shouldDiscardEntry(Consumer consumer, Entry entry, MessageMetadata msgMetadata,
-                                              boolean isReplayRead, Supplier<Integer> unackedMessagesInEntry) {
-                if (remainingMessagePermits <= 0) {
+                                              boolean isReplayRead) {
+                if (remainingPermits <= 0) {
                     addEntryToReplay(entry);
                     return true;
                 }
-                int requiredPermits = unackedMessagesInEntry.get();
-                if (requiredPermits > remainingMessagePermits) {
-                    addEntryToReplay(entry);
-                    return true;
-                }
-                remainingMessagePermits -= requiredPermits;
+                remainingPermits--;
                 return false;
             }
         };
