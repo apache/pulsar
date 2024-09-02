@@ -686,7 +686,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (recentlyJoinedConsumers.containsKey(consumer)) {
                 continue;
             }
-            if (consumer.getAvailablePermits() > 0) {
+            if (getAvailablePermits(consumer) > 0) {
                 return true;
             }
         }
