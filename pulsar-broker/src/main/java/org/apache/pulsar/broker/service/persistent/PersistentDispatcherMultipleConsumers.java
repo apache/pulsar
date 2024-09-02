@@ -371,7 +371,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
-            } else if (!havePendingRead && hasConsumersNeededNormalRead()) {
+            } else if (!havePendingRead && isNormalReadAllowed()) {
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
@@ -1271,9 +1271,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     /**
      * This is a mode method designed for Key_Shared mode, to avoid unnecessary stuck.
-     * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#hasConsumersNeededNormalRead}.
+     * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#isNormalReadAllowed}.
      */
-    protected boolean hasConsumersNeededNormalRead() {
+    protected boolean isNormalReadAllowed() {
         return true;
     }
 

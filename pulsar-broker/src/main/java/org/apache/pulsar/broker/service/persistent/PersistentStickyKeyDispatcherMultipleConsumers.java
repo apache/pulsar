@@ -673,13 +673,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * stuck. See https://github.com/apache/pulsar/pull/7105.
      */
     @Override
-    protected boolean hasConsumersNeededNormalRead() {
-        // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
-        // So the method "filterOutEntriesWillBeDiscarded" will filter out nothing, just return "true" here.
+    protected boolean isNormalReadAllowed() {
+        // Always allow ordinary reads if out-of-order delivery is enabled
         if (isAllowOutOfOrderDelivery()) {
             return true;
         }
         for (Consumer consumer : consumerList) {
+            // skip blocked consumers
             if (consumer == null || consumer.isBlocked()) {
                 continue;
             }
@@ -689,6 +689,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     && recentlyJoinedConsumers.containsKey(consumer)) {
                 continue;
             }
+            // before reading more, check that there's at least one consumer that has permits
             if (getAvailablePermits(consumer) > 0) {
                 return true;
             }
