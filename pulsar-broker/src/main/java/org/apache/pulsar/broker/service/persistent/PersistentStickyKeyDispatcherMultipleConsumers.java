@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -406,8 +405,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private Map<Consumer, List<Entry>> filterAndGroupEntriesForDispatching(List<Entry> entries, ReadType readType) {
         // entries grouped by consumer
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
-        // consumers for which all remaining entries should be discarded
-        Set<Consumer> remainingEntriesFilteredForConsumer = new HashSet<>();
         // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
 
@@ -416,7 +413,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = selector.select(stickyKeyHash);
             boolean dispatchEntry = false;
             // a consumer was found for the sticky key hash and the consumer can get more entries
-            if (consumer != null && !remainingEntriesFilteredForConsumer.contains(consumer)) {
+            if (consumer != null) {
                 dispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
                 MutableInt permits = permitsForConsumer.computeIfAbsent(consumer,
                         k -> new MutableInt(getAvailablePermits(consumer)));
@@ -436,8 +433,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 // release the entry as it will not be dispatched
                 entry.release();
-                // stop sending further entries to this consumer so that ordering is preserved
-                remainingEntriesFilteredForConsumer.add(consumer);
             }
         }
         return entriesGroupedByConsumer;
