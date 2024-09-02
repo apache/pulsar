@@ -101,7 +101,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(null, 0, entries, batchSizes,
                 sendMessageInfo, indexesAcks, cursor,
-                isReplayRead, consumer, null);
+                isReplayRead, consumer);
     }
 
     /**
@@ -117,8 +117,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                                         List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         SendMessageInfo sendMessageInfo,
                                         EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor,
-                                        boolean isReplayRead, Consumer consumer,
-                                        DispatcherDiscardFilter discardFilter) {
+                                        boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -271,13 +270,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 } else {
                     indexesAcks.setIndexesAcks(i, null);
                 }
-            }
-
-            if (discardFilter != null && discardFilter.shouldDiscardEntry(consumer, entry, msgMetadata, isReplayRead)) {
-                entries.set(i, null);
-                indexesAcks.setIndexesAcks(i, null);
-                entry.release();
-                continue;
             }
 
             totalEntries++;

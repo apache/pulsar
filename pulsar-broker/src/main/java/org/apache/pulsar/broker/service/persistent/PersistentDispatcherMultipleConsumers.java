@@ -823,7 +823,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                    readType == ReadType.Replay, c, null);
+                    readType == ReadType.Replay, c);
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);

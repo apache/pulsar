@@ -43,7 +43,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.DispatcherDiscardFilter;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
@@ -55,7 +54,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -284,9 +282,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForConsumer.size());
-            DispatcherDiscardFilter discardFilter = createDispatcherDiscardFilter(getAvailablePermits(consumer));
             totalEntries += filterEntriesForConsumer(null, 0, entriesForConsumer, batchSizes, sendMessageInfo,
-                    batchIndexesAcks, cursor, readType == ReadType.Replay, consumer, discardFilter);
+                    batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -653,24 +650,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         } else {
             return availablePermits;
         }
-    }
-
-
-    private DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
-        DispatcherDiscardFilter discardFilter = new DispatcherDiscardFilter() {
-            int remainingPermits = availablePermits;
-            @Override
-            public boolean shouldDiscardEntry(Consumer consumer, Entry entry, MessageMetadata msgMetadata,
-                                              boolean isReplayRead) {
-                if (remainingPermits <= 0) {
-                    addEntryToReplay(entry);
-                    return true;
-                }
-                remainingPermits--;
-                return false;
-            }
-        };
-        return discardFilter;
     }
 
     /**
