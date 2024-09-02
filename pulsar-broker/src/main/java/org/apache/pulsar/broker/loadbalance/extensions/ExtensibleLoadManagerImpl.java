@@ -125,6 +125,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     public static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
 
+    public static final int STARTUP_TIMEOUT_SECONDS = 30;
+
     public static final int MAX_RETRY = 5;
 
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
@@ -408,7 +410,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             pulsar.runWhenReadyForIncomingRequests(() -> {
                 Backoff backoff = new BackoffBuilder()
                         .setInitialTime(100, TimeUnit.MILLISECONDS)
-                        .setMax(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                        .setMax(STARTUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                         .create();
                 int retry = 0;
                 while (!Thread.currentThread().isInterrupted()) {
