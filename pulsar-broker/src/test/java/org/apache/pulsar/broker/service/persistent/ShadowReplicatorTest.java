@@ -131,7 +131,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         Message<byte[]> shadowMessage = shadowConsumer.receive(5, TimeUnit.SECONDS);
 
-        Assert.assertEquals(shadowMessage.getData().length, 0);
+        Assert.assertEquals(shadowMessage.getData(), sourceMessage.getData());
         Assert.assertEquals(shadowMessage.getSequenceId(), sourceMessage.getSequenceId());
         Assert.assertEquals(shadowMessage.getEventTime(), sourceMessage.getEventTime());
         Assert.assertEquals(shadowMessage.getProperties(), sourceMessage.getProperties());
@@ -144,9 +144,6 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         Assert.assertEquals(replicator.stats.getBytesOutCount(), 0);
 
-
-        //`replicatedFrom` is set as localClusterName in shadow topic.
-        Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
         Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
     }
 
