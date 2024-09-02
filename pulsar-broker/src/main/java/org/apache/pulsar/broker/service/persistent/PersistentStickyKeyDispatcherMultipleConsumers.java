@@ -282,7 +282,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForConsumer.size());
-            totalEntries += filterEntriesForConsumer(null, 0, entriesForConsumer, batchSizes, sendMessageInfo,
+            totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
