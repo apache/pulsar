@@ -59,7 +59,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.DispatcherDiscardFilter;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -822,11 +821,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
 
-            DispatcherDiscardFilter discardFilter = createDispatcherDiscardFilter(maxMessagesInThisBatch);
-
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                    readType == ReadType.Replay, c, discardFilter);
+                    readType == ReadType.Replay, c, null);
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -861,10 +858,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             lastNumberOfEntriesDispatched = entriesToDispatch;
         }
         return true;
-    }
-
-    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
-        return null;
     }
 
     protected void addEntryToReplay(Entry entry) {

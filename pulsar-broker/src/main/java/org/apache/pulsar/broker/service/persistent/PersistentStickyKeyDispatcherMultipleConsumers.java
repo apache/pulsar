@@ -648,8 +648,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
 
-    @Override
-    protected DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
+    private DispatcherDiscardFilter createDispatcherDiscardFilter(int availablePermits) {
         DispatcherDiscardFilter discardFilter = new DispatcherDiscardFilter() {
             int remainingPermits = availablePermits;
             @Override
