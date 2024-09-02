@@ -683,7 +683,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (consumer == null || consumer.isBlocked()) {
                 continue;
             }
-            if (recentlyJoinedConsumers.containsKey(consumer)) {
+            // skip the consumer if isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist is false
+            // and consumer exists in the recently joined consumer
+            if (!serviceConfig.isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist()
+                    && recentlyJoinedConsumers.containsKey(consumer)) {
                 continue;
             }
             if (getAvailablePermits(consumer) > 0) {
