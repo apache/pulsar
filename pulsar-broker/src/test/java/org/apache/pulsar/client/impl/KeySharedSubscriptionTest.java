@@ -151,6 +151,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .until(() ->
                         (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
+        logTopicStats(topic);
+
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
         Assert.assertEquals(totalMsg, pubMessages.size());
