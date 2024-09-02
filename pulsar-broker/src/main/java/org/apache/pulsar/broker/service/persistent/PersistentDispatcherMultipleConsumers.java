@@ -791,20 +791,25 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-            if (c.getMaxUnackedMessages() > 0) {
-                // Avoid negative number
-                int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
-                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
-            }
             if (log.isDebugEnabled() && !c.isWritable()) {
                 log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
                                 + "availablePermits are {}", topic.getName(), name,
                         c, c.getAvailablePermits());
             }
 
-            int maxMessagesInThisBatch = Math.max(Math.min(Math.min(remainingMessages, availablePermits),
-                    serviceConfig.getDispatcherMaxRoundRobinBatchSize()), 1);
-            int maxEntriesInThisBatch = Math.max(maxMessagesInThisBatch / avgBatchSizePerMsg, 1);
+            int maxMessagesInThisBatch =
+                    Math.max(remainingMessages, serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            if (c.getMaxUnackedMessages() > 0) {
+                // Calculate the maximum number of additional unacked messages allowed
+                int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+                maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
+            }
+            int maxEntriesInThisBatch = Math.min(availablePermits,
+                            // use the average batch size per message to calculate the number of entries to
+                            // dispatch. round up to the next integer without using floating point arithmetic.
+                            (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
+            // pick at least one entry to dispatch
+            maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
 
             int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
