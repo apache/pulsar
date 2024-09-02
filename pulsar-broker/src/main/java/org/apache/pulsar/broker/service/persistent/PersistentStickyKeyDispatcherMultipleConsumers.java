@@ -635,6 +635,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private int getAvailablePermits(Consumer c) {
+        // skip consumers that are currently closing
+        if (!c.cnx().isActive()) {
+            return 0;
+        }
         int availablePermits = Math.max(c.getAvailablePermits(), 0);
         if (c.getMaxUnackedMessages() > 0) {
             // Calculate the maximum number of additional unacked messages allowed
