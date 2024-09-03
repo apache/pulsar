@@ -423,6 +423,10 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_in_messages_total", stats.msgInCounter, cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_out_bytes_total", stats.bytesOutCounter, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_out_messages_total", stats.msgOutCounter, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
 
         // Compaction
         boolean hasCompaction = compactorMXBean.flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic))

@@ -394,12 +394,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscriptionName("test")
                 .subscribe();
 
-        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+        Consumer<byte[]> c2a = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
-                .subscriptionName("test")
+                .subscriptionName("test2a")
                 .subscribe();
 
-        final int messages = 10;
+        Consumer<byte[]> c2b = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .subscriptionName("test2b")
+                .subscribe();
+
+        final int messages = 5;
 
         for (int i = 0; i < messages; i++) {
             String message = "my-message-" + i;
@@ -409,7 +414,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         for (int i = 0; i < messages; i++) {
             c1.acknowledge(c1.receive());
-            c2.acknowledge(c2.receive());
+            c2a.acknowledge(c2a.receive());
+            c2b.acknowledge(c2b.receive());
         }
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -459,27 +465,46 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_out_bytes_total");
-        assertEquals(cm.size(), 2);
+        assertEquals(cm.size(), 5);
         assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("subscription"), "test");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("subscription"), "test2b");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("subscription"), "test");
+        assertEquals(cm.get(1).tags.get("subscription"), "test2a");
+        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
+        assertNull(cm.get(2).tags.get("subscription"));
+        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(3).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(3).tags.get("subscription"), "test");
+        assertEquals(cm.get(4).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(4).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_out_messages_total");
-        assertEquals(cm.size(), 2);
+        assertEquals(cm.size(), 5);
+        assertEquals(cm.get(0).value, 5);
         assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("subscription"), "test");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("subscription"), "test2b");
+        assertEquals(cm.get(1).value, 5);
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("subscription"), "test");
+        assertEquals(cm.get(1).tags.get("subscription"), "test2a");
+        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
+        assertNull(cm.get(2).tags.get("subscription"));
+        assertEquals(cm.get(3).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(3).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(3).tags.get("subscription"), "test");
+        assertEquals(cm.get(4).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(4).tags.get("namespace"), "my-property/use/my-ns");
 
         p1.close();
         p2.close();
         c1.close();
-        c2.close();
+        c2a.close();
+        c2b.close();
     }
 
     @Test
