@@ -20,10 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -54,7 +53,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private String topicsHash;
     private final CompletableFuture<TopicListWatcher> watcherFuture;
 
-    private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<>();
+    private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
 
     private final Runnable recheckTopicsChangeAfterReconnect;
@@ -93,7 +92,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         if (nonRetriableError) {
-            exception.setPreviousExceptions(previousExceptions);
+            exception.setPreviousExceptionCount(previousExceptionCount);
             if (watcherFuture.completeExceptionally(exception)) {
                 setState(State.Failed);
                 log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
@@ -101,13 +100,13 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                 deregisterFromClientCnx();
             }
         } else {
-            previousExceptions.add(exception);
+            previousExceptionCount.incrementAndGet();
         }
     }
 
     @Override
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
-        previousExceptions.clear();
+        previousExceptionCount.set(0);
 
         State state = getState();
         if (state == State.Closing || state == State.Closed) {

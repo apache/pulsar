@@ -47,6 +47,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
@@ -1152,7 +1153,8 @@ public class PulsarClientImpl implements PulsarClient {
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                     .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
-            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture, new ArrayList<>(),
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture,
+                    new AtomicInteger(0),
                     metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
@@ -1164,7 +1166,7 @@ public class PulsarClientImpl implements PulsarClient {
                                              Backoff backoff,
                                              AtomicLong remainingTime,
                                              CompletableFuture<PartitionedTopicMetadata> future,
-                                             List<Throwable> previousExceptions,
+                                             AtomicInteger previousExceptionCount,
                                              boolean metadataAutoCreationEnabled,
                                              boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
@@ -1179,17 +1181,17 @@ public class PulsarClientImpl implements PulsarClient {
                 || e.getCause() instanceof PulsarClientException.AuthenticationException
                 || e.getCause() instanceof PulsarClientException.NotFoundException;
             if (nextDelay <= 0 || isLookupThrottling) {
-                PulsarClientException.setPreviousExceptions(e, previousExceptions);
+                PulsarClientException.setPreviousExceptionCount(e, previousExceptionCount);
                 future.completeExceptionally(e);
                 return null;
             }
-            previousExceptions.add(e);
+            previousExceptionCount.getAndIncrement();
 
             ((ScheduledExecutorService) scheduledExecutorProvider.getExecutor()).schedule(() -> {
                 log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- "
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions,
+                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptionCount,
                         metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
