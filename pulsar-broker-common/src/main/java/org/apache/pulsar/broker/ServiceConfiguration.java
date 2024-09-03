@@ -592,6 +592,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String configurationMetadataSyncEventTopic = null;
 
     @FieldContext(
+            dynamic = false,
+            category = CATEGORY_SERVER,
+            doc = "Create a separate configuration metadata store object in memory even if the URL of the configuration"
+                    + " metadata store is the same as the local metadata store. It is useful for some case, for"
+                    + " example: to enable Metadata Synchronizer dynamically."
+    )
+    private boolean forceUseSeparatedConfigurationStoreInMemory = false;
+
+    @FieldContext(
             dynamic = true,
             doc = "Factory class-name to create topic with custom workflow"
         )

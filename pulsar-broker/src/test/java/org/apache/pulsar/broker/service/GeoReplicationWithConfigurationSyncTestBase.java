@@ -71,16 +71,39 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
 
     protected void startZKAndBK() throws Exception {
         // Start ZK.
-        brokerConfigZk1 = new ZookeeperServerTest(0);
-        brokerConfigZk1.start();
-        brokerConfigZk2 = new ZookeeperServerTest(0);
-        brokerConfigZk2.start();
+        tryInitBrokerConfigZK();
 
         // Start BK.
         bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble1.start();
         bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble2.start();
+    }
+
+    protected void tryInitBrokerConfigZK() throws Exception {
+        brokerConfigZk1 = new ZookeeperServerTest(0);
+        brokerConfigZk1.start();
+        brokerConfigZk2 = new ZookeeperServerTest(0);
+        brokerConfigZk2.start();
+    }
+
+    protected void stopZKAndBK() throws Exception {
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (brokerConfigZk1 != null) {
+            brokerConfigZk1.stop();
+            brokerConfigZk1 = null;
+        }
+        if (brokerConfigZk2 != null) {
+            brokerConfigZk2.stop();
+            brokerConfigZk2 = null;
+        }
     }
 
     protected void startBrokers() throws Exception {
@@ -169,7 +192,11 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + brokerConfigZk.getZookeeperPort() + "/foo");
+        if (brokerConfigZk != null) {
+            config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + brokerConfigZk.getZookeeperPort());
+        } else {
+            config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
+        }
         config.setBrokerDeleteInactiveTopicsEnabled(false);
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(60);
         config.setBrokerShutdownTimeoutMs(0L);
@@ -220,22 +247,7 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         }
 
         // Stop ZK and BK.
-        if (bkEnsemble1 != null) {
-            bkEnsemble1.stop();
-            bkEnsemble1 = null;
-        }
-        if (bkEnsemble2 != null) {
-            bkEnsemble2.stop();
-            bkEnsemble2 = null;
-        }
-        if (brokerConfigZk1 != null) {
-            brokerConfigZk1.stop();
-            brokerConfigZk1 = null;
-        }
-        if (brokerConfigZk2 != null) {
-            brokerConfigZk2.stop();
-            brokerConfigZk2 = null;
-        }
+        stopZKAndBK();
 
         // Reset configs.
         config1 = new ServiceConfiguration();
