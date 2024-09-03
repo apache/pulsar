@@ -23,6 +23,8 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import java.util.function.Consumer;
 import org.apache.pulsar.PulsarVersion;
 
 public class InstrumentProvider {
@@ -49,7 +51,11 @@ public class InstrumentProvider {
 
     public UpDownCounter newUpDownCounter(String name, Unit unit, String description, String topic,
                                           Attributes attributes) {
-        return new UpDownCounter(meter, name, unit, description, topic, attributes);
+        return new UpDownCounter(meter, name, unit, description, topic, attributes, null);
+    }
+    public UpDownCounter newUpDownCounter(String name, Unit unit, String description, String topic,
+                                          Attributes attributes, Consumer<ObservableLongMeasurement> callback) {
+        return new UpDownCounter(meter, name, unit, description, topic, attributes, callback);
     }
 
     public LatencyHistogram newLatencyHistogram(String name, String description, String topic, Attributes attributes) {

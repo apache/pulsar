@@ -227,6 +227,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final Counter bytesReceivedCounter;
     private final UpDownCounter messagesPrefetchedGauge;
     private final UpDownCounter bytesPrefetchedGauge;
+    private final UpDownCounter messageAvailablePermitsGauge;
+    private UpDownCounter messagePermitRemainingGauge;
+    private UpDownCounter messagePermitLimitGauge;
     private final Counter consumersOpenedCounter;
     private final Counter consumersClosedCounter;
     private final Counter consumerAcksCounter;
@@ -424,6 +427,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 "The number of messages currently sitting in the consumer receive queue", topic, attrs);
         bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
                 "The total size in bytes of messages currently sitting in the consumer receive queue", topic, attrs);
+        messageAvailablePermitsGauge = ip.newUpDownCounter("pulsar.client.consumer.available_permits",
+                Unit.Messages, "The number of consumer available permits", topic, attrs);
+        messagePermitRemainingGauge = ip.newUpDownCounter("pulsar.client.consumer.permit.remaining",
+                Unit.Messages, "The number of consumer permit remaining", topic, attrs, measurement -> {
+                    measurement.record(getCurrentReceiverQueueSize() / 2 - AVAILABLE_PERMITS_UPDATER.get(this),
+                            messagePermitRemainingGauge.getAttributes());
+                });
+        messagePermitLimitGauge = ip.newUpDownCounter("pulsar.client.consumer.permit.limit",
+                Unit.Messages, "The number of consumer permit remaining", topic, attrs, measurement-> {
+                    measurement.record(getCurrentReceiverQueueSize() / 2 , messagePermitLimitGauge.getAttributes());
+                });
 
         consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
                 "The number of acknowledged messages", topic, attrs);
@@ -1149,6 +1163,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }));
         }
+        messagePermitRemainingGauge.close();
+        messagePermitLimitGauge.close();
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -1842,8 +1858,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
+        messageAvailablePermitsGauge.add(delta);
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
+                messageAvailablePermitsGauge.subtract(available);
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
