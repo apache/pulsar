@@ -2791,6 +2791,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             info.entries = li.getEntries();
                             info.size = li.getSize();
                             info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+                            info.bookkeeperDeleted =
+                                    li.hasOffloadContext() && li.getOffloadContext().getBookkeeperDeleted();
                             stats.ledgers.add(info);
                             if (includeLedgerMetadata) {
                                 futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {

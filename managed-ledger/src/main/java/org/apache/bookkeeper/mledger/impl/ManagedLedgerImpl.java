@@ -4394,6 +4394,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 info.entries = li.getEntries();
                 info.size = li.getSize();
                 info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+                info.bookkeeperDeleted = li.hasOffloadContext() && li.getOffloadContext().getBookkeeperDeleted();
                 if (includeLedgerMetadata) {
                     // lookup metadata from the hashmap which contains completed async operations
                     info.metadata = ledgerMetadataFutures.get(li.getLedgerId()).getNow(null);
