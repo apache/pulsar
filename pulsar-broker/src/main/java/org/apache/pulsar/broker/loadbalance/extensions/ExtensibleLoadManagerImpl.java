@@ -427,6 +427,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                             log.warn("Interrupted while sleeping.");
                             // preserve thread's interrupt status
                             Thread.currentThread().interrupt();
+                            try {
+                                pulsar.close();
+                            } catch (PulsarServerException exc) {
+                                log.error("Failed to close pulsar service.", exc);
+                            }
+                            return;
                         }
                         failStarting(e);
                         if (retry >= MAX_RETRY) {
