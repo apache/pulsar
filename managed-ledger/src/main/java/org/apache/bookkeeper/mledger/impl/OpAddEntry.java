@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.protocol.Commands;
 
 
 /**
@@ -240,12 +239,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
 
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
-        // Don't insert to the entry cache when the entry payload is empty
-        final var duplicatedData = data.duplicate();
-        Commands.skipBrokerEntryMetadataIfExist(duplicatedData);
-        Commands.skipChecksumIfPresent(duplicatedData);
-        long metadataSize = duplicatedData.readUnsignedInt();
-        if (duplicatedData.readableBytes() > metadataSize && ml.hasActiveCursors()) {
+        // Don't insert to the entry cache for the ShadowManagedLedger
+        if (!(ml instanceof ShadowManagedLedgerImpl) && ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
