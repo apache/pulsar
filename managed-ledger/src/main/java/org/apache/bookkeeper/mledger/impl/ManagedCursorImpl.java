@@ -174,7 +174,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected volatile long messagesConsumedCounter;
 
     // Current ledger used to append the mark-delete position
-    private volatile LedgerHandle cursorLedger;
+    @VisibleForTesting
+    volatile LedgerHandle cursorLedger;
 
     // Wether the current cursorLedger is read-only or writable
     private boolean isCursorLedgerReadOnly = true;
