@@ -19,7 +19,9 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
+import java.util.Collections;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -669,6 +671,15 @@ public interface ManagedLedger {
      * will get {@link Optional#empty()} if corresponding ledger not exists.
      */
     Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId);
+
+    /**
+     * Get all ledger ids.
+     *
+     * @return
+     */
+    default CompletableFuture<NavigableSet<Long>> getLedgerIds() {
+        return CompletableFuture.completedFuture(Collections.emptyNavigableSet());
+    }
 
     /**
      * Truncate ledgers
