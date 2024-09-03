@@ -48,6 +48,7 @@ public class LinuxInfoUtils {
     private static final String CGROUPS_CPU_USAGE_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage";
     private static final String CGROUPS_CPU_LIMIT_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
     private static final String CGROUPS_CPU_LIMIT_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
+    private static final String CGROUPS_CPU_CPUSET_CPUS = "/sys/fs/cgroup/cpuset/cpuset.cpus";
 
     // proc states
     private static final String PROC_STAT_PATH = "/proc/stat";
@@ -108,6 +109,26 @@ public class LinuxInfoUtils {
     }
 
     /**
+     *  Get total cpu count.
+     * @return Total cpu count
+     */
+    public static int getTotalCpuCount() throws IOException {
+        int totalCpuCount = 0;
+        String[] ranges = readTrimStringFromFile(Paths.get(CGROUPS_CPU_CPUSET_CPUS)).split(",");
+        for (String range : ranges) {
+            if (!range.contains("-")) {
+                totalCpuCount++;
+            } else {
+                int dashIndex = range.indexOf('-');
+                int left = Integer.parseInt(range.substring(0, dashIndex));
+                int right = Integer.parseInt(range.substring(dashIndex + 1));
+                totalCpuCount += right - left + 1;
+            }
+        }
+        return totalCpuCount;
+    }
+
+    /**
      * Get total cpu limit.
      * @param isCGroupsEnabled Whether CGroup is enabled
      * @return Total cpu limit
@@ -127,6 +148,10 @@ public class LinuxInfoUtils {
 
                 if (quota > 0) {
                     return 100.0 * quota / period;
+                }
+                int totalCpuCount = getTotalCpuCount();
+                if (totalCpuCount > 0) {
+                    return 100 * totalCpuCount;
                 }
             } catch (Exception e) {
                 log.warn("[LinuxInfo] Failed to read CPU quotas from cgroup", e);
@@ -318,11 +343,11 @@ public class LinuxInfoUtils {
         return Paths.get(String.format(template, nic));
     }
 
-    private static String readTrimStringFromFile(Path path) throws IOException {
+    public static String readTrimStringFromFile(Path path) throws IOException {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
     }
 
-    private static long readLongFromFile(Path path) throws IOException {
+    public static long readLongFromFile(Path path) throws IOException {
         return Long.parseLong(readTrimStringFromFile(path));
     }
 
