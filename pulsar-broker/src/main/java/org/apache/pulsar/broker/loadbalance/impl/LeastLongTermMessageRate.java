@@ -62,23 +62,43 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
             return Double.POSITIVE_INFINITY;
         }
 
-        double totalMessageRate = 0;
-        for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
-            final TimeAverageMessageData longTermData = bundleData.getLongTermData();
-            totalMessageRate += longTermData.getMsgRateIn() + longTermData.getMsgRateOut();
-        }
+        if (conf.isSelectBrokerByThroughput()) {
+            double totalThroughput = 0;
+            for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
+                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
+                totalThroughput += longTermData.getMsgThroughputIn() + longTermData.getMsgThroughputOut();
+            }
 
-        // calculate estimated score
-        final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
-        final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
-                + timeAverageData.getLongTermMsgRateOut();
-        final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
+            // calculate estimated score
+            final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
+            final double timeAverageLongTermThroughput = timeAverageData.getLongTermMsgThroughputIn()
+                    + timeAverageData.getLongTermMsgThroughputOut();
+            final double totalThroughputEstimate = totalThroughput + timeAverageLongTermThroughput;
 
-        if (log.isDebugEnabled()) {
-            log.debug("Broker {} has long term message rate {}",
-                    brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+            if (log.isDebugEnabled()) {
+                log.debug("Broker {} has long term throughput {}",
+                        brokerData.getLocalData().getWebServiceUrl(), totalThroughputEstimate);
+            }
+            return totalThroughputEstimate;
+        } else {
+            double totalMessageRate = 0;
+            for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
+                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
+                totalMessageRate += longTermData.getMsgRateIn() + longTermData.getMsgRateOut();
+            }
+
+            // calculate estimated score
+            final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
+            final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
+                    + timeAverageData.getLongTermMsgRateOut();
+            final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
+
+            if (log.isDebugEnabled()) {
+                log.debug("Broker {} has long term message rate {}",
+                        brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+            }
+            return totalMessageRateEstimate;
         }
-        return totalMessageRateEstimate;
     }
 
     /**
