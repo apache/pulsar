@@ -17,7 +17,9 @@
 # under the License.
 #
 
-name: cassandra
-description: Writes data into Cassandra
-sinkClass: org.apache.pulsar.io.cassandra.CassandraSink
-sinkConfigClass: org.apache.pulsar.io.cassandra.CassandraSinkConfig
+roots: "localhost"
+keyspace : "airquality"
+columnFamily: "reading"
+userName : "cassandra"
+password : "cassandra"
+
