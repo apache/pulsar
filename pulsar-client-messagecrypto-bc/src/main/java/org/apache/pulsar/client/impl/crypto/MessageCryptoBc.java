@@ -525,6 +525,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
+        } catch (Exception e) {
+            log.error("{} Failed with unknwon error to decrypt data key {} to decrypt messages {}", logCtx, keyName,
+                    e.getMessage());
+            return false;
         }
         dataKey = new SecretKeySpec(dataKeyValue, "AES");
         dataKeyCache.put(ByteBuffer.wrap(keyDigest), dataKey);
@@ -553,6 +557,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
                 | BadPaddingException | ShortBufferException e) {
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("{} Failed due to unknown error to decrypt message {}", logCtx, e.getMessage());
             return false;
         }
     }
