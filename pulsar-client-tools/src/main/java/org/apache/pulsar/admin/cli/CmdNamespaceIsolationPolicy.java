@@ -75,12 +75,12 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         private Map<String, String> autoFailoverPolicyParams;
 
         @Option(names = "--unload-scope", description = "configure the type of unload to do -"
-                + " ['all_matching', 'none', 'changed'] namespaces. By default, all namespaces matching the namespaces"
-                + " regex will be unloaded and placed again. You can choose to not unload any namespace while setting"
-                + " this new policy by choosing `none` or choose to unload only the namespaces whose placement will"
-                + " actually change. If you chose 'none', you will need to manually unload the namespaces for them to"
-                + " be placed correctly, or wait till some namespaces get load balanced automatically based on load"
-                + " shedding configurations.")
+                + " ['all_matching', 'none', 'changed'] namespaces. By default, only namespaces whose placement will"
+                + " actually change would be unloaded and placed again. You can choose to not unload any namespace"
+                + " while setting this new policy by choosing `none` or choose to unload all namespaces matching"
+                + " old (if any) and new namespace regex. If you chose 'none', you will need to manually unload the"
+                + " namespaces for them to be placed correctly, or wait till some namespaces get load balanced"
+                + " automatically based on load shedding configurations.")
         private NamespaceIsolationPolicyUnloadScope unloadScope;
 
         void run() throws PulsarAdminException {

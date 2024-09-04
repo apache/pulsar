@@ -778,15 +778,16 @@ public class ClustersBase extends AdminResource {
         } catch (PulsarServerException e) {
             return FutureUtil.failedFuture(e);
         }
-        // compile regex patterns once
-        List<Pattern> namespacePatterns = policyData.getNamespaces().stream().map(Pattern::compile).toList();
-        // TODO for 4.x, we should include both old and new namespace regex pattern for unload `all_matching` option
+        Set<String> combinedNamespaces = new HashSet<>(policyData.getNamespaces());
+        final List<String> oldNamespaces = new ArrayList<>();
+        if (oldPolicy != null) {
+            oldNamespaces.addAll(oldPolicy.getNamespaces());
+            combinedNamespaces.addAll(oldNamespaces);
+        }
         return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
             List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
                     .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
                         List<CompletableFuture<String>> namespaceNamesInCluster = namespaces.stream()
-                                .filter(namespaceName -> namespacePatterns.stream()
-                                        .anyMatch(pattern -> pattern.matcher(namespaceName).matches()))
                                 .map(namespaceName -> adminClient.namespaces().getPoliciesAsync(namespaceName)
                                         .thenApply(policies -> policies.replication_clusters.contains(cluster)
                                                 ? namespaceName : null))
@@ -802,46 +803,44 @@ public class ClustersBase extends AdminResource {
                             .map(CompletableFuture::join)
                             .flatMap(List::stream)
                             .collect(Collectors.toList()));
-        }).thenCompose(shouldUnloadNamespaces -> {
-            if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
+        }).thenCompose(clusterLocalNamespaces -> {
+            if (CollectionUtils.isEmpty(clusterLocalNamespaces)) {
                 return CompletableFuture.completedFuture(null);
             }
             // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
             // actually have been changed.
 
             log.debug("Old policy: {} ; new policy: {}", oldPolicy, policyData);
-            if (oldPolicy != null && NamespaceIsolationPolicyUnloadScope.changed.equals(policyData.getUnloadScope())) {
-                // We also compare that the previous primary broker list is same as current, in case all namespaces need
-                // to be placed again anyway.
-                if (CollectionUtils.isEqualCollection(oldPolicy.getPrimary(), policyData.getPrimary())) {
-                    // list is same, so we continue finding the changed namespaces.
 
-                    // We create a union regex list contains old + new regexes
-                    Set<String> combinedNamespaces = new HashSet<>(oldPolicy.getNamespaces());
-                    combinedNamespaces.addAll(policyData.getNamespaces());
-                    // We create a intersection of the old and new regexes. These won't need to be unloaded
-                    Set<String> commonNamespaces = new HashSet<>(oldPolicy.getNamespaces());
-                    commonNamespaces.retainAll(policyData.getNamespaces());
-
-                    log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, combinedNamespaces);
-
-                    // Find the changed regexes (new - new ∩ old). TODO for 4.x, make this (new U old - new ∩ old)
-                    combinedNamespaces.removeAll(commonNamespaces);
-
-                    log.debug("changed regexes: {}", commonNamespaces);
-
-                    // Now we further filter the filtered namespaces based on this combinedNamespaces set
-                    shouldUnloadNamespaces = shouldUnloadNamespaces.stream()
-                            .filter(name -> combinedNamespaces.stream()
-                                    .map(Pattern::compile)
-                                    .anyMatch(pattern -> pattern.matcher(name).matches())
-                            ).toList();
-
-                }
+            boolean unloadAllNamespaces = false;
+            // We also compare that the previous primary broker list is same as current, in case all namespaces need
+            // to be placed again anyway.
+            if (NamespaceIsolationPolicyUnloadScope.all_matching.equals(policyData.getUnloadScope())
+                    || (oldPolicy != null
+                    && !CollectionUtils.isEqualCollection(oldPolicy.getPrimary(), policyData.getPrimary()))) {
+                unloadAllNamespaces = true;
             }
-            // unload type is either null or not in (changed, none), so we proceed to unload all namespaces
-            // TODO - default in 4.x should become `changed`
-            List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
+            // list is same, so we continue finding the changed namespaces.
+
+            // We create a intersection of the old and new regexes. These won't need to be unloaded.
+            Set<String> commonNamespaces = new HashSet<>(policyData.getNamespaces());
+            commonNamespaces.retainAll(oldNamespaces);
+
+            log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, combinedNamespaces);
+
+            if (!unloadAllNamespaces) {
+                // Find the changed regexes ((new U old) - (new ∩ old)).
+                combinedNamespaces.removeAll(commonNamespaces);
+                log.debug("changed regexes: {}", commonNamespaces);
+            }
+
+            // Now we further filter the filtered namespaces based on this combinedNamespaces set
+            List<Pattern> namespacePatterns = combinedNamespaces.stream().map(Pattern::compile).toList();
+            clusterLocalNamespaces = clusterLocalNamespaces.stream()
+                    .filter(name -> namespacePatterns.stream().anyMatch(pattern -> pattern.matcher(name).matches()))
+                    .toList();
+
+            List<CompletableFuture<Void>> futures = clusterLocalNamespaces.stream()
                     .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
                     .collect(Collectors.toList());
             return FutureUtil.waitForAll(futures).thenAccept(__ -> {
