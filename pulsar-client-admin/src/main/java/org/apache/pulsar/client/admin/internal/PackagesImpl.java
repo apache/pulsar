@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.asynchttpclient.Dsl.get;
 import com.google.gson.Gson;
-import io.netty.handler.codec.http.HttpHeaders;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,15 +35,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageName;
-import org.asynchttpclient.AsyncHandler;
-import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.Dsl;
 import org.asynchttpclient.HttpResponseBodyPart;
-import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -55,11 +53,12 @@ import org.asynchttpclient.request.body.multipart.StringPart;
 public class PackagesImpl extends ComponentResource implements Packages {
 
     private final WebTarget packages;
-    private final AsyncHttpClient httpClient;
+    private final AsyncHttpRequestExecutor asyncHttpRequestExecutor;
 
-    public PackagesImpl(WebTarget webTarget, Authentication auth, AsyncHttpClient client, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
-        this.httpClient = client;
+    public PackagesImpl(WebTarget webTarget, Authentication auth, AsyncHttpRequestExecutor asyncHttpRequestExecutor,
+                        long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
+        this.asyncHttpRequestExecutor = asyncHttpRequestExecutor;
         this.packages = webTarget.path("/admin/v3/packages");
     }
 
@@ -98,7 +97,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                 .post(packages.path(PackageName.get(packageName).toRestPath()).getUri().toASCIIString())
                 .addBodyPart(new FilePart("file", new File(path), MediaType.APPLICATION_OCTET_STREAM))
                 .addBodyPart(new StringPart("metadata", new Gson().toJson(metadata), MediaType.APPLICATION_JSON));
-            httpClient.executeRequest(addAuthHeaders(packages, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(packages, builder).build())
                 .toCompletableFuture()
                 .thenAccept(response -> {
                     if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -138,55 +137,30 @@ public class PackagesImpl extends ComponentResource implements Packages {
             FileChannel os = new FileOutputStream(destinyPath.toFile()).getChannel();
             RequestBuilder builder = get(webTarget.getUri().toASCIIString());
 
-            CompletableFuture<HttpResponseStatus> statusFuture =
-                httpClient.executeRequest(addAuthHeaders(webTarget, builder).build(),
-                    new AsyncHandler<HttpResponseStatus>() {
-                        private HttpResponseStatus status;
+            CompletableFuture<org.asynchttpclient.Response> responseFuture =
+                asyncHttpRequestExecutor.executeRequest(addAuthHeaders(webTarget, builder).build(),
+                        () -> new AsyncCompletionHandlerBase() {
 
-                        @Override
-                        public State onStatusReceived(HttpResponseStatus httpResponseStatus) throws Exception {
-                            status = httpResponseStatus;
-                            if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
-                                return State.ABORT;
+                            @Override
+                            public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
+                                os.write(bodyPart.getBodyByteBuffer());
+                                return State.CONTINUE;
                             }
-                            return State.CONTINUE;
-                        }
-
-                        @Override
-                        public State onHeadersReceived(HttpHeaders httpHeaders) throws Exception {
-                            return State.CONTINUE;
-                        }
-
-                        @Override
-                        public State onBodyPartReceived(HttpResponseBodyPart httpResponseBodyPart) throws Exception {
-                            os.write(httpResponseBodyPart.getBodyByteBuffer());
-                            return State.CONTINUE;
-                        }
-
-                        @Override
-                        public void onThrowable(Throwable throwable) {
-                            // we don't need to handle that throwable and use the returned future to handle it.
-                        }
-
-                        @Override
-                        public HttpResponseStatus onCompleted() throws Exception {
-                            return status;
-                        }
-                    }).toCompletableFuture();
-            statusFuture
-                .whenComplete((status, throwable) -> {
+                    });
+            responseFuture
+                .whenComplete((response, throwable) -> {
                     try {
                         os.close();
                     } catch (IOException e) {
                         future.completeExceptionally(getApiException(throwable));
                     }
                 })
-                .thenAccept(status -> {
-                    if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                .thenAccept(response -> {
+                    if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                         future.completeExceptionally(
                             getApiException(Response
-                                .status(status.getStatusCode())
-                                .entity(status.getStatusText())
+                                .status(response.getStatusCode())
+                                .entity(response.getStatusText())
                                 .build()));
                     } else {
                         future.complete(null);

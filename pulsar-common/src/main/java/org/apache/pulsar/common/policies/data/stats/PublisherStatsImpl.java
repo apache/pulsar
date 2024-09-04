@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.stats.Rate;
 
 /**
  * Statistics about a publisher.
@@ -63,6 +64,11 @@ public class PublisherStatsImpl implements PublisherStats {
 
     /** Metadata (key/value strings) associated with this publisher. */
     public Map<String, String> metadata;
+
+    @JsonIgnore
+    private final Rate msgIn = new Rate();
+    @JsonIgnore
+    private final Rate msgChunkIn = new Rate();
 
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
@@ -106,5 +112,38 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public void setClientVersion(String clientVersion) {
         this.clientVersion = clientVersion;
+    }
+
+    public void calculateRates() {
+        msgIn.calculateRate();
+        msgChunkIn.calculateRate();
+
+        msgRateIn = msgIn.getRate();
+        msgThroughputIn = msgIn.getValueRate();
+        averageMsgSize = msgIn.getAverageValue();
+        chunkedMessageRate = msgChunkIn.getRate();
+    }
+
+    public void recordMsgIn(long messageCount, long byteCount) {
+        msgIn.recordMultipleEvents(messageCount, byteCount);
+    }
+
+    @JsonIgnore
+    public long getMsgInCounter() {
+        return msgIn.getTotalCount();
+    }
+
+    @JsonIgnore
+    public long getBytesInCounter() {
+        return msgIn.getTotalValue();
+    }
+
+    public void recordChunkedMsgIn() {
+        msgChunkIn.recordEvent();
+    }
+
+    @JsonIgnore
+    public long getChunkedMsgInCounter() {
+        return msgChunkIn.getTotalCount();
     }
 }

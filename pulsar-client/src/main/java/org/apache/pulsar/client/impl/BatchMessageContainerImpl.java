@@ -229,7 +229,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         try {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
             if (firstCallback != null) {
-                firstCallback.sendComplete(ex);
+                firstCallback.sendComplete(ex, null);
             }
             if (batchedMessageMetadataAndPayload != null) {
                 ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);

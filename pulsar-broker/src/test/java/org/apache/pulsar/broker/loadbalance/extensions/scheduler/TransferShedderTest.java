@@ -46,6 +46,7 @@ import com.google.common.collect.Range;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -697,7 +698,7 @@ public class TransferShedderTest {
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
                 true, true,
-                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0");
+                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0", Collections.emptyMap());
     }
 
     private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,

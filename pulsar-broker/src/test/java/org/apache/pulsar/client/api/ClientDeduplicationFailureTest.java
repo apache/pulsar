@@ -127,10 +127,22 @@ public class ClientDeduplicationFailureTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        pulsar.close();
-        bkEnsemble.stop();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsar = null;
+        }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private static class ProducerThread implements Runnable {

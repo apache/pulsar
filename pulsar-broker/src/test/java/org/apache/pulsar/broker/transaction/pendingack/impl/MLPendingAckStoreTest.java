@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -30,7 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -42,7 +47,6 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
-import static org.mockito.Mockito.*;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -172,7 +176,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
         for (int i = 0; i < 20; i++){
             TxnID txnID = new TxnID(i, i);
-            PositionImpl position = PositionImpl.get(i, i);
+            Position position = PositionFactory.create(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
         }
         for (int i = 0; i < 10; i++){
@@ -185,7 +189,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         }
         for (int i = 40; i < 50; i++){
             TxnID txnID = new TxnID(i, i);
-            PositionImpl position = PositionImpl.get(i, i);
+            Position position = PositionFactory.create(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
         }
         FutureUtil.waitForAll(futureList).get();
@@ -210,7 +214,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         LinkedHashSet<Long> expectedPositions = calculatePendingAckIndexes(positionList, skipSet);
         Assert.assertEquals(
                 mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().stream()
-                        .map(PositionImpl::getEntryId).collect(Collectors.toList()),
+                        .map(Position::getEntryId).collect(Collectors.toList()),
                 new ArrayList<>(expectedPositions)
         );
         // Replay.
@@ -237,19 +241,19 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         // Verify build sparse indexes correct after replay.
         Assert.assertEquals(mlPendingAckStoreForRead.pendingAckLogIndex.size(),
                 mlPendingAckStoreForWrite.pendingAckLogIndex.size());
-        Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorReplay =
+        Iterator<Map.Entry<Position, Position>> iteratorReplay =
                 mlPendingAckStoreForRead.pendingAckLogIndex.entrySet().iterator();
-        Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorWrite =
+        Iterator<Map.Entry<Position, Position>> iteratorWrite =
                 mlPendingAckStoreForWrite.pendingAckLogIndex.entrySet().iterator();
         while (iteratorReplay.hasNext()){
-            Map.Entry<PositionImpl, PositionImpl> replayEntry = iteratorReplay.next();
-            Map.Entry<PositionImpl, PositionImpl> writeEntry =  iteratorWrite.next();
+            Map.Entry<Position, Position> replayEntry = iteratorReplay.next();
+            Map.Entry<Position, Position> writeEntry =  iteratorWrite.next();
             Assert.assertEquals(replayEntry.getKey(), writeEntry.getKey());
             Assert.assertEquals(replayEntry.getValue().getLedgerId(), writeEntry.getValue().getLedgerId());
             Assert.assertEquals(replayEntry.getValue().getEntryId(), writeEntry.getValue().getEntryId());
         }
         // Verify delete correct.
-        when(managedCursorMock.getPersistentMarkDeletedPosition()).thenReturn(PositionImpl.get(19, 19));
+        when(managedCursorMock.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(19, 19));
         mlPendingAckStoreForWrite.clearUselessLogData();
         mlPendingAckStoreForRead.clearUselessLogData();
         Assert.assertTrue(mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);

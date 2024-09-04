@@ -163,12 +163,16 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setBrokerDeduplicationEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
+            // Disable the dispatcher retry backoff in tests by default
+            conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+            conf.setDispatcherRetryBackoffMaxTimeInMs(0);
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =
                     PulsarTestContext.builder()
                             .brokerInterceptor(new CounterBrokerInterceptor())
                             .spyByDefault()
+                            .enableOpenTelemetry(true)
                             .config(conf);
             if (i > 0) {
                 testContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContexts.get(0));

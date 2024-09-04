@@ -74,6 +74,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Number of delayed messages currently being tracked. */
     public long msgDelayed;
 
+    /** Number of messages registered for replay. */
+    public long msgInReplay;
+
     /**
      * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
      * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStatsImpl#unackedMessages}
@@ -126,6 +129,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
+    /** The last sent position of the cursor. This is for Key_Shared subscription. */
+    public String lastSentPosition;
+
+    /** Set of individually sent ranges. This is for Key_Shared subscription. */
+    public String individuallySentPositions;
+
     /** The number of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRanges;
 
@@ -167,6 +176,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         msgBacklog = 0;
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
+        msgDelayed = 0;
+        msgInReplay = 0;
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
@@ -202,6 +213,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
+        this.msgInReplay += stats.msgInReplay;
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;

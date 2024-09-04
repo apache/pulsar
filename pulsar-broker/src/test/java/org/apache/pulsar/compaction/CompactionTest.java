@@ -109,7 +109,7 @@ import org.testng.annotations.Test;
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private TwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -123,8 +123,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -147,7 +147,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         return compactor.compact(topic).get();
     }
 
-    protected TwoPhaseCompactor getCompactor() {
+    protected PublishingOrderCompactor getCompactor() {
         return compactor;
     }
 
@@ -656,7 +656,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void testKeyLessMessagesPassThrough(boolean retainNullKey) throws Exception {
         conf.setTopicCompactionRetainNullKey(retainNullKey);
         restartBroker();
-        FieldUtils.writeDeclaredField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
+        FieldUtils.writeField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
 
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1384,7 +1384,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
                 Message<byte[]> message4 = consumer.receive();
                 Assert.assertEquals(message4.getKey(), "key2");
-                Assert.assertEquals(new String(message4.getData()), "");
+                assertNull(message4.getData());
 
                 Message<byte[]> message5 = consumer.receive();
                 Assert.assertEquals(message5.getKey(), "key4");

@@ -35,6 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
@@ -100,6 +102,25 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertTrue(unLoad.get());
         admin.topics().delete(topic);
         deleteNamespaceWithRetry(namespace, false);
+    }
+
+    @Test
+    public void testAddNamespaceBundleOwnershipListenerBeforeLBStart() {
+        NamespaceService namespaceService = spy(new NamespaceService(pulsar));
+        doThrow(new IllegalStateException("The LM is not initialized"))
+                .when(namespaceService).getOwnedServiceUnits();
+        namespaceService.addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {}
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {}
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return false;
+            }
+        });
     }
 
     @Test

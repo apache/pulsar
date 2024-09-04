@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -65,6 +68,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -77,8 +81,11 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -192,6 +199,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -815,15 +823,137 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get().isExists());
         });
 
         String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(partitionedTopic, 5);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get());
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get());
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get().isExists());
+            assertTrue(pulsar.getNamespaceService()
+                    .checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get().isExists());
         });
+    }
+
+    @Test
+    public void testAllowedClustersAtNamespaceLevelShouldBeIncludedInAllowedClustersAtTenantLevel() throws Exception {
+        // 1. Setup
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        Set<String> tenantAllowedClusters = Set.of("test", "r1", "r2");
+        Set<String> allowedClusters1 = Set.of("test", "r1", "r2", "r3");
+        Set<String> allowedClusters2 = Set.of("test", "r1", "r2");
+        Set<String> clusters = Set.of("r1", "r2", "r3", "r4");
+        final String tenant = "my-tenant";
+        final String namespace = tenant + "/testAllowedCluster";
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespace);
+        pulsar.getPulsarResources().getTenantResources().updateTenantAsync(tenant, tenantInfo ->
+                TenantInfo.builder().allowedClusters(tenantAllowedClusters).build());
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+        }
+        // 2. Verify
+        admin.namespaces().setNamespaceAllowedClusters(namespace, allowedClusters2);
+
+        try {
+            admin.namespaces().setNamespaceAllowedClusters(namespace, allowedClusters1);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 403);
+            assertEquals(e.getMessage(),
+                    "Cluster [r3] is not in the list of allowed clusters list for tenant [my-tenant]");
+        }
+        // 3. Clean up
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.tenants().deleteTenant(tenant, true);
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().deleteCluster(cluster);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+    }
+
+    /**
+     * Test case:
+     *      1. Replication clusters should be included in the allowed clusters. For compatibility, the replication
+     *      clusters could be set before the allowed clusters are set.
+     *      2. Peer cluster can not be a part of the allowed clusters.
+     */
+    @Test
+    public void testNewAllowedClusterAdminAPIAndItsImpactOnReplicationClusterAPI() throws Exception {
+        // 1. Setup
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        // Setup: Prepare cluster resource, tenant and namespace
+        Set<String> replicationClusters = Set.of("test", "r1", "r2");
+        Set<String> tenantAllowedClusters = Set.of("test", "r1", "r2", "r3");
+        Set<String> allowedClusters = Set.of("test", "r1", "r2", "r3");
+        Set<String> clusters = Set.of("r1", "r2", "r3", "r4");
+        final String tenant = "my-tenant";
+        final String namespace = tenant + "/testAllowedCluster";
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespace);
+        pulsar.getPulsarResources().getTenantResources().updateTenantAsync(tenant, tenantInfo ->
+                TenantInfo.builder().allowedClusters(tenantAllowedClusters).build());
+
+        Namespaces namespaces = admin.namespaces();
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+        }
+        // 2. Verify
+        // 2.1 Replication clusters should be included in the allowed clusters.
+
+        // SUCCESS
+        // 2.1.1. Set replication clusters without allowed clusters at namespace level.
+        namespaces.setNamespaceReplicationClusters(namespace, replicationClusters);
+        // 2..1.2 Set allowed clusters.
+        namespaces.setNamespaceAllowedClusters(namespace, allowedClusters);
+        // 2.1.3. Get allowed clusters and replication clusters.
+        List<String> allowedClustersResponse = namespaces.getNamespaceAllowedClusters(namespace);
+
+        List<String> replicationClustersResponse = namespaces.getNamespaceReplicationClusters(namespace);
+
+        assertEquals(replicationClustersResponse.size(), replicationClusters.size());
+        assertEquals(allowedClustersResponse.size(), allowedClusters.size());
+
+        // FAIL
+        // 2.1.4. Fail: Set allowed clusters whose scope is smaller than replication clusters.
+        Set<String> allowedClustersSmallScope = Set.of("r1", "r3");
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, allowedClustersSmallScope);
+            fail();
+        } catch (PulsarAdminException ignore) {}
+        // 2.1.5. Fail: Set replication clusters whose scope is excel the allowed clusters.
+        Set<String> replicationClustersExcel = Set.of("r1", "r4");
+        try {
+            namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel);
+            fail();
+            //Todo: The status code in the old implementation is confused.
+        } catch (PulsarAdminException.NotAuthorizedException ignore) {}
+
+        // 2.2 Peer cluster can not be a part of the allowed clusters.
+        LinkedHashSet<String> peerCluster = new LinkedHashSet<>();
+        peerCluster.add("r2");
+        pulsar.getPulsarResources().getClusterResources().deleteCluster("r1");
+        pulsar.getPulsarResources().getClusterResources().createCluster("r1",
+                ClusterData.builder().peerClusterNames(peerCluster).build());
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, Set.of("test", "r1", "r2", "r3"));
+            fail();
+        } catch (PulsarAdminException.ConflictException ignore) {}
+
+        // CleanUp: Namespace with replication clusters can not be deleted by force.
+        namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()));
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.tenants().deleteTenant(tenant, true);
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().deleteCluster(cluster);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
     }
 
     /**

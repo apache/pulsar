@@ -127,12 +127,18 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        tempDirectory = Files.createTempDirectory("SimpleProtocolHandlerTest").toFile();
+        tempDirectory = configureProtocolHandler(conf, MyProtocolHandler.class.getName(), useSeparateThreadPool);
+        super.baseSetup();
+    }
+
+    static File configureProtocolHandler(ServiceConfiguration conf, String className, boolean useSeparateThreadPool)
+            throws Exception {
+        final var tempDirectory = Files.createTempDirectory("SimpleProtocolHandlerTest").toFile();
         conf.setUseSeparateThreadPoolForProtocolHandlers(useSeparateThreadPool);
         conf.setProtocolHandlerDirectory(tempDirectory.getAbsolutePath());
         conf.setMessagingProtocols(Collections.singleton("test"));
-        buildMockNarFile(tempDirectory);
-        super.baseSetup();
+        buildMockNarFile(tempDirectory, className);
+        return tempDirectory;
     }
 
     @Test
@@ -163,7 +169,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
         }
     }
 
-    private static void buildMockNarFile(File tempDirectory) throws Exception {
+    private static void buildMockNarFile(File tempDirectory, String className) throws Exception {
         File file = new File(tempDirectory, "temp.nar");
         try (ZipOutputStream zipfile = new ZipOutputStream(new FileOutputStream(file))) {
 
@@ -176,7 +182,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
             zipfile.putNextEntry(manifest);
             String yaml = "name: test\n" +
                     "description: this is a test\n" +
-                    "handlerClass: " + MyProtocolHandler.class.getName() + "\n";
+                    "handlerClass: " + className + "\n";
             zipfile.write(yaml.getBytes(StandardCharsets.UTF_8));
             zipfile.closeEntry();
         }

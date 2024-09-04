@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -82,7 +84,7 @@ import org.testng.annotations.DataProvider;
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     // All certificate-authority files are copied from the tests/certificate-authority directory and all share the same
     // root CA.
-    protected static String getTlsFileForClient(String name) {
+    public static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
     public final static String CA_CERT_FILE_PATH =
@@ -240,6 +242,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
+        // Disable the dispatcher retry backoff in tests by default
+        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
     }
 
     protected final void init() throws Exception {
@@ -275,15 +280,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         if (brokerGateway != null) {
             brokerGateway.close();
+            brokerGateway = null;
         }
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+
         resetConfig();
         callCloseables(closeables);
         closeables.clear();
         onCleanup();
+
+        // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
+        pulsar = null;
+        mockZooKeeper = null;
+        mockZooKeeperGlobal = null;
     }
 
     protected void closeAdmin() {
@@ -737,6 +749,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void reconnectAllConnections() throws Exception {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
+    }
+
+    protected void assertOtelMetricLongSumValue(String metricName, int value) {
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

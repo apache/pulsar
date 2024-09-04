@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -152,6 +154,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         });
 
         when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, UserProfile>>>) invocation -> kvSchema);
+        when(mockRecord.getEventTime()).thenAnswer(invocation -> Optional.of(System.currentTimeMillis()));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -207,6 +210,16 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(100);
         verify(mockRecord, times(100)).ack();
+    }
+
+    @Test
+    public final void send1WithFormattedIndexTest() throws Exception {
+        map.put("indexName", "test-formatted-index-%{+yyyy-MM-dd}");
+        sink.open(map, mockSinkContext);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+        String value = getHitIdAtIndex("test-formatted-index-*", 0);
+        assertTrue(StringUtils.isNotBlank(value));
     }
 
     @Test
