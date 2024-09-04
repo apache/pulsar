@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIM
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +41,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +99,7 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -109,6 +112,14 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class ModularLoadManagerImplTest {
+
+    public final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+
     private LocalBookkeeperEnsemble bkEnsemble;
 
     private URL url1;
@@ -178,6 +189,9 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -198,6 +212,9 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
         config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
@@ -213,6 +230,9 @@ public class ModularLoadManagerImplTest {
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar3 = new PulsarService(config);
 
         secondaryBrokerId = pulsar2.getBrokerId();
@@ -228,19 +248,36 @@ public class ModularLoadManagerImplTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
-
-        admin1.close();
-        admin2.close();
-
-        pulsar2.close();
-        pulsar1.close();
-
-        if (pulsar3.isRunning()) {
-            pulsar3.close();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
         }
 
-        bkEnsemble.stop();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
+
+        if (pulsar2 != null) {
+            pulsar2.close();
+            pulsar2 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
+        if (pulsar3 != null && pulsar3.isRunning()) {
+            pulsar3.close();
+        }
+        pulsar3 = null;
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
@@ -408,6 +445,61 @@ public class ModularLoadManagerImplTest {
         }
     }
 
+    /**
+     * It verifies that the load-manager of leader broker only write topK * brokerCount bundles to zk.
+     */
+    @Test
+    public void testFilterBundlesWhileWritingToMetadataStore() throws Exception {
+        Map<String, PulsarService> pulsarServices = new HashMap<>();
+        pulsarServices.put(pulsar1.getWebServiceAddress(), pulsar1);
+        pulsarServices.put(pulsar2.getWebServiceAddress(), pulsar2);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        String protocol = "http://";
+        PulsarService leaderBroker = pulsarServices.get(protocol + pulsar1.getLeaderElectionService().getCurrentLeader().get().getBrokerId());
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) getField(
+                leaderBroker.getLoadManager().get(), "loadManager");
+        int topK = 1;
+        leaderBroker.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(topK);
+        // there are two broker in cluster, so total bundle count will be topK * 2
+        int exportBundleCount = topK * 2;
+
+        // create and configure bundle-data
+        final int totalBundles = 5;
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
+                nsFactory, "test", "test", "test", totalBundles);
+        LoadData loadData = (LoadData) getField(loadManager, "loadData");
+        for (int i = 0; i < totalBundles; i++) {
+            final BundleData bundleData = new BundleData(10, 1000);
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
+            longTermMessageData.setMsgThroughputIn(1000 * i);
+            longTermMessageData.setMsgThroughputOut(1000 * i);
+            longTermMessageData.setMsgRateIn(1000 * i);
+            longTermMessageData.setNumSamples(1000);
+            bundleData.setLongTermData(longTermMessageData);
+            loadData.getBundleData().put(bundles[i].toString(), bundleData);
+            loadData.getBrokerData().get(leaderBroker.getWebServiceAddress().substring(protocol.length()))
+                    .getLocalData().getLastStats().put(bundles[i].toString(), new NamespaceBundleStats());
+            metadataCache.create(bundleDataPath, bundleData).join();
+        }
+        for (int i = 0; i < totalBundles; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+        }
+
+        // update bundle data to zk and verify
+        loadManager.writeBundleDataOnZooKeeper();
+        int filterBundleCount = totalBundles - exportBundleCount;
+        for (int i = 0; i < filterBundleCount; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+        }
+        for (int i = filterBundleCount; i < totalBundles; i++) {
+            final String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundles[i]);
+            assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 1);
+        }
+    }
+
     // Test that load shedding works
     @Test
     public void testLoadShedding() throws Exception {
@@ -490,6 +582,64 @@ public class ModularLoadManagerImplTest {
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
     }
 
+    @Test
+    public void testUnloadBundleMetric() throws Exception {
+        final NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        final NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        stats1.msgRateIn = 100;
+        stats2.msgRateIn = 200;
+        final Map<String, NamespaceBundleStats> statsMap = new ConcurrentHashMap<>();
+        statsMap.put(mockBundleName(1), stats1);
+        statsMap.put(mockBundleName(2), stats2);
+        final LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.update(new SystemResourceUsage(), statsMap);
+        final Namespaces namespacesSpy1 = spy(pulsar1.getAdminClient().namespaces());
+        doNothing().when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
+        ModularLoadManagerImpl primaryLoadManagerSpy = spy(primaryLoadManager);
+
+        pulsar1.getConfiguration().setLoadBalancerEnabled(true);
+        final LoadData loadData = (LoadData) getField(primaryLoadManagerSpy, "loadData");
+
+        final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryBrokerId));
+        when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
+        brokerDataMap.put(primaryBrokerId, brokerDataSpy1);
+        // Need to update all the bundle data for the shredder to see the spy.
+        primaryLoadManagerSpy.handleDataNotification(new Notification(NotificationType.Created, LoadManager.LOADBALANCE_BROKERS_ROOT + "/broker:8080"));
+
+        sleep(100);
+
+        // Most expensive bundle will be unloaded.
+        localBrokerData.setCpu(new ResourceUsage(90, 100));
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 1l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 1l);
+
+        // Now less expensive bundle will be unloaded
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+
+        // Now both are in grace period: neither should be unloaded.
+        primaryLoadManagerSpy.doLoadShedding();
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+
+        // clear the recently unloaded bundles to avoid the grace period
+        loadData.getRecentlyUnloadedBundles().clear();
+
+        // Test bundle to be unloaded is filtered.
+        doAnswer(invocation -> {
+            // return empty broker to avoid unloading the bundle
+            return Optional.empty();
+        }).when(primaryLoadManagerSpy).selectBroker(any());
+        primaryLoadManagerSpy.doLoadShedding();
+
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBundleCount"), 2l);
+        assertEquals(getField(primaryLoadManagerSpy, "unloadBrokerCount"), 2l);
+    }
+
     // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain
     // metrics change by a percentage threshold.
 
@@ -551,6 +701,10 @@ public class ModularLoadManagerImplTest {
         lastData.setCpu(new ResourceUsage(100, 1000));
         currentData.setCpu(new ResourceUsage(206, 1000));
         assert (needUpdate.get());
+
+        // set the resource weight of cpu to 0, so that it should not trigger an update
+        conf.setLoadBalancerCPUResourceWeight(0);
+        assert (!needUpdate.get());
 
         lastData.setCpu(new ResourceUsage());
         currentData.setCpu(new ResourceUsage());

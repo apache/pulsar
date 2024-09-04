@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
 
@@ -33,8 +33,8 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
     public void testSnapshotCache() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
 
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(0, 0)));
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(100, 0)));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(100, 0)));
 
         ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
                 .setSnapshotId("snapshot-1");
@@ -57,19 +57,19 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         cache.addNewSnapshot(s5);
         cache.addNewSnapshot(s7);
 
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(0, 0)));
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(1, 0)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(new PositionImpl(1, 1));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 0)));
+        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(1, 1));
         assertNotNull(snapshot);
         assertEquals(snapshot.getSnapshotId(), "snapshot-1");
 
-        snapshot = cache.advancedMarkDeletePosition(new PositionImpl(5, 6));
+        snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 6));
         assertNotNull(snapshot);
         assertEquals(snapshot.getSnapshotId(), "snapshot-5");
 
         // Snapshots should have been now removed
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(2, 2)));
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(5, 5)));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(2, 2)));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(5, 5)));
     }
 
     @Test
@@ -98,12 +98,12 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         cache.addNewSnapshot(s4);
 
         // Snapshot-1 was already pruned
-        assertNull(cache.advancedMarkDeletePosition(new PositionImpl(1, 1)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(new PositionImpl(2, 2));
+        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 1)));
+        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(2, 2));
         assertNotNull(snapshot);
         assertEquals(snapshot.getSnapshotId(), "snapshot-2");
 
-        snapshot = cache.advancedMarkDeletePosition(new PositionImpl(5, 5));
+        snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 5));
         assertNotNull(snapshot);
         assertEquals(snapshot.getSnapshotId(), "snapshot-4");
     }

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<develocity xmlns="https://www.gradle.com/develocity-maven" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="https://www.gradle.com/develocity-maven https://www.gradle.com/schema/develocity-maven.xsd">
+<!-- Enable Gradle Develocity extension when GRADLE_ENTERPRISE_ACCESS_KEY/DEVELOCITY_ACCESS_KEY is set and the build isn't
+       a pull request from a branch or forked repository with a name that indicates it's a work in progress. -->
+  <enabled>#{(env['GRADLE_ENTERPRISE_ACCESS_KEY']?.trim() > '' or env['DEVELOCITY_ACCESS_KEY']?.trim() > '') and !(env['GITHUB_HEAD_REF']?.matches('(?i).*(experiment|wip|private).*') or env['GITHUB_REPOSITORY']?.matches('(?i).*(experiment|wip|private).*'))}</enabled>
+  <server>
+    <url>https://ge.apache.org</url>
+    <allowUntrusted>false</allowUntrusted>
+  </server>
+  <buildScan>
+    <capture>
+      <buildLogging>true</buildLogging>
+      <testLogging>true</testLogging>
+    </capture>
+    <backgroundBuildScanUpload>#{isFalse(env['GITHUB_ACTIONS'])}</backgroundBuildScanUpload>
+    <obfuscation>
+      <ipAddresses>#{{'0.0.0.0'}}</ipAddresses>
+    </obfuscation>
+  </buildScan>
+  <buildCache>
+    <local>
+      <enabled>#{isFalse(env['GITHUB_ACTIONS'])}</enabled>
+    </local>
+    <remote>
+      <enabled>false</enabled>
+    </remote>
+  </buildCache>
+</develocity>

@@ -35,6 +35,8 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "cluster-migration")
@@ -86,6 +89,8 @@ public class ClusterMigrationTest {
     PulsarService pulsar4;
     PulsarAdmin admin4;
 
+    String loadManagerClassName;
+
     @DataProvider(name="NamespaceMigrationTopicSubscriptionTypes")
     public Object[][] namespaceMigrationSubscriptionTypes() {
         return new Object[][] {
@@ -95,15 +100,28 @@ public class ClusterMigrationTest {
         };
     }
 
+    @DataProvider(name = "loadManagerClassName")
+    public static Object[][] loadManagerClassName() {
+        return new Object[][]{
+                {ModularLoadManagerImpl.class.getName()},
+                {ExtensibleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    @Factory(dataProvider = "loadManagerClassName")
+    public ClusterMigrationTest(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
     @BeforeMethod(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
 
         log.info("--- Starting ReplicatorTestBase::setup ---");
 
-        broker1 = new TestBroker("r1");
-        broker2 = new TestBroker("r2");
-        broker3 = new TestBroker("r3");
-        broker4 = new TestBroker("r4");
+        broker1 = new TestBroker("r1", loadManagerClassName);
+        broker2 = new TestBroker("r2", loadManagerClassName);
+        broker3 = new TestBroker("r3", loadManagerClassName);
+        broker4 = new TestBroker("r4", loadManagerClassName);
 
         pulsar1 = broker1.getPulsarService();
         url1 = new URL(pulsar1.getWebServiceAddress());
@@ -163,9 +181,9 @@ public class ClusterMigrationTest {
                         .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls()).build());
 
         // Setting r3 as replication cluster for r1
-        admin1.tenants().createTenant("pulsar",
+        updateTenantInfo(admin1, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
-        admin3.tenants().createTenant("pulsar",
+        updateTenantInfo(admin3, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespace);
@@ -175,9 +193,9 @@ public class ClusterMigrationTest {
         admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
 
         // Setting r4 as replication cluster for r2
-        admin2.tenants().createTenant("pulsar",
+        updateTenantInfo(admin2, "pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
-        admin4.tenants().createTenant("pulsar",
+        updateTenantInfo(admin4,"pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
         admin2.namespaces().createNamespace(namespace, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespace);
@@ -198,6 +216,14 @@ public class ClusterMigrationTest {
         sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
 
+    }
+
+    protected void updateTenantInfo(PulsarAdmin admin, String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            admin.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin.tenants().updateTenant(tenant, tenantInfo);
+        }
     }
 
     @AfterMethod(alwaysRun = true, timeOut = 300000)
@@ -1059,9 +1085,11 @@ public class ClusterMigrationTest {
     static class TestBroker extends MockedPulsarServiceBaseTest {
 
         private String clusterName;
+        private String loadManagerClassName;
 
-        public TestBroker(String clusterName) throws Exception {
+        public TestBroker(String clusterName, String loadManagerClassName) throws Exception {
             this.clusterName = clusterName;
+            this.loadManagerClassName = loadManagerClassName;
             setup();
         }
 
@@ -1073,8 +1101,12 @@ public class ClusterMigrationTest {
         @Override
         protected void doInitConf() throws Exception {
             super.doInitConf();
+            this.conf.setLoadManagerClassName(loadManagerClassName);
             this.conf.setWebServicePortTls(Optional.of(0));
             this.conf.setBrokerServicePortTls(Optional.of(0));
+            this.conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            this.conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            this.conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         }
 
 

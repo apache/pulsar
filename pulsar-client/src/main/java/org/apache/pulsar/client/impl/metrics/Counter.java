@@ -21,10 +21,10 @@ package org.apache.pulsar.client.impl.metrics;
 import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getDefaultAggregationLabels;
 import static org.apache.pulsar.client.impl.metrics.MetricsUtil.getTopicAttributes;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.incubator.metrics.ExtendedLongCounterBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.extension.incubator.metrics.ExtendedLongCounterBuilder;
 
 public class Counter {
 

@@ -37,8 +37,8 @@ import org.apache.pulsar.common.util.Codec;
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
-    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BrokersImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminBrokers = web.path("admin/v2/brokers");
     }
 

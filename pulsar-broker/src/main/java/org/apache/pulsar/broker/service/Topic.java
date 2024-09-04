@@ -146,12 +146,11 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled isTxnEnabled
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely();
 
     /**
      * record add-latency.
@@ -212,6 +211,16 @@ public interface Topic {
     void checkBackloggedCursors();
 
     void checkCursorsToCacheEntries();
+
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
 
     void checkDeduplicationSnapshot();
 
@@ -274,6 +283,13 @@ public interface Topic {
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
+
+    /**
+     * Get the last message position that can be dispatch.
+     */
+    default CompletableFuture<Position> getLastDispatchablePosition() {
+        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+    }
 
     CompletableFuture<MessageId> getLastMessageId();
 
@@ -367,4 +383,9 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

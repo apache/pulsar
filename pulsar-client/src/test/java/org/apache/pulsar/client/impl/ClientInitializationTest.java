@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -40,9 +40,7 @@ public class ClientInitializationTest {
                 .authentication(auth)
                 .build();
 
-        // Auth should only be started, though we shouldn't have tried to get credentials yet (until we first attempt to
-        // connect).
         verify(auth).start();
-        verifyNoMoreInteractions(auth);
+        verify(auth, times(1)).getAuthData();
     }
 }

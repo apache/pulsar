@@ -24,14 +24,15 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
@@ -49,6 +50,33 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     @Override
     protected String getProducerName() {
         return getReplicatorName(replicatorPrefix, localCluster) + REPL_PRODUCER_NAME_DELIMITER + remoteCluster;
+    }
+
+    @Override
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        if (brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            CompletableFuture<Void> topicCheckFuture = new CompletableFuture<>();
+            replicationClient.getPartitionedTopicMetadata(localTopic.getName(), false, false)
+                    .whenComplete((metadata, ex) -> {
+                if (ex == null) {
+                    if (metadata.partitions == 0) {
+                        topicCheckFuture.complete(null);
+                    } else {
+                        String errorMsg = String.format("{} Can not create the replicator due to the partitions in the"
+                                        + " remote cluster is not 0, but is %s",
+                                replicatorId, metadata.partitions);
+                        log.error(errorMsg);
+                        topicCheckFuture.completeExceptionally(
+                                new PulsarClientException.NotAllowedException(errorMsg));
+                    }
+                } else {
+                    topicCheckFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
+                }
+            });
+            return topicCheckFuture;
+        }
     }
 
     @Override
@@ -92,7 +120,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
                     TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
                             msg.getMessageBuilder().getTxnidLeastBits());
-                    if (topic.isTxnAborted(tx, (PositionImpl) entry.getPosition())) {
+                    if (topic.isTxnAborted(tx, entry.getPosition())) {
                         cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                         entry.release();
                         msg.recycle();
@@ -167,6 +195,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
                     msgOut.recordEvent(headersAndPayload.readableBytes());
+                    stats.incrementMsgOutCounter();
+                    stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));

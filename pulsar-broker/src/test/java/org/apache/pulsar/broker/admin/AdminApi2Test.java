@@ -22,6 +22,9 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
+import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,7 +54,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
 import lombok.AllArgsConstructor;
@@ -70,6 +75,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -105,29 +111,15 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.EntryFilters;
-import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -2870,45 +2862,78 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String myNamespace = newUniqueName(defaultTenant + "/ns");
         admin.namespaces().createNamespace(myNamespace, Set.of("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxProducersPerTopicUnlimited";
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicInteger schemaOpsCounter = injectSchemaCheckCounterForTopic(topic);
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 0);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 0);
-        List<Producer<byte[]>> producers = new ArrayList<>();
+        List<Producer<String>> producers = new ArrayList<>();
         for (int i = 0; i < maxProducersPerTopic + 1; i++) {
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
             producers.add(producer);
         }
+        assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 1);
 
         admin.namespaces().removeMaxProducersPerTopic(myNamespace);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == null);
+
         try {
             @Cleanup
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
-            assertTrue(e.getMessage().contains("Topic reached max producers limit"));
+            String expectMsg = "Topic '" + topic + "' reached max producers limit";
+            assertTrue(e.getMessage().contains(expectMsg));
+            assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 1);
         }
         //set the limit to 3
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 3);
         // should success
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         producers.add(producer);
+        assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 2);
         try {
             @Cleanup
             Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic).create();
             fail("should fail");
         } catch (PulsarClientException e) {
-            assertTrue(e.getMessage().contains("Topic reached max producers limit"));
+            String expectMsg = "Topic '" + topic + "' reached max producers limit";
+            assertTrue(e.getMessage().contains(expectMsg));
+            assertEquals(schemaOpsCounter.get(), maxProducersPerTopic + 2);
         }
 
         //clean up
-        for (Producer<byte[]> tempProducer : producers) {
+        for (Producer<String> tempProducer : producers) {
             tempProducer.close();
         }
+    }
+
+    private AtomicInteger injectSchemaCheckCounterForTopic(String topicName) {
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                WhiteboxImpl.getInternalState(pulsar.getBrokerService(), "topics");
+        AbstractTopic topic = (AbstractTopic) topics.get(topicName).join().get();
+        AbstractTopic spyTopic = Mockito.spy(topic);
+        AtomicInteger counter = new AtomicInteger();
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                counter.incrementAndGet();
+                return invocation.callRealMethod();
+            }
+        }).when(spyTopic).addSchema(any(SchemaData.class));
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                counter.incrementAndGet();
+                return invocation.callRealMethod();
+            }
+        }).when(spyTopic).addSchemaIfIdleOrCheckCompatible(any(SchemaData.class));
+        topics.put(topicName, CompletableFuture.completedFuture(Optional.of(spyTopic)));
+        return counter;
     }
 
     @Test
@@ -2922,49 +2947,55 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String myNamespace = newUniqueName(defaultTenant + "/ns");
         admin.namespaces().createNamespace(myNamespace, Set.of("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxConsumersPerTopicUnlimited";
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicInteger schemaOpsCounter = injectSchemaCheckCounterForTopic(topic);
 
         assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace));
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 0);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 0);
-        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        List<Consumer<String>> consumers = new ArrayList<>();
         for (int i = 0; i < maxConsumersPerTopic + 1; i++) {
-            Consumer<byte[]> consumer =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             consumers.add(consumer);
         }
+        assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 2);
 
         admin.namespaces().removeMaxConsumersPerTopic(myNamespace);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == null);
         try {
             @Cleanup
-            Consumer<byte[]> subscribe =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> subscribe = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
+            assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 2);
         }
         //set the limit to 3
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
         Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 3);
         // should success
-        Consumer<byte[]> consumer =
-                pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
         consumers.add(consumer);
+        assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 3);
         try {
             @Cleanup
-            Consumer<byte[]> subscribe =
-                    pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
+            Consumer<String> subscribe = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Topic reached max consumers limit"));
+            assertEquals(schemaOpsCounter.get(), maxConsumersPerTopic + 3);
         }
 
         //clean up
-        for (Consumer<byte[]> subConsumer : consumers) {
+        for (Consumer<String> subConsumer : consumers) {
             subConsumer.close();
         }
     }
@@ -3446,5 +3477,189 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // cleanup.
         admin.topics().deletePartitionedTopic(partitionedTp);
+    }
+
+    private NamespaceIsolationData createPolicyData(NamespaceIsolationPolicyUnloadScope scope, List<String> namespaces,
+                                                    List<String> primaryBrokers
+    ) {
+        // setup ns-isolation-policy in both the clusters.
+        Map<String, String> parameters1 = new HashMap<>();
+        parameters1.put("min_limit", "1");
+        parameters1.put("usage_threshold", "100");
+        List<String> nsRegexList = new ArrayList<>(namespaces);
+
+        return NamespaceIsolationData.builder()
+                // "prop-ig/ns1" is present in test cluster, policy set on test2 should work
+                .namespaces(nsRegexList)
+                .primary(primaryBrokers)
+                .secondary(Collections.singletonList(""))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters1)
+                        .build())
+                .unloadScope(scope)
+                .build();
+    }
+
+    private boolean allTopicsUnloaded(List<String> topics) {
+        for (String topic : topics) {
+            if (pulsar.getBrokerService().getTopicReference(topic).isPresent()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void loadTopics(List<String> topics) throws PulsarClientException, ExecutionException, InterruptedException {
+        // create a topic by creating a producer so that the topic is present on the broker
+        for (String topic : topics) {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+            producer.close();
+            pulsar.getBrokerService().getTopicIfExists(topic).get();
+        }
+
+        // All namespaces are loaded onto broker. Assert that
+        for (String topic : topics) {
+            assertTrue(pulsar.getBrokerService().getTopicReference(topic).isPresent());
+        }
+    }
+
+    /**
+     * Validates that the namespace isolation policy set and update is unloading only the relevant namespaces based on
+     * the unload scope provided.
+     *
+     * @param topicType persistent or non persistent.
+     * @param policyName policy name.
+     * @param nsPrefix unique namespace prefix.
+     * @param totalNamespaces total namespaces to create. Only the end part. Each namespace also gets a topic t1.
+     * @param initialScope unload scope while creating the policy.
+     * @param initialNamespaceRegex namespace regex while creating the policy.
+     * @param initialLoadedNS expected namespaces to be still loaded after the policy create call. Remaining namespaces
+     *                        will be asserted to be unloaded within 20 seconds.
+     * @param updatedScope unload scope while updating the policy.
+     * @param updatedNamespaceRegex namespace regex while updating the policy.
+     * @param updatedLoadedNS expected namespaces to be loaded after policy update call. Remaining namespaces will be
+     *                        asserted to be unloaded within 20 seconds.
+     * @throws PulsarAdminException
+     * @throws PulsarClientException
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    private void testIsolationPolicyUnloadsNSWithScope(String topicType, String policyName, String nsPrefix,
+                                                       List<String> totalNamespaces,
+                                                       NamespaceIsolationPolicyUnloadScope initialScope,
+                                                       List<String> initialNamespaceRegex, List<String> initialLoadedNS,
+                                                       NamespaceIsolationPolicyUnloadScope updatedScope,
+                                                       List<String> updatedNamespaceRegex, List<String> updatedLoadedNS,
+                                                       List<String> updatedBrokerRegex)
+            throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException {
+
+        // Create all namespaces
+        List<String> allTopics = new ArrayList<>();
+        for (String namespacePart: totalNamespaces) {
+            admin.namespaces().createNamespace(nsPrefix + namespacePart, Set.of("test"));
+            allTopics.add(topicType + "://" + nsPrefix + namespacePart + "/t1");
+        }
+        // Load all topics so that they are present. Assume topic t1 under each namespace
+        loadTopics(allTopics);
+
+        // Create the policy
+        NamespaceIsolationData nsPolicyData1 = createPolicyData(
+                initialScope, initialNamespaceRegex, Collections.singletonList(".*")
+        );
+        admin.clusters().createNamespaceIsolationPolicy("test", policyName, nsPolicyData1);
+
+        List<String> initialLoadedTopics = new ArrayList<>();
+        for (String namespacePart: initialLoadedNS) {
+            initialLoadedTopics.add(topicType + "://" + nsPrefix + namespacePart + "/t1");
+        }
+
+        List<String> initialUnloadedTopics = new ArrayList<>(allTopics);
+        initialUnloadedTopics.removeAll(initialLoadedTopics);
+
+        // Assert that all topics (and thus ns) not under initialLoadedNS namespaces are unloaded
+        if (initialUnloadedTopics.isEmpty()) {
+            // Just wait a bit to ensure we don't miss lazy unloading of topics we expect not to unload
+            TimeUnit.SECONDS.sleep(5);
+        } else {
+            Awaitility.await()
+                    .atMost(10, TimeUnit.SECONDS)
+                    .until(() -> allTopicsUnloaded(initialUnloadedTopics));
+        }
+        // Assert that all topics under initialLoadedNS are still present
+        initialLoadedTopics.forEach(t -> assertTrue(pulsar.getBrokerService().getTopicReference(t).isPresent()));
+
+        // Load the topics again
+        loadTopics(allTopics);
+
+        // Update policy using updatedScope with updated namespace regex
+        nsPolicyData1 = createPolicyData(updatedScope, updatedNamespaceRegex, updatedBrokerRegex);
+        admin.clusters().updateNamespaceIsolationPolicy("test", policyName, nsPolicyData1);
+
+        List<String> updatedLoadedTopics = new ArrayList<>();
+        for (String namespacePart : updatedLoadedNS) {
+            updatedLoadedTopics.add(topicType + "://" + nsPrefix + namespacePart + "/t1");
+        }
+
+        List<String> updatedUnloadedTopics = new ArrayList<>(allTopics);
+        updatedUnloadedTopics.removeAll(updatedLoadedTopics);
+
+        // Assert that all topics (and thus ns) not under updatedLoadedNS namespaces are unloaded
+        if (updatedUnloadedTopics.isEmpty()) {
+            // Just wait a bit to ensure we don't miss lazy unloading of topics we expect not to unload
+            TimeUnit.SECONDS.sleep(5);
+        } else {
+            Awaitility.await()
+                    .atMost(10, TimeUnit.SECONDS)
+                    .until(() -> allTopicsUnloaded(updatedUnloadedTopics));
+        }
+        // Assert that all topics under updatedLoadedNS are still present
+        updatedLoadedTopics.forEach(t -> assertTrue(pulsar.getBrokerService().getTopicReference(t).isPresent()));
+
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testIsolationPolicyUnloadsNSWithAllScope(final String topicType) throws Exception {
+        String nsPrefix = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        testIsolationPolicyUnloadsNSWithScope(
+                topicType, "policy-all", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2"),
+                Collections.singletonList(".*")
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testIsolationPolicyUnloadsNSWithChangedScope(final String topicType) throws Exception {
+        String nsPrefix = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        testIsolationPolicyUnloadsNSWithScope(
+                topicType, "policy-changed", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
+                changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2"),
+                Collections.singletonList(".*")
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testIsolationPolicyUnloadsNSWithNoneScope(final String topicType) throws Exception {
+        String nsPrefix = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        testIsolationPolicyUnloadsNSWithScope(
+                topicType, "policy-none", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
+                none, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("a1", "a2", "b1", "b2", "c1"),
+                Collections.singletonList(".*")
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testIsolationPolicyUnloadsNSWithPrimaryChanged(final String topicType) throws Exception {
+        String nsPrefix = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        // As per changed flag, only c1 should unload, but due to primary change, both a* and c* will.
+        testIsolationPolicyUnloadsNSWithScope(
+                topicType, "policy-primary-changed", nsPrefix, List.of("a1", "a2", "b1", "b2", "c1"),
+                all_matching, List.of(".*-unload-test-a.*"), List.of("b1", "b2", "c1"),
+                changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2"),
+                List.of(".*", "broker.*")
+        );
     }
 }

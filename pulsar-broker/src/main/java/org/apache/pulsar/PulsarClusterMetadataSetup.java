@@ -97,6 +97,19 @@ public class PulsarClusterMetadataSetup {
                 description = "Broker-service URL for new cluster with TLS encryption", required = false)
         private String clusterBrokerServiceUrlTls;
 
+        @Option(names = {"-te",
+                "--tls-enable"},
+                description = "Enable TLS connection for new cluster")
+        private Boolean clusterBrokerClientTlsEnabled;
+
+        @Option(names = "--auth-plugin",
+                description = "The authentication plugin for new cluster")
+        protected String clusterAuthenticationPlugin;
+
+        @Option(names = "--auth-parameters",
+                description = "The authentication parameters for new cluster")
+        protected String clusterAuthenticationParameters;
+
         @Option(names = {"-zk",
                 "--zookeeper"}, description = "Local ZooKeeper quorum connection string",
                 required = false,
@@ -317,14 +330,36 @@ public class PulsarClusterMetadataSetup {
 
         PulsarResources resources = new PulsarResources(localStore, configStore);
 
-        ClusterData clusterData = ClusterData.builder()
-                .serviceUrl(arguments.clusterWebServiceUrl)
-                .serviceUrlTls(arguments.clusterWebServiceUrlTls)
-                .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
-                .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
-                .proxyServiceUrl(arguments.clusterProxyUrl)
-                .proxyProtocol(arguments.clusterProxyProtocol)
-                .build();
+        ClusterData.Builder clusterDataBuilder = ClusterData.builder();
+        if (arguments.clusterWebServiceUrl != null) {
+            clusterDataBuilder.serviceUrl(arguments.clusterWebServiceUrl);
+        }
+        if (arguments.clusterWebServiceUrlTls != null) {
+            clusterDataBuilder.serviceUrlTls(arguments.clusterWebServiceUrlTls);
+        }
+        if (arguments.clusterBrokerServiceUrl != null) {
+            clusterDataBuilder.brokerServiceUrl(arguments.clusterBrokerServiceUrl);
+        }
+        if (arguments.clusterBrokerServiceUrlTls != null) {
+            clusterDataBuilder.brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls);
+        }
+        if (arguments.clusterBrokerClientTlsEnabled != null) {
+            clusterDataBuilder.brokerClientTlsEnabled(arguments.clusterBrokerClientTlsEnabled);
+        }
+        if (arguments.clusterAuthenticationPlugin != null) {
+            clusterDataBuilder.authenticationPlugin(arguments.clusterAuthenticationPlugin);
+        }
+        if (arguments.clusterAuthenticationParameters != null) {
+            clusterDataBuilder.authenticationParameters(arguments.clusterAuthenticationParameters);
+        }
+        if (arguments.clusterProxyUrl != null) {
+            clusterDataBuilder.proxyServiceUrl(arguments.clusterProxyUrl);
+        }
+        if (arguments.clusterProxyProtocol != null) {
+            clusterDataBuilder.proxyProtocol(arguments.clusterProxyProtocol);
+        }
+
+        ClusterData clusterData = clusterDataBuilder.build();
         if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
         }
@@ -358,8 +393,8 @@ public class PulsarClusterMetadataSetup {
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
-    static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster) throws IOException,
-            InterruptedException, ExecutionException {
+    public static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)
+            throws IOException, InterruptedException, ExecutionException {
 
         TenantResources tenantResources = resources.getTenantResources();
 
@@ -375,8 +410,8 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster, int bundleNumber) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 
         if (!namespaceResources.namespaceExists(namespaceName)) {

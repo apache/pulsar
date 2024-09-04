@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +46,9 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -70,19 +71,19 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock,
-                              ScheduledExecutorService scheduler) {
+                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
+                              Clock clock,
+                              PulsarService pulsarService) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance(scheduler);
+        this.stats = new SchemaRegistryStats(pulsarService);
     }
 
-    @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
-                              ScheduledExecutorService scheduler) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), scheduler);
+                              PulsarService pulsarService) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), pulsarService);
     }
 
     @Override
@@ -136,16 +137,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                 })
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Get schema failed", schemaId);
                         }
-                        this.stats.recordGetFailed(schemaId);
+                        this.stats.recordGetFailed(schemaId, latencyMs);
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug(null == v ? "[{}] Schema not found" : "[{}] Schema is present", schemaId);
                         }
-                        this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordGetLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -157,10 +159,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return schemaStorage.getAll(schemaId)
                 .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas))
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
-                        this.stats.recordGetFailed(schemaId);
+                        this.stats.recordListFailed(schemaId, latencyMs);
                     } else {
-                        this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordListLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -228,10 +231,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
                         });
                 }))).whenComplete((v, ex) -> {
+                    var latencyMs = this.clock.millis() - start.getValue();
                     if (ex != null) {
                         log.error("[{}] Put schema failed", schemaId, ex);
                         if (start.getValue() != 0) {
-                            this.stats.recordPutFailed(schemaId);
+                            this.stats.recordPutFailed(schemaId, latencyMs);
                         }
                         promise.completeExceptionally(ex);
                     } else {
@@ -261,14 +265,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return schemaStorage
                 .put(schemaId, deletedEntry, new byte[]{})
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
                         log.error("[{}] User {} delete schema failed", schemaId, user);
-                        this.stats.recordDelFailed(schemaId);
+                        this.stats.recordDelFailed(schemaId, latencyMs);
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] User {} delete schema finished", schemaId, user);
                         }
-                        this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordDelLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -284,11 +289,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
         return schemaStorage.delete(schemaId, forcefully)
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
-                        this.stats.recordDelFailed(schemaId);
+                        this.stats.recordDelFailed(schemaId, latencyMs);
                         log.error("[{}] Delete schema storage failed", schemaId);
                     } else {
-                        this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordDelLatency(schemaId, latencyMs);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Delete schema storage finished", schemaId);
                         }
@@ -393,7 +399,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     return checkCompatibilityWithAll(schemaId, schemaData, strategy);
                 }
             } else {
-                return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
+                return FutureUtil.failedFuture(new NotExistSchemaException("Topic does not have schema to check"));
             }
         });
     }
@@ -473,7 +479,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }
                 return result;
             } else {
-                return FutureUtils.exception(new IncompatibleSchemaException("Do not have existing schema."));
+                return CompletableFuture.completedFuture(null);
             }
         });
     }

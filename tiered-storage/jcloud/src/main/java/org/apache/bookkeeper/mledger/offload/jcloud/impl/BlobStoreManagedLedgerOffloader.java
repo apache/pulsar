@@ -51,9 +51,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadataConsumer;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
@@ -108,9 +108,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
     private final long maxBufferLength;
+    private final OffsetsCache entryOffsetsCache;
     private final ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
-    private volatile PositionImpl lastOfferedPosition = PositionImpl.LATEST;
+    private volatile Position lastOfferedPosition = PositionFactory.LATEST;
     private final Duration maxSegmentCloseTime;
     private final long minSegmentCloseTimeMillis;
     private final long segmentBeginTimeMillis;
@@ -123,13 +124,16 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler,
-                                                         LedgerOffloaderStats offloaderStats) throws IOException {
+                                                         LedgerOffloaderStats offloaderStats,
+                                                         OffsetsCache entryOffsetsCache)
+            throws IOException {
 
-        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata, offloaderStats);
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata, offloaderStats, entryOffsetsCache);
     }
 
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
-                                    Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats) {
+                                    Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats,
+                                    OffsetsCache entryOffsetsCache) {
 
         this.scheduler = scheduler;
         this.userMetadata = userMetadata;
@@ -140,6 +144,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.minSegmentCloseTimeMillis = Duration.ofSeconds(config.getMinSegmentTimeInSecond()).toMillis();
         //ensure buffer can have enough content to fill a block
         this.maxBufferLength = Math.max(config.getWriteBufferSizeInBytes(), config.getMinBlockSizeInBytes());
+        this.entryOffsetsCache = entryOffsetsCache;
         this.segmentBeginTimeMillis = System.currentTimeMillis();
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
@@ -520,7 +525,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return result;
     }
 
-    private PositionImpl lastOffered() {
+    private Position lastOffered() {
         return lastOfferedPosition;
     }
 
@@ -555,7 +560,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         readBucket, key, indexKey,
                         DataBlockUtils.VERSION_CHECK,
                         ledgerId, config.getReadBufferSizeInBytes(),
-                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
+                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME),
+                        this.entryOffsetsCache));
             } catch (Throwable t) {
                 log.error("Failed readOffloaded: ", t);
                 promise.completeExceptionally(t);
