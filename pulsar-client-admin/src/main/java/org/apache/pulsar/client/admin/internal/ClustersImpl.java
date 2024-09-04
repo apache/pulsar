@@ -47,8 +47,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     private final WebTarget adminClusters;
 
-    public ClustersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ClustersImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminClusters = web.path("/admin/v2/clusters");
     }
 

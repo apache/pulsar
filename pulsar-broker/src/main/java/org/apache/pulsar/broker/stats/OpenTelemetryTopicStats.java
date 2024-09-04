@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
@@ -31,12 +30,10 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 public class OpenTelemetryTopicStats implements AutoCloseable {
 
@@ -151,6 +148,12 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     // Replaces ['pulsar_txn_tb_active_total', 'pulsar_txn_tb_aborted_total', 'pulsar_txn_tb_committed_total']
     public static final String TRANSACTION_COUNTER = "pulsar.broker.topic.transaction.count";
     private final ObservableLongMeasurement transactionCounter;
+
+    // Replaces ['pulsar_txn_tb_client_abort_failed_total', 'pulsar_txn_tb_client_commit_failed_total',
+    //           'pulsar_txn_tb_client_abort_latency', 'pulsar_txn_tb_client_commit_latency']
+    public static final String TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER =
+            "pulsar.broker.topic.transaction.buffer.client.operation.count";
+    private final ObservableLongMeasurement transactionBufferClientOperationCounter;
 
     // Replaces pulsar_subscription_delayed
     public static final String DELAYED_SUBSCRIPTION_COUNTER = "pulsar.broker.topic.subscription.delayed.entry.count";
@@ -336,6 +339,12 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .setDescription("The number of transactions on this topic.")
                 .buildObserver();
 
+        transactionBufferClientOperationCounter = meter
+                .counterBuilder(TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
+                .setUnit("{operation}")
+                .setDescription("The number of operations on the transaction buffer client.")
+                .buildObserver();
+
         delayedSubscriptionCounter = meter
                 .upDownCounterBuilder(DELAYED_SUBSCRIPTION_COUNTER)
                 .setUnit("{entry}")
@@ -374,6 +383,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 compactionEntriesCounter,
                 compactionBytesCounter,
                 transactionCounter,
+                transactionBufferClientOperationCounter,
                 delayedSubscriptionCounter);
     }
 
@@ -383,16 +393,8 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     }
 
     private void recordMetricsForTopic(Topic topic) {
-        var topicName = TopicName.get(topic.getName());
-        var builder = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
-                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
-        if (topicName.isPartitioned()) {
-            builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
-        }
-        var attributes = builder.build();
+        var topicAttributes = topic.getTopicAttributes();
+        var attributes = topicAttributes.getCommonAttributes();
 
         if (topic instanceof AbstractTopic abstractTopic) {
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
@@ -410,6 +412,9 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
         }
 
         if (topic instanceof PersistentTopic persistentTopic) {
+            var persistentTopicMetrics = persistentTopic.getPersistentTopicMetrics();
+
+            var persistentTopicAttributes = persistentTopic.getTopicAttributes();
             var managedLedger = persistentTopic.getManagedLedger();
             var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
             storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
@@ -426,31 +431,29 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                     topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime(),
                     attributes);
             backlogQuotaAge.record(topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(), attributes);
-            var backlogQuotaMetrics = persistentTopic.getPersistentTopicMetrics().getBacklogQuotaMetrics();
+            var backlogQuotaMetrics = persistentTopicMetrics.getBacklogQuotaMetrics();
             backlogEvictionCounter.record(backlogQuotaMetrics.getSizeBasedBacklogQuotaExceededEvictionCount(),
-                    Attributes.builder()
-                            .putAll(attributes)
-                            .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "size")
-                            .build());
+                    persistentTopicAttributes.getSizeBasedQuotaAttributes());
             backlogEvictionCounter.record(backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount(),
-                    Attributes.builder()
-                            .putAll(attributes)
-                            .put(OpenTelemetryAttributes.PULSAR_BACKLOG_QUOTA_TYPE, "time")
-                            .build());
+                    persistentTopicAttributes.getTimeBasedQuotaAttributes());
 
             var txnBuffer = persistentTopic.getTransactionBuffer();
-            transactionCounter.record(txnBuffer.getOngoingTxnCount(), Attributes.builder()
-                    .putAll(attributes)
-                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
-                    .build());
-            transactionCounter.record(txnBuffer.getCommittedTxnCount(), Attributes.builder()
-                    .putAll(attributes)
-                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "committed")
-                    .build());
-            transactionCounter.record(txnBuffer.getAbortedTxnCount(), Attributes.builder()
-                    .putAll(attributes)
-                    .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "aborted")
-                    .build());
+            transactionCounter.record(txnBuffer.getOngoingTxnCount(),
+                    persistentTopicAttributes.getTransactionActiveAttributes());
+            transactionCounter.record(txnBuffer.getCommittedTxnCount(),
+                    persistentTopicAttributes.getTransactionCommittedAttributes());
+            transactionCounter.record(txnBuffer.getAbortedTxnCount(),
+                    persistentTopicAttributes.getTransactionAbortedAttributes());
+
+            var txnBufferClientMetrics = persistentTopicMetrics.getTransactionBufferClientMetrics();
+            transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getCommitSucceededCount().sum(),
+                    persistentTopicAttributes.getTransactionBufferClientCommitSucceededAttributes());
+            transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getCommitFailedCount().sum(),
+                    persistentTopicAttributes.getTransactionBufferClientCommitFailedAttributes());
+            transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getAbortSucceededCount().sum(),
+                    persistentTopicAttributes.getTransactionBufferClientAbortSucceededAttributes());
+            transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getAbortFailedCount().sum(),
+                    persistentTopicAttributes.getTransactionBufferClientAbortFailedAttributes());
 
             Optional.ofNullable(pulsar.getNullableCompactor())
                     .map(Compactor::getStats)
@@ -458,15 +461,9 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                     .ifPresent(compactionRecord -> {
                         compactionRemovedCounter.record(compactionRecord.getCompactionRemovedEventCount(), attributes);
                         compactionOperationCounter.record(compactionRecord.getCompactionSucceedCount(),
-                                Attributes.builder()
-                                        .putAll(attributes)
-                                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
-                                        .build());
+                                persistentTopicAttributes.getCompactionSuccessAttributes());
                         compactionOperationCounter.record(compactionRecord.getCompactionFailedCount(),
-                                Attributes.builder()
-                                        .putAll(attributes)
-                                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
-                                        .build());
+                                persistentTopicAttributes.getCompactionFailureAttributes());
                         compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
                             compactionRecord.getCompactionDurationTimeInMills(), TimeUnit.MILLISECONDS), attributes);
                         compactionBytesInCounter.record(compactionRecord.getCompactionReadBytes(), attributes);

@@ -62,11 +62,11 @@ public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
     protected final Authentication auth;
-    protected final long readTimeoutMs;
+    protected final long requestTimeoutMs;
 
-    protected BaseResource(Authentication auth, long readTimeoutMs) {
+    protected BaseResource(Authentication auth, long requestTimeoutMs) {
         this.auth = auth;
-        this.readTimeoutMs = readTimeoutMs;
+        this.requestTimeoutMs = requestTimeoutMs;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {
@@ -339,7 +339,7 @@ public abstract class BaseResource {
 
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
         try {
-            return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return executor.get().get(this.requestTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
            Thread.currentThread().interrupt();
           throw new PulsarAdminException(e);

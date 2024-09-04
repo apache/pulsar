@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -87,23 +89,26 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                     PendingAckMetadata pendingAckMetadata =
                             pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
                     pendingAckHandle.handleCumulativeAckRecover(txnID,
-                            PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
+                            PositionFactory.create(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
                 } else {
-                    List<MutablePair<PositionImpl, Integer>> positions = new ArrayList<>();
+                    List<MutablePair<Position, Integer>> positions = new ArrayList<>();
                     pendingAckMetadataEntry.getPendingAckMetadatasList().forEach(pendingAckMetadata -> {
                         if (pendingAckMetadata.getAckSetsCount() == 0) {
-                            positions.add(new MutablePair<>(PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                            positions.add(new MutablePair<>(PositionFactory.create(pendingAckMetadata.getLedgerId(),
                                     pendingAckMetadata.getEntryId()), pendingAckMetadata.getBatchSize()));
                         } else {
-                            PositionImpl position =
-                                    PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId());
+                            long[] ackSets = null;
                             if (pendingAckMetadata.getAckSetsCount() > 0) {
-                                long[] ackSets = new long[pendingAckMetadata.getAckSetsCount()];
+                                ackSets = new long[pendingAckMetadata.getAckSetsCount()];
                                 for (int i = 0; i < pendingAckMetadata.getAckSetsCount(); i++) {
                                     ackSets[i] = pendingAckMetadata.getAckSetAt(i);
                                 }
-                                position.setAckSet(ackSets);
+                            } else {
+                                ackSets = new long[0];
                             }
+                            Position position =
+                                    AckSetStateUtil.createPositionWithAckSet(pendingAckMetadata.getLedgerId(),
+                                            pendingAckMetadata.getEntryId(), ackSets);
                             positions.add(new MutablePair<>(position, pendingAckMetadata.getBatchSize()));
                         }
                     });

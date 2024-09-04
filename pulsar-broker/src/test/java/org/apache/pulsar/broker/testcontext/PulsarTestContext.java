@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.testcontext;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
@@ -746,6 +747,7 @@ public class PulsarTestContext implements AutoCloseable {
             if (builder.enableOpenTelemetry) {
                 var reader = InMemoryMetricReader.create();
                 openTelemetryMetricReader(reader);
+                registerCloseable(reader);
                 openTelemetrySdkBuilderCustomizer = BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
             } else {
                 openTelemetrySdkBuilderCustomizer = null;
@@ -842,9 +844,8 @@ public class PulsarTestContext implements AutoCloseable {
 
             @Override
             public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup)
-                    throws Exception {
-
+                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup,
+                                   OpenTelemetry openTelemetry) {
             }
 
             @Override

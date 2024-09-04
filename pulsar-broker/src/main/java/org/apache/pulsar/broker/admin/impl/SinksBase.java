@@ -389,8 +389,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart an instance of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this sink"),
             @ApiResponse(code = 400, message = "Invalid restart request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
@@ -415,8 +416,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart all instances of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid restart request"),
             @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
@@ -436,8 +438,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop an instance of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Stop an instance of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid stop request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink instance does not exist"),
             @ApiResponse(code = 500, message =
@@ -460,8 +463,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop all instances of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid stop request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 500, message =
@@ -481,8 +485,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start an instance of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid start request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 500, message =
@@ -505,8 +510,9 @@ public class SinksBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start all instances of a Pulsar Sink", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Sink")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid start request"),
             @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 500, message =

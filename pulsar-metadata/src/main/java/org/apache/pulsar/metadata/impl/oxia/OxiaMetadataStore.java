@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.streamnative.oxia.client.api.AsyncOxiaClient;
 import io.streamnative.oxia.client.api.DeleteOption;
 import io.streamnative.oxia.client.api.Notification;
@@ -40,6 +41,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -55,33 +58,49 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private final AsyncOxiaClient client;
 
     private final String identity;
-    private final Optional<MetadataEventSynchronizer> synchronizer;
+    private Optional<MetadataEventSynchronizer> synchronizer;
 
-    OxiaMetadataStore(
+    public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
+        super("oxia-metadata", OpenTelemetry.noop());
+        this.client = oxia;
+        this.identity = identity;
+        this.synchronizer = Optional.empty();
+        init();
+    }
+
+    public OxiaMetadataStore(
             @NonNull String serviceAddress,
             @NonNull String namespace,
-            @NonNull MetadataStoreConfig metadataStoreConfig,
+            MetadataStoreConfig metadataStoreConfig,
             boolean enableSessionWatcher)
             throws Exception {
-        super("oxia-metadata");
+        super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry());
 
         var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
         if (!metadataStoreConfig.isBatchingEnabled()) {
             linger = 0;
         }
-        this.synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
+        synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
-        client =
-                OxiaClientBuilder.create(serviceAddress)
-                        .clientIdentifier(identity)
-                        .namespace(namespace)
-                        .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
-                        .batchLinger(Duration.ofMillis(linger))
-                        .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations())
-                        .asyncClient()
-                        .get();
+        OxiaClientBuilder oxiaClientBuilder = OxiaClientBuilder
+                .create(serviceAddress)
+                .clientIdentifier(identity)
+                .namespace(namespace)
+                .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
+                .batchLinger(Duration.ofMillis(linger))
+                .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
+        if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
+            oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
+        }
+        client = oxiaClientBuilder.asyncClient().get();
+        init();
+    }
+
+    private void init() {
+        updateMetadataEventSynchronizer(synchronizer.orElse(null));
+
         client.notifications(this::notificationCallback);
-        super.registerSyncListener(Optional.ofNullable(metadataStoreConfig.getSynchronizer()));
+        super.registerSyncListener(synchronizer);
     }
 
     private void notificationCallback(Notification notification) {
@@ -234,14 +253,16 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {
-        if (ex.getCause() instanceof UnexpectedVersionIdException
-                || ex.getCause() instanceof KeyAlreadyExistsException) {
+        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+        if (actEx instanceof UnexpectedVersionIdException || actEx instanceof KeyAlreadyExistsException) {
             return CompletableFuture.failedFuture(
-                    new MetadataStoreException.BadVersionException(ex.getCause()));
-        } else if (ex.getCause() instanceof IllegalStateException) {
-            return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException(ex.getCause()));
+                    new MetadataStoreException.BadVersionException(actEx));
+        } else if (actEx instanceof IllegalStateException) {
+            return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException(actEx));
+        } else if (actEx instanceof MetadataStoreException) {
+            return CompletableFuture.failedFuture(actEx);
         } else {
-            return CompletableFuture.failedFuture(ex.getCause());
+            return CompletableFuture.failedFuture(new MetadataStoreException(actEx));
         }
     }
 
@@ -284,6 +305,12 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return synchronizer;
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = Optional.ofNullable(synchronizer);
+        registerSyncListener(this.synchronizer);
     }
 
     private record PathWithPutResult(String path, PutResult result) {}

@@ -190,7 +190,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null)) {
             final int totalConsumers = 20;
             List<Future<?>> futures = new ArrayList<>();
 
@@ -198,7 +198,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             for (int i = 0; i < totalConsumers; i++) {
                 long reqId = 0xdeadbeef + i;
                 Future<?> f = executor.submit(() -> {
-                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId);
+                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId, true);
                         pool.getConnection(resolver.resolveHost())
                             .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
                             .get();

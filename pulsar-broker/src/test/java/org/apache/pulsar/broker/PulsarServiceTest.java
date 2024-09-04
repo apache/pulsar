@@ -24,11 +24,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertSame;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.testng.annotations.AfterMethod;
@@ -56,12 +59,17 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.doInitConf();
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
+        conf.setTopicNameCacheMaxCapacity(5000);
+        conf.setMaxSecondsToClearTopicNameCache(5);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
             conf.setWebServicePort(Optional.of(8081));
             conf.setWebServicePortTls(Optional.of(8082));
         }
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
     }
 
     @Test
@@ -185,6 +193,34 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
         assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
         assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+    }
+
+    @Test
+    public void testTopicCacheConfiguration() throws Exception {
+        cleanup();
+        setup();
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
+
+        List<TopicName> topicNameCached = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            topicNameCached.add(TopicName.get("public/default/tp_" + i));
+        }
+
+        // Verify: the cache does not clear since it is not larger than max capacity.
+        Thread.sleep(10 * 1000);
+        for (int i = 0; i < 20; i++) {
+            assertTrue(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+        }
+
+        // Update max capacity.
+        admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
+
+        // Verify: the cache were cleared.
+        Thread.sleep(10 * 1000);
+        for (int i = 0; i < 20; i++) {
+            assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+        }
     }
 
     @Test

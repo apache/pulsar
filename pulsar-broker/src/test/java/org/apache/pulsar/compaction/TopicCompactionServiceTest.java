@@ -35,7 +35,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -53,7 +53,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private TwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -72,8 +72,8 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+                this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -143,13 +143,13 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
         String markDeletePosition =
                 admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;
         String[] split = markDeletePosition.split(":");
-        compactedTopic.newCompactedLedger(PositionImpl.get(Long.valueOf(split[0]), Long.valueOf(split[1])),
+        compactedTopic.newCompactedLedger(PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1])),
                 compactedLedger).join();
 
         Position lastCompactedPosition = service.getLastCompactedPosition().join();
         assertEquals(admin.topics().getInternalStats(topic).lastConfirmedEntry, lastCompactedPosition.toString());
 
-        List<Entry> entries = service.readCompactedEntries(PositionImpl.EARLIEST, 4).join();
+        List<Entry> entries = service.readCompactedEntries(PositionFactory.EARLIEST, 4).join();
         assertEquals(entries.size(), 3);
         entries.stream().map(e -> {
             try {
@@ -170,7 +170,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
             }
         });
 
-        List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
+        List<Entry> entries2 = service.readCompactedEntries(PositionFactory.EARLIEST, 1).join();
         assertEquals(entries2.size(), 1);
 
         Entry entry = service.findEntryByEntryIndex(0).join();

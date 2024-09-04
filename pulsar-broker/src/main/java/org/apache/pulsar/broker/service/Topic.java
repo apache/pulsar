@@ -146,12 +146,11 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled isTxnEnabled
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely();
 
     /**
      * record add-latency.
@@ -384,4 +383,9 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

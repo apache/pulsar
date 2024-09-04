@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.opentelemetry.api.common.Attributes;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +37,14 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.StringInterner;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +58,7 @@ public abstract class AbstractReplicator implements Replicator {
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
     protected String replicatorId;
+    @Getter
     protected final Topic localTopic;
 
     protected volatile ProducerImpl producer;
@@ -73,6 +77,10 @@ public abstract class AbstractReplicator implements Replicator {
     @VisibleForTesting
     @Getter
     protected volatile State state = State.Disconnected;
+
+    private volatile Attributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<AbstractReplicator, Attributes> ATTRIBUTES_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, Attributes.class, "attributes");
 
     public enum State {
         /**
@@ -136,8 +144,23 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void disableReplicatorRead();
 
+    @Override
+    public boolean isConnected() {
+        var producer = this.producer;
+        return producer != null && producer.isConnected();
+    }
+
+    public long getReplicationDelayMs() {
+        var producer = this.producer;
+        return producer == null ? 0 : producer.getDelayInMillis();
+    }
+
     public String getRemoteCluster() {
         return remoteCluster;
+    }
+
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        return CompletableFuture.completedFuture(null);
     }
 
     public void startProducer() {
@@ -166,8 +189,15 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            setProducerAndTriggerReadEntries(producer);
+
+        // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
+        // the remote cluster.
+        prepareCreateProducer().thenCompose(ignore -> {
+            ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
+            builderImpl.getConf().setNonPartitionedTopicExpected(true);
+            return producerBuilder.createAsync().thenAccept(producer -> {
+                setProducerAndTriggerReadEntries(producer);
+            });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
@@ -192,6 +222,7 @@ public abstract class AbstractReplicator implements Replicator {
             }
             return null;
         });
+
     }
 
     /***
@@ -475,5 +506,27 @@ public abstract class AbstractReplicator implements Replicator {
 
     public boolean isTerminated() {
         return state == State.Terminating || state == State.Terminated;
+    }
+
+    public Attributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_UPDATER.updateAndGet(this, old -> {
+            if (old != null) {
+                return old;
+            }
+            var topicName = TopicName.get(getLocalTopic().getName());
+            var builder = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicName.getDomain().toString())
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, topicName.getTenant())
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicName.getNamespace())
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName.getPartitionedTopicName());
+            if (topicName.isPartitioned()) {
+                builder.put(OpenTelemetryAttributes.PULSAR_PARTITION_INDEX, topicName.getPartitionIndex());
+            }
+            builder.put(OpenTelemetryAttributes.PULSAR_REPLICATION_REMOTE_CLUSTER_NAME, getRemoteCluster());
+            return builder.build();
+        });
     }
 }

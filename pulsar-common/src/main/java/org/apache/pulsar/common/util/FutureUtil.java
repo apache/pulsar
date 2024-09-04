@@ -54,6 +54,9 @@ public class FutureUtil {
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
     public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
+        if (futures == null || futures.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
@@ -199,9 +202,9 @@ public class FutureUtil {
 
     public static Throwable unwrapCompletionException(Throwable ex) {
         if (ex instanceof CompletionException) {
-            return ex.getCause();
+            return unwrapCompletionException(ex.getCause());
         } else if (ex instanceof ExecutionException) {
-            return ex.getCause();
+            return unwrapCompletionException(ex.getCause());
         } else {
             return ex;
         }

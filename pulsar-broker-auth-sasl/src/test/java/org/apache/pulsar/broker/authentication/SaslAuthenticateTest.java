@@ -312,7 +312,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
         // The cache expiration time is set to 50ms. Residual auth info should be cleaned up
         conf.setInflightSaslContextExpiryMs(50);
-        saslServer.initialize(conf);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
@@ -360,7 +360,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         doReturn("Init").when(servletRequest).getHeader("State");
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
         conf.setMaxInflightSaslContext(1);
-        saslServer.initialize(conf);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
         // add 10 inflight sasl context
         for (int i = 0; i < 10; i++) {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");

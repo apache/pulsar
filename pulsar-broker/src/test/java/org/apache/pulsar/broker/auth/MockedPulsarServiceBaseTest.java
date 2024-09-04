@@ -84,7 +84,7 @@ import org.testng.annotations.DataProvider;
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     // All certificate-authority files are copied from the tests/certificate-authority directory and all share the same
     // root CA.
-    protected static String getTlsFileForClient(String name) {
+    public static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
     public final static String CA_CERT_FILE_PATH =
@@ -242,6 +242,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
+        // Disable the dispatcher retry backoff in tests by default
+        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
     }
 
     protected final void init() throws Exception {

@@ -42,6 +42,9 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.Test;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 
 @Slf4j
 public class JettySslContextFactoryTest {
@@ -51,16 +54,20 @@ public class JettySslContextFactoryTest {
         @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory factory = JettySslContextFactory.createServerSslContext(
-                null,
-                false,
-                Resources.getResource("ssl/my-ca/ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-key.pem").getPath(),
-                true,
-                null,
-                null,
-                600);
+        PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
+                .tlsTrustCertsFilePath(Resources.getResource("ssl/my-ca/ca.pem").getPath())
+                .tlsCertificateFilePath(Resources.getResource("ssl/my-ca/server-ca.pem").getPath())
+                .tlsKeyFilePath(Resources.getResource("ssl/my-ca/server-key.pem").getPath())
+                .allowInsecureConnection(false)
+                .requireTrustedClientCertOnConnect(true)
+                .tlsEnabledWithKeystore(false)
+                .isHttps(true)
+                .build();
+        PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
+        sslFactory.initialize(sslConfiguration);
+        sslFactory.createInternalSslContext();
+        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+                sslFactory, true, null, null);
 
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);
@@ -85,20 +92,30 @@ public class JettySslContextFactoryTest {
         @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory factory = JettySslContextFactory.createServerSslContext(
-                null,
-                false,
-                Resources.getResource("ssl/my-ca/ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-key.pem").getPath(),
-                true,
-                null,
+        PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
+                .tlsProtocols(new HashSet<String>() {
+                    {
+                        this.add("TLSv1.3");
+                    }
+                })
+                .tlsTrustCertsFilePath(Resources.getResource("ssl/my-ca/ca.pem").getPath())
+                .tlsCertificateFilePath(Resources.getResource("ssl/my-ca/server-ca.pem").getPath())
+                .tlsKeyFilePath(Resources.getResource("ssl/my-ca/server-key.pem").getPath())
+                .allowInsecureConnection(false)
+                .requireTrustedClientCertOnConnect(true)
+                .tlsEnabledWithKeystore(false)
+                .isHttps(true)
+                .build();
+        PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
+        sslFactory.initialize(sslConfiguration);
+        sslFactory.createInternalSslContext();
+        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+                sslFactory, true, null,
                 new HashSet<String>() {
                     {
                         this.add("TLSv1.3");
                     }
-                },
-                600);
+                });
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);
@@ -123,13 +140,30 @@ public class JettySslContextFactoryTest {
         @Cleanup("stop")
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory factory = JettySslContextFactory.createServerSslContext(
-                null,
-                false,
-                Resources.getResource("ssl/my-ca/ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-key.pem").getPath(),
-                true,
+        PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
+                .tlsCiphers(new HashSet<String>() {
+                    {
+                        this.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+                    }
+                })
+                .tlsProtocols(new HashSet<String>() {
+                    {
+                        this.add("TLSv1.3");
+                    }
+                })
+                .tlsTrustCertsFilePath(Resources.getResource("ssl/my-ca/ca.pem").getPath())
+                .tlsCertificateFilePath(Resources.getResource("ssl/my-ca/server-ca.pem").getPath())
+                .tlsKeyFilePath(Resources.getResource("ssl/my-ca/server-key.pem").getPath())
+                .allowInsecureConnection(false)
+                .requireTrustedClientCertOnConnect(true)
+                .isHttps(true)
+                .tlsEnabledWithKeystore(false)
+                .build();
+        PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
+        sslFactory.initialize(sslConfiguration);
+        sslFactory.createInternalSslContext();
+        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+                sslFactory, true,
                 new HashSet<String>() {
                     {
                         this.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
@@ -137,11 +171,9 @@ public class JettySslContextFactoryTest {
                 },
                 new HashSet<String>() {
                     {
-                        this.add("TLSv1.2");
+                        this.add("TLSv1.3");
                     }
-                },
-                600);
-
+                });
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
         connector.setPort(0);

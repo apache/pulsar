@@ -61,8 +61,8 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -180,6 +180,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         cursorMock = mock(ManagedCursorImpl.class);
 
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
@@ -202,7 +203,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // call addComplete on ledger asyncAddEntry
         doAnswer(invocationOnMock -> {
             ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                    new PositionImpl(1, 1), null, null);
+                    PositionFactory.create(1, 1), null, null);
             return null;
         }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), any());
 

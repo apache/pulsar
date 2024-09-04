@@ -30,6 +30,9 @@ import org.apache.pulsar.common.util.DateFormatter;
  */
 @Data
 public class ConsumerStatsImpl implements ConsumerStats {
+    /** the app id. */
+    public String appId;
+
     /** Total rate of messages delivered to the consumer (msg/s). */
     public double msgRateOut;
 
@@ -74,8 +77,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
+    /** The last sent position of the cursor when the consumer joining. */
+    public String lastSentPositionWhenJoining;
 
     /** Address of this consumer. */
     private String address;
@@ -110,7 +113,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
-        this.readPositionWhenJoining = stats.readPositionWhenJoining;
+        this.lastSentPositionWhenJoining = stats.lastSentPositionWhenJoining;
         return this;
     }
 
@@ -138,8 +141,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.clientVersion = clientVersion;
     }
 
-    public String getReadPositionWhenJoining() {
-        return readPositionWhenJoining;
+    public String getLastSentPositionWhenJoining() {
+        return lastSentPositionWhenJoining;
     }
 
     public String getLastAckedTime() {

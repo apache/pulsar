@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -30,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
@@ -69,7 +71,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
@@ -87,6 +91,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.zookeeper.CreateMode;
@@ -104,7 +111,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-        AuthenticationProviderToken.resetMetrics();
+        AuthenticationMetricsToken.reset();
     }
 
     @Override
@@ -203,6 +210,110 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test
+    public void testBrokerMetrics() throws Exception {
+        cleanup();
+        conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        setup();
+
+        admin.tenants().createTenant("test-tenant",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("test-tenant/test-ns", 4);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/my-topic2").create();
+        // system topic
+        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://test-tenant/test-ns/__test-topic").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        // additional system cursor
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/my-topic2")
+                .subscriptionName("test-cursor")
+                .subscribe();
+
+        Consumer<byte[]> c3 = pulsarClient.newConsumer()
+                .topic("persistent://test-tenant/test-ns/__test-topic")
+                .subscriptionName("test-v1")
+                .subscribe();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+            p3.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+            c2.acknowledge(c2.receive());
+            c3.acknowledge(c3.receive());
+        }
+
+        // unsubscribe to test remove cursor impact on metric
+        c1.unsubscribe();
+        c2.unsubscribe();
+
+        admin.topicPolicies().setRetention("persistent://test-tenant/test-ns/my-topic2",
+                        new RetentionPolicies(60, 1024));
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        metrics.entries().forEach(e -> {
+            System.out.println(e.getKey() + ": " + e.getValue());
+        });
+
+        List<Metric> bytesOutTotal = (List<Metric>) metrics.get("pulsar_broker_out_bytes_total");
+        List<Metric> bytesInTotal = (List<Metric>) metrics.get("pulsar_broker_in_bytes_total");
+        List<Metric> topicLevelBytesOutTotal = (List<Metric>) metrics.get("pulsar_out_bytes_total");
+
+        assertEquals(bytesOutTotal.size(), 2);
+        assertEquals(bytesInTotal.size(), 2);
+        assertEquals(topicLevelBytesOutTotal.size(), 3);
+
+        double systemOutBytes = 0.0;
+        double userOutBytes = 0.0;
+        double systemInBytes = 0.0;
+        double userInBytes = 0.0;
+
+        for (Metric metric : bytesOutTotal) {
+            if (metric.tags.get("system_subscription").equals("true")) {
+                systemOutBytes = metric.value;
+            } else {
+                userOutBytes = metric.value;
+            }
+        }
+
+        for (Metric metric : bytesInTotal) {
+            if (metric.tags.get("system_topic").equals("true")) {
+                systemInBytes = metric.value;
+            } else {
+                userInBytes = metric.value;
+            }
+        }
+
+        double systemCursorOutBytes = 0.0;
+        for (Metric metric : topicLevelBytesOutTotal) {
+            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)
+                    || metric.tags.get("subscription").equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+                systemCursorOutBytes = metric.value;
+            }
+        }
+
+        assertEquals(systemCursorOutBytes, systemInBytes);
+        assertEquals(userOutBytes / 2, systemOutBytes - systemCursorOutBytes);
+        assertEquals(userOutBytes + systemOutBytes, userInBytes + systemInBytes);
     }
 
     @Test
@@ -1391,7 +1502,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         try {
             provider.authenticate(new AuthenticationDataSource() {
@@ -1455,7 +1566,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         Date expiredDate = new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1));
         String expiredToken = AuthTokenUtils.createToken(secretKey, "subject", Optional.of(expiredDate));
@@ -1491,6 +1602,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
+        @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
@@ -1498,7 +1610,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         int[] tokenRemainTime = new int[]{3, 7, 40, 100, 400};
 
@@ -1525,27 +1637,19 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Metric countMetric = ((List<Metric>) metrics.get("pulsar_expiring_token_minutes_count")).get(0);
         assertEquals(countMetric.value, tokenRemainTime.length);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_expiring_token_minutes_bucket");
-        assertEquals(cm.size(), 5);
+        var buckets = cm.stream().map(m -> m.tags.get("le")).collect(Collectors.toSet());
+        assertThat(buckets).isEqualTo(Set.of("5.0", "10.0", "60.0", "240.0", "1440.0", "10080.0", "20160.0", "43200.0",
+                "129600.0", "259200.0", "388800.0", "525600.0", "+Inf"));
         cm.forEach((e) -> {
-            switch (e.tags.get("le")) {
-                case "5.0":
-                    assertEquals(e.value, 1);
-                    break;
-                case "10.0":
-                    assertEquals(e.value, 2);
-                    break;
-                case "60.0":
-                    assertEquals(e.value, 3);
-                    break;
-                case "240.0":
-                    assertEquals(e.value, 4);
-                    break;
-                default:
-                    assertEquals(e.value, 5);
-                    break;
-            }
+            var expectedValue = switch(e.tags.get("le")) {
+                case "5.0" -> 1;
+                case "10.0" -> 2;
+                case "60.0" -> 3;
+                case "240.0" -> 4;
+                default -> 5;
+            };
+            assertEquals(e.value, expectedValue);
         });
-        provider.close();
     }
 
     @Test
@@ -1850,13 +1954,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         });
         consumer1.close();
         consumer2.close();
-    }
-
-    private void compareCompactionStateCount(List<Metric> cm, double count) {
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-        assertEquals(cm.get(0).tags.get("broker"), "localhost");
-        assertEquals(cm.get(0).value, count);
     }
 
     @Test

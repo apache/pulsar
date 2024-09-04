@@ -29,11 +29,13 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Getter;
@@ -44,6 +46,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -103,6 +109,9 @@ public class ProxyServiceStarter {
     private boolean generateDocs = false;
 
     private ProxyConfiguration config;
+
+    @Getter
+    private Authentication proxyClientAuthentication;
 
     @Getter
     private ProxyService proxyService;
@@ -244,8 +253,27 @@ public class ProxyServiceStarter {
     public void start() throws Exception {
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(config));
+
+        if (config.getBrokerClientAuthenticationPlugin() != null) {
+            proxyClientAuthentication = AuthenticationFactory.create(config.getBrokerClientAuthenticationPlugin(),
+                    config.getBrokerClientAuthenticationParameters());
+            Objects.requireNonNull(proxyClientAuthentication, "No supported auth found for proxy");
+            try {
+                proxyClientAuthentication.start();
+            } catch (Exception e) {
+                try {
+                    proxyClientAuthentication.close();
+                } catch (IOException ioe) {
+                    log.error("Failed to close the authentication service", ioe);
+                }
+                throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
+            }
+        } else {
+            proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
+        }
+
         // create proxy service
-        proxyService = new ProxyService(config, authenticationService);
+        proxyService = new ProxyService(config, authenticationService, proxyClientAuthentication);
         // create a web-service
         server = new WebServer(config, authenticationService);
 
@@ -293,7 +321,8 @@ public class ProxyServiceStarter {
         }
 
         AtomicReference<WebSocketService> webSocketServiceRef = new AtomicReference<>();
-        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider(), webSocketServiceRef);
+        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider(), webSocketServiceRef,
+                proxyClientAuthentication);
         webSocketService = webSocketServiceRef.get();
 
         // start web-service
@@ -311,6 +340,9 @@ public class ProxyServiceStarter {
             if (webSocketService != null) {
                 webSocketService.close();
             }
+            if (proxyClientAuthentication != null) {
+                proxyClientAuthentication.close();
+            }
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
         } finally {
@@ -323,15 +355,17 @@ public class ProxyServiceStarter {
     public static void addWebServerHandlers(WebServer server,
                                             ProxyConfiguration config,
                                             ProxyService service,
-                                            BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        addWebServerHandlers(server, config, service, discoveryProvider, null);
+                                            BrokerDiscoveryProvider discoveryProvider,
+                                            Authentication proxyClientAuthentication) throws Exception {
+        addWebServerHandlers(server, config, service, discoveryProvider, null, proxyClientAuthentication);
     }
 
     public static void addWebServerHandlers(WebServer server,
                                             ProxyConfiguration config,
                                             ProxyService service,
                                             BrokerDiscoveryProvider discoveryProvider,
-                                            AtomicReference<WebSocketService> webSocketServiceRef) throws Exception {
+                                            AtomicReference<WebSocketService> webSocketServiceRef,
+                                            Authentication proxyClientAuthentication) throws Exception {
         // We can make 'status.html' publicly accessible without authentication since
         // it does not contain any sensitive data.
         server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
@@ -348,7 +382,8 @@ public class ProxyServiceStarter {
             }
         }
 
-        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider,
+                proxyClientAuthentication);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
