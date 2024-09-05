@@ -67,7 +67,7 @@ public class ShadowReplicator extends PersistentReplicator {
                 ByteBuf headersAndPayload = entry.getDataBuffer();
                 MessageImpl msg;
                 try {
-                    msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
+                    msg = MessageImpl.deserializeMetadataWithEmptyPayload(headersAndPayload);
                 } catch (Throwable t) {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
@@ -91,7 +91,7 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
 
-                msgOut.recordEvent(headersAndPayload.readableBytes());
+                msgOut.recordEvent(msg.getDataBuffer().readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
 
