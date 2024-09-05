@@ -1257,8 +1257,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}", this.toString(),
-                        topicName, subscriptionName, consumerId);
+                log.info("[{}] Subscribing on topic {} / {}. consumerId: {}, role: {}", this.toString(), topicName,
+                        subscriptionName, consumerId, getPrincipal());
                 try {
                     Metadata.validateMetadata(metadata,
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
@@ -1748,7 +1748,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
                 if (producerFuture.complete(producer)) {
-                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    log.info("[{}] Created new producer: {}, role: {}", remoteAddress, producer, getPrincipal());
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
