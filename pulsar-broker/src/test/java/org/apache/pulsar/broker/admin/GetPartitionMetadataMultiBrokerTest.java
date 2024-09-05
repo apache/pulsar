@@ -256,8 +256,8 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         // Initialize the connections of internal Pulsar Client.
         PulsarClientImpl client1 = (PulsarClientImpl) pulsar1.getClient();
         PulsarClientImpl client2 = (PulsarClientImpl) pulsar2.getClient();
-        client1.getLookup(pulsar2.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
-        client2.getLookup(pulsar1.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+        client1.getLookup(pulsar2.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1")).join();
+        client2.getLookup(pulsar1.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1")).join();
 
         // Inject a not support flag into the connections initialized.
         Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
