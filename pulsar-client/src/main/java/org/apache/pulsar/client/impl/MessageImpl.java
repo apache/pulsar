@@ -306,6 +306,13 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
+    public static MessageImpl<byte[]> deserializeMetadataWithEmptyPayload(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        MessageImpl<byte[]> msg = deserializeSkipBrokerEntryMetaData(headersAndPayloadWithBrokerEntryMetadata);
+        msg.payload = Unpooled.EMPTY_BUFFER;
+        return msg;
+    }
+
     public void setReplicatedFrom(String cluster) {
         msgMetadata.setReplicatedFrom(cluster);
     }
