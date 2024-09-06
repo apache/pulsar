@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
@@ -60,7 +62,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final String listenerName;
     private final int maxLookupRedirects;
 
-    private final ConcurrentHashMap<TopicName, CompletableFuture<LookupTopicResult>>
+    private final ConcurrentHashMap<Pair<TopicName, Map<String, String>>, CompletableFuture<LookupTopicResult>>
             lookupInProgress = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
@@ -118,10 +120,12 @@ public class BinaryProtoLookupService implements LookupService {
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         long startTime = System.nanoTime();
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        final Pair<TopicName, Map<String, String>> key = Pair.of(topicName,
+                client.getConfiguration().getLookupProperties());
         try {
-            return lookupInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<LookupTopicResult> newFuture =
-                        findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+            return lookupInProgress.computeIfAbsent(key, tpName -> {
+                CompletableFuture<LookupTopicResult> newFuture = findBroker(serviceNameResolver.resolveHost(), false,
+                        topicName, 0, key.getRight());
                 newFutureCreated.setValue(newFuture);
 
                 newFuture.thenRun(() -> {
@@ -135,7 +139,7 @@ public class BinaryProtoLookupService implements LookupService {
         } finally {
             if (newFutureCreated.getValue() != null) {
                 newFutureCreated.getValue().whenComplete((v, ex) -> {
-                    lookupInProgress.remove(topicName, newFutureCreated.getValue());
+                    lookupInProgress.remove(key, newFutureCreated.getValue());
                 });
             }
         }
@@ -167,7 +171,7 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<LookupTopicResult> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, TopicName topicName, final int redirectCount) {
+            boolean authoritative, TopicName topicName, final int redirectCount, Map<String, String> properties) {
         CompletableFuture<LookupTopicResult> addressFuture = new CompletableFuture<>();
 
         if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
@@ -179,7 +183,7 @@ public class BinaryProtoLookupService implements LookupService {
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId,
-                    client.getConfiguration().getLookupProperties());
+                    properties);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed
@@ -204,7 +208,7 @@ public class BinaryProtoLookupService implements LookupService {
 
                         // (2) redirect to given address if response is: redirect
                         if (r.redirect) {
-                            findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
+                            findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1, properties)
                                 .thenAccept(addressFuture::complete)
                                 .exceptionally((lookupException) -> {
                                     Throwable cause = FutureUtil.unwrapCompletionException(lookupException);
