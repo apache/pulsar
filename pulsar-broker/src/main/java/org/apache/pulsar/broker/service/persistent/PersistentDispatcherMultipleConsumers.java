@@ -135,6 +135,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     protected int lastNumberOfEntriesDispatched;
+    protected boolean skipNextBackoff;
     private final Backoff retryBackoff;
     protected enum ReadType {
         Normal, Replay
@@ -699,7 +700,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int entriesDispatched = lastNumberOfEntriesDispatched;
         updatePendingBytesToDispatch(-totalBytesSize);
         if (triggerReadingMore) {
-            if (entriesDispatched > 0) {
+            if (entriesDispatched > 0 || skipNextBackoff) {
+                skipNextBackoff = false;
                 // Reset the backoff when we successfully dispatched messages
                 retryBackoff.reset();
                 // Call readMoreEntries in the same thread to trigger the next read
