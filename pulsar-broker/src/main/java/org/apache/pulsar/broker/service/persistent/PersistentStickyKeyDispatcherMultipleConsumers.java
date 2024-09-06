@@ -681,6 +681,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     /**
+     * For Key_Shared subscription, the dispatcher will not read more entries while there are pending reads
+     * or pending replay reads.
+     * @return true if there are no pending reads or pending replay reads
+     */
+    @Override
+    protected boolean doesntHavePendingRead() {
+        return !havePendingRead && !havePendingReplayRead;
+    }
+
+    /**
      * In Key_Shared mode, the consumer will not receive any entries from a normal reading if it is included in
      * {@link #recentlyJoinedConsumers}, they can only receive entries from replay reads.
      * If all entries in {@link #redeliveryMessages} have been filtered out due to the order guarantee mechanism,
@@ -689,19 +699,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     @Override
     protected boolean isNormalReadAllowed() {
-        // Always allow ordinary reads if out-of-order delivery is enabled
-        if (isAllowOutOfOrderDelivery()) {
-            return true;
+        if (!isLookAheadAllowed()) {
+            return false;
         }
         for (Consumer consumer : consumerList) {
             // skip blocked consumers
             if (consumer == null || consumer.isBlocked()) {
-                continue;
-            }
-            // skip the consumer if isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist is false
-            // and consumer exists in the recently joined consumer
-            if (!serviceConfig.isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist()
-                    && recentlyJoinedConsumers.containsKey(consumer)) {
                 continue;
             }
             // before reading more, check that there's at least one consumer that has permits
@@ -710,6 +713,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
         return false;
+    }
+
+    @Override
+    protected void handleNormalReadNotAllowed() {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Skipping read for the topic since normal read isn't allowed. "
+                    + "Rescheduling a read with a backoff.", topic.getName(), getSubscriptionName());
+        }
+        reScheduleReadWithBackoff();
     }
 
     @Override

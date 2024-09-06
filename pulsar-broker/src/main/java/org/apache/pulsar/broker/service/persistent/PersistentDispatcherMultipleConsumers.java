@@ -372,7 +372,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
-            } else if (!havePendingRead && isNormalReadAllowed()) {
+            } else if (doesntHavePendingRead()) {
+                if (!isNormalReadAllowed()) {
+                    handleNormalReadNotAllowed();
+                    return;
+                }
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
@@ -403,14 +407,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    if (!messagesToReplayNow.isEmpty()) {
-                        log.debug("[{}] [{}] Skipping read for the topic: because all entries in replay queue were"
-                                + " filtered out due to the mechanism of Key_Shared mode, and the left consumers have"
-                                + " no permits now",
-                                topic.getName(), getSubscriptionName());
-                    } else {
-                        log.debug("[{}] Cannot schedule next read until previous one is done", name);
-                    }
+                    log.debug("[{}] Cannot schedule next read until previous one is done", name);
                 }
             }
         } else {
@@ -418,6 +415,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    /**
+     * Checks if there's a pending read operation that hasn't completed yet.
+     * This allows to avoid scheduling a new read operation while the previous one is still in progress.
+     * @return true if there's a pending read operation
+     */
+    protected boolean doesntHavePendingRead() {
+        return !havePendingRead;
+    }
+
+    protected void handleNormalReadNotAllowed() {
+        // do nothing
     }
 
     /**
@@ -450,6 +460,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     protected void reScheduleRead() {
         reScheduleReadInMs(MESSAGE_RATE_BACKOFF_MS);
+    }
+
+    protected synchronized void reScheduleReadWithBackoff() {
+        reScheduleReadInMs(retryBackoff.next());
     }
 
     protected void reScheduleReadInMs(long readAfterMs) {
@@ -708,7 +722,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 readMoreEntries();
             } else if (entriesDispatched == 0) {
                 // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
-                reScheduleReadInMs(retryBackoff.next());
+                reScheduleReadWithBackoff();
             }
         }
     }
@@ -1282,7 +1296,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#isNormalReadAllowed}.
      */
     protected boolean isNormalReadAllowed() {
-        return true;
+        return !havePendingRead;
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
