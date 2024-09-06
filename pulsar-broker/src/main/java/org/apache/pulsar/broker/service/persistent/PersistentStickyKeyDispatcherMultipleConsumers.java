@@ -741,11 +741,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     /**
-     * In Key_Shared mode, the consumer will not receive any entries from a normal reading if it is included in
-     * {@link #recentlyJoinedConsumers}, they can only receive entries from replay reads.
-     * If all entries in {@link #redeliveryMessages} have been filtered out due to the order guarantee mechanism,
-     * Broker need a normal read to make the consumers not included in @link #recentlyJoinedConsumers} will not be
-     * stuck. See https://github.com/apache/pulsar/pull/7105.
+     * For Key_Shared subscription, the dispatcher will not attempt to read more entries if the replay queue size
+     * has reached the limit or if there are no consumers with permits.
      */
     @Override
     protected boolean isNormalReadAllowed() {
@@ -766,6 +763,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
+    /**
+     * When a normal read is not allowed, the dispatcher will reschedule a read with a backoff.
+     */
     @Override
     protected void handleNormalReadNotAllowed() {
         if (log.isDebugEnabled()) {
