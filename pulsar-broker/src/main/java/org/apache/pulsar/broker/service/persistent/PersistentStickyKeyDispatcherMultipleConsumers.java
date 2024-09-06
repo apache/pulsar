@@ -403,11 +403,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
         // maxLastSentPosition cache for consumers, used when recently joined consumers exist
         Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers() ? new HashMap<>() : null;
+        // in normal read mode, keep track of consumers that are blocked by hash, to check if look-ahead could be useful
         Set<Consumer> blockedByHashConsumers = readType == ReadType.Normal ? new HashSet<>() : null;
+        // in replay read mode, keep track of consumers for entries, used for look-ahead check
+        Set<Consumer> consumersForEntriesForLookaheadCheck = readType == ReadType.Replay ? new HashSet<>() : null;
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
+            if (readType == ReadType.Replay) {
+                consumersForEntriesForLookaheadCheck.add(consumer);
+            }
             Position maxLastSentPosition = hasRecentlyJoinedConsumers() ? maxLastSentPositionCache.computeIfAbsent(
                     consumer, __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
             MutableBoolean blockedByHash = readType == ReadType.Normal ? new MutableBoolean(false) : null;
@@ -438,6 +444,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 entry.release();
             }
         }
+        //
+        // determine whether look-ahead could be useful for making more progress
+        //
         if (readType == ReadType.Normal) {
             for (Consumer consumer : blockedByHashConsumers) {
                 // if the consumer isn't in the entriesGroupedByConsumer, it means that it won't receive any messages
@@ -447,6 +456,21 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         && permitsForConsumer.get(consumer).intValue() > 0) {
                     lookAheadCouldBeUseful.setTrue();
                     break;
+                }
+            }
+        } else if (readType == ReadType.Replay) {
+            // if all entries are filtered out due to the order guarantee mechanism, then look-ahead could be useful
+            // if there are other consumers with available permits
+            if (entriesGroupedByConsumer.isEmpty()) {
+                for (Consumer consumer : getConsumers()) {
+                    // filter out the consumers that are already checked when the entries were processed for entries
+                    if (!consumersForEntriesForLookaheadCheck.contains(consumer)) {
+                        // if another consumer has available permits, then look-ahead could be useful
+                        if (getAvailablePermits(consumer) > 0) {
+                            lookAheadCouldBeUseful.setTrue();
+                            break;
+                        }
+                    }
                 }
             }
         }

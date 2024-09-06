@@ -119,7 +119,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(100).when(configMock).getDispatcherMaxReadBatchSize();
         doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
         doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
-        doReturn(true).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
+        doReturn(false).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
         doReturn(false).when(configMock).isAllowOverrideEntryFilters();
         doReturn(10).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
         doReturn(50).when(configMock).getDispatcherRetryBackoffMaxTimeInMs();
@@ -343,7 +343,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Create 2Consumers
         try {
             doReturn("consumer2").when(slowConsumerMock).consumerName();
-            // Change slowConsumer availablePermits to 0 and back to normal
             when(slowConsumerMock.getAvailablePermits())
                     .thenReturn(0)
                     .thenReturn(1);
@@ -369,28 +368,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        if (persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal,
-                redeliverEntries, true)) {
-            persistentDispatcher.readMoreEntriesAsync();
-        }
+        persistentDispatcher.readEntriesComplete(redeliverEntries,
+                PersistentDispatcherMultipleConsumers.ReadType.Replay);
 
-        Awaitility.await().untilAsserted(() -> {
-            verify(consumerMock, times(1)).sendMessages(
-                    argThat(arg -> {
-                        assertEquals(arg.size(), 1);
-                        Entry entry = arg.get(0);
-                        assertEquals(entry.getLedgerId(), 1);
-                        assertEquals(entry.getEntryId(), 3);
-                        return true;
-                    }),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    anyInt(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
-        });
+        verify(consumerMock, times(1)).sendMessages(
+                argThat(arg -> {
+                    assertEquals(arg.size(), 1);
+                    Entry entry = arg.get(0);
+                    assertEquals(entry.getLedgerId(), 1);
+                    assertEquals(entry.getEntryId(), 3);
+                    return true;
+                }),
+                any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
+                anyInt(),
+                anyLong(),
+                anyLong(),
+                any(RedeliveryTracker.class)
+        );
         verify(slowConsumerMock, times(0)).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
