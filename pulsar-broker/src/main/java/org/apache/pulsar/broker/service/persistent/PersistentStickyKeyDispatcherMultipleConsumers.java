@@ -411,22 +411,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
-            if (readType == ReadType.Replay) {
-                consumersForEntriesForLookaheadCheck.add(consumer);
-            }
-            Position maxLastSentPosition = hasRecentlyJoinedConsumers() ? maxLastSentPositionCache.computeIfAbsent(
-                    consumer, __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
-            MutableBoolean blockedByHash = readType == ReadType.Normal ? new MutableBoolean(false) : null;
-            MutableInt permits =
-                    permitsForConsumer.computeIfAbsent(consumer, k -> new MutableInt(getAvailablePermits(consumer)));
+            MutableBoolean blockedByHash = null;
             boolean dispatchEntry = false;
-            // a consumer was found for the sticky key hash and the entry can be dispatched
-            if (consumer != null && permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash,
-                    maxLastSentPosition, blockedByHash)) {
-                // decrement the permits for the consumer
-                permits.decrement();
-                // allow the entry to be dispatched
-                dispatchEntry = true;
+            if (consumer != null) {
+                if (readType == ReadType.Replay) {
+                    consumersForEntriesForLookaheadCheck.add(consumer);
+                }
+                Position maxLastSentPosition = hasRecentlyJoinedConsumers() ? maxLastSentPositionCache.computeIfAbsent(
+                        consumer, __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
+                blockedByHash = readType == ReadType.Normal ? new MutableBoolean(false) : null;
+                MutableInt permits =
+                        permitsForConsumer.computeIfAbsent(consumer,
+                                k -> new MutableInt(getAvailablePermits(consumer)));
+                // a consumer was found for the sticky key hash and the entry can be dispatched
+                if (permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash,
+                        maxLastSentPosition, blockedByHash)) {
+                    // decrement the permits for the consumer
+                    permits.decrement();
+                    // allow the entry to be dispatched
+                    dispatchEntry = true;
+                }
             }
             if (dispatchEntry) {
                 // add the entry to consumer's entry list for dispatching
@@ -434,7 +438,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         entriesGroupedByConsumer.computeIfAbsent(consumer, k -> new ArrayList<>());
                 consumerEntries.add(entry);
             } else {
-                if (readType == ReadType.Normal && blockedByHash.isTrue()) {
+                if (blockedByHash != null && blockedByHash.isTrue()) {
                     // the entry is blocked by hash, add the consumer to the blocked set
                     blockedByHashConsumers.add(consumer);
                 }
