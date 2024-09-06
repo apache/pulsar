@@ -415,14 +415,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     permitsForConsumer.computeIfAbsent(consumer, k -> new MutableInt(getAvailablePermits(consumer)));
             boolean dispatchEntry = false;
             // a consumer was found for the sticky key hash and the entry can be dispatched
-            if (consumer != null && canDispatchEntry(entry, readType, stickyKeyHash, maxLastSentPosition,
-                    blockedByHash)) {
-                if (permits.intValue() > 0) {
-                    // decrement the permits for the consumer
-                    permits.decrement();
-                    // allow the entry to be dispatched
-                    dispatchEntry = true;
-                }
+            if (consumer != null && permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash,
+                    maxLastSentPosition, blockedByHash)) {
+                // decrement the permits for the consumer
+                permits.decrement();
+                // allow the entry to be dispatched
+                dispatchEntry = true;
             }
             if (dispatchEntry) {
                 // add the entry to consumer's entry list for dispatching
