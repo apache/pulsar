@@ -388,12 +388,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private boolean isLookAheadAllowed() {
-        long keySharedNumberOfReplayMessagesThresholdForLookAhead = Math.max(
-                serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerConsumer()
-                        * consumerList.size(),
-                serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerSubscription());
-        return (keySharedNumberOfReplayMessagesThresholdForLookAhead == 0
-                || redeliveryMessages.size() < keySharedNumberOfReplayMessagesThresholdForLookAhead);
+        int perConsumerLimit = serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
+        int perSubscriptionLimit = serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
+        long effectiveLimit;
+        if (perConsumerLimit <= 0) {
+            effectiveLimit = perSubscriptionLimit;
+        } else {
+            effectiveLimit = perConsumerLimit * consumerList.size();
+            if (perSubscriptionLimit > 0 && perSubscriptionLimit < effectiveLimit) {
+                effectiveLimit = perSubscriptionLimit;
+            }
+        }
+        return (effectiveLimit <= 0 || redeliveryMessages.size() < effectiveLimit);
     }
 
     // groups the entries by consumer and filters out the entries that should not be dispatched

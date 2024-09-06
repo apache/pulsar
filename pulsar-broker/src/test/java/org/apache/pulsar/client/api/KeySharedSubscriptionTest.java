@@ -630,8 +630,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testReadAheadWhenAddingConsumers() throws Exception {
-        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+    public void testReadAheadWithConfiguredLookAheadLimit() throws Exception {
+        String topic = "testReadAheadWithConfiguredLookAheadLimit-" + UUID.randomUUID();
+
+        // Set the look ahead limit to 50 for subscriptions
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(50);
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, false);
@@ -679,7 +682,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // We need to ensure that dispatcher does not keep to look ahead in the topic,
         Position readPosition = sub.getCursor().getReadPosition();
-        assertTrue(readPosition.getEntryId() < 1000);
+        long entryId = readPosition.getEntryId();
+        assertTrue(entryId < 100);
     }
 
     @Test
