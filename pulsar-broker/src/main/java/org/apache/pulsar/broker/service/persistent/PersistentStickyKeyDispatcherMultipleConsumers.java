@@ -476,6 +476,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // tracks the available permits for each consumer for the duration of the filter usage
         // the filter is stateful and shouldn't be shared or reused later
         private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
+        private final Map<Consumer, Position> maxLastSentPositionCache =
+                hasRecentlyJoinedConsumers() ? new HashMap<>() : null;
 
         @Override
         public boolean test(Position position) {
@@ -508,8 +510,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 return false;
             }
             // check if the entry position can be replayed to a recently joined consumer
-            Position maxLastSentPosition =
-                    resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, ReadType.Replay);
+            Position maxLastSentPosition = maxLastSentPositionCache != null
+                    ? maxLastSentPositionCache.computeIfAbsent(consumer, __ ->
+                    resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, ReadType.Replay))
+                    : null;
             if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
                 return false;
             }
