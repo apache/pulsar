@@ -387,7 +387,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
-    private boolean isLookAheadAllowed() {
+    private boolean isReplayQueueSizeBelowLimit() {
         return redeliveryMessages.size() < getEffectiveLookAheadLimit(serviceConfig, consumerList.size());
     }
 
@@ -421,7 +421,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // maxLastSentPosition cache for consumers, used when recently joined consumers exist
         boolean hasRecentlyJoinedConsumers = hasRecentlyJoinedConsumers();
         Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers ? new HashMap<>() : null;
-        boolean lookAheadAllowed = isLookAheadAllowed();
+        boolean lookAheadAllowed = isReplayQueueSizeBelowLimit();
         // in normal read mode, keep track of consumers that are blocked by hash, to check if look-ahead could be useful
         Set<Consumer> blockedByHashConsumers = lookAheadAllowed && readType == ReadType.Normal ? new HashSet<>() : null;
         // in replay read mode, keep track of consumers for entries, used for look-ahead check
@@ -749,7 +749,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     @Override
     protected boolean isNormalReadAllowed() {
-        if (!isLookAheadAllowed()) {
+        // don't allow reading more if the replay queue size has reached the limit
+        if (!isReplayQueueSizeBelowLimit()) {
             return false;
         }
         for (Consumer consumer : consumerList) {
