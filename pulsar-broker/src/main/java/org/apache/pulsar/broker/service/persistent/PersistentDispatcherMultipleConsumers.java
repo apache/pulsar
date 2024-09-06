@@ -1292,11 +1292,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     /**
-     * This is a mode method designed for Key_Shared mode, to avoid unnecessary stuck.
-     * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#isNormalReadAllowed}.
+     * Checks if the dispatcher is allowed to read messages from the cursor.
      */
     protected boolean isNormalReadAllowed() {
-        return !havePendingRead;
+        return true;
     }
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
