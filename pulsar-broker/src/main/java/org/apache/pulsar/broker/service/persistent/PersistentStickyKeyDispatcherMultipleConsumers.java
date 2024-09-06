@@ -404,8 +404,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
-        // maxLastSentPosition cache for consumers
-        Map<Consumer, Position> maxLastSentPositionCache = new HashMap<>();
+        // maxLastSentPosition cache for consumers, used when recently joined consumers exist
+        Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers() ? new HashMap<>() : null;
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
@@ -442,8 +442,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private boolean canDispatchEntry(Consumer consumer, Map<Consumer, Position> maxLastSentPositionCache, Entry entry,
                                      ReadType readType, int stickyKeyHash) {
         // check if the entry can be replayed to a recently joined consumer
-        Position maxLastSentPosition = maxLastSentPositionCache.computeIfAbsent(consumer,
-                __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType));
+        Position maxLastSentPosition =
+                hasRecentlyJoinedConsumers() ? maxLastSentPositionCache.computeIfAbsent(consumer,
+                        __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
         if (maxLastSentPosition != null && entry.getPosition().compareTo(maxLastSentPosition) > 0) {
             return false;
         }
@@ -566,7 +567,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // from the delete operation that was completed
         topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
+                if (hasRecentlyJoinedConsumers()
                         && removeConsumersFromRecentJoinedConsumers()) {
                     // After we process acks, we need to check whether the mark-delete position was advanced and we
                     // can finally read more messages. It's safe to call readMoreEntries() multiple times.
@@ -574,6 +575,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
             }
         });
+    }
+
+    private boolean hasRecentlyJoinedConsumers() {
+        return !MapUtils.isEmpty(recentlyJoinedConsumers);
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
