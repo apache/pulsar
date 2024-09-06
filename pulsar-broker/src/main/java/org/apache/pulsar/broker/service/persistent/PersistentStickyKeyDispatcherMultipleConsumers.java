@@ -383,7 +383,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private boolean isLookAheadAllowed() {
         if (serviceConfig.isKeySharedLookAheadEnabledWhenRecentlyJoinedConsumersExist()
-                || (recentlyJoinedConsumers == null || recentlyJoinedConsumers.isEmpty())) {
+                || !hasRecentlyJoinedConsumers()) {
             long keySharedNumberOfReplayMessagesThresholdForLookAhead = Math.max(
                     serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerConsumer()
                             * consumerList.size(),
