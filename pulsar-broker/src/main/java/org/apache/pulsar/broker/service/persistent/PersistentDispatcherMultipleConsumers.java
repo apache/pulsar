@@ -854,7 +854,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return true;
     }
 
-    private boolean sendChunkedMessagesToConsumers(ReadType readType,
+    protected boolean sendChunkedMessagesToConsumers(ReadType readType,
                                                    List<Entry> entries,
                                                    MessageMetadata[] metadataArray) {
         final List<EntryAndMetadata> originalEntryAndMetadataList = new ArrayList<>(metadataArray.length);

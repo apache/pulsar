@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -644,6 +645,27 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
         return false;
+    }
+
+    @Override
+    protected boolean sendChunkedMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                     MessageMetadata[] metadataArray) {
+        // sending chunked messages to consumers in Key_Shared mode is not supported
+        // just log a warning and send the messages to consumers
+        Position firstPosition = null;
+        int chunkedEntries = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            if (metadataArray[i].hasChunkId()) {
+                if (firstPosition == null) {
+                    firstPosition = entries.get(i).getPosition();
+                }
+                chunkedEntries++;
+            }
+        }
+        log.warn("[{}] [{}] {} chunked messages (first: {}) in topic with Key_Shared subscription. Ordering rules"
+                        + " are ignored for the complete batch of {} entries!",
+                topic.getName(), getSubscriptionName(), chunkedEntries, firstPosition, entries.size());
+        return super.sendChunkedMessagesToConsumers(readType, entries, metadataArray);
     }
 
     @Override
