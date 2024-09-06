@@ -253,10 +253,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // returns a boolean indicating whether look-ahead could be useful, when there's a consumer
         // with available permits, and it's not able to make progress because of blocked hashes.
-        MutableBoolean lookAheadCouldBeUseful = new MutableBoolean();
+        MutableBoolean triggerLookAhead = new MutableBoolean();
         // filter and group the entries by consumer for dispatching
         final Map<Consumer, List<Entry>> entriesByConsumerForDispatching =
-                filterAndGroupEntriesForDispatching(entries, readType, lookAheadCouldBeUseful);
+                filterAndGroupEntriesForDispatching(entries, readType, triggerLookAhead);
 
         AtomicInteger remainingConsumersToFinishSending = new AtomicInteger(entriesByConsumerForDispatching.size());
         for (Map.Entry<Consumer, List<Entry>> current : entriesByConsumerForDispatching.entrySet()) {
@@ -365,7 +365,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // acquire message-dispatch permits for already delivered messages
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
-        if (totalMessagesSent == 0 && lookAheadCouldBeUseful.booleanValue() && isLookAheadAllowed()) {
+        // trigger read more messages if necessary
+        if (triggerLookAhead.booleanValue()) {
             // When all messages get filtered and no messages are sent, we should read more entries, "look ahead"
             // so that a possible next batch of messages might contain messages that can be dispatched.
             // This is done only when there's a consumer with available permits, and it's not able to make progress
@@ -376,10 +377,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
             skipNextBackoff = true;
             return true;
-        } else if (entriesByConsumerForDispatching.size() == 0) {
-            // There will be a backoff delay before retrying since all consumers are blocked
+        }
+
+        // if no messages were sent, we should retry after a backoff delay
+        if (entriesByConsumerForDispatching.size() == 0) {
             return true;
         }
+
         return false;
     }
 
@@ -396,17 +400,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     // the entries are handled in the order they are received instead of first grouping them by consumer and
     // then filtering them
     private Map<Consumer, List<Entry>> filterAndGroupEntriesForDispatching(List<Entry> entries, ReadType readType,
-                                                                           MutableBoolean lookAheadCouldBeUseful) {
+                                                                           MutableBoolean triggerLookAhead) {
         // entries grouped by consumer
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
         // maxLastSentPosition cache for consumers, used when recently joined consumers exist
-        Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers() ? new HashMap<>() : null;
+        boolean hasRecentlyJoinedConsumers = hasRecentlyJoinedConsumers();
+        Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers ? new HashMap<>() : null;
+        boolean lookAheadAllowed = isLookAheadAllowed();
         // in normal read mode, keep track of consumers that are blocked by hash, to check if look-ahead could be useful
-        Set<Consumer> blockedByHashConsumers = readType == ReadType.Normal ? new HashSet<>() : null;
+        Set<Consumer> blockedByHashConsumers = lookAheadAllowed && readType == ReadType.Normal ? new HashSet<>() : null;
         // in replay read mode, keep track of consumers for entries, used for look-ahead check
-        Set<Consumer> consumersForEntriesForLookaheadCheck = readType == ReadType.Replay ? new HashSet<>() : null;
+        Set<Consumer> consumersForEntriesForLookaheadCheck = lookAheadAllowed ? new HashSet<>() : null;
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
@@ -414,12 +420,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             MutableBoolean blockedByHash = null;
             boolean dispatchEntry = false;
             if (consumer != null) {
-                if (readType == ReadType.Replay) {
+                if (lookAheadAllowed) {
                     consumersForEntriesForLookaheadCheck.add(consumer);
                 }
-                Position maxLastSentPosition = hasRecentlyJoinedConsumers() ? maxLastSentPositionCache.computeIfAbsent(
+                Position maxLastSentPosition = hasRecentlyJoinedConsumers ? maxLastSentPositionCache.computeIfAbsent(
                         consumer, __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
-                blockedByHash = readType == ReadType.Normal ? new MutableBoolean(false) : null;
+                blockedByHash = lookAheadAllowed && readType == ReadType.Normal ? new MutableBoolean(false) : null;
                 MutableInt permits =
                         permitsForConsumer.computeIfAbsent(consumer,
                                 k -> new MutableInt(getAvailablePermits(consumer)));
@@ -451,27 +457,30 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         //
         // determine whether look-ahead could be useful for making more progress
         //
-        if (readType == ReadType.Normal) {
-            for (Consumer consumer : blockedByHashConsumers) {
-                // if the consumer isn't in the entriesGroupedByConsumer, it means that it won't receive any messages
-                // if it has available permits, then look-ahead could be useful for this particular consumer
-                // to make further progress
-                if (!entriesGroupedByConsumer.containsKey(consumer)
-                        && permitsForConsumer.get(consumer).intValue() > 0) {
-                    lookAheadCouldBeUseful.setTrue();
-                    break;
+        if (lookAheadAllowed && entriesGroupedByConsumer.isEmpty()) {
+            // check if look-ahead could be useful for the consumers that are blocked by a hash that is in the replay
+            // queue. This check applies only to the normal read mode.
+            if (readType == ReadType.Normal) {
+                for (Consumer consumer : blockedByHashConsumers) {
+                    // if the consumer isn't in the entriesGroupedByConsumer, it means that it won't receive any
+                    // messages
+                    // if it has available permits, then look-ahead could be useful for this particular consumer
+                    // to make further progress
+                    if (!entriesGroupedByConsumer.containsKey(consumer)
+                            && permitsForConsumer.get(consumer).intValue() > 0) {
+                        triggerLookAhead.setTrue();
+                        break;
+                    }
                 }
             }
-        } else if (readType == ReadType.Replay) {
-            // if all entries are filtered out due to the order guarantee mechanism, then look-ahead could be useful
-            // if there are other consumers with available permits
-            if (entriesGroupedByConsumer.isEmpty()) {
+            // check if look-ahead could be useful for other consumers
+            if (!triggerLookAhead.booleanValue()) {
                 for (Consumer consumer : getConsumers()) {
                     // filter out the consumers that are already checked when the entries were processed for entries
                     if (!consumersForEntriesForLookaheadCheck.contains(consumer)) {
                         // if another consumer has available permits, then look-ahead could be useful
                         if (getAvailablePermits(consumer) > 0) {
-                            lookAheadCouldBeUseful.setTrue();
+                            triggerLookAhead.setTrue();
                             break;
                         }
                     }
@@ -493,7 +502,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // If redeliveryMessages contains messages that correspond to the same hash as the entry to be dispatched
         // do not send those messages for order guarantee
         if (readType == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
-            blockedByHash.setTrue();
+            if (blockedByHash != null) {
+                blockedByHash.setTrue();
+            }
             return false;
         }
 
