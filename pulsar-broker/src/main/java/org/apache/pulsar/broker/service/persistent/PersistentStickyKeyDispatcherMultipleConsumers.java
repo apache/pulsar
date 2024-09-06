@@ -404,13 +404,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
+        // maxLastSentPosition cache for consumers
+        Map<Consumer, Position> maxLastSentPositionCache = new HashMap<>();
 
         for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
             boolean dispatchEntry = false;
             // a consumer was found for the sticky key hash and the entry can be dispatched
-            if (consumer != null && canDispatchEntry(consumer, entry, readType, stickyKeyHash)) {
+            if (consumer != null && canDispatchEntry(consumer, maxLastSentPositionCache, entry, readType,
+                    stickyKeyHash)) {
                 MutableInt permits = permitsForConsumer.computeIfAbsent(consumer,
                         k -> new MutableInt(getAvailablePermits(consumer)));
                 if (permits.intValue() > 0) {
@@ -436,9 +439,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     // checks if the entry can be dispatched to the consumer
-    private boolean canDispatchEntry(Consumer consumer, Entry entry, ReadType readType, int stickyKeyHash) {
+    private boolean canDispatchEntry(Consumer consumer, Map<Consumer, Position> maxLastSentPositionCache, Entry entry,
+                                     ReadType readType, int stickyKeyHash) {
         // check if the entry can be replayed to a recently joined consumer
-        Position maxLastSentPosition = resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType);
+        Position maxLastSentPosition = maxLastSentPositionCache.computeIfAbsent(consumer,
+                __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType));
         if (maxLastSentPosition != null && entry.getPosition().compareTo(maxLastSentPosition) > 0) {
             return false;
         }
