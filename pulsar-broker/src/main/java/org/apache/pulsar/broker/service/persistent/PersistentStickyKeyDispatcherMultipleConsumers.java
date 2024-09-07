@@ -692,8 +692,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * limits kick in), instead of keep replaying the same old messages, since the consumer that these
      * messages are routing to might be busy at the moment.
      *
-     * Please see {@link ServiceConfiguration#keySharedLookAheadMsgInReplayThresholdPerConsumer} and
-     * {@link ServiceConfiguration#keySharedLookAheadMsgInReplayThresholdPerSubscription} for configuring the limits.
+     * Please see {@link ServiceConfiguration#getKeySharedLookAheadMsgInReplayThresholdPerConsumer} and
+     * {@link ServiceConfiguration#getKeySharedLookAheadMsgInReplayThresholdPerSubscription} for configuring the limits.
      */
     @Override
     protected synchronized boolean canReplayMessages() {
