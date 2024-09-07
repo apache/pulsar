@@ -1024,11 +1024,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.metricsGenerator = new MetricsGenerator(this);
 
             // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
+            final List<Runnable> runnables;
             synchronized (pendingTasksBeforeReadyForIncomingRequests) {
-                pendingTasksBeforeReadyForIncomingRequests.forEach(Runnable::run);
+                runnables = new ArrayList<>(pendingTasksBeforeReadyForIncomingRequests);
                 pendingTasksBeforeReadyForIncomingRequests.clear();
                 readyForIncomingRequestsFuture.complete(null);
             }
+            runnables.forEach(Runnable::run);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
