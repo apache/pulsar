@@ -956,7 +956,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
                     + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
                     + " messages reaches the calculated threshold.\n"
-                    + "Formula: threshold = max(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + "Formula: threshold = min(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
                     + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
                     + ".\n"
                     + "Setting this value to 0 will disable the limit calculated per consumer.",
@@ -970,7 +970,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
                     + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
                     + " messages reaches the calculated threshold.\n"
-                    + "Formula: threshold = max(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + "Formula: threshold = min(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
                     + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
                     + ".\n"
                     + "This value should be set to a value less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
