@@ -1090,12 +1090,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Here we don't call the thenRun() methods because CompletableFuture maintains a stack for pending callbacks,
         // not a queue. Once the future is complete, the pending callbacks will be executed in reverse order of
         // when they were added.
+        final boolean addedToPendingTasks;
         synchronized (pendingTasksBeforeReadyForIncomingRequests) {
             if (readyForIncomingRequestsFuture.isDone()) {
-                runnable.run();
+                addedToPendingTasks = false;
             } else {
                 pendingTasksBeforeReadyForIncomingRequests.add(runnable);
+                addedToPendingTasks = true;
             }
+        }
+        if (!addedToPendingTasks) {
+            runnable.run();
         }
     }
 
