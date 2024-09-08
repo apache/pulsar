@@ -274,6 +274,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider transactionExecutorProvider;
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
+    private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
 
     public enum State {
         Init, Started, Closing, Closed
@@ -903,7 +904,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.metricsGenerator = new MetricsGenerator(this);
 
             // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
-            readyForIncomingRequestsFuture.complete(null);
+            final List<Runnable> runnables;
+            synchronized (pendingTasksBeforeReadyForIncomingRequests) {
+                runnables = new ArrayList<>(pendingTasksBeforeReadyForIncomingRequests);
+                pendingTasksBeforeReadyForIncomingRequests.clear();
+                readyForIncomingRequestsFuture.complete(null);
+            }
+            runnables.forEach(Runnable::run);
 
             // Initialize the message protocol handlers.
             // start the protocol handlers only after the broker is ready,
@@ -962,7 +969,21 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public void runWhenReadyForIncomingRequests(Runnable runnable) {
-        readyForIncomingRequestsFuture.thenRun(runnable);
+        // Here we don't call the thenRun() methods because CompletableFuture maintains a stack for pending callbacks,
+        // not a queue. Once the future is complete, the pending callbacks will be executed in reverse order of
+        // when they were added.
+        final boolean addedToPendingTasks;
+        synchronized (pendingTasksBeforeReadyForIncomingRequests) {
+            if (readyForIncomingRequestsFuture.isDone()) {
+                addedToPendingTasks = false;
+            } else {
+                pendingTasksBeforeReadyForIncomingRequests.add(runnable);
+                addedToPendingTasks = true;
+            }
+        }
+        if (!addedToPendingTasks) {
+            runnable.run();
+        }
     }
 
     public void waitUntilReadyForIncomingRequests() throws ExecutionException, InterruptedException {
