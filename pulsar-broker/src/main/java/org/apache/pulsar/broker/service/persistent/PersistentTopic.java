@@ -2960,7 +2960,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<CompactedTopicContext> getCompactedTopicContextAsync() {
         if (topicCompactionService instanceof PulsarTopicCompactionService pulsarCompactedService) {
-            return pulsarCompactedService.getCompactedTopic().getCompactedTopicContextFuture();
+            CompletableFuture<CompactedTopicContext> res =
+                    pulsarCompactedService.getCompactedTopic().getCompactedTopicContextFuture();
+            if (res == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return res;
         }
         return CompletableFuture.completedFuture(null);
     }
