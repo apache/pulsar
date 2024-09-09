@@ -26,6 +26,8 @@ import io.netty.buffer.ByteBufUtil;
 import java.util.Map;
 import java.util.List;
 
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.LightMLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -38,7 +40,7 @@ public class PositionInfoUtilsTest {
 
     @Test
     public void testSerializeDeserialize() throws Exception {
-        PositionImpl position = new PositionImpl(1, 2);
+        Position position = PositionFactory.create(1, 2);
         ManagedCursorImpl.MarkDeleteEntry entry = new ManagedCursorImpl.MarkDeleteEntry(position,
                 Map.of("foo", 1L), null, null);
 
@@ -79,7 +81,7 @@ public class PositionInfoUtilsTest {
 
     @Test
     public void testSerializeDeserializeEmpty() throws Exception {
-        PositionImpl position = new PositionImpl(1, 2);
+        Position position = PositionFactory.create(1, 2);
         ManagedCursorImpl.MarkDeleteEntry entry = new ManagedCursorImpl.MarkDeleteEntry(position,
                null, null, null);
 
@@ -100,7 +102,7 @@ public class PositionInfoUtilsTest {
 
     @Test
     public void testSerializeDeserialize2() throws Exception {
-        PositionImpl position = new PositionImpl(1, 2);
+        Position position = PositionFactory.create(1, 2);
         ManagedCursorImpl.MarkDeleteEntry entry = new ManagedCursorImpl.MarkDeleteEntry(position,
                 Map.of("foo", 1L), null, null);
 

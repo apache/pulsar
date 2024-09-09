@@ -23,6 +23,8 @@ import io.netty.buffer.ByteBufUtil;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
+
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 final class PositionInfoUtils {
@@ -35,7 +37,7 @@ final class PositionInfoUtils {
         void acceptRange(long ledgerId, long entryId, long[] array);
     }
 
-    static ByteBuf serializePositionInfo(ManagedCursorImpl.MarkDeleteEntry mdEntry, PositionImpl position,
+    static ByteBuf serializePositionInfo(ManagedCursorImpl.MarkDeleteEntry mdEntry, Position position,
                                          Consumer<IndividuallyDeletedMessagesRangeConsumer> rangeScanner,
                                          Consumer<BatchedEntryDeletionIndexInfoConsumer> batchDeletedIndexesScanner,
                                          int lastSerializedSize) {

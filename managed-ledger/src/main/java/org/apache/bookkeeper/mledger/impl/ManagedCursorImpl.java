@@ -747,7 +747,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
 
-        PositionImpl position = new PositionImpl(positionInfo);
+        Position position = PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
         if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
             recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
         }
@@ -3333,9 +3333,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
             int count = 0;
-            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            Iterator<Map.Entry<Position, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
             while (iterator.hasNext() && count < maxBatchDeletedIndexToPersist) {
-                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                Map.Entry<Position, BitSetRecyclable> entry = iterator.next();
                 long[] array = entry.getValue().toLongArray();
                 consumer.acceptRange(entry.getKey().getLedgerId(), entry.getKey().getEntryId(), array);
                 count++;
@@ -3436,7 +3436,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                             VoidCallback callback,
                                             ByteBuf data,
                                             int totalLength,
-                                            PositionImpl position,
+                                            Position position,
                                             Runnable onFinished) {
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             try {

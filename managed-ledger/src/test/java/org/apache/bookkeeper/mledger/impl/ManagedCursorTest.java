@@ -3634,7 +3634,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c.getReadPosition().getEntryId(), 0);
         assertEquals(ml.getLastConfirmedEntry().getEntryId(), -1);
 
-        c.resetCursor(PositionImpl.LATEST);
+        c.resetCursor(PositionFactory.LATEST);
 
         // A reset cursor starts out with these values. The rest of the test assumes this, so we assert it here.
         assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
@@ -3647,7 +3647,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.addEntry(new byte[1]);
         ml.addEntry(new byte[1]);
 
-        c.resetCursor(PositionImpl.LATEST);
+        c.resetCursor(PositionFactory.LATEST);
         //corrupt last entry
         LedgerHandle cursorLedger = (LedgerHandle)FieldUtils.readDeclaredField(c, "cursorLedger", true);
         // can't parse json
