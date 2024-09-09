@@ -41,6 +41,11 @@ public class PulsarTransactionCoordinatorMetadataSetup {
                 "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
+        @Parameter(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
         @Parameter(names = {
                 "--zookeeper-session-timeout-ms"
         }, description = "Local zookeeper session timeout ms")
@@ -90,8 +95,10 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             System.exit(1);
         }
 
-        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore,
+                arguments.configurationStoreConfigPath,
+                arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
             PulsarClusterMetadataSetup
