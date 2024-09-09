@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -2679,13 +2680,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         info.entries = -1;
         info.size = -1;
 
-        Optional<CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
-        if (compactedTopicContext.isPresent()) {
-            CompactedTopicContext ledgerContext = compactedTopicContext.get();
-            info.ledgerId = ledgerContext.getLedger().getId();
-            info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
-            info.size = ledgerContext.getLedger().getLength();
-        }
+        futures.add(getCompactedTopicContextAsync().thenAccept(v -> {
+            if (v != null) {
+                info.ledgerId = v.getLedger().getId();
+                info.entries = v.getLedger().getLastAddConfirmed() + 1;
+                info.size = v.getLedger().getLength();
+            }
+        }));
 
         stats.compactedLedger = info;
 
@@ -2804,10 +2805,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (topicCompactionService instanceof PulsarTopicCompactionService pulsarCompactedService) {
                 return pulsarCompactedService.getCompactedTopic().getCompactedTopicContext();
             }
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
             log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
         }
         return Optional.empty();
+    }
+
+    public CompletableFuture<CompactedTopicContext> getCompactedTopicContextAsync() {
+        if (topicCompactionService instanceof PulsarTopicCompactionService pulsarCompactedService) {
+            CompletableFuture<CompactedTopicContext> res =
+                    pulsarCompactedService.getCompactedTopic().getCompactedTopicContextFuture();
+            if (res == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return res;
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     public long getBacklogSize() {
