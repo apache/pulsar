@@ -137,8 +137,17 @@ public class PulsarClusterMetadataSetup {
                 hidden = false)
         private String configurationMetadataStore;
 
+        @Parameter(names = {"-mscp",
+                "--metadata-store-config-path"}, description = "Metadata Store config path", hidden = false)
+        private String metadataStoreConfigPath;
+
+        @Parameter(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
         @Parameter(names = {
-            "--initial-num-stream-storage-containers"
+                "--initial-num-stream-storage-containers"
         }, description = "Num storage containers of BookKeeper stream storage")
         private int numStreamStorageContainers = 16;
 
@@ -281,9 +290,11 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
-        MetadataStoreExtended localStore =
-                initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended localStore = initLocalMetadataStore(arguments.metadataStoreUrl,
+                arguments.metadataStoreConfigPath,
+                arguments.zkSessionTimeoutMillis);
         MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
+                arguments.configurationStoreConfigPath,
                 arguments.zkSessionTimeoutMillis);
 
         final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
@@ -462,9 +473,17 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
+    public static MetadataStoreExtended initLocalMetadataStore(String connection,
+                                                               int sessionTimeout) throws Exception {
+        return initLocalMetadataStore(connection, null, sessionTimeout);
+    }
+
+    public static MetadataStoreExtended initLocalMetadataStore(String connection,
+                                                               String configPath,
+                                                               int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .configFilePath(configPath)
                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
@@ -473,10 +492,19 @@ public class PulsarClusterMetadataSetup {
         return store;
     }
 
-    public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
+    public static MetadataStoreExtended initConfigMetadataStore(String connection,
+                                                                int sessionTimeout)
+            throws Exception {
+        return initConfigMetadataStore(connection, null, sessionTimeout);
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection,
+                                                                String configPath,
+                                                                int sessionTimeout)
             throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .configFilePath(configPath)
                 .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
