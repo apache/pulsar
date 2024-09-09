@@ -105,6 +105,9 @@ public class CmdRead extends AbstractCmdConsume {
     @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
+    @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
+    private boolean printMetadata = false;
+
     public CmdRead() {
         // Do nothing
         super();
@@ -178,7 +181,7 @@ public class CmdRead extends AbstractCmdConsume {
                             numMessagesRead += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
-                                String output = this.interpretMessage(msg, displayHex);
+                                String output = this.interpretMessage(msg, displayHex, printMetadata);
                                 System.out.println(output);
                             } else if (numMessagesRead % 1000 == 0) {
                                 System.out.println("Received " + numMessagesRead + " messages");
