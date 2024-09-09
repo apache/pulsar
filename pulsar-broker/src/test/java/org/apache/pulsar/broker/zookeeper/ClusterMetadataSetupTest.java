@@ -74,10 +74,11 @@ public class ClusterMetadataSetupTest {
             "--cluster", "testReSetupClusterMetadata-cluster",
             "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
             "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
+            "--configuration-metadata-store-config-path", "src/test/resources/conf/zk_client_enable_sasl.conf",
             "--web-service-url", "http://127.0.0.1:8080",
             "--web-service-url-tls", "https://127.0.0.1:8443",
             "--broker-service-url", "pulsar://127.0.0.1:6650",
-            "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+            "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
         SortedMap<String, String> data1 = localZkS.dumpData();
