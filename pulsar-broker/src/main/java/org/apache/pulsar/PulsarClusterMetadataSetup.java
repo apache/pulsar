@@ -35,7 +35,6 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -477,6 +476,11 @@ public class PulsarClusterMetadataSetup {
     }
 
     public static MetadataStoreExtended initLocalMetadataStore(String connection,
+                                                               int sessionTimeout) throws Exception {
+        return initLocalMetadataStore(connection, null, sessionTimeout);
+    }
+
+    public static MetadataStoreExtended initLocalMetadataStore(String connection,
                                                                String configPath,
                                                                int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
@@ -488,6 +492,12 @@ public class PulsarClusterMetadataSetup {
             ((MetadataStoreLifecycle) store).initializeCluster().get();
         }
         return store;
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection,
+                                                                int sessionTimeout)
+            throws Exception {
+        return initConfigMetadataStore(connection, null, sessionTimeout);
     }
 
     public static MetadataStoreExtended initConfigMetadataStore(String connection,
