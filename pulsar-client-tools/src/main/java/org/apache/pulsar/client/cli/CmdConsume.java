@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -111,6 +112,9 @@ public class CmdConsume extends AbstractCmdConsume {
     @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
     private boolean replicateSubscriptionState = false;
 
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
     public CmdConsume() {
         // Do nothing
         super();
@@ -174,6 +178,7 @@ public class CmdConsume extends AbstractCmdConsume {
             }
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+            builder.cryptoFailureAction(cryptoFailureAction);
 
             if (isNotBlank(this.encKeyValue)) {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
