@@ -32,6 +32,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -307,8 +309,10 @@ public class CompactedTopicImpl implements CompactedTopic {
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
-    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
-        return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
+            TimeoutException {
+        return compactedTopicContext == null ? Optional.empty() :
+                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
     }
 
     @Override
