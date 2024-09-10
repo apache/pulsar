@@ -207,7 +207,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return false;
         }
 
-        if (recentlyJoinedConsumerTrackingRequired) {
+        if (!allowOutOfOrderDelivery) {
             // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
             // This may happen when consumer closed. See issue #12885 for details.
             Optional<Position> firstReplayPosition = getFirstPositionInReplay();
@@ -237,7 +237,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     }
                 }
             }
+        }
 
+        if (recentlyJoinedConsumerTrackingRequired) {
             // Update if the markDeletePosition move forward
             updateIfNeededAndGetLastSentPosition();
 
