@@ -131,6 +131,7 @@ public class PulsarShell {
         IDLE,
         RUNNING
     }
+
     enum ShellMode {
         ADMIN("admin"),
         CLIENT("client"),
@@ -140,7 +141,7 @@ public class PulsarShell {
         private static final Map<String, ShellMode> COMMAND_MAP = new HashMap<>();
 
         static {
-            for (ShellMode shellMode: values()) {
+            for (ShellMode shellMode : values()) {
                 COMMAND_MAP.put(shellMode.command, shellMode);
             }
         }
@@ -155,6 +156,7 @@ public class PulsarShell {
             return COMMAND_MAP.get(command);
         }
     }
+
     private Properties properties;
     @Getter
     private final ConfigStore configStore;
@@ -290,25 +292,28 @@ public class PulsarShell {
             configureHistory(properties, readerBuilder);
             LineReader reader = readerBuilder.build();
 
-            final String welcomeMessage =
-                    String.format("Welcome to Pulsar shell!\n  %s: %s\n  %s: %s\n\n"
-                                    + "Type %s to get started or try the autocompletion (TAB button).\n"
-                                    + "Type %s or %s to end the shell session.\n",
-                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Service URL").toAnsi(),
-                            serviceUrl,
-                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Admin URL").toAnsi(),
-                            adminUrl,
-                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("help").toAnsi(),
-                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("exit").toAnsi(),
-                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("quit").toAnsi());
-            output(welcomeMessage, terminal);
-            if (configShell.getCurrentConfig() != null) {
-                promptMessage = String.format("%s(%s)",
-                        configShell.getCurrentConfig(), getHostFromUrl(serviceUrl));
-            } else {
-                promptMessage = getHostFromUrl(serviceUrl);
+            if (prompt == null) {
+                final String welcomeMessage =
+                        String.format("Welcome to Pulsar shell!\n  %s: %s\n  %s: %s\n\n"
+                                        + "Type %s to get started or try the autocompletion (TAB button).\n"
+                                        + "Type %s or %s to end the shell session.\n",
+                                new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Service URL")
+                                        .toAnsi(), serviceUrl,
+                                new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Admin URL").toAnsi(),
+                                adminUrl,
+                                new AttributedStringBuilder().style(AttributedStyle.BOLD).append("help").toAnsi(),
+                                new AttributedStringBuilder().style(AttributedStyle.BOLD).append("exit").toAnsi(),
+                                new AttributedStringBuilder().style(AttributedStyle.BOLD).append("quit").toAnsi());
+                output(welcomeMessage, terminal);
+
+                if (configShell.getCurrentConfig() != null) {
+                    promptMessage = String.format("%s(%s)",
+                            configShell.getCurrentConfig(), getHostFromUrl(serviceUrl));
+                } else {
+                    promptMessage = getHostFromUrl(serviceUrl);
+                }
+                prompt = createPrompt(promptMessage);
             }
-            prompt = createPrompt(promptMessage);
             return new InteractiveLineReader() {
                 @Override
                 public String readLine() {
@@ -450,19 +455,19 @@ public class PulsarShell {
                     output(String.format("Exiting from %s shell mode", shellMode.command), terminal);
                     prompt = createPrompt(promptMessage);
                     shellMode = ShellMode.DEFAULT;
+                    reader = readerBuilder.apply(registerProviders(properties));
                     continue;
                 }
                 exit(0);
                 return;
             }
-            if (shellMode != ShellMode.DEFAULT) {
-                words.add(0, shellMode.command);
-                line = shellMode.command + " " + line;
-            } else {
+            if (shellMode == ShellMode.DEFAULT) {
                 ShellMode newShellMode = ShellMode.valueOfCommand(line.toLowerCase(Locale.ROOT));
                 if (newShellMode != null) {
                     shellMode = newShellMode;
                     prompt = createPrompt(promptMessage + " " + shellMode.command);
+                    updateShellCommander(properties);
+                    reader = readerBuilder.apply(providersMap);
                     continue;
                 }
             }
@@ -471,10 +476,12 @@ public class PulsarShell {
                 continue;
             }
 
-            final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(shellCommander, words);
-            if (pulsarShellCommandsProvider == null) {
-                shellCommander.usage(System.out);
-                continue;
+            if (shellMode == ShellMode.DEFAULT) {
+                final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(shellCommander, words);
+                if (pulsarShellCommandsProvider == null) {
+                    shellCommander.usage(System.out);
+                    continue;
+                }
             }
             boolean commandOk = false;
             try {
@@ -605,13 +612,40 @@ public class PulsarShell {
         registerProvider(createClientShell(properties), shellCommander, providerMap);
         registerProvider(configShell, shellCommander, providerMap);
 
+        updateSystemRegistry();
+
+        return providerMap;
+    }
+
+    private void updateShellCommander(Properties properties) throws Exception {
+        ShellCommandsProvider shellCommandsProvider = createShellFromMode(properties, shellMode);
+        shellCommander = shellCommandsProvider.getCommander();
+        updateSystemRegistry();
+    }
+
+    private void updateSystemRegistry() {
         Supplier<Path> workDir = () -> Paths.get(DEFAULT_PULSAR_SHELL_ROOT_DIRECTORY);
         PicocliCommands picocliCommands = new PicocliCommands(shellCommander);
         systemRegistry = new SystemRegistryImpl(parser, terminal, workDir, null);
         systemRegistry.setCommandRegistries(picocliCommands);
         systemRegistry.register("help", picocliCommands);
+    }
 
-        return providerMap;
+    protected ShellCommandsProvider createShellFromMode(Properties properties, ShellMode shellMode) throws Exception {
+        switch (shellMode) {
+            case ADMIN -> {
+                return createAdminShell(properties);
+            }
+            case CLIENT -> {
+                return createClientShell(properties);
+            }
+            case CONFIG -> {
+                return configShell;
+            }
+            default -> {
+                return shellCommander.getCommand();
+            }
+        }
     }
 
     protected AdminShell createAdminShell(Properties properties) throws Exception {
