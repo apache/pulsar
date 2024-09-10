@@ -71,7 +71,7 @@ import org.testng.annotations.Test;
 
 public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
-    private final String offloadTypeReadOnly = "readOnly";
+    private final String offloadTypeAppendable = "NonAppendable";
 
     @Override
     protected void initManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
@@ -85,8 +85,8 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         return new Object[][]{
                 {"normal", true},
                 {"normal", false},
-                {offloadTypeReadOnly, true},
-                {offloadTypeReadOnly, false},
+                {offloadTypeAppendable, true},
+                {offloadTypeAppendable, false},
         };
     }
 
@@ -114,7 +114,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
         Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
 
-        if (offloadTypeReadOnly.equals(offloadType)) {
+        if (offloadTypeAppendable.equals(offloadType)) {
             config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
         }
 
@@ -163,7 +163,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     public Object[][] offloadTypes() {
         return new Object[][]{
                 {"normal"},
-                {offloadTypeReadOnly},
+                {offloadTypeAppendable},
         };
     }
 
@@ -233,7 +233,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getBookkeeperDeleted());
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
-        if (offloadTypeReadOnly.equals(offloadType)) {
+        if (offloadTypeAppendable.equals(offloadType)) {
             config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
         }
 
