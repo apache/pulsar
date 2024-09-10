@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.ReadonlyWrapperLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -1883,6 +1884,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String namespace = "prop/" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
+        Awaitility.await().untilAsserted(() -> {
+            OffloadPolicies policiesGot = admin.namespaces().getOffloadPolicies(namespace);
+            assertNotNull(policiesGot);
+        });
 
         // Inject the cache to avoid real load off-loader jar
         final Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = pulsar.getLedgerOffloaderMap();
@@ -1896,8 +1901,20 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // (2) test system topic
         for (String eventTopicName : SystemTopicNames.EVENTS_TOPIC_NAMES) {
-            managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
-            Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+            boolean offloadPoliciesExists = false;
+            try {
+                OffloadPolicies policiesGot =
+                        admin.namespaces().getOffloadPolicies(TopicName.get(eventTopicName).getNamespace());
+                offloadPoliciesExists = policiesGot != null;
+            } catch (PulsarAdminException.NotFoundException notFoundException) {
+                offloadPoliciesExists = false;
+            }
+            var managedLedgerConfig2 = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
+            if (offloadPoliciesExists) {
+                Assert.assertTrue(managedLedgerConfig2.getLedgerOffloader() instanceof ReadonlyWrapperLedgerOffloader);
+            } else {
+                Assert.assertEquals(managedLedgerConfig2.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+            }
         }
     }
 }
