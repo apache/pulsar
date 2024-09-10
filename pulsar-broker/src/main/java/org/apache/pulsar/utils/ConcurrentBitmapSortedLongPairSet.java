@@ -22,10 +22,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -91,6 +93,15 @@ public class ConcurrentBitmapSortedLongPairSet {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    public <T extends Comparable<T>> Optional<T> first(LongPairSet.LongPairFunction<T> longPairConverter) {
+        MutableObject<Optional<T>> result = new MutableObject<>(Optional.empty());
+        processItems(longPairConverter, item -> {
+            result.setValue(Optional.of(item));
+            return false;
+        });
+        return result.getValue();
     }
 
     public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,

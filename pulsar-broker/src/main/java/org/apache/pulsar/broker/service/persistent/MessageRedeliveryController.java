@@ -154,8 +154,7 @@ public class MessageRedeliveryController {
     }
 
     public Optional<Position> getFirstPositionInReplay() {
-        NavigableSet<Position> items = messagesToRedeliver.items(1, PositionFactory::create);
-        return items.isEmpty() ? Optional.empty() : Optional.of(items.first());
+        return messagesToRedeliver.first(PositionFactory::create);
     }
 
     /**
