@@ -26,10 +26,10 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 
-public class ReadonlyWrapperLedgerOffloader implements LedgerOffloader {
+public class NonAppendableLedgerOffloader implements LedgerOffloader {
     private LedgerOffloader delegate;
 
-    public ReadonlyWrapperLedgerOffloader(LedgerOffloader delegate) {
+    public NonAppendableLedgerOffloader(LedgerOffloader delegate) {
         this.delegate = delegate;
     }
 
@@ -65,5 +65,10 @@ public class ReadonlyWrapperLedgerOffloader implements LedgerOffloader {
     @Override
     public void close() {
         delegate.close();
+    }
+
+    @Override
+    public boolean isAppendable() {
+        return false;
     }
 }

@@ -115,7 +115,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         Assert.assertFalse(ledger.getLedgersInfoAsList().get(2).getOffloadContext().getComplete());
 
         if (offloadTypeReadOnly.equals(offloadType)) {
-            config.setLedgerOffloader(new ReadonlyWrapperLedgerOffloader(offloader));
+            config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
         }
 
         UUID firstLedgerUUID = new UUID(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidMsb(),
@@ -234,7 +234,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getBookkeeperDeleted());
 
         if (offloadTypeReadOnly.equals(offloadType)) {
-            config.setLedgerOffloader(new ReadonlyWrapperLedgerOffloader(offloader));
+            config.setLedgerOffloader(new NonAppendableLedgerOffloader(offloader));
         }
 
         for (Entry e : cursor.readEntries(10)) {
@@ -268,7 +268,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testSkipOffloadIfReadOnly() throws Exception {
-        LedgerOffloader ol = new ReadonlyWrapperLedgerOffloader(spy(MockLedgerOffloader.class));
+        LedgerOffloader ol = new NonAppendableLedgerOffloader(spy(MockLedgerOffloader.class));
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);

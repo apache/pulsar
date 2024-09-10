@@ -2452,7 +2452,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public void maybeOffloadInBackground(CompletableFuture<Position> promise) {
-        if (getOffloadPoliciesIfEnabled() == null) {
+        if (getOffloadPoliciesIfAppendable().isEmpty()) {
             return;
         }
 
@@ -2468,8 +2468,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
                               CompletableFuture<Position> finalPromise) {
-        LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
-        if (getOffloadPoliciesIfEnabled() == null) {
+        if (getOffloadPoliciesIfAppendable().isEmpty()) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
             return;
@@ -2572,15 +2571,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         internalTrimLedgers(false, promise);
     }
 
-    private OffloadPolicies getOffloadPoliciesIfEnabled() {
+    private Optional<OffloadPolicies> getOffloadPoliciesIfAppendable() {
         LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
         if (ledgerOffloader == null
-                || ledgerOffloader == NullLedgerOffloader.INSTANCE
-                || ledgerOffloader instanceof ReadonlyWrapperLedgerOffloader
+                || !ledgerOffloader.isAppendable()
                 || ledgerOffloader.getOffloadPolicies() == null) {
-            return null;
+            return Optional.empty();
         }
-        return ledgerOffloader.getOffloadPolicies();
+        return Optional.ofNullable(ledgerOffloader.getOffloadPolicies());
     }
 
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
@@ -2598,7 +2596,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         List<LedgerInfo> ledgersToDelete = new ArrayList<>();
         List<LedgerInfo> offloadedLedgersToDelete = new ArrayList<>();
-        Optional<OffloadPolicies> optionalOffloadPolicies = Optional.ofNullable(getOffloadPoliciesIfEnabled());
+        Optional<OffloadPolicies> optionalOffloadPolicies = getOffloadPoliciesIfAppendable();
         synchronized (this) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -3126,8 +3124,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
         LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
-        if (ledgerOffloader != null && (ledgerOffloader == NullLedgerOffloader.INSTANCE
-                || ledgerOffloader instanceof ReadonlyWrapperLedgerOffloader)) {
+        if (ledgerOffloader != null && !ledgerOffloader.isAppendable()) {
             String msg = String.format("[%s] does not support offload", ledgerOffloader.getClass().getSimpleName());
             callback.offloadFailed(new ManagedLedgerException(msg), ctx);
             return;
