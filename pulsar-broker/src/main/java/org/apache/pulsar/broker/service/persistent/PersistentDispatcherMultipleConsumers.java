@@ -836,6 +836,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
+        lastNumberOfEntriesDispatched = (int) totalEntries;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
@@ -848,9 +849,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
             });
-
-            lastNumberOfEntriesDispatched = entriesToDispatch;
         }
+
         return true;
     }
 
