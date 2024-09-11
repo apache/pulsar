@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -253,7 +254,66 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
+    }
 
+    @Test
+    public void testNonDurableSubscriptionBacklogAfterRecovery() throws Exception {
+        String topic = "persistent://my-property/my-ns/nonDurable-cursorPosition";
+        int numberOfMessages = 1000;
+        String subName = "my-sub";
+
+        // 1. Prerequisites
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .subscriptionMode(SubscriptionMode.NonDurable)
+            .topic(topic)
+            .subscriptionName(subName)
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .create();
+
+        // 2. Produce messages
+        for (int i = 0; i < numberOfMessages; i++) {
+            producer.send(new byte[10]);
+        }
+
+        // 3. Backlog should be equal to ${numberOfMessages}
+        long backlog = admin.topics().getStats(topic).getSubscriptions().get(subName)
+            .getMsgBacklog();
+        Assert.assertEquals(backlog, numberOfMessages);
+
+        // 4. Receive and ACK messages
+        for (int i = 0; i < numberOfMessages; i++) {
+            Message<byte[]> msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+
+        // 5. Unload the topic, causing the subscription to be lost
+        admin.topics().unload(topic);
+
+        // 6. Wait for the subscription to become available
+        AtomicReference<SubscriptionStats> sub = new AtomicReference<>();
+        Awaitility.await().until(() -> {
+            // Subscription is null just after unloading
+            sub.set(admin.topics().getStats(topic).getSubscriptions().get(subName));
+            return sub.get() != null;
+        });
+        // 7. Backlog should be clean, because no initial position was given
+        assertEquals(sub.get().getMsgBacklog(), 0);
+
+        // 8. The client should be able to receive the message
+        producer.send(new byte[10]);
+        Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+        consumer.acknowledge(msg);
+
+        // 9. And the backlog should still be empty
+        Awaitility.await().until(
+            () -> admin.topics().getStats(topic).getSubscriptions().get(subName)
+                .getMsgBacklog() == 0);
     }
 
     @Test

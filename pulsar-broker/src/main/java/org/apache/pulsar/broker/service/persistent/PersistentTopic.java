@@ -1203,7 +1203,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 long entryId = msgId.getEntryId();
                 // Ensure that the start message id starts from a valid entry.
                 if (ledgerId >= 0 && entryId >= 0
-                        && msgId instanceof BatchMessageIdImpl) {
+                        && msgId instanceof BatchMessageIdImpl
+                        && startMessageId != null) {
                     // When the start message is relative to a batch, we need to take one step back on the previous
                     // message,
                     // because the "batch" might not have been consumed in its entirety.
