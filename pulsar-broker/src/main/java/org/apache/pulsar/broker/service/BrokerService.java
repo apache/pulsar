@@ -2030,7 +2030,8 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig
                         .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             }
-            if (managedLedgerConfig.getLedgerOffloader().isAppendable()
+            if (managedLedgerConfig.getLedgerOffloader() != null
+                    && managedLedgerConfig.getLedgerOffloader().isAppendable()
                     && (NamespaceService.isSystemServiceNamespace(namespace.toString())
                             || SystemTopicNames.isSystemTopic(topicName))) {
                 managedLedgerConfig.setLedgerOffloader(
