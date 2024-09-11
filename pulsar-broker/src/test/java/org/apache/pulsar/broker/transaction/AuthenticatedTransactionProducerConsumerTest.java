@@ -42,6 +42,7 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authorization.AllowSystemTransactionTopicLookupAuthorizationProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -122,6 +123,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         conf.setProperties(properties);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setAuthorizationProvider(AllowSystemTransactionTopicLookupAuthorizationProvider.class.getName());
         setBrokerCount(1);
         internalSetup();
         setUpBase(1, 1, TOPIC, 1);
