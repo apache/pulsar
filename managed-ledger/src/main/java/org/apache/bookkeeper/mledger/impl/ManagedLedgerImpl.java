@@ -94,6 +94,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -2494,9 +2495,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 100, TimeUnit.MILLISECONDS);
     }
 
-    private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
-                || config.getLedgerOffloader().getOffloadPolicies() == null) {
+    public void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
+        if (getOffloadPoliciesIfAppendable().isEmpty()) {
             return;
         }
 
@@ -2512,8 +2512,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
                               CompletableFuture<PositionImpl> finalPromise) {
-        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
-                || config.getLedgerOffloader().getOffloadPolicies() == null) {
+        if (getOffloadPoliciesIfAppendable().isEmpty()) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
             return;
@@ -2615,6 +2614,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         internalTrimLedgers(false, promise);
     }
 
+    private Optional<OffloadPolicies> getOffloadPoliciesIfAppendable() {
+        LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
+        if (ledgerOffloader == null
+                || !ledgerOffloader.isAppendable()
+                || ledgerOffloader.getOffloadPolicies() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(ledgerOffloader.getOffloadPolicies());
+    }
+
     @VisibleForTesting
     List<Long> internalEvictOffloadedLedgers() {
         int inactiveOffloadedLedgerEvictionTimeMs = config.getInactiveOffloadedLedgerEvictionTimeMs();
@@ -2668,10 +2677,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         List<LedgerInfo> ledgersToDelete = new ArrayList<>();
         List<LedgerInfo> offloadedLedgersToDelete = new ArrayList<>();
-        Optional<OffloadPolicies> optionalOffloadPolicies = Optional.ofNullable(config.getLedgerOffloader() != null
-                && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                ? config.getLedgerOffloader().getOffloadPolicies()
-                : null);
+        Optional<OffloadPolicies> optionalOffloadPolicies = getOffloadPoliciesIfAppendable();
         synchronized (this) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -3198,8 +3204,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
-        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE) {
-            callback.offloadFailed(new ManagedLedgerException("NullLedgerOffloader"), ctx);
+        LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
+        if (ledgerOffloader != null && !ledgerOffloader.isAppendable()) {
+            String msg = String.format("[%s] does not support offload", ledgerOffloader.getClass().getSimpleName());
+            callback.offloadFailed(new ManagedLedgerException(msg), ctx);
             return;
         }
         PositionImpl requestOffloadTo = (PositionImpl) pos;
