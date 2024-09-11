@@ -826,7 +826,7 @@ public class ClustersBase extends AdminResource {
             Set<String> commonNamespaces = new HashSet<>(policyData.getNamespaces());
             commonNamespaces.retainAll(oldNamespaces);
 
-            log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, combinedNamespaces);
+            log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, commonNamespaces);
 
             if (!unloadAllNamespaces) {
                 // Find the changed regexes ((new U old) - (new ∩ old)).
