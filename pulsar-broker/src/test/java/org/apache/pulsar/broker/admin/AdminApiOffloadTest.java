@@ -126,6 +126,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         doReturn(promise).when(offloader).offload(any(), any(), any());
+        doReturn(true).when(offloader).isAppendable();
 
         MessageId currentId = MessageId.latest;
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
