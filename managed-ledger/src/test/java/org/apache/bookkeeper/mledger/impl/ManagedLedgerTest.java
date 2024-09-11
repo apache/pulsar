@@ -3848,7 +3848,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(ledgerOffloader);
 
         ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
-        verify(ledgerOffloader, times(1)).getOffloadPolicies();
+        verify(ledgerOffloader, times(1)).isAppendable();
     }
 
     @Test(timeOut = 30000)
