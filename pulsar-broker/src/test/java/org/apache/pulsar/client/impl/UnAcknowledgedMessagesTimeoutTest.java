@@ -22,11 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -487,14 +485,17 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     public static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                {2000, 1000, 2000, 2},
-                {3000, 1000, 3000, 3}
+                {2000, 1000, 2000, 2, SubscriptionType.Shared},
+                {3000, 1000, 3000, 3, SubscriptionType.Shared},
+                {2000, 1000, 2000, 2, SubscriptionType.Exclusive},
+                {3000, 1000, 3000, 3, SubscriptionType.Exclusive}
         };
     }
 
     @Test(dataProvider = "variationsBackoff")
     public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
-                                                              long maxDelayMs, int multiplier)
+                                                              long maxDelayMs, int multiplier,
+                                                              SubscriptionType subscriptionType)
             throws PulsarClientException, InterruptedException {
         String key = "testCheckUnAcknowledgedMessageRedeliveryTimer";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
@@ -510,7 +511,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 2. Create consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(subscriptionType)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
@@ -539,7 +540,13 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             long startTime = System.currentTimeMillis();
             Message<byte[]> msg = consumer.receive();
             assertTrue(System.currentTimeMillis() - startTime >= ackTimeOutMillis + redeliveryTime);
-            assertEquals(msg.getRedeliveryCount(), redeliveryCount);
+            if (subscriptionType.equals(SubscriptionType.Shared)) {
+                assertEquals(msg.getRedeliveryCount(), redeliveryCount);
+            } else {
+                Integer count = ((UnAckedMessageRedeliveryTracker) consumer.getUnAckedMessageTracker())
+                        .ackTimeoutMessagesRedeliveryCount.get(msg.getMessageId());
+                assertEquals(count, redeliveryCount);
+            }
             assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
         }
     }
