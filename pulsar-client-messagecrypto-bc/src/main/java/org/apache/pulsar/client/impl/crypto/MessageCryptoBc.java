@@ -521,8 +521,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
             keyDigest = digest.digest(encryptedDataKey);
 
-        } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
+        } catch (Exception e) {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
         }
@@ -550,8 +549,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             targetBuffer.limit(decryptedSize);
             return true;
 
-        } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
-                | BadPaddingException | ShortBufferException e) {
+        } catch (Exception e) {
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
             return false;
         }
