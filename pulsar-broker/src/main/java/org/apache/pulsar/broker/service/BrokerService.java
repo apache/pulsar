@@ -90,7 +90,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1982,29 +1982,26 @@ public class BrokerService implements Closeable {
                     topicLevelOffloadPolicies,
                     OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
-            if (NamespaceService.isSystemServiceNamespace(namespace.toString())
-                || SystemTopicNames.isSystemTopic(topicName)) {
-                /*
-                 Avoid setting broker internal system topics using off-loader because some of them are the
-                 preconditions of other topics. The slow replying log speed will cause a delay in all the topic
-                 loading.(timeout)
-                 */
-                managedLedgerConfig.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
-            } else  {
-                if (topicLevelOffloadPolicies != null) {
-                    try {
-                        LedgerOffloader topicLevelLedgerOffLoader =
-                                pulsar().createManagedLedgerOffloader(offloadPolicies);
-                        managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
-                    } catch (PulsarServerException e) {
-                        throw new RuntimeException(e);
-                    }
-                } else {
-                    //If the topic level policy is null, use the namespace level
-                    managedLedgerConfig
-                            .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
+            if (topicLevelOffloadPolicies != null) {
+                try {
+                    LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(offloadPolicies);
+                    managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
+                } catch (PulsarServerException e) {
+                    throw new RuntimeException(e);
                 }
+            } else {
+                //If the topic level policy is null, use the namespace level
+                managedLedgerConfig
+                        .setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
             }
+            if (managedLedgerConfig.getLedgerOffloader() != null
+                    && managedLedgerConfig.getLedgerOffloader().isAppendable()
+                    && (NamespaceService.isSystemServiceNamespace(namespace.toString())
+                            || SystemTopicNames.isSystemTopic(topicName))) {
+                managedLedgerConfig.setLedgerOffloader(
+                        new NonAppendableLedgerOffloader(managedLedgerConfig.getLedgerOffloader()));
+            }
+
             managedLedgerConfig.setTriggerOffloadOnTopicLoad(serviceConfig.isTriggerOffloadOnTopicLoad());
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
