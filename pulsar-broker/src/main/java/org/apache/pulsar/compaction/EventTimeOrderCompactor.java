@@ -61,10 +61,10 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
 
   @Override
   protected boolean compactMessage(String topic, Map<String, Pair<MessageId, Long>> latestForKey,
-      RawMessage m, MessageId id) {
+      RawMessage m, MessageMetadata metadata, MessageId id) {
     boolean deletedMessage = false;
     boolean replaceMessage = false;
-    MessageCompactionData mcd = extractMessageCompactionData(m);
+    MessageCompactionData mcd = extractMessageCompactionData(m, metadata);
 
     if (mcd != null) {
       boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
@@ -100,7 +100,7 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
       int numMessagesInBatch = metadata.getNumMessagesInBatch();
       int deleteCnt = 0;
 
-      for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m)) {
+      for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m, metadata)) {
         if (mcd.key() == null) {
           if (!topicCompactionRetainNullKey) {
             // record delete null-key message event
@@ -139,23 +139,22 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
     return deletedMessage;
   }
 
-  protected MessageCompactionData extractMessageCompactionData(RawMessage m) {
+  protected MessageCompactionData extractMessageCompactionData(RawMessage m, MessageMetadata metadata) {
     ByteBuf headersAndPayload = m.getHeadersAndPayload();
-    MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-    if (msgMetadata.hasPartitionKey()) {
+    if (metadata.hasPartitionKey()) {
       int size = headersAndPayload.readableBytes();
-      if (msgMetadata.hasUncompressedSize()) {
-        size = msgMetadata.getUncompressedSize();
+      if (metadata.hasUncompressedSize()) {
+        size = metadata.getUncompressedSize();
       }
-      return new MessageCompactionData(m.getMessageId(), msgMetadata.getPartitionKey(),
-          size, msgMetadata.getEventTime());
+      return new MessageCompactionData(m.getMessageId(), metadata.getPartitionKey(),
+          size, metadata.getEventTime());
     } else {
       return null;
     }
   }
 
-  private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg)
+  private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg, MessageMetadata metadata)
       throws IOException {
-    return RawBatchConverter.extractMessageCompactionData(msg);
+    return RawBatchConverter.extractMessageCompactionData(msg, metadata);
   }
 }
