@@ -425,7 +425,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // Ledger id and entry id both are Long.MAX_VALUE.
         log.info("start test s5");
         String s5 = "s5";
-        MessageIdImpl startMessageId5 = new MessageIdImpl(currentLedger.getId() + 1, Long.MAX_VALUE, -1);
+        MessageIdImpl startMessageId5 = new MessageIdImpl(Long.MAX_VALUE, Long.MAX_VALUE, -1);
         Reader<String> reader5 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s5)
                 .receiverQueueSize(0).startMessageId(startMessageId5).create();
         ManagedLedgerInternalStats.CursorStats cursor5 = admin.topics().getInternalStats(topicName).cursors.get(s5);
@@ -448,7 +448,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         assertEquals(p6.getEntryId(), 0);
         reader6.close();
 
-        // Larger than the latest ledger, and entry id is Long.MAX_VALUE.
+        // Ledger id equals LAC, and entry id is Long.MAX_VALUE.
         log.info("start test s7");
         String s7 = "s7";
         MessageIdImpl startMessageId7 = new MessageIdImpl(ledgers.get(ledgers.size() - 1), Long.MAX_VALUE, -1);
@@ -464,7 +464,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // A middle ledger id, and entry id is "-1".
         log.info("start test s8");
         String s8 = "s8";
-        MessageIdImpl startMessageId8 = new MessageIdImpl(ledgers.get(2), 0, -1);
+        MessageIdImpl startMessageId8 = new MessageIdImpl(ledgers.get(2), -1, -1);
         Reader<String> reader8 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s8)
                 .receiverQueueSize(0).startMessageId(startMessageId8).create();
         ManagedLedgerInternalStats.CursorStats cursor8 = admin.topics().getInternalStats(topicName).cursors.get(s8);
@@ -474,7 +474,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         assertEquals(p8.getEntryId(), 0);
         reader8.close();
 
-        // Larger than the latest ledger, and entry id is Long.MAX_VALUE.
+        // A middle ledger id, and entry id is Long.MAX_VALUE.
         log.info("start test s9");
         String s9 = "s9";
         MessageIdImpl startMessageId9 = new MessageIdImpl(ledgers.get(2), Long.MAX_VALUE, -1);
@@ -488,7 +488,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         assertEquals(p9.getEntryId(), 0);
         reader9.close();
 
-        // Larger than the latest ledger, and entry id equals with the max entry id of this ledger.
+        // A middle ledger id, and entry id equals with the max entry id of this ledger.
         log.info("start test s10");
         String s10 = "s10";
         MessageIdImpl startMessageId10 = new MessageIdImpl(ledgers.get(2), 0, -1);
