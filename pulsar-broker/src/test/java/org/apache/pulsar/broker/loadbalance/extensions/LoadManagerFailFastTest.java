@@ -23,11 +23,13 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -66,6 +68,8 @@ public class LoadManagerFailFastTest {
             Assert.assertNull(e.getCause());
             Assert.assertEquals(e.getMessage(), "Cannot start BrokerRegistry");
         }
+        Assert.assertTrue(pulsar.getLocalMetadataStore().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get()
+                .isEmpty());
     }
 
     @Test(timeOut = 30000)
@@ -79,6 +83,8 @@ public class LoadManagerFailFastTest {
             Assert.assertNull(e.getCause());
             Assert.assertEquals(e.getMessage(), "Cannot start ServiceUnitStateChannel");
         }
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(pulsar.getLocalMetadataStore()
+                .getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get().isEmpty()));
     }
 
     private static class BrokerRegistryLoadManager extends ExtensibleLoadManagerImpl {
