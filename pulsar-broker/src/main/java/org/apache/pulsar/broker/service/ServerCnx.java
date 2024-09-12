@@ -63,6 +63,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -672,8 +674,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
                                                     ex.getMessage(), requestId);
                                         } else {
-                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                    topicName, ex.getMessage(), ex);
                                             ServerError error = ServerError.ServiceNotReady;
                                             if (ex instanceof MetadataStoreException) {
                                                 error = ServerError.MetadataError;
@@ -684,6 +684,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
                                                     error = ServerError.MetadataError;
                                                 }
+                                            }
+                                            if (error == ServerError.TopicNotFound) {
+                                                log.info("Trying to get Partitioned Metadata for a resource not exist"
+                                                                + "[{}] {}: {}", remoteAddress,
+                                                        topicName, ex.getMessage());
+                                            } else {
+                                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                        topicName, ex.getMessage(), ex);
                                             }
                                             commandSender.sendPartitionMetadataResponse(error, ex.getMessage(),
                                                     requestId);
@@ -702,6 +710,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return null;
             }).exceptionally(ex -> {
                 logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName), ex);
+                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                if (actEx instanceof WebApplicationException restException) {
+                    if (restException.getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode()) {
+                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                        "Tenant or namespace does not exist: " + topicName.getNamespace() ,
+                                requestId));
+                    }
+                }
                 final String msg = "Exception occurred while trying to authorize get Partition Metadata";
                 writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
                         requestId));
@@ -3663,13 +3679,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private static void logAuthException(SocketAddress remoteAddress, String operation,
                                          String principal, Optional<TopicName> topic, Throwable ex) {
         String topicString = topic.map(t -> ", topic=" + t.toString()).orElse("");
-        if (ex instanceof AuthenticationException) {
+        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+        if (actEx instanceof AuthenticationException) {
             log.info("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
-                    remoteAddress, operation, principal, topicString, ex.getMessage());
-        } else {
-            log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
-                    remoteAddress, operation, principal, topicString, ex);
+                    remoteAddress, operation, principal, topicString, actEx.getMessage());
+            return;
+        } else if (actEx instanceof WebApplicationException restException){
+            // Do not print error log if users tries to access a not found resource.
+            if (restException.getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode()) {
+                log.info("[{}] Trying to authenticate for a topic which under a namespace not exists: operation={},"
+                                + " principal={}{}, reason: {}",
+                        remoteAddress, operation, principal, topicString, actEx.getMessage());
+                return;
+            }
         }
+        log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
+                remoteAddress, operation, principal, topicString, ex);
     }
 
     private static void logNamespaceNameAuthException(SocketAddress remoteAddress, String operation,
