@@ -81,7 +81,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerSche
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.SplitScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.UnloadScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
-import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategyFactory;
@@ -400,13 +399,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(unloadManager);
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
-            pulsar.runWhenReadyForIncomingRequests(() -> {
-                try {
-                    this.serviceUnitStateChannel.start();
-                } catch (Exception e) {
-                    failStarting(e);
-                }
-            });
+
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -415,15 +408,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
             this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
             this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
-
-            try {
-                this.brokerLoadDataStore = LoadDataStoreFactory
-                        .create(pulsar, BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
-                this.topBundlesLoadDataStore = LoadDataStoreFactory
-                        .create(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
-            } catch (LoadDataStoreException e) {
-                throw new PulsarServerException(e);
-            }
+            this.brokerLoadDataStore = LoadDataStoreFactory
+                    .create(pulsar, BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+            this.topBundlesLoadDataStore = LoadDataStoreFactory
+                    .create(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
 
             this.context = LoadManagerContextImpl.builder()
                     .configuration(conf)
@@ -447,6 +435,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
             pulsar.runWhenReadyForIncomingRequests(() -> {
                 try {
+                    this.serviceUnitStateChannel.start();
                     var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
 
                     this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
@@ -484,27 +473,29 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     this.initWaiter.complete(null);
                     this.started = true;
                     log.info("Started load manager.");
-                } catch (Exception ex) {
-                    failStarting(ex);
+                } catch (Throwable e) {
+                    failStarting(e);
                 }
             });
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             failStarting(ex);
         }
     }
 
-    private void failStarting(Exception ex) {
-        log.error("Failed to start the extensible load balance and close broker registry {}.",
-                this.brokerRegistry, ex);
+    private void failStarting(Throwable throwable) {
         if (this.brokerRegistry != null) {
             try {
                 brokerRegistry.close();
             } catch (PulsarServerException e) {
-                // ignore
+                // If close failed, this broker might still exist in the metadata store. Then it could be found by other
+                // brokers as an available broker. Hence, print a warning log for it.
+                log.warn("Failed to close the broker registry: {}", e.getMessage());
             }
         }
-        initWaiter.completeExceptionally(ex);
+        initWaiter.completeExceptionally(new InterruptedException()); // exit the background thread gracefully
+        throw PulsarServerException.toUncheckedException(PulsarServerException.from(throwable));
     }
+
 
     @Override
     public void initialize(PulsarService pulsar) {
@@ -865,6 +856,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 unloadScheduler.start();
                 serviceUnitStateChannel.scheduleOwnershipMonitor();
                 break;
+            } catch (InterruptedException ignored) {
+                return;
             } catch (Throwable e) {
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
@@ -912,6 +905,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 topBundlesLoadDataStore.close();
                 topBundlesLoadDataStore.startProducer();
                 break;
+            } catch (InterruptedException ignored) {
+                return;
             } catch (Throwable e) {
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
@@ -994,6 +989,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     playFollower();
                 }
             }
+        } catch (InterruptedException ignored) {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
