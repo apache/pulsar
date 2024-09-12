@@ -119,24 +119,13 @@ public class NarUnpackerTest {
     }
 
     @Test
-    void shouldReExtractWhenUnpackedDirectoryIsMissing() throws InterruptedException {
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        AtomicInteger exceptionCounter = new AtomicInteger();
+    void shouldReExtractWhenUnpackedDirectoryIsMissing() throws IOException {
         AtomicInteger extractCounter = new AtomicInteger();
 
-        try {
-            File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
-            FileUtils.deleteFile(narWorkingDirectory, true);
-            NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
-        } catch (Exception e) {
-            log.error("Unpacking failed", e);
-            exceptionCounter.incrementAndGet();
-        } finally {
-            countDownLatch.countDown();
-        }
+        File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+        FileUtils.deleteFile(narWorkingDirectory, true);
+        NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
 
-        assertTrue(countDownLatch.await(30, TimeUnit.SECONDS));
-        assertEquals(exceptionCounter.get(), 0);
         assertEquals(extractCounter.get(), 2);
     }
 
