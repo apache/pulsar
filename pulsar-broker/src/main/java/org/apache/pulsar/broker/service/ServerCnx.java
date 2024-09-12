@@ -716,6 +716,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                         "Tenant or namespace does not exist: " + topicName.getNamespace() ,
                                 requestId));
+                        lookupSemaphore.release();
+                        return null;
                     }
                 }
                 final String msg = "Exception occurred while trying to authorize get Partition Metadata";
