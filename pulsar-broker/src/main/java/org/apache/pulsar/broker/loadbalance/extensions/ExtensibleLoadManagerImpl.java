@@ -908,8 +908,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 topBundlesLoadDataStore.close();
                 topBundlesLoadDataStore.startProducer();
                 break;
-            } catch (InterruptedException ignored) {
-                return;
             } catch (Throwable e) {
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
