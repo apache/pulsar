@@ -144,7 +144,7 @@ public class TestJsonDecoder extends AbstractDecoderTester {
 
         PulsarColumnHandle uuidHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "uuidField", UuidType.UUID, false, false, "uuidField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
-        checkValue(decodedRow, uuidHandle, message.uuidField.toString());
+        checkValue(decodedRow, uuidHandle, UuidType.javaUuidToTrinoUuid(message.uuidField));
     }
 
     @Test
