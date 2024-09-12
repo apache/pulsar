@@ -99,10 +99,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.slf4j.Logger;
 
@@ -124,10 +121,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private static final long MONITOR_INTERVAL_IN_MILLIS = 120_000;
 
     public static final long COMPACTION_THRESHOLD = 5 * 1024 * 1024;
-
-    public static final int STARTUP_TIMEOUT_SECONDS = 30;
-
-    public static final int MAX_RETRY = 5;
 
     private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
@@ -408,43 +401,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
             pulsar.runWhenReadyForIncomingRequests(() -> {
-                Backoff backoff = new BackoffBuilder()
-                        .setInitialTime(100, TimeUnit.MILLISECONDS)
-                        .setMax(STARTUP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                        .create();
-                int retry = 0;
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        brokerRegistry.register();
-                        this.serviceUnitStateChannel.start();
-                        break;
-                    } catch (Exception e) {
-                        log.warn("The broker:{} failed to start service unit state channel. Retrying {} th ...",
-                                pulsar.getBrokerId(), ++retry, e);
-                        try {
-                            Thread.sleep(backoff.next());
-                        } catch (InterruptedException ex) {
-                            log.warn("Interrupted while sleeping.");
-                            // preserve thread's interrupt status
-                            Thread.currentThread().interrupt();
-                            try {
-                                pulsar.close();
-                            } catch (PulsarServerException exc) {
-                                log.error("Failed to close pulsar service.", exc);
-                            }
-                            return;
-                        }
-                        failStarting(e);
-                        if (retry >= MAX_RETRY) {
-                            log.error("Failed to start the service unit state channel after retry {} th. "
-                                    + "Closing pulsar service.", retry, e);
-                            try {
-                                pulsar.close();
-                            } catch (PulsarServerException ex) {
-                                log.error("Failed to close pulsar service.", ex);
-                            }
-                        }
-                    }
+                try {
+                    this.serviceUnitStateChannel.start();
+                } catch (Exception e) {
+                    failStarting(e);
                 }
             });
             this.antiAffinityGroupPolicyHelper =
@@ -538,15 +498,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 this.brokerRegistry, ex);
         if (this.brokerRegistry != null) {
             try {
-                brokerRegistry.unregister();
-            } catch (MetadataStoreException e) {
-                // ignore
-            }
-        }
-        if (this.serviceUnitStateChannel != null) {
-            try {
-                serviceUnitStateChannel.close();
-            } catch (IOException e) {
+                brokerRegistry.close();
+            } catch (PulsarServerException e) {
                 // ignore
             }
         }
