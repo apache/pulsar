@@ -244,6 +244,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
+    public CompletableFuture<Void> put(String path, T value) {
+        final byte[] bytes;
+        try {
+            bytes = serde.serialize(path, value);
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return store.put(path, bytes, Optional.empty()).thenAccept(__ -> {});
+    }
+
+    @Override
     public CompletableFuture<Void> delete(String path) {
         return store.delete(path, Optional.empty());
     }

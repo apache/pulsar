@@ -597,4 +597,27 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(res.getValue().b, 2);
         assertEquals(res.getValue().path, key1);
     }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        final var store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        final var cache1 = store1.getMetadataCache(Integer.class);
+        @Cleanup
+        final var store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        final var cache2 = store2.getMetadataCache(Integer.class);
+        final var key = "/testPut";
+
+        cache1.put(key, 1); // create
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cache1.get(key).get().orElse(-1), 1);
+            assertEquals(cache2.get(key).get().orElse(-1), 1);
+        });
+
+        cache2.put(key, 2); // update
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cache1.get(key).get().orElse(-1), 2);
+            assertEquals(cache2.get(key).get().orElse(-1), 2);
+        });
+    }
 }

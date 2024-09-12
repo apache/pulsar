@@ -129,6 +129,21 @@ public interface MetadataCache<T> {
     CompletableFuture<Void> create(String path, T value);
 
     /**
+     * Create or update the value of the given path in the metadata store without version compare.
+     * <p>
+     * This method is equivalent with {@link MetadataStore#put(String, byte[], Optional)} with `Optional.empty()` as
+     * the 3rd argument. It means if the path does not exist, it will be created. If the path already exists, the new
+     * value will override the old value.
+     * </p>
+     * @param path the path of the object in the metadata store
+     * @param value the object to put in the metadata store
+     * @return the future that indicates if this operation failed, it could fail with
+     *   {@link java.io.IOException} if the value failed to be serialized
+     *   {@link MetadataStoreException} if the metadata store operation failed
+     */
+    CompletableFuture<Void> put(String path, T value);
+
+    /**
      * Delete an object from the metadata store.
      * <p>
      * This operation will make sure to keep the cache consistent.
