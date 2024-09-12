@@ -64,6 +64,7 @@ import io.trino.spi.type.VarcharType;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -275,6 +276,10 @@ public class PulsarJsonFieldDecoder
 
         private static Slice getSlice(JsonNode value, Type type, String columnName) {
             String textValue = value.isValueNode() ? value.asText() : value.toString();
+
+            if (type instanceof UuidType) {
+                return UuidType.javaUuidToTrinoUuid(UUID.fromString(textValue));
+            }
 
             Slice slice = utf8Slice(textValue);
             if (type instanceof VarcharType) {
