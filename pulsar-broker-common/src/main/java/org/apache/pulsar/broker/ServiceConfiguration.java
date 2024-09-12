@@ -2912,6 +2912,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean loadBalancerMultiPhaseBundleUnload = true;
 
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Name of ServiceUnitStateTableView implementation class to use"
+    )
+    private String loadManagerServiceUnitStateTableViewClassName =
+            "org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl";
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,

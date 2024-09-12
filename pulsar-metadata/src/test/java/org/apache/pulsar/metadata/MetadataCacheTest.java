@@ -47,6 +47,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -620,6 +621,30 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cache1.get(key).get().orElse(-1), 2);
             assertEquals(cache2.get(key).get().orElse(-1), 2);
+        });
+    }
+
+    @Test(dataProvider = "impl")
+    public void testAsyncReloadConsumer(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        List<MyClass> refreshed = new ArrayList<>();
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class,
+                MetadataCacheConfig.<MyClass>builder().refreshAfterWriteMillis(100)
+                        .asyncReloadConsumer((k, v) -> v.map(vv -> refreshed.add(vv.getValue()))).build());
+
+        String key1 = newKey();
+
+        MyClass value1 = new MyClass("a", 1);
+        objCache.create(key1, value1);
+
+        MyClass value2 = new MyClass("a", 2);
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2), Optional.empty())
+                .join();
+
+        Awaitility.await().untilAsserted(() -> {
+            refreshed.contains(value2);
         });
     }
 }

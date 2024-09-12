@@ -21,10 +21,9 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static java.lang.String.format;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Follower;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.TOPIC;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
-import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.getNamespaceBundle;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,20 +40,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -209,46 +204,18 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     /**
      * Get all the bundles that are owned by this broker.
      */
+    @Deprecated
     public CompletableFuture<Set<NamespaceBundle>> getOwnedServiceUnitsAsync() {
+        return CompletableFuture.completedFuture(getOwnedServiceUnits());
+    }
+
+    public Set<NamespaceBundle> getOwnedServiceUnits() {
         if (!started) {
             log.warn("Failed to get owned service units, load manager is not started.");
-            return CompletableFuture.completedFuture(Collections.emptySet());
+            return Collections.emptySet();
         }
 
-        String brokerId = brokerRegistry.getBrokerId();
-        Set<Map.Entry<String, ServiceUnitStateData>> entrySet = serviceUnitStateChannel.getOwnershipEntrySet();
-        Set<NamespaceBundle> ownedServiceUnits = entrySet.stream()
-                .filter(entry -> {
-                    var stateData = entry.getValue();
-                    return stateData.state() == ServiceUnitState.Owned
-                            && StringUtils.isNotBlank(stateData.dstBroker())
-                            && stateData.dstBroker().equals(brokerId);
-                }).map(entry -> {
-                    var bundle = entry.getKey();
-                    return getNamespaceBundle(pulsar, bundle);
-                }).collect(Collectors.toSet());
-        // Add heartbeat and SLA monitor namespace bundle.
-        NamespaceName heartbeatNamespace = NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        NamespaceName heartbeatNamespaceV2 = NamespaceService
-                .getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration());
-        NamespaceName slaMonitorNamespace = NamespaceService
-                .getSLAMonitorNamespace(brokerId, pulsar.getConfiguration());
-        return pulsar.getNamespaceService().getNamespaceBundleFactory()
-                .getFullBundleAsync(heartbeatNamespace)
-                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
-                    log.warn("Failed to get heartbeat namespace bundle.", e);
-                    return null;
-                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
-                        .getFullBundleAsync(heartbeatNamespaceV2))
-                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
-                    log.warn("Failed to get heartbeat namespace V2 bundle.", e);
-                    return null;
-                }).thenCompose(__ -> pulsar.getNamespaceService().getNamespaceBundleFactory()
-                        .getFullBundleAsync(slaMonitorNamespace))
-                .thenAccept(fullBundle -> ownedServiceUnits.add(fullBundle)).exceptionally(e -> {
-                    log.warn("Failed to get SLA Monitor namespace bundle.", e);
-                    return null;
-                }).thenApply(__ -> ownedServiceUnits);
+        return serviceUnitStateChannel.getOwnedServiceUnits();
     }
 
     @Override
@@ -799,8 +766,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 monitorTask.cancel(true);
             }
 
-            this.brokerLoadDataStore.close();
-            this.topBundlesLoadDataStore.close();
+            this.brokerLoadDataStore.shutdown();
+            this.topBundlesLoadDataStore.shutdown();
             this.unloadScheduler.close();
             this.splitScheduler.close();
         } catch (IOException ex) {
