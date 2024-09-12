@@ -581,6 +581,7 @@ public class GetPartitionMetadataTest {
 
     @Test(dataProvider = "topicDomains")
     public void testNamespaceNotExist(TopicDomain topicDomain) throws Exception {
+        int lookupPermitsBefore = getLookupRequestPermits();
         final String namespaceNotExist = BrokerTestUtil.newUniqueName("public/ns");
         final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
         PulsarClientImpl[] clientArray = getClientsToTest(false);
@@ -597,10 +598,15 @@ public class GetPartitionMetadataTest {
                         unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
             }
         }
+        // Verify: lookup semaphore has been releases.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+        });
     }
 
     @Test(dataProvider = "topicDomains")
     public void testTenantNotExist(TopicDomain topicDomain) throws Exception {
+        int lookupPermitsBefore = getLookupRequestPermits();
         final String tenantNotExist = BrokerTestUtil.newUniqueName("tenant");
         final String namespaceNotExist = BrokerTestUtil.newUniqueName(tenantNotExist + "/default");
         final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
@@ -618,5 +624,9 @@ public class GetPartitionMetadataTest {
                         unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
             }
         }
+        // Verify: lookup semaphore has been releases.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
+        });
     }
 }
