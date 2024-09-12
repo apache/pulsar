@@ -59,6 +59,8 @@ public class RawBatchConverter {
         ByteBuf payload = msg.getHeadersAndPayload();
         if (metadata == null) {
             metadata = Commands.parseMessageMetadata(payload);
+        } else {
+            Commands.skipMessageMetadata(payload);
         }
         int batchSize = metadata.getNumMessagesInBatch();
 
@@ -137,6 +139,8 @@ public class RawBatchConverter {
         }
         if (metadata == null) {
             metadata = Commands.parseMessageMetadata(payload);
+        } else {
+            Commands.skipMessageMetadata(payload);
         }
         ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
 
