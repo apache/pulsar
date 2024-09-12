@@ -135,7 +135,6 @@ public class PulsarShell {
     enum ShellMode {
         ADMIN("admin"),
         CLIENT("client"),
-        CONFIG("config"),
         DEFAULT("");
 
         private static final Map<String, ShellMode> COMMAND_MAP = new HashMap<>();
@@ -638,9 +637,6 @@ public class PulsarShell {
             }
             case CLIENT -> {
                 return createClientShell(properties);
-            }
-            case CONFIG -> {
-                return configShell;
             }
             default -> {
                 return shellCommander.getCommand();
