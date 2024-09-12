@@ -101,6 +101,10 @@ public class CmdRead extends AbstractCmdConsume {
     @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
     private boolean poolMessages = true;
 
+    @Option(names = {"-rc",
+            "--readCompacted"}, description = "Whether to read from the compacted topic or full message topic backlog")
+    private boolean readCompacted = false;
+
     public CmdRead() {
         // Do nothing
         super();
@@ -140,6 +144,7 @@ public class CmdRead extends AbstractCmdConsume {
             builder = client.newReader(schema)
                     .topic(topic)
                     .startMessageId(parseMessageId(startMessageId))
+                    .readCompacted(readCompacted)
                     .poolMessages(poolMessages);
 
             if (this.startMessageIdInclusive) {
