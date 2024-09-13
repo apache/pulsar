@@ -291,7 +291,7 @@ public class BrokerRegistryTest {
     }
 
     @Test
-    public void testRegisterFailWithSameBrokerId() throws Exception {
+    public void testRegisterWithSameBrokerId() throws Exception {
         PulsarService pulsar1 = createPulsarService();
         PulsarService pulsar2 = createPulsarService();
         pulsar1.start();
@@ -301,14 +301,10 @@ public class BrokerRegistryTest {
         BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
         BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
         brokerRegistry1.start();
-        try {
-            brokerRegistry2.start();
-            fail();
-        } catch (Exception ex) {
-            log.info("Broker registry start failed.", ex);
-            assertTrue(ex instanceof PulsarServerException);
-            assertTrue(ex.getMessage().contains("LockBusyException"));
-        }
+        brokerRegistry2.start();
+
+        pulsar1.close();
+        pulsar2.close();
     }
 
     @Test
