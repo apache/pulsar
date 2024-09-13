@@ -388,13 +388,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private boolean isReplayQueueSizeBelowLimit() {
-        return redeliveryMessages.size() < getEffectiveLookAheadLimit(serviceConfig, consumerList.size());
+        return redeliveryMessages.size() < getEffectiveLookAheadLimit();
     }
 
-    static long getEffectiveLookAheadLimit(ServiceConfiguration serviceConfig, int consumerCount) {
+    private int getEffectiveLookAheadLimit() {
+        return getEffectiveLookAheadLimit(serviceConfig, consumerList.size());
+    }
+
+    static int getEffectiveLookAheadLimit(ServiceConfiguration serviceConfig, int consumerCount) {
         int perConsumerLimit = serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
         int perSubscriptionLimit = serviceConfig.getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
-        long effectiveLimit;
+        int effectiveLimit;
         if (perConsumerLimit <= 0) {
             effectiveLimit = perSubscriptionLimit;
         } else {
@@ -761,6 +765,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
         return false;
+    }
+
+    @Override
+    protected int getMaxEntriesReadLimit() {
+        // prevent the redelivery queue from growing over the limit by limiting the number of entries to read
+        // to the maximum number of entries that can be added to the redelivery queue
+        return Math.max(getEffectiveLookAheadLimit() - redeliveryMessages.size(), 1);
     }
 
     /**

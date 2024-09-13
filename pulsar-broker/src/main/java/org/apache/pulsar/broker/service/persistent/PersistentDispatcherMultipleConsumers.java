@@ -391,6 +391,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 havePendingRead = true;
                 updateMinReplayedPosition();
 
+                messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
+
                 // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
                 if (delayedDeliveryTracker.isPresent()) {
                     Predicate<Position> skipCondition = null;
@@ -415,6 +417,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    /**
+     * Sets a hard limit on the number of entries to read from the Managed Ledger.
+     * Subclasses can override this method to set a different limit.
+     * By default, this method does not impose an additional limit.
+     *
+     * @return the maximum number of entries to read from the Managed Ledger
+     */
+    protected int getMaxEntriesReadLimit() {
+        return Integer.MAX_VALUE;
     }
 
     /**
@@ -1300,6 +1313,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected boolean isNormalReadAllowed() {
         return true;
     }
+
+
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
         return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
