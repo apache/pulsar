@@ -29,6 +29,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +56,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -600,21 +602,21 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "distributedImpl")
     public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
-        @Cleanup
-        final var store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        @Cleanup final var store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+                .build());
         final var cache1 = store1.getMetadataCache(Integer.class);
-        @Cleanup
-        final var store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        @Cleanup final var store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+                .build());
         final var cache2 = store2.getMetadataCache(Integer.class);
         final var key = "/testPut";
 
-        cache1.put(key, 1); // create
+        cache1.put(key, 1, EnumSet.of(CreateOption.Ephemeral)); // create
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cache1.get(key).get().orElse(-1), 1);
             assertEquals(cache2.get(key).get().orElse(-1), 1);
         });
 
-        cache2.put(key, 2); // update
+        cache2.put(key, 2, EnumSet.of(CreateOption.Ephemeral)); // update
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cache1.get(key).get().orElse(-1), 2);
             assertEquals(cache2.get(key).get().orElse(-1), 2);

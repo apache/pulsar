@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 
 /**
  * The broker registry impl, base on the LockManager.
@@ -119,7 +121,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public synchronized void register() throws MetadataStoreException {
         if (this.state == State.Started) {
             try {
-                brokerLookupDataMetadataCache.put(brokerIdKeyPath, brokerLookupData)
+                brokerLookupDataMetadataCache.put(brokerIdKeyPath, brokerLookupData, EnumSet.of(CreateOption.Ephemeral))
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                 this.state = State.Registered;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
