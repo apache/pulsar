@@ -887,7 +887,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
-                option.getConsumerEpoch(), option.getSchemaType());
+                option.getConsumerEpoch(), option.getSchemaType(), option.isResetIncludeHead());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -901,7 +901,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
-                                                          SchemaType schemaType) {
+                                                          SchemaType schemaType,
+                                                          boolean resetIncludeHead) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -984,7 +985,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
+                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties, resetIncludeHead);
 
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
@@ -1068,7 +1069,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null, false);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -1134,7 +1135,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
-            boolean isReadCompacted, Map<String, String> subscriptionProperties) {
+            boolean isReadCompacted, Map<String, String> subscriptionProperties, boolean resetIncludeHead) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",
                 topic, subscriptionName, startMessageId, subscriptionProperties);
 
@@ -1157,7 +1158,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 long entryId = msgId.getEntryId();
                 // Ensure that the start message id starts from a valid entry.
                 if (ledgerId >= 0 && entryId >= 0
-                        && msgId instanceof BatchMessageIdImpl) {
+                        && msgId instanceof BatchMessageIdImpl
+                        && (msgId.getBatchIndex() >= 0 || resetIncludeHead)) {
                     // When the start message is relative to a batch, we need to take one step back on the previous
                     // message,
                     // because the "batch" might not have been consumed in its entirety.
