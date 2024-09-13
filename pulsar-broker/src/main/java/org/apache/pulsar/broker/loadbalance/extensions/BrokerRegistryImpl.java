@@ -21,11 +21,11 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -39,11 +39,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.apache.pulsar.metadata.api.coordination.ResourceLock;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 
 /**
  * The broker registry impl, base on the LockManager.
@@ -57,15 +57,13 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private final BrokerLookupData brokerLookupData;
 
-    private final LockManager<BrokerLookupData> brokerLookupDataLockManager;
+    private final MetadataCache<BrokerLookupData> brokerLookupDataMetadataCache;
 
-    private final String brokerId;
+    private final String brokerIdKeyPath;
 
     private final ScheduledExecutorService scheduler;
 
     private final List<BiConsumer<String, NotificationType>> listeners;
-
-    private volatile ResourceLock<BrokerLookupData> brokerLookupDataLock;
 
     protected enum State {
         Init,
@@ -79,10 +77,10 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public BrokerRegistryImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
-        this.brokerLookupDataLockManager = pulsar.getCoordinationService().getLockManager(BrokerLookupData.class);
+        this.brokerLookupDataMetadataCache = pulsar.getLocalMetadataStore().getMetadataCache(BrokerLookupData.class);
         this.scheduler = pulsar.getLoadManagerExecutor();
         this.listeners = new ArrayList<>();
-        this.brokerId = pulsar.getBrokerId();
+        this.brokerIdKeyPath = keyPath(pulsar.getBrokerId());
         this.brokerLookupData = new BrokerLookupData(
                 pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
@@ -121,7 +119,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public synchronized void register() throws MetadataStoreException {
         if (this.state == State.Started) {
             try {
-                this.brokerLookupDataLock = brokerLookupDataLockManager.acquireLock(keyPath(brokerId), brokerLookupData)
+                brokerLookupDataMetadataCache.put(brokerIdKeyPath, brokerLookupData, EnumSet.of(CreateOption.Ephemeral))
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
                 this.state = State.Registered;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -134,30 +132,37 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     public synchronized void unregister() throws MetadataStoreException {
         if (this.state == State.Registered) {
             try {
-                this.brokerLookupDataLock.release()
+                brokerLookupDataMetadataCache.delete(brokerIdKeyPath)
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-                this.state = State.Started;
-            } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    log.warn("{} has already been unregistered", brokerIdKeyPath);
+                } else {
+                    throw MetadataStoreException.unwrap(e);
+                }
+            } catch (InterruptedException | TimeoutException e) {
                 throw MetadataStoreException.unwrap(e);
+            } finally {
+                this.state = State.Started;
             }
         }
     }
 
     @Override
     public String getBrokerId() {
-        return this.brokerId;
+        return pulsar.getBrokerId();
     }
 
     @Override
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
         this.checkState();
-        return brokerLookupDataLockManager.listLocks(LOADBALANCE_BROKERS_ROOT).thenApply(ArrayList::new);
+        return brokerLookupDataMetadataCache.getChildren(LOADBALANCE_BROKERS_ROOT);
     }
 
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker) {
         this.checkState();
-        return brokerLookupDataLockManager.readLock(keyPath(broker));
+        return brokerLookupDataMetadataCache.get(keyPath(broker));
     }
 
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
@@ -191,13 +196,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         try {
             this.listeners.clear();
             this.unregister();
-            this.brokerLookupDataLockManager.close();
         } catch (Exception ex) {
-            if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
-            } else {
-                throw new PulsarServerException(MetadataStoreException.unwrap(ex));
-            }
+            log.error("Unexpected error when unregistering the broker registry", ex);
         } finally {
             this.state = State.Closed;
         }
