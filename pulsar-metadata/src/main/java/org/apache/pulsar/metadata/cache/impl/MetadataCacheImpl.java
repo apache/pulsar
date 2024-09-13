@@ -251,7 +251,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         } catch (IOException e) {
             return CompletableFuture.failedFuture(e);
         }
-        return store.put(path, bytes, Optional.empty()).thenAccept(__ -> {});
+        return store.put(path, bytes, Optional.empty()).thenAccept(__ -> refresh(path));
     }
 
     @Override
