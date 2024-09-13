@@ -1250,6 +1250,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long consumerEpoch = subscribe.hasConsumerEpoch() ? subscribe.getConsumerEpoch() : DEFAULT_CONSUMER_EPOCH;
         final Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
                 subscribe.getSubscriptionPropertiesList());
+        final boolean resetIncludeHead = subscribe.isResetIncludeHead();
 
         if (log.isDebugEnabled()) {
             log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
@@ -1374,6 +1375,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .subscriptionProperties(subscriptionProperties)
                                                 .consumerEpoch(consumerEpoch)
                                                 .schemaType(schema == null ? null : schema.getType())
+                                                .resetIncludeHead(resetIncludeHead)
                                                 .build();
                                         if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
                                             return ignoreUnrecoverableBKException
