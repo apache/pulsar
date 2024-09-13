@@ -690,8 +690,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                                 + "[{}] {}: {}", remoteAddress,
                                                         topicName, ex.getMessage());
                                             } else {
-                                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                        topicName, ex.getMessage(), ex);
+                                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}",
+                                                        remoteAddress, topicName, ex.getMessage(), ex);
                                             }
                                             commandSender.sendPartitionMetadataResponse(error, ex.getMessage(),
                                                     requestId);
