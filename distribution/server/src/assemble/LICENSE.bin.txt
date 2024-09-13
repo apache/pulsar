@@ -580,29 +580,29 @@ Bouncy Castle License
     - org.bouncycastle-bcutil-jdk18on-1.78.1.jar
 
 Datastax
-    - com.datastax.oss-managed-ledger-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-broker-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-broker-auth-oidc-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-broker-auth-sasl-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-broker-common-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-config-validation-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-docs-tools-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-api-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-instance-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-local-runner-original-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-proto-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-runtime-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-secrets-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-utils-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-functions-worker-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-io-core-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-metadata-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-proxy-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-testclient-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-transaction-common-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-pulsar-transaction-coordinator-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-testmocks-3.1.4.7-SNAPSHOT.jar
-    - com.datastax.oss-jetcd-core-shaded-3.1.4.7-SNAPSHOT-shaded.jar
+    - com.datastax.oss-managed-ledger-3.1.4.6.jar
+    - com.datastax.oss-pulsar-broker-3.1.4.6.jar
+    - com.datastax.oss-pulsar-broker-auth-oidc-3.1.4.6.jar
+    - com.datastax.oss-pulsar-broker-auth-sasl-3.1.4.6.jar
+    - com.datastax.oss-pulsar-broker-common-3.1.4.6.jar
+    - com.datastax.oss-pulsar-config-validation-3.1.4.6.jar
+    - com.datastax.oss-pulsar-docs-tools-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-api-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-instance-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-local-runner-original-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-proto-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-runtime-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-secrets-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-utils-3.1.4.6.jar
+    - com.datastax.oss-pulsar-functions-worker-3.1.4.6.jar
+    - com.datastax.oss-pulsar-io-core-3.1.4.6.jar
+    - com.datastax.oss-pulsar-metadata-3.1.4.6.jar
+    - com.datastax.oss-pulsar-proxy-3.1.4.6.jar
+    - com.datastax.oss-pulsar-testclient-3.1.4.6.jar
+    - com.datastax.oss-pulsar-transaction-common-3.1.4.6.jar
+    - com.datastax.oss-pulsar-transaction-coordinator-3.1.4.6.jar
+    - com.datastax.oss-testmocks-3.1.4.6.jar
+    - com.datastax.oss-jetcd-core-shaded-3.1.4.6-shaded.jar
 
 ------------------------
 
