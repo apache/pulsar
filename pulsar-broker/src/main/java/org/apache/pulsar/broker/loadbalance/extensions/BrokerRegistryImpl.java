@@ -136,9 +136,16 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             try {
                 brokerLookupDataMetadataCache.delete(brokerIdKeyPath)
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-                this.state = State.Started;
-            } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    log.warn("{} has already been unregistered", brokerIdKeyPath);
+                } else {
+                    throw MetadataStoreException.unwrap(e);
+                }
+            } catch (InterruptedException | TimeoutException e) {
                 throw MetadataStoreException.unwrap(e);
+            } finally {
+                this.state = State.Started;
             }
         }
     }
@@ -192,11 +199,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             this.listeners.clear();
             this.unregister();
         } catch (Exception ex) {
-            if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
-            } else {
-                throw new PulsarServerException(MetadataStoreException.unwrap(ex));
-            }
+            log.error("Unexpected error when unregistering the broker registry", ex);
         } finally {
             this.state = State.Closed;
         }
