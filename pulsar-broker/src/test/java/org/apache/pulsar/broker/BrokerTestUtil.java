@@ -23,9 +23,22 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -119,4 +132,105 @@ public class BrokerTestUtil {
         }
     }
 
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     * The message handler should return true if it wants to continue receiving more messages, false otherwise.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                       Duration quietTimeout,
+                                       Consumer<T>... consumers) {
+        FutureUtil.waitForAll(Arrays.stream(consumers)
+                .map(consumer -> receiveMessagesAsync(consumer, quietTimeout, messageHandler)).toList()).join();
+    }
+
+    // asynchronously receive messages from a consumer and handle them using the provided message handler
+    // the benefit is that multiple consumers can be concurrently consumed without the need to have multiple threads
+    // this is useful in tests where multiple consumers are needed to test the functionality
+    private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer, Duration quietTimeout,
+                                                             BiFunction<Consumer<T>, Message<T>, Boolean>
+                                                                     messageHandler) {
+        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
+        return receiveFuture
+                .orTimeout(quietTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                .handle((msg, t) -> {
+                    if (t != null) {
+                        if (t instanceof TimeoutException) {
+                            // cancel the receive future so that Pulsar client can clean up the resources
+                            receiveFuture.cancel(false);
+                            return false;
+                        } else {
+                            throw FutureUtil.wrapToCompletionException(t);
+                        }
+                    }
+                    return messageHandler.apply(consumer, msg);
+                }).thenComposeAsync(receiveMore -> {
+                    if (receiveMore) {
+                        return receiveMessagesAsync(consumer, quietTimeout, messageHandler);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     * The messages are received until the quiet timeout is reached or the maximum number of messages is received.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param maxMessages the maximum number of messages to receive
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    public static <T> void receiveMessagesN(BiConsumer<Consumer<T>, Message<T>> messageHandler,
+                                            Duration quietTimeout,
+                                            int maxMessages,
+                                            Consumer<T>... consumers)
+            throws ExecutionException, InterruptedException {
+        AtomicInteger messagesReceived = new AtomicInteger();
+        receiveMessages(
+                (consumer, message) -> {
+                    messageHandler.accept(consumer, message);
+                    return messagesReceived.incrementAndGet() < maxMessages;
+                }, quietTimeout, consumers);
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                             final Duration quietTimeout,
+                                             Consumer<T>... consumers) {
+        FutureUtil.waitForAll(Arrays.stream(consumers).sequential().map(consumer -> {
+            return CompletableFuture.runAsync(() -> {
+                try {
+                    while (!Thread.currentThread().isInterrupted()) {
+                        Message<T> msg = consumer.receive((int) quietTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                        if (msg != null) {
+                            if (!messageHandler.apply(consumer, msg)) {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+            }, runnable -> {
+                Thread thread = new Thread(runnable, "Consumer-" + consumer.getConsumerName());
+                thread.start();
+            });
+        }).toList()).join();
+    }
 }
