@@ -55,6 +55,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus.Status;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -272,6 +274,33 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         }
         // set retain null key back to avoid affecting other tests
         pulsar.getConfig().setTopicCompactionRetainNullKey(oldRetainNullKey);
+    }
+
+    @Test
+    public void testCompressedMessagesWithMetadataCompaction() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+            "persistent://my-property/use/my-ns/testAllCompactedOut");
+        @Cleanup
+        Producer<String> compressingProducer = pulsarClient.newProducer(Schema.STRING)
+            .compressionType(CompressionType.LZ4)
+            .topic(topicName)
+            .batchingMaxMessages(2)
+            .create();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic(topicName)
+            .batchingMaxMessages(2)
+            .create();
+
+        producer.newMessage().key("K1").value("V1").sendAsync();
+        producer.newMessage().key("K2").value("V2").sendAsync();
+
+        compressingProducer.newMessage().key("K1").value("V1").sendAsync();
+        compressingProducer.newMessage().key("K2").value("V2").properties(Map.of("p1", new String(new byte[100]))).sendAsync();
+
+        admin.topics().triggerCompaction(topicName);
+        Awaitility.await().until(() -> admin.topics().compactionStatus(topicName).status == Status.SUCCESS);
     }
 
     @Test
