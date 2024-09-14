@@ -960,7 +960,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             state = State.Started;
         } catch (Exception e) {
             LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
-            PulsarServerException startException = new PulsarServerException(e);
+            PulsarServerException startException = PulsarServerException.from(e);
             readyForIncomingRequestsFuture.completeExceptionally(startException);
             throw startException;
         } finally {
