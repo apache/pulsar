@@ -279,7 +279,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCompactionOfCompressedMessagesWithProperties() throws Exception {
         String topicName = BrokerTestUtil.newUniqueName(
-            "persistent://my-property/use/my-ns/testAllCompactedOut");
+            "persistent://my-property/use/my-ns/testCompactionOfCompressedMessagesWithProperties");
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
