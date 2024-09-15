@@ -26,6 +26,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
@@ -122,7 +123,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     }
 
     @Test
-    public void testReadAndWrite() throws Exception {
+    public void testRead_BatchRead_AndWrite() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -161,6 +162,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
+        final LedgerEntries batchLedgerEntries = readHandle.batchReadAsync(0, 10, 0).get();
 
         for (LedgerEntry ledgerEntry : ledgerEntries) {
             final EntryImpl storedEntry = (EntryImpl) entries.get((int) ledgerEntry.getEntryId());
@@ -168,6 +170,19 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] entryBytes = ledgerEntry.getEntryBytes();
             assertEquals(storedData, entryBytes);
         }
+
+        Iterator<LedgerEntry> ledgerEntriesIterator = batchLedgerEntries.iterator();
+        Iterator<LedgerEntry> batchLedgerEntriesIterator = batchLedgerEntries.iterator();
+        while (ledgerEntriesIterator.hasNext() && batchLedgerEntriesIterator.hasNext()) {
+            LedgerEntry ledgerEntry = ledgerEntriesIterator.next();
+            LedgerEntry batchLedgerEntry = batchLedgerEntriesIterator.next();
+            assertEquals(ledgerEntry.getLedgerId(), batchLedgerEntry.getLedgerId());
+            assertEquals(ledgerEntry.getEntryId(), batchLedgerEntry.getEntryId());
+            assertEquals(ledgerEntry.getLength(), batchLedgerEntry.getLength());
+            assertEquals(ledgerEntry.getEntryBuffer(), batchLedgerEntry.getEntryBuffer());
+        }
+        Assert.assertFalse(ledgerEntriesIterator.hasNext());
+        Assert.assertFalse(batchLedgerEntriesIterator.hasNext());
     }
 
     @Test

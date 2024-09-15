@@ -340,4 +340,24 @@ public class BookKeeperClientFactoryImplTest {
                 (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
         assertFalse(clientConfiguration.getLimitStatsLogging());
     }
+
+    @Test
+    public void testBookkeeperBatchReadConfig() throws Exception {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBookkeeperEnableBatchRead(true);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        ClientConfiguration clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertTrue(clientConfiguration.isBatchReadEnabled());
+
+        conf.setBookkeeperEnableBatchRead(false);
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertFalse(clientConfiguration.isBatchReadEnabled());
+    }
 }

@@ -239,6 +239,12 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         return promise;
     }
 
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
+        long lastEntry = Math.min(startEntry + maxCount - 1, getLastAddConfirmed());
+        return readAsync(startEntry, lastEntry);
+    }
+
     private List<GroupedReader> getGroupedReader(long firstEntry, long lastEntry) throws Exception {
         List<GroupedReader> groupedReaders = new LinkedList<>();
         for (int i = indices.size() - 1; i >= 0 && firstEntry <= lastEntry; i--) {

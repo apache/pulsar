@@ -207,6 +207,12 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
+        long lastEntry = Math.min(startEntry + maxCount - 1, getLastAddConfirmed());
+        return readAsync(startEntry, lastEntry);
+    }
+
     private void seekToEntry(long nextExpectedId) throws IOException {
         Long knownOffset = entryOffsetsCache.getIfPresent(ledgerId, nextExpectedId);
         if (knownOffset != null) {

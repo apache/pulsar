@@ -30,6 +30,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.commons.lang3.mutable.MutableInt;
 
 /**
  * Mock implementation of ReadHandle.
@@ -40,6 +41,7 @@ class PulsarMockReadHandle implements ReadHandle {
     private final long ledgerId;
     private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
+    private final int maxFrameSize = 5 * 1024 * 1024;
 
     PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata,
                          List<LedgerEntryImpl> entries) {
@@ -65,8 +67,33 @@ class PulsarMockReadHandle implements ReadHandle {
     }
 
     @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize0) {
+        long maxSize = maxSize0 > 0 ? maxSize0 : maxFrameSize;
+        long lastEntry = Math.min(startEntry + maxCount - 1, getLastAddConfirmed());
+        MutableInt size = new MutableInt(0);
+        return bk.getProgrammedFailure().thenComposeAsync(res -> {
+            List<LedgerEntry> seq = new ArrayList<>();
+            long entryId = startEntry;
+            while (entryId <= lastEntry && entryId < entries.size()) {
+                LedgerEntry entry = entries.get((int) entryId++).duplicate();
+                if (size.addAndGet(entry.getLength()) > maxSize) {
+                    break;
+                }
+                seq.add(entry);
+            }
+            log.debug("Entries batch read: {}", seq);
+            return FutureUtils.value(LedgerEntriesImpl.create(seq));
+        });
+    }
+
+    @Override
     public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
         return readAsync(firstEntry, lastEntry);
+    }
+
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long firstEntry, int maxCount, int maxSize) {
+        int lastEntry = (int) Math.min(firstEntry + maxCount - 1, getLastAddConfirmed());
+        return batchReadAsync(firstEntry, lastEntry, maxSize);
     }
 
     @Override

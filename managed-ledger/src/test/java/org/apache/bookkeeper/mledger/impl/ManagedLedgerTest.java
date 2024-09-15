@@ -19,11 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -85,15 +81,9 @@ import java.util.function.Predicate;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.AsyncCallback;
+import org.apache.bookkeeper.client.*;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
-import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
-import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.PulsarMockBookKeeper;
-import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -128,6 +118,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.impl.cache.ReadEntryUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -148,7 +139,9 @@ import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.eclipse.jetty.util.BlockingArrayQueue;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.stubbing.OngoingStubbing;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -4371,5 +4364,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             assertNotEquals(currentLedgerID, ml.currentLedger.getId());
             assertEquals(ml.currentLedgerEntries, 0);
         });
+    }
+
+    @Test
+    public void testBatchReadExceedMaxFrameLength() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setUseBookkeeperV2WireProtocol(true);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testBatchReadExceedMaxFrameLength", config);
+        ml = Mockito.spy(ml);
+        Mockito.doReturn(Optional.empty()).when(ml).getOptionalLedgerInfo(Mockito.anyLong());
+        ManagedCursor cursor = ml.openCursor("c1");
+        // 1 MB per entry.
+        byte[] body = new byte[1024 * 1024];
+        for (int i = 0; i < 20; i++) {
+            ml.addEntry(body);
+        }
+
+        @Cleanup
+        MockedStatic<ReadEntryUtils> mockStatic = Mockito.mockStatic(ReadEntryUtils.class);
+        mockStatic.when(() ->
+                        ReadEntryUtils.readAsync(any(), any(), anyLong(), anyLong(),
+                                anyBoolean()))
+                .thenAnswer(inv -> {
+                    ReadHandle handle = inv.getArgument(1);
+                    int firstEntry = inv.getArgument(2);
+                    int lastEntry = inv.getArgument(3);
+                    int entriesToRead = lastEntry - firstEntry + 1;
+                    return handle.batchReadAsync(firstEntry, entriesToRead, 0);
+                });
+
+        List<Entry> entries = cursor.readEntries(20);
+        Assert.assertEquals(entries.size(), 20);
     }
 }
