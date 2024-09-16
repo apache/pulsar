@@ -158,7 +158,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.version>1.78.1</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
-    <jackson.version>2.14.2</jackson.version>
+    <jackson.version>2.16.0</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -194,7 +194,7 @@ flexible messaging model and an intuitive client API.</description>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
-    <opensearch.version>1.2.4</opensearch.version>
+    <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <trino.version>368</trino.version>
     <debezium.version>2.6.1.Final</debezium.version>
