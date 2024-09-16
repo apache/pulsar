@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -323,7 +323,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
 
             if (messagesForC > 0) {
-                final ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+                final ManagedLedger managedLedger = cursor.getManagedLedger();
                 for (int i = 0; i < messagesForC; i++) {
                     final Entry entry = entriesWithSameKey.get(i);
                     // remove positions first from replay list first : sendMessages recycles entries
@@ -368,7 +368,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // Update the last sent position and remove ranges from individuallySentPositions if necessary
         if (!allowOutOfOrderDelivery && lastSentPosition != null) {
-            final ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            final ManagedLedger managedLedger = cursor.getManagedLedger();
             com.google.common.collect.Range<Position> range = individuallySentPositions.firstRange();
 
             // If the upper bound is before the last sent position, we need to move ahead as these

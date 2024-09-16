@@ -66,8 +66,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -2622,7 +2620,7 @@ public class PersistentTopicsBase extends AdminResource {
                                    MessageIdImpl messageId, int batchIndex) {
         if (batchIndex >= 0) {
             try {
-                ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+                ManagedLedger ledger = topic.getManagedLedger();
                 ledger.asyncReadEntry(PositionFactory.create(messageId.getLedgerId(),
                         messageId.getEntryId()), new AsyncCallbacks.ReadEntryCallback() {
                     @Override
@@ -2733,8 +2731,7 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> {
             CompletableFuture<Response> results = new CompletableFuture<>();
-            ManagedLedgerImpl ledger =
-                    (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
+            ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
             ledger.asyncReadEntry(PositionFactory.create(ledgerId, entryId),
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
@@ -3173,7 +3170,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 try {
                                     PersistentOfflineTopicStats estimateOfflineTopicStats =
                                             offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(),
+                                                    pulsar().getManagedLedgerFactory(),
                                                     topicName);
                                     pulsar().getBrokerService()
                                             .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
@@ -3248,8 +3245,7 @@ public class PersistentTopicsBase extends AdminResource {
                         getTopicNotFoundErrorMessage(topicName.toString())));
                 return;
             }
-            ManagedLedgerImpl managedLedger =
-                    (ManagedLedgerImpl) topic.getManagedLedger();
+            ManagedLedger managedLedger = topic.getManagedLedger();
             if (messageId.getLedgerId() == -1) {
                 asyncResponse.resume(managedLedger.getTotalSize());
             } else {

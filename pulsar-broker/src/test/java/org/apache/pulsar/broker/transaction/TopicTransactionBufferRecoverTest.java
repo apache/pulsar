@@ -49,8 +49,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.RandomUtils;
@@ -796,7 +796,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                 .OpenReadOnlyManagedLedgerCallback() {
             @Override
-            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
                 readOnlyManagedLedger.asyncReadEntry(
                         PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                         new AsyncCallbacks.ReadEntryCallback() {

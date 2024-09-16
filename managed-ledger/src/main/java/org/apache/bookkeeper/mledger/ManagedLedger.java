@@ -18,8 +18,10 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -374,6 +376,8 @@ public interface ManagedLedger {
      */
     long getNumberOfEntries();
 
+    long getNumberOfEntries(Range<Position> range);
+
     /**
      * Get the total number of active entries for this managed ledger.
      *
@@ -703,4 +707,30 @@ public interface ManagedLedger {
     default ManagedLedgerAttributes getManagedLedgerAttributes() {
         return new ManagedLedgerAttributes(this);
     }
+
+    void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Get all the managed ledgers.
+     */
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
+
+    Position getNextValidPosition(Position position);
+
+    Position getPreviousPosition(Position position);
+
+    long getEstimatedBacklogSize(Position position);
+
+    Position getPositionAfterN(Position startPosition, long n, PositionBound startRange);
+
+    int getPendingAddEntriesCount();
+
+    long getCacheSize();
+
+    default CompletableFuture<Position> getLastDispatchablePosition(final Predicate<Entry> predicate,
+                                                                    final Position startPosition) {
+        return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+    }
+
+    Position getFirstPosition();
 }

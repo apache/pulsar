@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -320,7 +319,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             ongoingTxns.put(txnId, position);
             Position firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             // max read position is less than first ongoing transaction message position
-            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(firstPosition),
+            updateMaxReadPosition(topic.getManagedLedger().getPreviousPosition(firstPosition),
                     false);
         }
     }
@@ -488,7 +487,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         ongoingTxns.remove(txnID);
         if (!ongoingTxns.isEmpty()) {
             Position position = ongoingTxns.get(ongoingTxns.firstKey());
-            updateMaxReadPosition(((ManagedLedgerImpl) topic.getManagedLedger()).getPreviousPosition(position), false);
+            updateMaxReadPosition(topic.getManagedLedger().getPreviousPosition(position), false);
         } else {
             updateMaxReadPosition(topic.getManagedLedger().getLastConfirmedEntry(), false);
         }

@@ -22,14 +22,19 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLed
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.NULL_OFFLOAD_PROMISE;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Predicates;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,8 +50,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.BookKeeperAdmin;
+import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -70,7 +79,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedgerImplWrapper;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -81,14 +93,18 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Runnables;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -301,7 +317,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
      *
      * @return
      */
-    public Map<String, ManagedLedgerImpl> getManagedLedgers() {
+    @Override
+    public Map<String, ManagedLedger> getManagedLedgers() {
         // Return a view of already created ledger by filtering futures not yet completed
         return Maps.filterValues(Maps.transformValues(ledgers, future -> future.getNow(null)), Predicates.notNull());
     }
@@ -468,7 +485,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                         config.getBookKeeperEnsemblePlacementPolicyProperties()))
                 .thenCompose(bk -> {
-                    ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this, bk,
+                    ReadOnlyManagedLedgerImplWrapper roManagedLedger = new ReadOnlyManagedLedgerImplWrapper(this, bk,
                             store, config, scheduledExecutor, managedLedgerName);
                     return roManagedLedger.initialize().thenApply(v -> roManagedLedger);
                 }).thenAccept(roManagedLedger -> {
@@ -524,7 +541,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback openReadOnlyManagedLedgerCallback =
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
-            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger, Object ctx) {
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
                 callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
                         createReadOnlyCursor(startPosition), ctx);
             }
@@ -1041,6 +1058,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return store;
     }
 
+    @Override
     public ManagedLedgerFactoryConfig getConfig() {
         return config;
     }
@@ -1060,6 +1078,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return cacheEvictionTimeThresholdNanos;
     }
 
+    @Override
     public ManagedLedgerFactoryMXBean getCacheStats() {
         return this.mbean;
     }
@@ -1067,6 +1086,408 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public CompletableFuture<BookKeeper> getBookKeeper() {
         return bookkeeperFactory.get();
     }
+
+    @Override
+    public void estimateUnloadedTopicBacklog(PersistentOfflineTopicStats offlineTopicStats,
+                                                                    TopicName topicName, boolean accurate, Object ctx)
+            throws Exception {
+        String managedLedgerName = topicName.getPersistenceNamingEncoding();
+        long numberOfEntries = 0;
+        long totalSize = 0;
+        BookKeeper.DigestType digestType = (BookKeeper.DigestType) ((List) ctx).get(0);
+        byte[] password = (byte[]) ((List) ctx).get(1);
+        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
+                getManagedLedgersInfo(topicName, accurate, digestType, password);
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers.values()) {
+            numberOfEntries += ls.getEntries();
+            totalSize += ls.getSize();
+            if (accurate) {
+                offlineTopicStats.addLedgerDetails(ls.getEntries(), ls.getTimestamp(), ls.getSize(), ls.getLedgerId());
+            }
+        }
+        offlineTopicStats.totalMessages = numberOfEntries;
+        offlineTopicStats.storageSize = totalSize;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Total number of entries - {} and size - {}", managedLedgerName, numberOfEntries, totalSize);
+        }
+
+        // calculate per cursor message backlog
+        calculateCursorBacklogs(topicName, ledgers, offlineTopicStats, accurate, digestType, password);
+        offlineTopicStats.statGeneratedAt.setTime(System.currentTimeMillis());
+    }
+
+    private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> getManagedLedgersInfo(
+            final TopicName topicName, boolean accurate, BookKeeper.DigestType digestType, byte[] password)
+            throws Exception {
+        final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
+
+        String managedLedgerName = topicName.getPersistenceNamingEncoding();
+        MetaStore store = getMetaStore();
+
+        final CountDownLatch mlMetaCounter = new CountDownLatch(1);
+        store.getManagedLedgerInfo(managedLedgerName, false /* createIfMissing */,
+                new MetaStore.MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+                    @Override
+                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+                        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                            ledgers.put(ls.getLedgerId(), ls);
+                        }
+
+                        // find no of entries in last ledger
+                        if (!ledgers.isEmpty()) {
+                            final long id = ledgers.lastKey();
+                            AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Opened ledger {}: {}", managedLedgerName, id,
+                                            BKException.getMessage(rc));
+                                }
+                                if (rc == BKException.Code.OK) {
+                                    MLDataFormats.ManagedLedgerInfo.LedgerInfo info =
+                                            MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                                                    .newBuilder().setLedgerId(id)
+                                                    .setEntries(lh.getLastAddConfirmed() + 1)
+                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis())
+                                                    .build();
+                                    ledgers.put(id, info);
+                                    mlMetaCounter.countDown();
+                                } else if (Errors.isNoSuchLedgerExistsException(rc)) {
+                                    log.warn("[{}] Ledger not found: {}", managedLedgerName, ledgers.lastKey());
+                                    ledgers.remove(ledgers.lastKey());
+                                    mlMetaCounter.countDown();
+                                } else {
+                                    log.error("[{}] Failed to open ledger {}: {}", managedLedgerName, id,
+                                            BKException.getMessage(rc));
+                                    mlMetaCounter.countDown();
+                                }
+                            };
+
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Opening ledger {}", managedLedgerName, id);
+                            }
+                            getBookKeeper()
+                                    .thenAccept(bk -> {
+                                        bk.asyncOpenLedgerNoRecovery(id, digestType, password, opencb, null);
+                                    }).exceptionally(ex -> {
+                                        log.warn("[{}] Failed to open ledger {}: {}", managedLedgerName, id, ex);
+                                        opencb.openComplete(-1, null, null);
+                                        mlMetaCounter.countDown();
+                                        return null;
+                                    });
+                        } else {
+                            log.warn("[{}] Ledger list empty", managedLedgerName);
+                            mlMetaCounter.countDown();
+                        }
+                    }
+
+                    @Override
+                    public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                        log.warn("[{}] Unable to obtain managed ledger metadata - {}", managedLedgerName, e);
+                        mlMetaCounter.countDown();
+                    }
+                });
+
+        if (accurate) {
+            // block until however long it takes for operation to complete
+            mlMetaCounter.await();
+        } else {
+            mlMetaCounter.await(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+        return ledgers;
+    }
+
+    public void calculateCursorBacklogs(final TopicName topicName,
+                                         final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
+                                         final PersistentOfflineTopicStats offlineTopicStats, boolean accurate,
+                                        BookKeeper.DigestType digestType, byte[] password) throws Exception {
+        if (ledgers.isEmpty()) {
+            return;
+        }
+        String managedLedgerName = topicName.getPersistenceNamingEncoding();
+        MetaStore store = getMetaStore();
+        BookKeeper bk = getBookKeeper().get();
+        final CountDownLatch allCursorsCounter = new CountDownLatch(1);
+        final long errorInReadingCursor = -1;
+        ConcurrentOpenHashMap<String, Long> ledgerRetryMap =
+                ConcurrentOpenHashMap.<String, Long>newBuilder().build();
+
+        final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
+        final Position lastLedgerPosition =
+                PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Last ledger position {}", managedLedgerName, lastLedgerPosition);
+        }
+
+        store.getCursors(managedLedgerName, new MetaStore.MetaStoreCallback<List<String>>() {
+            @Override
+            public void operationComplete(List<String> cursors, Stat v) {
+                // Load existing cursors
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Found {} cursors", managedLedgerName, cursors.size());
+                }
+
+                if (cursors.isEmpty()) {
+                    allCursorsCounter.countDown();
+                    return;
+                }
+
+                final CountDownLatch cursorCounter = new CountDownLatch(cursors.size());
+
+                for (final String cursorName : cursors) {
+                    // determine subscription position from cursor ledger
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Loading cursor {}", managedLedgerName, cursorName);
+                    }
+
+                    AsyncCallback.OpenCallback cursorLedgerOpenCb = (rc, lh, ctx1) -> {
+                        long ledgerId = lh.getId();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Opened cursor ledger {} for cursor {}. rc={}", managedLedgerName, ledgerId,
+                                    cursorName, rc);
+                        }
+                        if (rc != BKException.Code.OK) {
+                            log.warn("[{}] Error opening metadata ledger {} for cursor {}: {}", managedLedgerName,
+                                    ledgerId, cursorName, BKException.getMessage(rc));
+                            cursorCounter.countDown();
+                            return;
+                        }
+                        long lac = lh.getLastAddConfirmed();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Cursor {} LAC {} read from ledger {}", managedLedgerName, cursorName, lac,
+                                    ledgerId);
+                        }
+
+                        if (lac == LedgerHandle.INVALID_ENTRY_ID) {
+                            // save the ledger id and cursor to retry outside of this call back
+                            // since we are trying to read the same cursor ledger, we will block until
+                            // this current callback completes, since an attempt to read the entry
+                            // will block behind this current operation to complete
+                            ledgerRetryMap.put(cursorName, ledgerId);
+                            log.info("[{}] Cursor {} LAC {} read from ledger {}", managedLedgerName, cursorName, lac,
+                                    ledgerId);
+                            cursorCounter.countDown();
+                            return;
+                        }
+                        final long entryId = lac;
+                        // read last acked message position for subscription
+                        lh.asyncReadEntries(entryId, entryId, new AsyncCallback.ReadCallback() {
+                            @Override
+                            public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq,
+                                                     Object ctx) {
+                                try {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("readComplete rc={} entryId={}", rc, entryId);
+                                    }
+                                    if (rc != BKException.Code.OK) {
+                                        log.warn("[{}] Error reading from metadata ledger {} for cursor {}: {}",
+                                                managedLedgerName, ledgerId, cursorName, BKException.getMessage(rc));
+                                        // indicate that this cursor should be excluded
+                                        offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
+                                                lh.getId());
+                                    } else {
+                                        LedgerEntry entry = seq.nextElement();
+                                        MLDataFormats.PositionInfo positionInfo;
+                                        try {
+                                            positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
+                                        } catch (InvalidProtocolBufferException e) {
+                                            log.warn(
+                                                    "[{}] Error reading position from metadata ledger {} for cursor "
+                                                            + "{}: {}", managedLedgerName, ledgerId, cursorName, e);
+                                            offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
+                                                    lh.getId());
+                                            return;
+                                        }
+                                        final Position lastAckedMessagePosition =
+                                                PositionFactory.create(positionInfo.getLedgerId(),
+                                                        positionInfo.getEntryId());
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Cursor {} MD {} read last ledger position {}",
+                                                    managedLedgerName, cursorName, lastAckedMessagePosition,
+                                                    lastLedgerPosition);
+                                        }
+                                        // calculate cursor backlog
+                                        Range<Position> range = Range.openClosed(lastAckedMessagePosition,
+                                                lastLedgerPosition);
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Calculating backlog for cursor {} using range {}",
+                                                    managedLedgerName, cursorName, range);
+                                        }
+                                        long cursorBacklog = getNumberOfEntries(range, ledgers);
+                                        offlineTopicStats.messageBacklog += cursorBacklog;
+                                        offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh.getId());
+                                    }
+                                } finally {
+                                    cursorCounter.countDown();
+                                }
+                            }
+                        }, null);
+
+                    }; // end of cursor meta read callback
+
+                    store.asyncGetCursorInfo(managedLedgerName, cursorName,
+                            new MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                                @Override
+                                public void operationComplete(MLDataFormats.ManagedCursorInfo info,
+                                                              Stat stat) {
+                                    long cursorLedgerId = info.getCursorsLedgerId();
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Cursor {} meta-data read ledger id {}", managedLedgerName,
+                                                cursorName, cursorLedgerId);
+                                    }
+                                    if (cursorLedgerId != -1) {
+                                        bk.asyncOpenLedgerNoRecovery(cursorLedgerId, digestType, password,
+                                                cursorLedgerOpenCb, null);
+                                    } else {
+                                        Position lastAckedMessagePosition = PositionFactory.create(
+                                                info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
+                                        Range<Position> range = Range.openClosed(lastAckedMessagePosition,
+                                                lastLedgerPosition);
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Calculating backlog for cursor {} using range {}",
+                                                    managedLedgerName, cursorName, range);
+                                        }
+                                        long cursorBacklog = getNumberOfEntries(range, ledgers);
+                                        offlineTopicStats.messageBacklog += cursorBacklog;
+                                        offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, cursorLedgerId);
+                                        cursorCounter.countDown();
+                                    }
+
+                                }
+
+                                @Override
+                                public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                                    log.warn("[{}] Unable to obtain cursor ledger for cursor {}: {}", managedLedgerName,
+                                            cursorName, e);
+                                    cursorCounter.countDown();
+                                }
+                            });
+                } // for every cursor find backlog
+                try {
+                    if (accurate) {
+                        cursorCounter.await();
+                    } else {
+                        cursorCounter.await(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    }
+                } catch (Exception e) {
+                    log.warn("[{}] Error reading subscription positions{}", managedLedgerName, e);
+                } finally {
+                    allCursorsCounter.countDown();
+                }
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                log.warn("[{}] Failed to get the cursors list", managedLedgerName, e);
+                allCursorsCounter.countDown();
+            }
+        });
+        if (accurate) {
+            allCursorsCounter.await();
+        } else {
+            allCursorsCounter.await(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+
+        // go through ledgers where LAC was -1
+        if (accurate && ledgerRetryMap.size() > 0) {
+            ledgerRetryMap.forEach((cursorName, ledgerId) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Cursor {} Ledger {} Trying to obtain MD from BkAdmin", cursorName, ledgerId);
+                }
+                Position lastAckedMessagePosition = tryGetMDPosition(bk, ledgerId, cursorName);
+                if (lastAckedMessagePosition == null) {
+                    log.warn("[{}] Cursor {} read from ledger {}. Unable to determine cursor position",
+                            managedLedgerName, cursorName, ledgerId);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Cursor {} read from ledger using bk admin {}. position {}", managedLedgerName,
+                                cursorName, ledgerId, lastAckedMessagePosition);
+                    }
+                    // calculate cursor backlog
+                    Range<Position> range = Range.openClosed(lastAckedMessagePosition, lastLedgerPosition);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Calculating backlog for cursor {} using range {}", managedLedgerName,
+                                cursorName, range);
+                    }
+                    long cursorBacklog = getNumberOfEntries(range, ledgers);
+                    offlineTopicStats.messageBacklog += cursorBacklog;
+                    offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, ledgerId);
+                }
+            });
+        }
+    }
+
+    // need a better way than to duplicate the functionality below from ML
+    private long getNumberOfEntries(Range<Position> range,
+                                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) {
+        Position fromPosition = range.lowerEndpoint();
+        boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
+        Position toPosition = range.upperEndpoint();
+        boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
+
+        if (fromPosition.getLedgerId() == toPosition.getLedgerId()) {
+            // If the 2 positions are in the same ledger
+            long count = toPosition.getEntryId() - fromPosition.getEntryId() - 1;
+            count += fromIncluded ? 1 : 0;
+            count += toIncluded ? 1 : 0;
+            return count;
+        } else {
+            long count = 0;
+            // If the from & to are pointing to different ledgers, then we need to :
+            // 1. Add the entries in the ledger pointed by toPosition
+            count += toPosition.getEntryId();
+            count += toIncluded ? 1 : 0;
+
+            // 2. Add the entries in the ledger pointed by fromPosition
+            MLDataFormats.ManagedLedgerInfo.LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
+            if (li != null) {
+                count += li.getEntries() - (fromPosition.getEntryId() + 1);
+                count += fromIncluded ? 1 : 0;
+            }
+
+            // 3. Add the whole ledgers entries in between
+            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers
+                    .subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false).values()) {
+                count += ls.getEntries();
+            }
+
+            return count;
+        }
+    }
+
+
+    private Position tryGetMDPosition(BookKeeper bookKeeper, long ledgerId, String cursorName) {
+        BookKeeperAdmin bookKeeperAdmin = null;
+        long lastEntry = LedgerHandle.INVALID_ENTRY_ID;
+        Position lastAckedMessagePosition = null;
+        try {
+            bookKeeperAdmin = new BookKeeperAdmin(bookKeeper);
+            for (LedgerEntry ledgerEntry : bookKeeperAdmin.readEntries(ledgerId, 0, lastEntry)) {
+                lastEntry = ledgerEntry.getEntryId();
+                if (log.isDebugEnabled()) {
+                    log.debug(" Read entry {} from ledger {} for cursor {}", lastEntry, ledgerId, cursorName);
+                }
+                MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(ledgerEntry.getEntry());
+                lastAckedMessagePosition =
+                        PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                if (log.isDebugEnabled()) {
+                    log.debug("Cursor {} read position {}", cursorName, lastAckedMessagePosition);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Unable to determine LAC for ledgerId {} for cursor {}: {}", ledgerId, cursorName, e);
+        } finally {
+            if (bookKeeperAdmin != null) {
+                try {
+                    bookKeeperAdmin.close();
+                } catch (Exception e) {
+                    log.warn("Unable to close bk admin for ledgerId {} for cursor {}", ledgerId, cursorName, e);
+                }
+            }
+
+        }
+        return lastAckedMessagePosition;
+    }
+
+    private static final int META_READ_TIMEOUT_SECONDS = 60;
 
     /**
      * Factory to create Bookkeeper-client for a given ensemblePlacementPolicy.

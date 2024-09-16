@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
@@ -38,7 +38,6 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -104,7 +103,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
         List<String> bucketKeys =
                 ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                        .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         c1.close();
 
@@ -119,7 +118,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Dispatcher dispatcher2 = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
         List<String> bucketKeys2 =
                 ((PersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                        .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
@@ -384,7 +383,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
         pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
                 .subscriptionType(subscriptionType).subscribe().close();
-        ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
+        ManagedCursor cursor = findCursor(topic, subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
         // Test topic deletion is successful.
@@ -404,7 +403,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
         pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
                 .subscriptionType(subscriptionType).subscribe().close();
-        ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
+        ManagedCursor cursor = findCursor(topic + "-partition-0", subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
         // Test topic deletion is successful.
@@ -424,7 +423,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
         pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
                 .subscriptionType(subscriptionType).subscribe().close();
-        ManagedCursorImpl cursor = findCursor(topic, subscriptionName);
+        ManagedCursor cursor = findCursor(topic, subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
         // Put a subscription prop.
@@ -451,7 +450,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
                 .subscriptionType(subscriptionType).subscribe().close();
 
-        ManagedCursorImpl cursor = findCursor(topic + "-partition-0", subscriptionName);
+        ManagedCursor cursor = findCursor(topic + "-partition-0", subscriptionName);
         assertNotNull(cursor);
         assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
         // Put a subscription prop.
@@ -464,7 +463,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     }
 
 
-    private ManagedCursorImpl findCursor(String topic, String subscriptionName) {
+    private ManagedCursor findCursor(String topic, String subscriptionName) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
         Iterator<ManagedCursor> cursorIterator = persistentTopic.getManagedLedger().getCursors().iterator();
@@ -473,7 +472,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
             if (managedCursor == null || !managedCursor.getName().equals(subscriptionName)) {
                 continue;
             }
-            return (ManagedCursorImpl) managedCursor;
+            return managedCursor;
         }
         return null;
     }
