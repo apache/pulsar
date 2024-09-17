@@ -78,6 +78,7 @@ import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
@@ -431,13 +432,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
-                                        .thenRun(() -> initializeBookKeeper(callback))
-                                        .exceptionally(ex -> {
-                                            callback.initializeFailed(
-                                                    new ManagedLedgerInterceptException(ex.getCause()));
-                                            return null;
-                                        });
+                                    managedLedgerInterceptor
+                                            .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
+                                            .thenRun(() -> initializeBookKeeper(callback))
+                                            .exceptionally(ex -> {
+                                                callback.initializeFailed(
+                                                        new ManagedLedgerInterceptException(ex.getCause()));
+                                                return null;
+                                            });
                                 } else {
                                     initializeBookKeeper(callback);
                                 }
@@ -475,6 +477,42 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
 
         scheduleTimeoutTask();
+    }
+
+    protected ManagedLedgerInterceptor.LastEntryHandle createLastEntryHandle(LedgerHandle lh) {
+        return () -> {
+            CompletableFuture<Optional<Entry>> promise = new CompletableFuture<>();
+            if (lh.getLastAddConfirmed() >= 0) {
+                lh.readAsync(lh.getLastAddConfirmed(), lh.getLastAddConfirmed())
+                        .whenComplete((entries, ex) -> {
+                            if (ex != null) {
+                                promise.completeExceptionally(ex);
+                            } else {
+                                if (entries != null) {
+                                    try {
+                                        LedgerEntry ledgerEntry =
+                                                entries.getEntry(lh.getLastAddConfirmed());
+                                        if (ledgerEntry != null) {
+                                            promise.complete(
+                                                    Optional.of(EntryImpl.create(ledgerEntry)));
+                                        } else {
+                                            promise.complete(Optional.empty());
+                                        }
+                                        entries.close();
+                                    } catch (Exception e) {
+                                        entries.close();
+                                        promise.completeExceptionally(e);
+                                    }
+                                } else {
+                                    promise.complete(Optional.empty());
+                                }
+                            }
+                        });
+            } else {
+                promise.complete(Optional.empty());
+            }
+            return promise;
+        };
     }
 
     protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {

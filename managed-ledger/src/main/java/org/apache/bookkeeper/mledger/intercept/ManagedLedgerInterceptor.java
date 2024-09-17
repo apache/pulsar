@@ -20,10 +20,11 @@ package org.apache.bookkeeper.mledger.intercept;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.Entry;
 
 /**
  * Interceptor for ManagedLedger.
@@ -75,11 +76,24 @@ public interface ManagedLedgerInterceptor {
     void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap);
 
     /**
-     * Intercept when ManagedLedger is initialized.
-     * @param name name of ManagedLedger
-     * @param ledgerHandle a LedgerHandle.
+     * A handle for reading the last ledger entry.
      */
-    CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle ledgerHandle);
+    interface LastEntryHandle {
+        /**
+         * Read the last entry from the ledger.
+         * The caller is responsible for releasing the entry.
+         * @return the last entry from the ledger, if any
+         */
+        CompletableFuture<Optional<Entry>> readLastEntryAsync();
+    }
+
+    /**
+     * Intercept when ManagedLedger is initialized.
+     *
+     * @param name            name of ManagedLedger
+     * @param lastEntryHandle a LedgerHandle.
+     */
+    CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LastEntryHandle lastEntryHandle);
 
     /**
      * @param propertiesMap  map of properties.
