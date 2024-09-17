@@ -22,12 +22,9 @@ import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
-import static org.testng.AssertJUnit.assertTrue;
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -35,18 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -98,7 +90,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Test
     public void testConcurrentlyRegisterUnregisterListeners() throws ExecutionException, InterruptedException {
         TopicName topicName = TopicName.get("test");
-        class TopicPolicyListenerImpl implements TopicPolicyListener<TopicPolicies> {
+        class TopicPolicyListenerImpl implements TopicPolicyListener {
 
             @Override
             public void onUpdate(TopicPolicies data) {
@@ -108,7 +100,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         CompletableFuture<Void> f = CompletableFuture.completedFuture(null).thenRunAsync(() -> {
             for (int i = 0; i < 100; i++) {
-                TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+                TopicPolicyListener listener = new TopicPolicyListenerImpl();
                 systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
                 Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
                 Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
@@ -117,7 +109,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         });
 
         for (int i = 0; i < 100; i++) {
-            TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+            TopicPolicyListener listener = new TopicPolicyListenerImpl();
             systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
             Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
             Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
@@ -130,7 +122,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testGetPolicy() throws ExecutionException, InterruptedException, TopicPoliciesCacheNotInitException {
+    public void testGetPolicy() throws Exception {
 
         // Init topic policies
         TopicPolicies initPolicy = TopicPolicies.builder()
@@ -145,7 +137,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // Assert broker is cache all topic policies
         Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1)
+                Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1)
                         .getMaxConsumerPerTopic().intValue(), 10));
 
         // Update policy for TOPIC1
@@ -185,12 +177,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
 
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
-            TopicPolicies policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
-            TopicPolicies policiesGet3 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC3);
-            TopicPolicies policiesGet4 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC4);
-            TopicPolicies policiesGet5 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC5);
-            TopicPolicies policiesGet6 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC6);
+            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
+            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC2);
+            TopicPolicies policiesGet3 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC3);
+            TopicPolicies policiesGet4 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC4);
+            TopicPolicies policiesGet5 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC5);
+            TopicPolicies policiesGet6 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC6);
 
             Assert.assertEquals(policiesGet1, policies1);
             Assert.assertEquals(policiesGet2, policies2);
@@ -223,8 +215,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         // reader for NAMESPACE1 will back fill the reader cache
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
-            TopicPolicies policiesGet2 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC2);
+            TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC1);
+            TopicPolicies policiesGet2 = TopicPolicyTestUtils.getTopicPolicies(systemTopicBasedTopicPoliciesService, TOPIC2);
             Assert.assertEquals(policies1, policiesGet1);
             Assert.assertEquals(policies2, policiesGet2);
         });
@@ -235,7 +227,8 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
-        TopicPolicies policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
+        TopicPolicies policiesGet1 = TopicPolicyTestUtils.getTopicPoliciesBypassCache(systemTopicBasedTopicPoliciesService,
+                TOPIC1).orElseThrow();
         Assert.assertEquals(policies1, policiesGet1);
     }
 
@@ -249,7 +242,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.topics().getMaxConsumers(topic)));
         Map<TopicName, TopicPolicies> map = systemTopicBasedTopicPoliciesService.getPoliciesCache();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
+        Map<TopicName, List<TopicPolicyListener>> listMap =
                 systemTopicBasedTopicPoliciesService.getListeners();
         assertNotNull(map.get(topicName));
         assertEquals(map.get(topicName).getMaxConsumerPerTopic().intValue(), 1000);
@@ -268,7 +261,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
 
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listMap =
+        Map<TopicName, List<TopicPolicyListener>> listMap =
                 systemTopicBasedTopicPoliciesService.getListeners();
         Awaitility.await().untilAsserted(() -> {
             // all 3 topic partition have registered the topic policy listeners.
@@ -302,64 +295,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testGetPolicyTimeout() throws Exception {
-        SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject()).isDone()));
-        service.policyCacheInitMap.put(TOPIC1.getNamespaceObject(), new CompletableFuture<>());
-        long start = System.currentTimeMillis();
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(500, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
-                .setMax(1000, TimeUnit.MILLISECONDS)
-                .create();
-        try {
-            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
-        } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TopicPoliciesCacheNotInitException);
-        }
-        long cost = System.currentTimeMillis() - start;
-        assertTrue("actual:" + cost, cost >= 5000 - 1000);
-    }
-
-    @Test
-    public void testGetTopicPoliciesWithRetry() throws Exception {
-        Field initMapField = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("policyCacheInitMap");
-        initMapField.setAccessible(true);
-        Map<NamespaceName, Boolean> initMap = (Map)initMapField.get(systemTopicBasedTopicPoliciesService);
-        initMap.remove(NamespaceName.get(NAMESPACE1));
-        Field readerCaches = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("readerCaches");
-        readerCaches.setAccessible(true);
-        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers = (Map)readerCaches.get(systemTopicBasedTopicPoliciesService);
-        readers.remove(NamespaceName.get(NAMESPACE1));
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(500, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
-                .setMax(1000, TimeUnit.MILLISECONDS)
-                .create();
-        TopicPolicies initPolicy = TopicPolicies.builder()
-                .maxConsumerPerTopic(10)
-                .build();
-        @Cleanup("shutdownNow")
-        ScheduledExecutorService executors = Executors.newScheduledThreadPool(1);
-        executors.schedule(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
-                } catch (Exception ignore) {}
-            }
-        }, 2000, TimeUnit.MILLISECONDS);
-        Awaitility.await().untilAsserted(() -> {
-            Optional<TopicPolicies> topicPolicies = systemTopicBasedTopicPoliciesService
-                    .getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
-            Assert.assertTrue(topicPolicies.isPresent());
-            if (topicPolicies.isPresent()) {
-                Assert.assertEquals(topicPolicies.get(), initPolicy);
-            }
-        });
-    }
-
-    @Test
     public void testHandleNamespaceBeingDeleted() throws Exception {
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         pulsar.getPulsarResources().getNamespaceResources().setPolicies(NamespaceName.get(NAMESPACE1),
@@ -381,13 +316,13 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache = spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
         FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
 
-            Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(topicPoliciesService.getTopicPolicies(TopicName.get(topic))).isNull();
-        });
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(
+                TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, TopicName.get(topic))).isNull());
 
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
         Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                        TopicName.get(topic))).isNotNull();
             });
 
         Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
@@ -401,21 +336,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
         CompletableFuture<Void> result = new CompletableFuture<>();
         Thread thread = new Thread(() -> {
-            TopicPolicies topicPolicies;
-            for (int i = 0; i < 10; i++) {
-                try {
-                    topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
-                    Assert.assertNotNull(topicPolicies);
-                    Thread.sleep(500);
-                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                    log.warn("topic policies cache not init, retry...");
-                } catch (Throwable e) {
-                    log.error("ops: ", e);
-                    result.completeExceptionally(e);
-                    return;
-                }
+            try {
+                TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, TopicName.get(topic));
+                result.complete(null);
+            } catch (ExecutionException | InterruptedException e) {
+                result.completeExceptionally(e);
             }
-            result.complete(null);
         });
 
         Thread thread2 = new Thread(() -> {

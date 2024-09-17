@@ -92,6 +92,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -142,7 +143,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -550,11 +550,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getSubscription(subName);
             subscription.getPendingAckManageLedger().thenAccept(managedLedger -> {
                 long retentionSize = managedLedger.getConfig().getRetentionSizeInMB();
-                if (!originPersistentTopic.getTopicPolicies().isPresent()) {
-                    log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
-                    Assert.fail();
-                }
-                TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
+                TopicPolicyTestUtils.getTopicPolicies(originPersistentTopic); // verify the topic policies exist
                 Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
                 MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
                 CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);

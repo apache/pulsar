@@ -30,11 +30,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -792,8 +790,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
     }
 
-    private void init(String namespace, String topic)
-            throws PulsarAdminException, PulsarClientException, PulsarServerException {
+    private void init(String namespace, String topic) throws Exception {
         final String cluster2 = pulsar2.getConfig().getClusterName();
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster3 = pulsar3.getConfig().getClusterName();
@@ -817,11 +814,9 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         pulsar3.getClient().newProducer().topic(topic).create().close();
 
         //init topic policies server
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-        });
+        TopicPolicyTestUtils.getTopicPolicies(pulsar1.getTopicPoliciesService(), TopicName.get(topic));
+        TopicPolicyTestUtils.getTopicPolicies(pulsar2.getTopicPoliciesService(), TopicName.get(topic));
+        TopicPolicyTestUtils.getTopicPolicies(pulsar3.getTopicPoliciesService(), TopicName.get(topic));
     }
 
 }

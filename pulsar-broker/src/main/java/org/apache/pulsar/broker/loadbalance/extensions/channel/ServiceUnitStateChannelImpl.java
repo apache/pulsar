@@ -265,6 +265,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         doCleanup(brokerId);
     }
 
+    @Override
+    public synchronized boolean started() {
+        return validateChannelState(LeaderElectionServiceStarted, false);
+    }
+
     public synchronized void start() throws PulsarServerException {
         if (!validateChannelState(LeaderElectionServiceStarted, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());

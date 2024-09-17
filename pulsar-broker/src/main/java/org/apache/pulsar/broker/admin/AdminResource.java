@@ -45,6 +45,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -365,14 +366,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
                                                                                         boolean isGlobal) {
-        try {
-            checkTopicLevelPolicyEnable();
-            return pulsar().getTopicPoliciesService()
-                    .getTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor(), isGlobal);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
-            return FutureUtil.failedFuture(e);
-        }
+        final var type = isGlobal ? TopicPoliciesService.GetType.GLOBAL_ONLY : TopicPoliciesService.GetType.LOCAL_ONLY;
+        return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName, type);
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
@@ -394,13 +389,6 @@ public abstract class AdminResource extends PulsarWebResource {
             return false;
         }
         return true;
-    }
-
-    protected void checkTopicLevelPolicyEnable() {
-        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Topic level policies is disabled, to enable the topic level policy and retry.");
-        }
     }
 
     protected DispatchRateImpl dispatchRate() {
@@ -784,11 +772,8 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
-        CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
-        if (config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            future = getTopicPoliciesAsyncWithRetry(topicName)
-                    .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
-        }
+        CompletableFuture<SchemaCompatibilityStrategy> future = getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
 
         return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
             if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
