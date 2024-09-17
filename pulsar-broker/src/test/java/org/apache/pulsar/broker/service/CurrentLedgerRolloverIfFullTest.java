@@ -81,7 +81,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2 + 1);
+        });
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);

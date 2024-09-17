@@ -864,7 +864,8 @@ public class TransactionTest extends TransactionTestBase {
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
                         500, bufferedWriterConfig, transactionTimer,
-                        DISABLED_BUFFERED_WRITER_METRICS)))
+                        DISABLED_BUFFERED_WRITER_METRICS, persistentTopic.getBrokerService().getPulsar()
+                        .getOrderedExecutor().chooseThread())))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 

@@ -65,11 +65,11 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -2277,7 +2277,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             boolean readCompacted) {
 
         PersistentTopic persistentTopic = (PersistentTopic) topic;
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger ml = persistentTopic.getManagedLedger();
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         // If the compaction cursor reach the end of the topic, respond messageId from compacted ledger
@@ -2292,7 +2292,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
 
-            if (lastPosition.getEntryId() == -1 || !ml.ledgerExists(lastPosition.getLedgerId())) {
+
+            if (lastPosition.getEntryId() == -1 || !ml.getLedgersInfo().containsKey(lastPosition.getLedgerId())) {
                 // there is no entry in the original topic
                 if (compactionHorizon != null) {
                     // if readCompacted is true, we need to read the last entry from compacted topic
@@ -2367,6 +2368,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             });
         });
     }
+
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,
                                                           int partitionIndex, Position markDeletePosition) {
         persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenAccept(entry -> {

@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.google.common.base.MoreObjects;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -164,11 +165,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
+    protected final Clock clock;
 
     protected Set<String> additionalSystemCursorNames = new TreeSet<>();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;

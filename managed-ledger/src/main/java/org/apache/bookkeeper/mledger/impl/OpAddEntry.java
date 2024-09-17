@@ -45,7 +45,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
  *
  */
 @Slf4j
-public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
+public class OpAddEntry implements AddCallback, CloseCallback, Runnable, ManagedLedgerInterceptor.AddEntryOperation {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     long entryId;
@@ -139,8 +139,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
                 long originalDataLen = data.readableBytes();
-                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
-                        duplicateBuffer);
+                payloadProcessorHandle = ml.getManagedLedgerInterceptor()
+                        .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                     // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
