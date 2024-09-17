@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewSyncer;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -166,6 +167,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private BrokerLoadDataReporter brokerLoadDataReporter;
 
     private TopBundleLoadDataReporter topBundleLoadDataReporter;
+
+    @Getter
+    protected ServiceUnitStateTableViewSyncer serviceUnitStateTableViewSyncer;
 
     private volatile ScheduledFuture brokerLoadDataReportTask;
     private volatile ScheduledFuture topBundlesLoadDataReportTask;
@@ -399,6 +403,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     serviceUnitStateChannel, unloadCounter, unloadMetrics);
             this.splitScheduler = new SplitScheduler(
                     pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
+            this.serviceUnitStateTableViewSyncer = new ServiceUnitStateTableViewSyncer();
 
             pulsar.runWhenReadyForIncomingRequests(() -> {
                 try {
@@ -770,6 +775,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.topBundlesLoadDataStore.shutdown();
             this.unloadScheduler.close();
             this.splitScheduler.close();
+            this.serviceUnitStateTableViewSyncer.close();
         } catch (IOException ex) {
             throw new PulsarServerException(ex);
         } finally {
@@ -824,6 +830,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 topBundlesLoadDataStore.init();
                 unloadScheduler.start();
                 serviceUnitStateChannel.scheduleOwnershipMonitor();
+                if (pulsar.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()) {
+                    serviceUnitStateTableViewSyncer.start(pulsar);
+                }
                 break;
             } catch (Throwable e) {
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
@@ -873,6 +882,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 brokerLoadDataStore.init();
                 topBundlesLoadDataStore.close();
                 topBundlesLoadDataStore.startProducer();
+                serviceUnitStateTableViewSyncer.close();
                 break;
             } catch (Throwable e) {
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
@@ -951,12 +961,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                             + "Playing the leader role.", role, isChannelOwner);
                     playLeader();
                 }
+
+                if (pulsar.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()) {
+                    serviceUnitStateTableViewSyncer.start(pulsar);
+                } else {
+                    serviceUnitStateTableViewSyncer.close();
+                }
+
             } else {
                 if (role != Follower) {
                     log.warn("Current role:{} does not match with the channel ownership:{}. "
                             + "Playing the follower role.", role, isChannelOwner);
                     playFollower();
                 }
+                serviceUnitStateTableViewSyncer.close();
             }
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);

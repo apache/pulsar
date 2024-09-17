@@ -2920,6 +2920,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String loadManagerServiceUnitStateTableViewClassName =
             "org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl";
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Enable ServiceUnitTableViewSyncer to sync service unit(bundle) states between metadata store and "
+                    + "system topic table views during migration from one to the other. One could enable this"
+                    + " syncer before migration and disable it after the migration finishes."
+    )
+    private boolean loadBalancerServiceUnitTableViewSyncerEnabled = false;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
