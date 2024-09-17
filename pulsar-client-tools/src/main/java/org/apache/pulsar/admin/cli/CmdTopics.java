@@ -2148,6 +2148,11 @@ public class CmdTopics extends CmdBase {
                 + "(0 means no throttle)")
         private double managedLedgerMaxMarkDeleteRate = 0;
 
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
@@ -2159,7 +2164,8 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 

@@ -64,6 +64,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -136,6 +137,8 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -216,7 +219,7 @@ public class BrokerService implements Closeable {
             .register();
 
     private final PulsarService pulsar;
-    private final ManagedLedgerFactory managedLedgerFactory;
+    private final ManagedLedgerStorage managedLedgerStorage;
 
     private final Map<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentHashMap<>();
 
@@ -335,7 +338,7 @@ public class BrokerService implements Closeable {
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicSnapshotClock());
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-        this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
+        this.managedLedgerStorage = pulsar.getManagedLedgerStorage();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
         this.pulsarStats = new PulsarStats(pulsar);
@@ -1241,21 +1244,49 @@ public class BrokerService implements Closeable {
                 return;
             }
             CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
-            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
-                mlConfigFuture, new DeleteLedgerCallback() {
-                    @Override
-                    public void deleteLedgerComplete(Object ctx) {
-                        future.complete(null);
-                    }
+            mlConfigFuture.thenAccept(config -> {
+                getManagedLedgerFactoryForTopic(topicName, config.getStorageClassName())
+                        .asyncDelete(tn.getPersistenceNamingEncoding(),
+                                mlConfigFuture, new DeleteLedgerCallback() {
+                                    @Override
+                                    public void deleteLedgerComplete(Object ctx) {
+                                        future.complete(null);
+                                    }
 
-                    @Override
-                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, null);
+                                    @Override
+                                    public void deleteLedgerFailed(ManagedLedgerException exception,
+                                                                   Object ctx) {
+                                        future.completeExceptionally(exception);
+                                    }
+                                }, null);
+            }).exceptionally(ex1 -> {
+                log.error("Failed to get managed ledger config for topic {}", topic, ex1);
+                future.completeExceptionally(ex1);
+                return null;
+            });
          });
 
         return future;
+    }
+
+    public CompletableFuture<ManagedLedgerFactory> getManagedLedgerFactoryForTopic(TopicName topicName) {
+        return getManagedLedgerConfig(topicName)
+                .thenApply(config -> {
+                    String storageClassName = config.getStorageClassName();
+                    return getManagedLedgerFactoryForTopic(topicName, storageClassName);
+                });
+    }
+
+    public ManagedLedgerFactory getManagedLedgerFactoryForTopic(TopicName topicName, String storageClassName) {
+        Optional<ManagedLedgerStorageClass> managedLedgerStorageClass =
+                managedLedgerStorage.getManagedLedgerStorageClass(storageClassName);
+        if (!managedLedgerStorageClass.isPresent()) {
+            throw new CompletionException(new ManagedLedgerException(
+                    "ManagedLedgerStorageClass " + storageClassName + " not found for topic " + topicName));
+        }
+        return managedLedgerStorageClass
+                .get()
+                .getManagedLedgerFactory();
     }
 
     public void deleteTopicAuthenticationWithRetry(String topic, CompletableFuture<Void> future, int count) {
@@ -1624,14 +1655,17 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
         if (!topicName.isPartitioned()) {
-            return managedLedgerFactory.getManagedLedgerPropertiesAsync(topicName.getPersistenceNamingEncoding());
+            return getManagedLedgerFactoryForTopic(topicName).thenCompose(
+                    managedLedgerFactory -> managedLedgerFactory.getManagedLedgerPropertiesAsync(
+                            topicName.getPersistenceNamingEncoding()));
         } else {
             TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
             return fetchPartitionedTopicMetadataAsync(partitionedTopicName)
                     .thenCompose(metadata -> {
                         if (metadata.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
-                            return managedLedgerFactory.getManagedLedgerPropertiesAsync(
-                                    topicName.getPersistenceNamingEncoding());
+                            return getManagedLedgerFactoryForTopic(topicName).thenCompose(
+                                    managedLedgerFactory -> managedLedgerFactory.getManagedLedgerPropertiesAsync(
+                                            topicName.getPersistenceNamingEncoding()));
                         } else {
                             // Check if the partitioned topic is a ShadowTopic
                             if (MapUtils.getString(metadata.properties, PROPERTY_SOURCE_TOPIC_KEY) != null) {
@@ -1756,6 +1790,8 @@ public class BrokerService implements Closeable {
             topicEventsDispatcher.notifyOnCompletion(loadFuture, topic, TopicEvent.LOAD);
 
             // Once we have the configuration, we can proceed with the async open operation
+            ManagedLedgerFactory managedLedgerFactory =
+                    getManagedLedgerFactoryForTopic(topicName, managedLedgerConfig.getStorageClassName());
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
@@ -1918,6 +1954,7 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
             managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
             managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
+            managedLedgerConfig.setStorageClassName(persistencePolicies.getManagedLedgerStorageClassName());
 
             if (serviceConfig.isStrictBookieAffinityEnabled()) {
                 managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyClassName(
@@ -2745,25 +2782,29 @@ public class BrokerService implements Closeable {
             });
         });
 
+
+        ManagedLedgerFactory defaultManagedLedgerFactory =
+                managedLedgerStorage.getDefaultStorageClass().getManagedLedgerFactory();
+
         //  add listener to notify broker managedLedgerCacheSizeMB dynamic config
         registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
-            managedLedgerFactory.getEntryCacheManager()
+            defaultManagedLedgerFactory.getEntryCacheManager()
                     .updateCacheSizeAndThreshold(((int) managedLedgerCacheSizeMB) * 1024L * 1024L);
         });
 
         //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config
         registerConfigurationListener(
                 "managedLedgerCacheEvictionWatermark", (cacheEvictionWatermark) -> {
-            managedLedgerFactory.getEntryCacheManager()
-                    .updateCacheEvictionWatermark((double) cacheEvictionWatermark);
-        });
+                    defaultManagedLedgerFactory.getEntryCacheManager()
+                            .updateCacheEvictionWatermark((double) cacheEvictionWatermark);
+                });
 
         //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
         registerConfigurationListener(
                 "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdMills) -> {
-            managedLedgerFactory.updateCacheEvictionTimeThreshold(MILLISECONDS
-                    .toNanos((long) cacheEvictionTimeThresholdMills));
-        });
+                    defaultManagedLedgerFactory.updateCacheEvictionTimeThreshold(MILLISECONDS
+                            .toNanos((long) cacheEvictionTimeThresholdMills));
+                });
 
 
         // add listener to update message-dispatch-rate in msg for topic

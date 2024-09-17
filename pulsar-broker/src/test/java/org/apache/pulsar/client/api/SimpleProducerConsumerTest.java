@@ -1108,7 +1108,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 return manager;
             }).when(factory).getEntryCacheManager();
             return factory;
-        }).when(pulsar).getManagedLedgerFactory();
+        }).when(pulsar).getDefaultManagedLedgerFactory();
     }
 
     /**

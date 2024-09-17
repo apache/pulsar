@@ -588,24 +588,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
-                    && pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
-                    && pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
+            return pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
+                    && pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
+                    && pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
                     .toNanos(2000);
         });
 
         // verify value is updated
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
-        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
 
         restartBroker();
 
         // verify value again
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
-        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
     }
 

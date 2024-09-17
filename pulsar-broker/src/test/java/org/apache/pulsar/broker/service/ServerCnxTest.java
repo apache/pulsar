@@ -2043,7 +2043,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2098,7 +2098,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2165,7 +2165,7 @@ public class ServerCnxTest {
 
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2244,7 +2244,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2316,7 +2316,7 @@ public class ServerCnxTest {
                             null));
 
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2391,7 +2391,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2400,7 +2400,7 @@ public class ServerCnxTest {
             openTopicFail.complete(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2926,7 +2926,7 @@ public class ServerCnxTest {
             Thread.sleep(300);
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2937,7 +2937,7 @@ public class ServerCnxTest {
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 

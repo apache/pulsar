@@ -708,7 +708,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // partitioned topic to more than 10.
         final String nonPartitionTopicName2 = "special-topic-partition-10";
         final String partitionedTopicName = "special-topic";
-        pulsar.getBrokerService().getManagedLedgerFactory()
+        pulsar.getDefaultManagedLedgerFactory()
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");

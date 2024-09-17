@@ -131,7 +131,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected ManagedLedgerFactoryMXBean getManagedLedgerCacheStats() {
-        return pulsar.getManagedLedgerFactory().getCacheStats();
+        return pulsar.getDefaultManagedLedgerFactory().getCacheStats();
     }
 
     /**
@@ -140,7 +140,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected Map<String, ManagedLedger> getManagedLedgers() {
-        return pulsar.getManagedLedgerFactory().getManagedLedgers();
+        return pulsar.getDefaultManagedLedgerFactory().getManagedLedgers();
     }
 
     protected String getLocalClusterName() {

@@ -1405,19 +1405,27 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
                 .thenAccept(__ -> {
                     String managedLedger = topicName.getPersistenceNamingEncoding();
-                    pulsar().getManagedLedgerFactory()
-                            .asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
-                        @Override
-                        public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                            asyncResponse.resume((StreamingOutput) output -> {
-                                objectWriter().writeValue(output, info);
+                    pulsar().getBrokerService().getManagedLedgerFactoryForTopic(topicName)
+                            .thenAccept(managedLedgerFactory -> {
+                                managedLedgerFactory.asyncGetManagedLedgerInfo(managedLedger,
+                                        new ManagedLedgerInfoCallback() {
+                                            @Override
+                                            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                                                asyncResponse.resume((StreamingOutput) output -> {
+                                                    objectWriter().writeValue(output, info);
+                                                });
+                                            }
+
+                                            @Override
+                                            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                                                asyncResponse.resume(exception);
+                                            }
+                                        }, null);
+                            })
+                            .exceptionally(ex -> {
+                                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                                return null;
                             });
-                        }
-                        @Override
-                        public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                            asyncResponse.resume(exception);
-                        }
-                    }, null);
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -3174,7 +3182,9 @@ public class PersistentTopicsBase extends AdminResource {
                                 try {
                                     PersistentOfflineTopicStats estimateOfflineTopicStats =
                                             offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    pulsar().getManagedLedgerFactory(),
+                                                    pulsar().getBrokerService()
+                                                            .getManagedLedgerFactoryForTopic(topicName,
+                                                                    config.getStorageClassName()),
                                                     topicName);
                                     pulsar().getBrokerService()
                                             .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);

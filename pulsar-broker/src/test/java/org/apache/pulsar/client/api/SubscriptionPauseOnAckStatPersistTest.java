@@ -563,7 +563,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         final String subscription = "s1";
         final int msgSendCount = 100;
         // Inject a injection to record the counter of calling "cursor.isCursorDataFullyPersistable".
-        final ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getBrokerService().getManagedLedgerFactory().open(mlName);
+        final ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getDefaultManagedLedgerFactory().open(mlName);
         final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(subscription);
         final ManagedCursorImpl spyCursor = Mockito.spy(cursor);
         AtomicInteger callingIsCursorDataFullyPersistableCounter = new AtomicInteger();

@@ -124,7 +124,9 @@ import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -210,7 +212,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final int DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS = 8;
     private final ServiceConfiguration config;
     private NamespaceService nsService = null;
-    private ManagedLedgerStorage managedLedgerClientFactory = null;
+    private ManagedLedgerStorage managedLedgerStorage = null;
     private LeaderElectionService leaderElectionService = null;
     private BrokerService brokerService = null;
     private WebService webService = null;
@@ -606,13 +608,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.brokerService = null;
             }
 
-            if (this.managedLedgerClientFactory != null) {
+            if (this.managedLedgerStorage != null) {
                 try {
-                    this.managedLedgerClientFactory.close();
+                    this.managedLedgerStorage.close();
                 } catch (Exception e) {
                     LOG.warn("ManagedLedgerClientFactory closing failed {}", e.getMessage());
                 }
-                this.managedLedgerClientFactory = null;
+                this.managedLedgerStorage = null;
             }
 
             if (bkClientFactory != null) {
@@ -899,7 +901,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            managedLedgerClientFactory = newManagedLedgerClientFactory();
+            managedLedgerStorage = newManagedLedgerStorage();
 
             this.brokerService = newBrokerService(this);
 
@@ -1122,7 +1124,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     @VisibleForTesting
-    protected ManagedLedgerStorage newManagedLedgerClientFactory() throws Exception {
+    protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
         return ManagedLedgerStorage.create(
                 config, localMetadataStore,
                 bkClientFactory, ioEventLoopGroup, openTelemetry.getOpenTelemetryService().getOpenTelemetry()
@@ -1348,7 +1350,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
                     .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
             loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor,
-                    config, getManagedLedgerFactory());
+                    config, getDefaultManagedLedgerFactory());
             loadSheddingTask.start();
             loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
@@ -1535,11 +1537,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public BookKeeper getBookKeeperClient() {
-        return getManagedLedgerClientFactory().getBookKeeperClient();
+        ManagedLedgerStorageClass defaultStorageClass = getManagedLedgerStorage().getDefaultStorageClass();
+        if (defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass) {
+            return bkStorageClass.getBookKeeperClient();
+        } else {
+            // TODO: Refactor code to support other than default bookkeeper based storage class
+            throw new UnsupportedOperationException("BookKeeper client is not available");
+        }
     }
 
-    public ManagedLedgerFactory getManagedLedgerFactory() {
-        return getManagedLedgerClientFactory().getManagedLedgerFactory();
+    public ManagedLedgerFactory getDefaultManagedLedgerFactory() {
+        return getManagedLedgerStorage().getDefaultStorageClass().getManagedLedgerFactory();
     }
 
     /**

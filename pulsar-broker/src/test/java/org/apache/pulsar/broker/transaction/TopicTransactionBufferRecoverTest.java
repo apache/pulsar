@@ -806,7 +806,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 //
             }
         };
-        pulsarService.getManagedLedgerFactory()
+        pulsarService.getDefaultManagedLedgerFactory()
                 .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(), callback,
                         brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null);
 

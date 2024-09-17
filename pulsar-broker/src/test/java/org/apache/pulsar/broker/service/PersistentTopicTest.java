@@ -191,12 +191,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         brokerService = pulsarTestContext.getBrokerService();
 
         doAnswer(invocationOnMock -> CompletableFuture.completedFuture(null))
-                .when(pulsarTestContext.getManagedLedgerFactory()).getManagedLedgerPropertiesAsync(any());
+                .when(pulsarTestContext.getDefaultManagedLedgerFactory()).getManagedLedgerPropertiesAsync(any());
         doAnswer(invocation -> {
             DeleteLedgerCallback deleteLedgerCallback = invocation.getArgument(1);
             deleteLedgerCallback.deleteLedgerComplete(null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory()).asyncDelete(any(), any(), any());
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory()).asyncDelete(any(), any(), any());
         // Mock serviceCnx.
         serverCnx = spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
                 pulsarTestContext.getPulsarService());
@@ -247,7 +247,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer(invocationOnMock -> {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
                         any(Supplier.class), any());
 
@@ -273,7 +273,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
                         any(Supplier.class), any());
 
@@ -1395,7 +1395,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer(invocationOnMock -> {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1404,7 +1404,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getDefaultManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
