@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
@@ -42,8 +41,8 @@ public class MLTransactionSequenceIdGenerator implements ManagedLedgerIntercepto
     private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);
 
     @Override
-    public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
-        return op;
+    public void beforeAddEntry(AddEntryOperation op, int numberOfMessages) {
+        // do nothing
     }
 
     // When all of ledger have been deleted, we will generate sequenceId from managedLedger properties

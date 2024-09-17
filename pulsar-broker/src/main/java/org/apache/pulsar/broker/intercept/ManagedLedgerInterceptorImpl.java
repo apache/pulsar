@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -85,12 +84,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+    public void beforeAddEntry(AddEntryOperation op, int numberOfMessages) {
        if (op == null || numberOfMessages <= 0) {
-           return op;
+           return;
        }
         op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, numberOfMessages));
-        return op;
     }
 
     @Override
@@ -189,11 +187,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         };
     }
     @Override
-    public PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry op, ByteBuf ledgerData) {
+    public PayloadProcessorHandle processPayloadBeforeLedgerWrite(Object ctx, ByteBuf ledgerData) {
         if (this.inputProcessors == null || this.inputProcessors.size() == 0) {
             return null;
         }
-        return processPayload(this.inputProcessors, op.getCtx(), ledgerData);
+        return processPayload(this.inputProcessors, ctx, ledgerData);
     }
 
     @Override
