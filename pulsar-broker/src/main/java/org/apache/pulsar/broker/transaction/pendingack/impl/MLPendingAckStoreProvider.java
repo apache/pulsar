@@ -137,6 +137,12 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                         pendingAckStoreFuture.completeExceptionally(t);
                         return null;
                     });
+                }).exceptionally(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] [{}] Failed to get managedLedger config when init pending ack store!",
+                            pendingAckTopicNameObject, subscription, t);
+                    pendingAckStoreFuture.completeExceptionally(t);
+                    return null;
                 });
         return pendingAckStoreFuture;
     }
