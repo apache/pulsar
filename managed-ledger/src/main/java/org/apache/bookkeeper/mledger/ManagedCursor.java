@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
@@ -44,6 +45,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ManagedCursor {
+
+    String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
     @SuppressWarnings("checkstyle:javadoctype")
     enum FindPositionConstraint {
@@ -885,4 +888,16 @@ public interface ManagedCursor {
     default ManagedCursorAttributes getManagedCursorAttributes() {
         return new ManagedCursorAttributes(this);
     }
+
+    ManagedLedgerInternalStats.CursorStats getCursorStats();
+
+    boolean isMessageDeleted(Position position);
+
+    ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;
+
+    long[] getBatchPositionAckSet(Position position);
+
+    int applyMaxSizeCap(int maxEntries, long maxSizeBytes);
+
+    void updateReadStats(int readEntriesCount, long readEntriesSize);
 }

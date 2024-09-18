@@ -38,8 +38,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -189,8 +188,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
         List<Position> positionsNeedToDelete = new ArrayList<>();
-        while (!segmentIndex.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
-                .ledgerExists(segmentIndex.firstKey().getLedgerId())) {
+        while (!segmentIndex.isEmpty() && !topic.getManagedLedger().getLedgersInfo()
+                .containsKey(segmentIndex.firstKey().getLedgerId())) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Topic transaction buffer clear aborted transactions, maxReadPosition : {}",
                         topic.getName(), segmentIndex.firstKey());
@@ -275,8 +274,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     entry.release();
                 }
             } catch (Throwable throwable) {
-                if (((ManagedLedgerImpl) topic.getManagedLedger())
-                        .ledgerExists(index.getAbortedMarkLedgerID())) {
+                if (topic.getManagedLedger().getLedgersInfo()
+                        .containsKey(index.getAbortedMarkLedgerID())) {
                     log.error("[{}] Failed to read snapshot segment [{}:{}]",
                             topic.getName(), index.segmentLedgerID,
                             index.segmentEntryID, throwable);
@@ -293,11 +292,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
     }
 
-    private ReadOnlyManagedLedgerImpl openReadOnlyManagedLedger(TopicName topicName) throws Exception {
-        final var future = new CompletableFuture<ReadOnlyManagedLedgerImpl>();
+    private ReadOnlyManagedLedger openReadOnlyManagedLedger(TopicName topicName) throws Exception {
+        final var future = new CompletableFuture<ReadOnlyManagedLedger>();
         final var callback = new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
-            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger, Object ctx) {
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger, Object ctx) {
                 future.complete(managedLedger);
             }
 
@@ -317,7 +316,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return wait(future, "open read only ml for " + topicName);
     }
 
-    private Entry readEntry(ReadOnlyManagedLedgerImpl managedLedger, Position position) throws Exception {
+    private Entry readEntry(ReadOnlyManagedLedger managedLedger, Position position) throws Exception {
         final var future = new CompletableFuture<Entry>();
         managedLedger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override

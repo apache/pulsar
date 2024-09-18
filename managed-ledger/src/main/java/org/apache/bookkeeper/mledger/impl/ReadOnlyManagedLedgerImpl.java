@@ -43,12 +43,12 @@ import org.apache.pulsar.metadata.api.Stat;
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-            String name) {
+                                     ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
+                                     String name) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name);
     }
 
-    CompletableFuture<Void> initialize() {
+    public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         // Fetch the list of existing ledgers in the managed ledger
@@ -128,7 +128,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return future;
     }
 
-    ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
         if (ledgers.isEmpty()) {
             lastConfirmedEntry = PositionFactory.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {

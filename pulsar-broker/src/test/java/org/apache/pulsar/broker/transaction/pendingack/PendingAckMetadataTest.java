@@ -18,9 +18,19 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -36,14 +46,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.testng.annotations.Test;
-import java.lang.reflect.Field;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
-import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
-import static org.testng.Assert.assertTrue;
-import static org.testng.AssertJUnit.fail;
 
 public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
@@ -80,9 +82,13 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
         ManagedCursor cursor = completableFuture.get().openCursor("test");
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
+
+        @Cleanup("shutdownNow")
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
         MLPendingAckStore pendingAckStore =
                 new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
-                        bufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                        bufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS, executorService);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);

@@ -134,7 +134,12 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                                         .getConfiguration()
                                                                         .getTransactionPendingAckLogIndexMinLag(),
                                                                 txnLogBufferedWriterConfig,
-                                                                brokerClientSharedTimer, bufferedWriterMetrics));
+                                                                brokerClientSharedTimer, bufferedWriterMetrics,
+                                                                originPersistentTopic
+                                                                        .getBrokerService()
+                                                                        .getPulsar()
+                                                                        .getOrderedExecutor()
+                                                                        .chooseThread()));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),
