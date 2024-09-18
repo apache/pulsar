@@ -288,14 +288,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
 
-    private static boolean configureSystemTopics(PulsarService pulsar) {
+    public static boolean configureSystemTopics(PulsarService pulsar, long target) {
         try {
             if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
                     && pulsar.getConfiguration().isTopicLevelPoliciesEnabled()) {
                 Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
-                if (threshold == null || COMPACTION_THRESHOLD != threshold.longValue()) {
-                    pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);
-                    log.info("Set compaction threshold: {} bytes for system topic {}.", COMPACTION_THRESHOLD, TOPIC);
+                if (threshold == null || target != threshold.longValue()) {
+                    pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, target);
+                    log.info("Set compaction threshold: {} bytes for system topic {}.", target, TOPIC);
                 }
             } else {
                 log.warn("System topic or topic level policies is disabled. "
@@ -954,7 +954,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 // System topic config might fail due to the race condition
                 // with topic policy init(Topic policies cache have not init).
                 if (!configuredSystemTopics) {
-                    configuredSystemTopics = configureSystemTopics(pulsar);
+                    configuredSystemTopics = configureSystemTopics(pulsar, COMPACTION_THRESHOLD);
                 }
                 if (role != Leader) {
                     log.warn("Current role:{} does not match with the channel ownership:{}. "

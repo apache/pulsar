@@ -2923,11 +2923,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Enable ServiceUnitTableViewSyncer to sync service unit(bundle) states between metadata store and "
+            doc = "Specify ServiceUnitTableViewSyncer to sync service unit(bundle) states between metadata store and "
                     + "system topic table views during migration from one to the other. One could enable this"
-                    + " syncer before migration and disable it after the migration finishes."
+                    + " syncer before migration and disable it after the migration finishes. "
+                    + "It accepts `MetadataStoreToSystemTopicSyncer` or `SystemTopicToMetadataStoreSyncer` to "
+                    + "enable it. Null value disables it."
     )
-    private boolean loadBalancerServiceUnitTableViewSyncerEnabled = false;
+    private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = null;
 
     /**** --- Replication. --- ****/
     @FieldContext(
@@ -3826,5 +3828,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             }
         });
         return map;
+    }
+
+    public boolean isLoadBalancerServiceUnitTableViewSyncerEnabled() {
+        return loadBalancerServiceUnitTableViewSyncer != null;
+    }
+
+    public enum ServiceUnitTableViewSyncerType {
+        MetadataStoreToSystemTopicSyncer,
+        SystemTopicToMetadataStoreSyncer;
     }
 }

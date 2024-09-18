@@ -1241,8 +1241,35 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test(priority = 200)
     public void testLoadBalancerServiceUnitTableViewSyncer() throws Exception {
 
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic("testLoadBalancerServiceUnitTableViewSyncer");
+        TopicName topicName = topicAndBundle.getLeft();
+        NamespaceBundle bundle = topicAndBundle.getRight();
+        String topic = topicName.toString();
+
+        String lookupResultBefore1 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
+        String lookupResultBefore2 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
+        assertEquals(lookupResultBefore1, lookupResultBefore2);
+
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(false)
+                .requestHttps(false)
+                .readOnly(false)
+                .loadTopicsInBundle(false).build();
+        Optional<URL> webServiceUrlBefore1 =
+                pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+        assertTrue(webServiceUrlBefore1.isPresent());
+
+        Optional<URL> webServiceUrlBefore2 =
+                pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+        assertTrue(webServiceUrlBefore2.isPresent());
+        assertEquals(webServiceUrlBefore2.get().toString(), webServiceUrlBefore1.get().toString());
+
+
+        String syncerTyp = serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName()) ?
+                "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
-                .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncerEnabled", "true");
+                .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerTyp);
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS)
@@ -1259,23 +1286,14 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             // start pulsar3 with ServiceUnitStateTableViewImpl
             @Cleanup
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
-            Pair<TopicName, NamespaceBundle> topicAndBundle =
-                    getBundleIsNotOwnByChangeEventTopic("testDeployAndRollbackLoadManager");
-            TopicName topicName = topicAndBundle.getLeft();
-            NamespaceBundle bundle = topicAndBundle.getRight();
-            String topic = topicName.toString();
 
             String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
             String lookupResult2 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
             String lookupResult3 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
             assertEquals(lookupResult1, lookupResult2);
             assertEquals(lookupResult1, lookupResult3);
+            assertEquals(lookupResult1, lookupResultBefore1);
 
-            LookupOptions options = LookupOptions.builder()
-                    .authoritative(false)
-                    .requestHttps(false)
-                    .readOnly(false)
-                    .loadTopicsInBundle(false).build();
             Optional<URL> webServiceUrl1 =
                     pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
             assertTrue(webServiceUrl1.isPresent());
@@ -1289,6 +1307,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
             assertTrue(webServiceUrl3.isPresent());
             assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
+
+            assertEquals(webServiceUrl3.get().toString(), webServiceUrlBefore1.get().toString());
 
             List<PulsarService> pulsarServices = List.of(pulsar1, pulsar2, pulsar3);
             for (PulsarService pulsarService : pulsarServices) {
@@ -1330,6 +1350,20 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertEquals(lookupResult4, lookupResult5);
                 assertEquals(lookupResult4, lookupResult6);
                 assertEquals(lookupResult4, lookupResult7);
+                assertEquals(lookupResult4, lookupResultBefore1);
+
+
+                Pair<TopicName, NamespaceBundle> topicAndBundle2 =
+                        getBundleIsNotOwnByChangeEventTopic("testLoadBalancerServiceUnitTableViewSyncer2");
+                String topic2 = topicAndBundle2.getLeft().toString();
+
+                String lookupResult8 = pulsar1.getAdminClient().lookups().lookupTopic(topic2);
+                String lookupResult9 = pulsar2.getAdminClient().lookups().lookupTopic(topic2);
+                String lookupResult10 = pulsar3.getAdminClient().lookups().lookupTopic(topic2);
+                String lookupResult11 = pulsar4.getAdminClient().lookups().lookupTopic(topic2);
+                assertEquals(lookupResult9, lookupResult8);
+                assertEquals(lookupResult10, lookupResult8);
+                assertEquals(lookupResult11, lookupResult8);
 
                 Set<String> availableWebUrlCandidates = Sets.newHashSet(
                         pulsar1.getWebServiceAddress(),
@@ -1356,6 +1390,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                         pulsar4.getNamespaceService().getWebServiceUrl(bundle, options);
                 assertTrue(webServiceUrl4.isPresent());
                 assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
+                assertEquals(webServiceUrl4.get().toString(), webServiceUrlBefore1.get().toString());
 
                 pulsarServices = List.of(pulsar1, pulsar2, pulsar3, pulsar4);
                 for (PulsarService pulsarService : pulsarServices) {
@@ -1415,7 +1450,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
 
         pulsar.getAdminClient().brokers()
-                .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncerEnabled", "false");
+                .deleteDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer");
         makeSecondaryAsLeader();
         Awaitility.waitAtMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive()));
