@@ -246,7 +246,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
         requireNonNull(topicName);
-        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject()) || isSelf(topicName)) {
+        final var namespace = topicName.getNamespaceObject();
+        if (NamespaceService.isHeartbeatNamespace(namespace) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         // When the extensible load manager initializes its channel topic, it will trigger the topic policies
@@ -257,15 +258,37 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return CompletableFuture.completedFuture(Optional.empty());
         }
         final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
-        return preparedFuture.thenApply(__ -> {
-            final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-            return Optional.ofNullable(switch (type) {
-                case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
-                        .orElseGet(() -> globalPoliciesCache.get(partitionedTopicName));
-                case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
-                case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
-            });
+        final var resultFuture = new CompletableFuture<Optional<TopicPolicies>>();
+        preparedFuture.thenRun(() -> policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
+            if (existingFuture != null) {
+                final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                final var policies = Optional.ofNullable(switch (type) {
+                    case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
+                            .orElseGet(() -> globalPoliciesCache.get(partitionedTopicName));
+                    case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
+                    case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
+                });
+                resultFuture.complete(policies);
+            } else {
+                CompletableFuture.runAsync(() -> {
+                    log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
+                    // Call it in another thread to avoid recursive update because getTopicPoliciesAsync() could call
+                    // policyCacheInitMap.computeIfAbsent()
+                    getTopicPoliciesAsync(topicName, type).whenComplete((result, e) -> {
+                        if (e == null) {
+                            resultFuture.complete(result);
+                        } else {
+                            resultFuture.completeExceptionally(e);
+                        }
+                    });
+                });
+            }
+            return existingFuture;
+        })).exceptionally(e -> {
+            resultFuture.completeExceptionally(e);
+            return null;
         });
+        return resultFuture;
     }
 
     public void addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {

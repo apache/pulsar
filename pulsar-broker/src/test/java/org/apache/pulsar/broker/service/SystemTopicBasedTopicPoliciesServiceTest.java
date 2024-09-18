@@ -337,9 +337,15 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         CompletableFuture<Void> result = new CompletableFuture<>();
         Thread thread = new Thread(() -> {
             try {
-                TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, TopicName.get(topic));
+                for (int i = 0; i < 10; i++) {
+                    final var policies = TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService,
+                            TopicName.get(topic));
+                    if (policies == null) {
+                        throw new Exception("null policies for " + i + "th get");
+                    }
+                }
                 result.complete(null);
-            } catch (ExecutionException | InterruptedException e) {
+            } catch (Exception e) {
                 result.completeExceptionally(e);
             }
         });
