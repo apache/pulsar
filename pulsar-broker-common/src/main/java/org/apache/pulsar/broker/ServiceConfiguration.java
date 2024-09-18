@@ -977,7 +977,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Setting this value to 0 will disable the limit calculated per subscription.\n",
             dynamic = true
     )
-    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 50000;
+    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 20000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
