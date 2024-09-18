@@ -43,6 +43,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @Slf4j
 public class ServiceUnitStateTableViewSyncer implements Closeable {
     private static final int MAX_CONCURRENT_SYNC_COUNT = 100;
+    private static final int MAX_SYNC_WAIT_TIME_IN_SECS = 300;
     private volatile ServiceUnitStateTableView systemTopicTableView;
     private volatile ServiceUnitStateTableView metadataStoreTableView;
     private volatile boolean isActive = false;
@@ -116,14 +117,14 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
             futures.clear();
 
             int size = merged.size();
-            int syncTimeout = opTimeout * size;
             while (metadataStoreTableView.entrySet().size() != size || systemTopicTableView.entrySet().size() != size) {
-                if (TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started) > syncTimeout) {
+                if (TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started)
+                        > MAX_SYNC_WAIT_TIME_IN_SECS) {
                     throw new TimeoutException(
                             "Failed to sync tableviews. MetadataStoreTableView.size: "
                                     + metadataStoreTableView.entrySet().size()
                                     + ", SystemTopicTableView.size: " + systemTopicTableView.entrySet().size() + " in "
-                                    + syncTimeout + " secs");
+                                    + MAX_SYNC_WAIT_TIME_IN_SECS + " secs");
                 }
                 Thread.sleep(100);
             }
@@ -144,7 +145,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         return systemTopicTableView.put(key, data);
     }
 
-    private CompletableFuture<Void>  syncToMetadataStore(String key, ServiceUnitStateData data) {
+    private CompletableFuture<Void> syncToMetadataStore(String key, ServiceUnitStateData data) {
         return metadataStoreTableView.put(key, data);
     }
 
