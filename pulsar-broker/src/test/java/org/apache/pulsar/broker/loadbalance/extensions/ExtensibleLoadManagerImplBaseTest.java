@@ -169,7 +169,11 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
             additionalPulsarTestContext = null;
         }
         super.internalCleanup();
-        FutureUtil.waitForAll(futures).join();
+        try {
+            FutureUtil.waitForAll(futures).join();
+        } catch (Throwable e) {
+            // skip error
+        }
         pulsar1 = pulsar2 = null;
         primaryLoadManager = secondaryLoadManager = null;
         channel1 = channel2 = null;
