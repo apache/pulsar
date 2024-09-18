@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.BrokerTestUtil.receiveMessages;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -32,6 +35,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,6 +66,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
@@ -91,7 +96,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
@@ -155,6 +160,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 admin.topics().delete(topicName, false);
             }
         }
+        // reset read ahead limits to defaults
+        ServiceConfiguration defaultConf = new ServiceConfiguration();
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(
+                defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerSubscription());
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(
+                defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
     }
 
     private static final Random random = new Random(System.nanoTime());
@@ -630,8 +641,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testReadAheadWhenAddingConsumers() throws Exception {
-        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+    public void testReadAheadWithConfiguredLookAheadLimit() throws Exception {
+        String topic = "testReadAheadWithConfiguredLookAheadLimit-" + UUID.randomUUID();
+
+        // Set the look ahead limit to 50 for subscriptions
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(50);
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, false);
@@ -679,7 +693,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // We need to ensure that dispatcher does not keep to look ahead in the topic,
         Position readPosition = sub.getCursor().getReadPosition();
-        assertTrue(readPosition.getEntryId() < 1000);
+        long entryId = readPosition.getEntryId();
+        assertTrue(entryId < 100);
     }
 
     @Test
@@ -1296,7 +1311,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         redeliveryMessagesField.setAccessible(true);
         final MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField.get(dispatcher);
 
-        final Set<Position> replayMsgSet = redeliveryMessages.getMessagesToReplayNow(3);
+        final Set<Position> replayMsgSet = redeliveryMessages.getMessagesToReplayNow(3, item -> true);
         assertEquals(replayMsgSet.size(), 1);
         final Position replayMsg = replayMsgSet.stream().findAny().get();
         assertEquals(replayMsg, PositionFactory.create(msg1Id.getLedgerId(), msg1Id.getEntryId()));
@@ -2301,5 +2316,131 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer4.close();
         producer.close();
         admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testReadAheadLimit() throws Exception {
+        String topic = "testReadAheadLimit-" + UUID.randomUUID();
+        int numberOfKeys = 1000;
+        long pauseTime = 100L;
+        int readAheadLimit = 20;
+        pulsar.getConfig().setKeySharedLookAheadMsgInReplayThresholdPerSubscription(readAheadLimit);
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        // create a consumer and close it to create a subscription
+        String subscriptionName = "key_shared";
+        pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe()
+                .close();
+
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
+        // get the dispatcher reference
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+
+        // create a function to use for checking the number of messages in replay
+        Runnable checkLimit = () -> {
+            assertThat(dispatcher.getNumberOfMessagesInReplay()).isLessThanOrEqualTo(readAheadLimit);
+        };
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c1")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .startPaused(true) // start paused
+                .subscribe();
+
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c2")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(500) // use large receiver queue size
+                .subscribe();
+
+        @Cleanup
+        Consumer<Integer> c3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c3")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .startPaused(true) // start paused
+                .subscribe();
+
+        // find keys that will be assigned to c2
+        List<String> keysForC2 = new ArrayList<>();
+        for (int i = 0; i < numberOfKeys; i++) {
+            String key = String.valueOf(i);
+            byte[] keyBytes = key.getBytes(UTF_8);
+            int hash = StickyKeyConsumerSelector.makeStickyKeyHash(keyBytes);
+            if (dispatcher.getSelector().select(hash).consumerName().equals("c2")) {
+                keysForC2.add(key);
+            }
+        }
+
+        Set<Integer> remainingMessageValues = new HashSet<>();
+        // produce messages with keys that all get assigned to c2
+        for (int i = 0; i < 1000; i++) {
+            String key = keysForC2.get(random.nextInt(keysForC2.size()));
+            //log.info("Producing message with key: {} value: {}", key, i);
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .send();
+            remainingMessageValues.add(i);
+        }
+
+        checkLimit.run();
+
+        Thread.sleep(pauseTime);
+        checkLimit.run();
+
+        Thread.sleep(pauseTime);
+        checkLimit.run();
+
+        // resume c1 and c3
+        c1.resume();
+        c3.resume();
+
+        Thread.sleep(pauseTime);
+        checkLimit.run();
+
+        // produce more messages
+        for (int i = 1000; i < 2000; i++) {
+            String key = String.valueOf(random.nextInt(numberOfKeys));
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .send();
+            remainingMessageValues.add(i);
+            checkLimit.run();
+        }
+
+        // consume the messages
+        receiveMessages((consumer, msg) -> {
+            synchronized (this) {
+                try {
+                    consumer.acknowledge(msg);
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+                remainingMessageValues.remove(msg.getValue());
+                checkLimit.run();
+                return true;
+            }
+        }, Duration.ofSeconds(2), c1, c2, c3);
+        assertEquals(remainingMessageValues, Collections.emptySet());
     }
 }

@@ -135,6 +135,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     protected int lastNumberOfEntriesDispatched;
+    protected boolean skipNextBackoff;
     private final Backoff retryBackoff;
     protected enum ReadType {
         Normal, Replay
@@ -345,26 +346,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 return;
             }
 
-            NavigableSet<Position> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
-            NavigableSet<Position> messagesToReplayFiltered = filterOutEntriesWillBeDiscarded(messagesToReplayNow);
-            if (!messagesToReplayFiltered.isEmpty()) {
+            Set<Position> messagesToReplayNow =
+                    canReplayMessages() ? getMessagesToReplayNow(messagesToRead) : Collections.emptySet();
+            if (!messagesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
-                            messagesToReplayFiltered.size(), consumerList.size());
+                            messagesToReplayNow.size(), consumerList.size());
                 }
-
                 havePendingReplayRead = true;
-                minReplayedPosition = messagesToReplayNow.first();
+                updateMinReplayedPosition();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayFiltered)
-                        : asyncReplayEntries(messagesToReplayFiltered);
+                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                        : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
-
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
                 // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayFiltered.size() - deletedMessages.size()) == 0) {
+                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntriesAsync();
                 }
@@ -373,7 +372,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                             totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
                 }
-            } else if (!havePendingRead && hasConsumersNeededNormalRead()) {
+            } else if (doesntHavePendingRead()) {
+                if (!isNormalReadAllowed()) {
+                    handleNormalReadNotAllowed();
+                    return;
+                }
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Skipping read for the topic, Due to blocked on ack state persistent.",
@@ -386,13 +389,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                NavigableSet<Position> toReplay = getMessagesToReplayNow(1);
-                if (!toReplay.isEmpty()) {
-                    minReplayedPosition = toReplay.first();
-                    redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
-                } else {
-                    minReplayedPosition = null;
-                }
+                updateMinReplayedPosition();
+
+                messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
 
                 // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
                 if (delayedDeliveryTracker.isPresent()) {
@@ -410,14 +409,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else {
                 if (log.isDebugEnabled()) {
-                    if (!messagesToReplayNow.isEmpty()) {
-                        log.debug("[{}] [{}] Skipping read for the topic: because all entries in replay queue were"
-                                + " filtered out due to the mechanism of Key_Shared mode, and the left consumers have"
-                                + " no permits now",
-                                topic.getName(), getSubscriptionName());
-                    } else {
-                        log.debug("[{}] Cannot schedule next read until previous one is done", name);
-                    }
+                    log.debug("[{}] Cannot schedule next read until previous one is done", name);
                 }
             }
         } else {
@@ -425,6 +417,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    /**
+     * Sets a hard limit on the number of entries to read from the Managed Ledger.
+     * Subclasses can override this method to set a different limit.
+     * By default, this method does not impose an additional limit.
+     *
+     * @return the maximum number of entries to read from the Managed Ledger
+     */
+    protected int getMaxEntriesReadLimit() {
+        return Integer.MAX_VALUE;
+    }
+
+    /**
+     * Checks if there's a pending read operation that hasn't completed yet.
+     * This allows to avoid scheduling a new read operation while the previous one is still in progress.
+     * @return true if there's a pending read operation
+     */
+    protected boolean doesntHavePendingRead() {
+        return !havePendingRead;
+    }
+
+    protected void handleNormalReadNotAllowed() {
+        // do nothing
+    }
+
+    /**
+     * Controls whether replaying entries is currently enabled.
+     * Subclasses can override this method to temporarily disable replaying entries.
+     * @return true if replaying entries is currently enabled
+     */
+    protected boolean canReplayMessages() {
+        return true;
+    }
+
+    private void updateMinReplayedPosition() {
+        minReplayedPosition = getFirstPositionInReplay().orElse(null);
     }
 
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
@@ -444,6 +473,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     protected void reScheduleRead() {
         reScheduleReadInMs(MESSAGE_RATE_BACKOFF_MS);
+    }
+
+    protected synchronized void reScheduleReadWithBackoff() {
+        reScheduleReadInMs(retryBackoff.next());
     }
 
     protected void reScheduleReadInMs(long readAfterMs) {
@@ -697,14 +730,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int entriesDispatched = lastNumberOfEntriesDispatched;
         updatePendingBytesToDispatch(-totalBytesSize);
         if (triggerReadingMore) {
-            if (entriesDispatched > 0) {
+            if (entriesDispatched > 0 || skipNextBackoff) {
+                skipNextBackoff = false;
                 // Reset the backoff when we successfully dispatched messages
                 retryBackoff.reset();
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
             } else if (entriesDispatched == 0) {
                 // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
-                reScheduleReadInMs(retryBackoff.next());
+                reScheduleReadWithBackoff();
             }
         }
     }
@@ -754,8 +788,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int remainingMessages = 0;
         boolean hasChunk = false;
         for (int i = 0; i < metadataArray.length; i++) {
-            final MessageMetadata metadata = Commands.peekAndCopyMessageMetadata(
-                    entries.get(i).getDataBuffer(), subscription.toString(), -1);
+            Entry entry = entries.get(i);
+            MessageMetadata metadata = entry instanceof EntryAndMetadata ? ((EntryAndMetadata) entry).getMetadata()
+                    : Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
                 if (!hasChunk && metadata.hasUuid()) {
@@ -788,22 +823,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-            if (c.getMaxUnackedMessages() > 0) {
-                // Avoid negative number
-                int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
-                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
-            }
             if (log.isDebugEnabled() && !c.isWritable()) {
                 log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
                                 + "availablePermits are {}", topic.getName(), name,
                         c, c.getAvailablePermits());
             }
 
-            int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
-                    serviceConfig.getDispatcherMaxRoundRobinBatchSize());
-            messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
+            int maxMessagesInThisBatch =
+                    Math.max(remainingMessages, serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            if (c.getMaxUnackedMessages() > 0) {
+                // Calculate the maximum number of additional unacked messages allowed
+                int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+                maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
+            }
+            int maxEntriesInThisBatch = Math.min(availablePermits,
+                            // use the average batch size per message to calculate the number of entries to
+                            // dispatch. round up to the next integer without using floating point arithmetic.
+                            (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
+            // pick at least one entry to dispatch
+            maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
 
-            int end = Math.min(start + messagesForC, entries.size());
+            int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
             // remove positions first from replay list first : sendMessages recycles entries
@@ -817,6 +857,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
+
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
@@ -826,8 +867,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
-            start += messagesForC;
-            entriesToDispatch -= messagesForC;
+            start += maxEntriesInThisBatch;
+            entriesToDispatch -= maxEntriesInThisBatch;
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
                     -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
             if (log.isDebugEnabled()) {
@@ -848,13 +889,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         entries.size() - start);
             }
             entries.subList(start, entries.size()).forEach(entry -> {
-                long stickyKeyHash = getStickyKeyHash(entry);
-                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                addEntryToReplay(entry);
                 entry.release();
             });
         }
 
         return true;
+    }
+
+    protected void addEntryToReplay(Entry entry) {
+        long stickyKeyHash = getStickyKeyHash(entry);
+        addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
@@ -1021,7 +1066,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (consumer != null && !consumer.isBlocked()) {
+            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()) {
                 int availablePermits = consumer.getAvailablePermits();
                 if (availablePermits > 0) {
                     return availablePermits;
@@ -1045,7 +1090,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
-        return consumer != null && !consumer.isBlocked() && consumer.getAvailablePermits() > 0;
+        return consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()
+                && consumer.getAvailablePermits() > 0;
     }
 
     @Override
@@ -1235,16 +1281,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
-
         if (!redeliveryMessages.isEmpty()) {
-            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
+            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead, createFilterForReplay());
         } else {
             return Collections.emptyNavigableSet();
         }
     }
 
+    protected Optional<Position> getFirstPositionInReplay() {
+        return redeliveryMessages.getFirstPositionInReplay();
+    }
+
     /**
-     * This is a mode method designed for Key_Shared mode.
+     * Creates a stateful filter for filtering replay positions.
+     * This is only used for Key_Shared mode to skip replaying certain entries.
      * Filter out the entries that will be discarded due to the order guarantee mechanism of Key_Shared mode.
      * This method is in order to avoid the scenario below:
      * - Get positions from the Replay queue.
@@ -1252,17 +1302,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * - The order guarantee mechanism of Key_Shared mode filtered out all the entries.
      * - Delivery non entry to the client, but we did a BK read.
      */
-    protected NavigableSet<Position> filterOutEntriesWillBeDiscarded(NavigableSet<Position> src) {
-        return src;
+    protected Predicate<Position> createFilterForReplay() {
+        // pick all positions from the replay
+        return position -> true;
     }
 
     /**
-     * This is a mode method designed for Key_Shared mode, to avoid unnecessary stuck.
-     * See detail {@link PersistentStickyKeyDispatcherMultipleConsumers#hasConsumersNeededNormalRead}.
+     * Checks if the dispatcher is allowed to read messages from the cursor.
      */
-    protected boolean hasConsumersNeededNormalRead() {
+    protected boolean isNormalReadAllowed() {
         return true;
     }
+
+
 
     protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
         return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();

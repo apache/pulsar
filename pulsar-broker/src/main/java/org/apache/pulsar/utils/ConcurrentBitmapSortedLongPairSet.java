@@ -22,10 +22,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -93,25 +95,51 @@ public class ConcurrentBitmapSortedLongPairSet {
         }
     }
 
+    public <T extends Comparable<T>> Optional<T> first(LongPairSet.LongPairFunction<T> longPairConverter) {
+        MutableObject<Optional<T>> result = new MutableObject<>(Optional.empty());
+        processItems(longPairConverter, item -> {
+            result.setValue(Optional.of(item));
+            return false;
+        });
+        return result.getValue();
+    }
 
     public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,
                                                            LongPairSet.LongPairFunction<T> longPairConverter) {
         NavigableSet<T> items = new TreeSet<>();
+        processItems(longPairConverter, item -> {
+            items.add(item);
+            return items.size() < numberOfItems;
+        });
+        return items;
+    }
+
+    public interface ItemProcessor<T extends Comparable<T>> {
+        /**
+         * @param item
+         * @return false if there is no further processing required
+         */
+        boolean process(T item);
+    }
+
+    public <T extends Comparable<T>> void processItems(LongPairSet.LongPairFunction<T> longPairConverter,
+                                                       ItemProcessor<T> itemProcessor) {
         lock.readLock().lock();
         try {
             for (Map.Entry<Long, RoaringBitmap> entry : map.entrySet()) {
                 Iterator<Integer> iterator = entry.getValue().stream().iterator();
-                while (iterator.hasNext() && items.size() < numberOfItems) {
-                    items.add(longPairConverter.apply(entry.getKey(), iterator.next()));
+                boolean continueProcessing = true;
+                while (continueProcessing && iterator.hasNext()) {
+                    T item = longPairConverter.apply(entry.getKey(), iterator.next());
+                    continueProcessing = itemProcessor.process(item);
                 }
-                if (items.size() == numberOfItems) {
+                if (!continueProcessing) {
                     break;
                 }
             }
         } finally {
             lock.readLock().unlock();
         }
-        return items;
     }
 
     public boolean isEmpty() {
