@@ -66,6 +66,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
+    private final boolean recentlyJoinedConsumerTrackingRequired;
 
     private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
@@ -90,10 +91,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
-        this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
-        this.individuallySentPositions =
-                allowOutOfOrderDelivery ? null : new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter);
         this.keySharedMode = ksm.getKeySharedMode();
+        // recent joined consumer tracking is required only for AUTO_SPLIT mode when out-of-order delivery is disabled
+        this.recentlyJoinedConsumerTrackingRequired =
+                keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
+        this.recentlyJoinedConsumers = recentlyJoinedConsumerTrackingRequired ? new LinkedHashMap<>() : null;
+        this.individuallySentPositions =
+                recentlyJoinedConsumerTrackingRequired
+                        ? new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter)
+                        : null;
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -138,7 +144,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 })
         ).thenRun(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (!allowOutOfOrderDelivery) {
+                if (recentlyJoinedConsumerTrackingRequired) {
                     final Position lastSentPositionWhenJoining = updateIfNeededAndGetLastSentPosition();
                     if (lastSentPositionWhenJoining != null) {
                         consumer.setLastSentPositionWhenJoining(lastSentPositionWhenJoining);
@@ -165,7 +171,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // eventually causing all consumers to get stuck.
         selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
-        if (!allowOutOfOrderDelivery && recentlyJoinedConsumers != null) {
+        if (recentlyJoinedConsumerTrackingRequired) {
             recentlyJoinedConsumers.remove(consumer);
             if (consumerList.size() == 1) {
                 recentlyJoinedConsumers.clear();
@@ -201,7 +207,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return false;
         }
 
-        if (!allowOutOfOrderDelivery) {
+        if (recentlyJoinedConsumerTrackingRequired) {
             // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
             // This may happen when consumer closed. See issue #12885 for details.
             Optional<Position> firstReplayPosition = getFirstPositionInReplay();
@@ -273,7 +279,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
                 }
                 // Add positions to individuallySentPositions if necessary
-                if (!allowOutOfOrderDelivery) {
+                if (recentlyJoinedConsumerTrackingRequired) {
                     final Position position = entry.getPosition();
                     // Store to individuallySentPositions even if lastSentPosition is null
                     if ((lastSentPosition == null || position.compareTo(lastSentPosition) > 0)
@@ -306,7 +312,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
 
         // Update the last sent position and remove ranges from individuallySentPositions if necessary
-        if (!allowOutOfOrderDelivery && lastSentPosition != null) {
+        if (recentlyJoinedConsumerTrackingRequired && lastSentPosition != null) {
             final ManagedLedger managedLedger = cursor.getManagedLedger();
             com.google.common.collect.Range<Position> range = individuallySentPositions.firstRange();
 
