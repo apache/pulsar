@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -208,7 +209,7 @@ public class BrokerTestUtil {
      * @param consumers the consumers to receive messages from
      * @param <T> the message value type
      */
-    static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+    public static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                              final Duration quietTimeout,
                                              Consumer<T>... consumers) {
         FutureUtil.waitForAll(Arrays.stream(consumers).sequential().map(consumer -> {
@@ -225,7 +226,7 @@ public class BrokerTestUtil {
                         }
                     }
                 } catch (PulsarClientException e) {
-                    throw new RuntimeException(e);
+                    throw new CompletionException(e);
                 }
             }, runnable -> {
                 Thread thread = new Thread(runnable, "Consumer-" + consumer.getConsumerName());
