@@ -408,7 +408,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
         if (effectiveLimit <= 0) {
-            effectiveLimit = Integer.MAX_VALUE;
+            // use max unacked messages limits if key shared look-ahead limits are disabled
+            int maxUnackedMessagesPerSubscription = serviceConfig.getMaxUnackedMessagesPerSubscription();
+            if (maxUnackedMessagesPerSubscription <= 0) {
+                maxUnackedMessagesPerSubscription = Integer.MAX_VALUE;
+            }
+            int maxUnackedMessagesByConsumers = consumerCount * serviceConfig.getMaxUnackedMessagesPerConsumer();
+            if (maxUnackedMessagesByConsumers <= 0) {
+                maxUnackedMessagesByConsumers = Integer.MAX_VALUE;
+            }
+            effectiveLimit = Math.min(maxUnackedMessagesPerSubscription, maxUnackedMessagesByConsumers);
         }
         return effectiveLimit;
     }

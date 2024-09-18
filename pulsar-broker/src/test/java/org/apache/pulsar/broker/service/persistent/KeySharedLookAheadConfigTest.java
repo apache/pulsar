@@ -44,6 +44,20 @@ public class KeySharedLookAheadConfigTest {
 
         config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
         config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+        config.setMaxUnackedMessagesPerConsumer(0);
+        config.setMaxUnackedMessagesPerSubscription(0);
         assertEquals(getEffectiveLookAheadLimit(config, 100), Integer.MAX_VALUE);
+
+        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+        config.setMaxUnackedMessagesPerConsumer(1);
+        config.setMaxUnackedMessagesPerSubscription(10);
+        assertEquals(getEffectiveLookAheadLimit(config, 100), 10);
+
+        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+        config.setMaxUnackedMessagesPerConsumer(22);
+        config.setMaxUnackedMessagesPerSubscription(0);
+        assertEquals(getEffectiveLookAheadLimit(config, 100), 2200);
     }
 }
