@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
@@ -159,6 +160,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 admin.topics().delete(topicName, false);
             }
         }
+        // reset read ahead limits to defaults
+        ServiceConfiguration defaultConf = new ServiceConfiguration();
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(
+                defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerSubscription());
+        conf.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(
+                defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
     }
 
     private static final Random random = new Random(System.nanoTime());
