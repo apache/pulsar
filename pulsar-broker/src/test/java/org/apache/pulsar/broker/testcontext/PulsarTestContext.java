@@ -576,6 +576,9 @@ public class PulsarTestContext implements AutoCloseable {
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
+            if (super.managedLedgerStorage != null && !MockUtil.isMock(super.managedLedgerStorage)) {
+                super.managedLedgerStorage = spyConfig.getManagedLedgerStorage().spy(super.managedLedgerStorage);
+            }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
             if (pulsarServiceCustomizer != null) {
@@ -801,7 +804,9 @@ public class PulsarTestContext implements AutoCloseable {
             if (builder.managedLedgerStorage == null) {
                 ManagedLedgerFactory mlFactoryMock = Mockito.mock(ManagedLedgerFactory.class);
                 managedLedgerStorage(
-                        PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient, mlFactoryMock));
+                        spyConfig.getManagedLedgerStorage()
+                                .spy(PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient,
+                                        mlFactoryMock)));
             }
             if (builder.pulsarResources == null) {
                 SpyConfig.SpyType spyConfigPulsarResources = spyConfig.getPulsarResources();

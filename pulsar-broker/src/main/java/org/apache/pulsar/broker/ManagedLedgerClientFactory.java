@@ -149,13 +149,13 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     @Override
     public Collection<ManagedLedgerStorageClass> getStorageClasses() {
-        return List.of(defaultStorageClass);
+        return List.of(getDefaultStorageClass());
     }
 
     @Override
     public Optional<ManagedLedgerStorageClass> getManagedLedgerStorageClass(String name) {
         if (name == null || DEFAULT_STORAGE_CLASS_NAME.equals(name)) {
-            return Optional.of(defaultStorageClass);
+            return Optional.of(getDefaultStorageClass());
         } else {
             return Optional.empty();
         }
