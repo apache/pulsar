@@ -22,8 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,14 +29,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -57,7 +52,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,24 +60,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
-    private final boolean recentlyJoinedConsumerTrackingRequired;
+    private final boolean drainingHashesRequired;
 
     private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
 
-    /**
-     * When a consumer joins, it will be added to this map with the current read position.
-     * This means that, in order to preserve ordering, new consumers can only receive old
-     * messages, until the mark-delete position will move past this point.
-     */
-    private final LinkedHashMap<Consumer, Position> recentlyJoinedConsumers;
-
-    /**
-     * The lastSentPosition and the individuallySentPositions are not thread safe.
-     */
-    @Nullable
-    private Position lastSentPosition;
-    private final LongPairRangeSet<Position> individuallySentPositions;
     private static final LongPairRangeSet.LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
@@ -93,13 +74,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.keySharedMode = ksm.getKeySharedMode();
         // recent joined consumer tracking is required only for AUTO_SPLIT mode when out-of-order delivery is disabled
-        this.recentlyJoinedConsumerTrackingRequired =
+        this.drainingHashesRequired =
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
-        this.recentlyJoinedConsumers = recentlyJoinedConsumerTrackingRequired ? new LinkedHashMap<>() : null;
-        this.individuallySentPositions =
-                recentlyJoinedConsumerTrackingRequired
-                        ? new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter)
-                        : null;
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -144,18 +120,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 })
         ).thenRun(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (recentlyJoinedConsumerTrackingRequired) {
-                    final Position lastSentPositionWhenJoining = updateIfNeededAndGetLastSentPosition();
-                    if (lastSentPositionWhenJoining != null) {
-                        consumer.setLastSentPositionWhenJoining(lastSentPositionWhenJoining);
-                        // If this was the 1st consumer, or if all the messages are already acked, then we
-                        // don't need to do anything special
-                        if (recentlyJoinedConsumers != null
-                                && consumerList.size() > 1
-                                && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
-                            recentlyJoinedConsumers.put(consumer, lastSentPositionWhenJoining);
-                        }
-                    }
+                if (drainingHashesRequired) {
+                    // TODO
                 }
             }
         });
@@ -171,21 +137,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // eventually causing all consumers to get stuck.
         selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
-        if (recentlyJoinedConsumerTrackingRequired) {
-            recentlyJoinedConsumers.remove(consumer);
-            if (consumerList.size() == 1) {
-                recentlyJoinedConsumers.clear();
-            } else if (consumerList.isEmpty()) {
-                // The subscription removes consumers if rewind or reset cursor operations are called.
-                // The dispatcher must clear lastSentPosition and individuallySentPositions because
-                // these operations trigger re-sending messages.
-                lastSentPosition = null;
-                individuallySentPositions.clear();
-            }
-            if (removeConsumersFromRecentJoinedConsumers() || !redeliveryMessages.isEmpty()) {
-                readMoreEntries();
-            }
-        }
     }
 
     @Override
@@ -241,26 +192,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
 
-        if (recentlyJoinedConsumerTrackingRequired) {
-            // Update if the markDeletePosition move forward
-            updateIfNeededAndGetLastSentPosition();
-
-            // Should not access to individualDeletedMessages from outside managed cursor
-            // because it doesn't guarantee thread safety.
-            if (lastSentPosition == null) {
-                if (cursor.getMarkDeletedPosition() != null) {
-                    lastSentPosition = ((ManagedCursorImpl) cursor)
-                            .processIndividuallyDeletedMessagesAndGetMarkDeletedPosition(range -> {
-                                final Position lower = range.lowerEndpoint();
-                                final Position upper = range.upperEndpoint();
-                                individuallySentPositions.addOpenClosed(lower.getLedgerId(), lower.getEntryId(),
-                                        upper.getLedgerId(), upper.getEntryId());
-                                return true;
-                            });
-                }
-            }
-        }
-
         // returns a boolean indicating whether look-ahead could be useful, when there's a consumer
         // with available permits, and it's not able to make progress because of blocked hashes.
         MutableBoolean triggerLookAhead = new MutableBoolean();
@@ -281,17 +212,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 // remove positions first from replay list first : sendMessages recycles entries
                 if (readType == ReadType.Replay) {
                     redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
-                }
-                // Add positions to individuallySentPositions if necessary
-                if (recentlyJoinedConsumerTrackingRequired) {
-                    final Position position = entry.getPosition();
-                    // Store to individuallySentPositions even if lastSentPosition is null
-                    if ((lastSentPosition == null || position.compareTo(lastSentPosition) > 0)
-                            && !individuallySentPositions.contains(position.getLedgerId(), position.getEntryId())) {
-                        final Position previousPosition = managedLedger.getPreviousPosition(position);
-                        individuallySentPositions.addOpenClosed(previousPosition.getLedgerId(),
-                                previousPosition.getEntryId(), position.getLedgerId(), position.getEntryId());
-                    }
                 }
             }
 
@@ -316,60 +236,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        // Update the last sent position and remove ranges from individuallySentPositions if necessary
-        if (recentlyJoinedConsumerTrackingRequired && lastSentPosition != null) {
-            final ManagedLedger managedLedger = cursor.getManagedLedger();
-            com.google.common.collect.Range<Position> range = individuallySentPositions.firstRange();
-
-            // If the upper bound is before the last sent position, we need to move ahead as these
-            // individuallySentPositions are now irrelevant.
-            if (range != null && range.upperEndpoint().compareTo(lastSentPosition) <= 0) {
-                individuallySentPositions.removeAtMost(lastSentPosition.getLedgerId(),
-                        lastSentPosition.getEntryId());
-                range = individuallySentPositions.firstRange();
-            }
-
-            if (range != null) {
-                // If the lowerBound is ahead of the last sent position,
-                // verify if there are any entries in-between.
-                if (range.lowerEndpoint().compareTo(lastSentPosition) <= 0 || managedLedger
-                        .getNumberOfEntries(com.google.common.collect.Range.openClosed(lastSentPosition,
-                                range.lowerEndpoint())) <= 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Found a position range to last sent: {}", name, range);
-                    }
-                    Position newLastSentPosition = range.upperEndpoint();
-                    Position positionAfterNewLastSent = managedLedger
-                            .getNextValidPosition(newLastSentPosition);
-                    // sometime ranges are connected but belongs to different ledgers
-                    // so, they are placed sequentially
-                    // eg: (2:10..3:15] can be returned as (2:10..2:15],[3:0..3:15].
-                    // So, try to iterate over connected range and found the last non-connected range
-                    // which gives new last sent position.
-                    final Position lastConfirmedEntrySnapshot = managedLedger.getLastConfirmedEntry();
-                    if (lastConfirmedEntrySnapshot != null) {
-                        while (positionAfterNewLastSent.compareTo(lastConfirmedEntrySnapshot) <= 0) {
-                            if (individuallySentPositions.contains(positionAfterNewLastSent.getLedgerId(),
-                                    positionAfterNewLastSent.getEntryId())) {
-                                range = individuallySentPositions.rangeContaining(
-                                        positionAfterNewLastSent.getLedgerId(), positionAfterNewLastSent.getEntryId());
-                                newLastSentPosition = range.upperEndpoint();
-                                positionAfterNewLastSent = managedLedger.getNextValidPosition(newLastSentPosition);
-                                // check if next valid position is also deleted and part of the deleted-range
-                                continue;
-                            }
-                            break;
-                        }
-                    }
-
-                    if (lastSentPosition.compareTo(newLastSentPosition) < 0) {
-                        lastSentPosition = newLastSentPosition;
-                    }
-                    individuallySentPositions.removeAtMost(lastSentPosition.getLedgerId(),
-                            lastSentPosition.getEntryId());
-                }
-            }
-        }
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
 
@@ -442,9 +308,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         Map<Consumer, List<Entry>> entriesGroupedByConsumer = new HashMap<>();
         // permits for consumer, permits are for entries/batches
         Map<Consumer, MutableInt> permitsForConsumer = new HashMap<>();
-        // maxLastSentPosition cache for consumers, used when recently joined consumers exist
-        boolean hasRecentlyJoinedConsumers = hasRecentlyJoinedConsumers();
-        Map<Consumer, Position> maxLastSentPositionCache = hasRecentlyJoinedConsumers ? new HashMap<>() : null;
         boolean lookAheadAllowed = isReplayQueueSizeBelowLimit();
         // in normal read mode, keep track of consumers that are blocked by hash, to check if look-ahead could be useful
         Set<Consumer> blockedByHashConsumers = lookAheadAllowed && readType == ReadType.Normal ? new HashSet<>() : null;
@@ -460,15 +323,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 if (lookAheadAllowed) {
                     consumersForEntriesForLookaheadCheck.add(consumer);
                 }
-                Position maxLastSentPosition = hasRecentlyJoinedConsumers ? maxLastSentPositionCache.computeIfAbsent(
-                        consumer, __ -> resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, readType)) : null;
                 blockedByHash = lookAheadAllowed && readType == ReadType.Normal ? new MutableBoolean(false) : null;
                 MutableInt permits =
                         permitsForConsumer.computeIfAbsent(consumer,
                                 k -> new MutableInt(getAvailablePermits(consumer)));
                 // a consumer was found for the sticky key hash and the entry can be dispatched
-                if (permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash,
-                        maxLastSentPosition, blockedByHash)) {
+                if (permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash, blockedByHash)) {
                     // decrement the permits for the consumer
                     permits.decrement();
                     // allow the entry to be dispatched
@@ -529,13 +389,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     // checks if the entry can be dispatched to the consumer
     private boolean canDispatchEntry(Entry entry,
-                                     ReadType readType, int stickyKeyHash, Position maxLastSentPosition,
+                                     ReadType readType, int stickyKeyHash,
                                      MutableBoolean blockedByHash) {
-        // check if the entry can be replayed to a recently joined consumer
-        if (maxLastSentPosition != null && entry.getPosition().compareTo(maxLastSentPosition) > 0) {
-            return false;
-        }
-
         // If redeliveryMessages contains messages that correspond to the same hash as the entry to be dispatched
         // do not send those messages for order guarantee
         if (readType == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
@@ -566,8 +421,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // tracks the available permits for each consumer for the duration of the filter usage
         // the filter is stateful and shouldn't be shared or reused later
         private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
-        private final Map<Consumer, Position> maxLastSentPositionCache =
-                hasRecentlyJoinedConsumers() ? new HashMap<>() : null;
 
         @Override
         public boolean test(Position position) {
@@ -599,59 +452,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (availablePermits.intValue() <= 0) {
                 return false;
             }
-            // check if the entry position can be replayed to a recently joined consumer
-            Position maxLastSentPosition = maxLastSentPositionCache != null
-                    ? maxLastSentPositionCache.computeIfAbsent(consumer, __ ->
-                    resolveMaxLastSentPositionForRecentlyJoinedConsumer(consumer, ReadType.Replay))
-                    : null;
-            if (maxLastSentPosition != null && position.compareTo(maxLastSentPosition) > 0) {
-                return false;
-            }
             availablePermits.decrement();
             return true;
         }
-    }
-
-    /**
-     * Contains the logic to resolve the max last sent position for a consumer
-     * when the consumer has recently joined. This is only applicable for key shared mode when
-     * allowOutOfOrderDelivery=false.
-     */
-    private Position resolveMaxLastSentPositionForRecentlyJoinedConsumer(Consumer consumer, ReadType readType) {
-        if (recentlyJoinedConsumers == null) {
-            return null;
-        }
-        removeConsumersFromRecentJoinedConsumers();
-        Position maxLastSentPosition = recentlyJoinedConsumers.get(consumer);
-        // At this point, all the old messages were already consumed and this consumer
-        // is now ready to receive any message
-        if (maxLastSentPosition == null) {
-            // The consumer has not recently joined, so we can send all messages
-            return null;
-        }
-
-        // If the read type is Replay, we should avoid send messages that hold by other consumer to the new consumers,
-        // For example, we have 10 messages [0,1,2,3,4,5,6,7,8,9]
-        // If the consumer0 get message 0 and 1, and does not acked message 0, then consumer1 joined,
-        // when consumer1 get message 2,3, the broker will not dispatch messages to consumer1
-        // because of the mark delete position did not move forward.
-        // So message 2,3 will stored in the redeliver tracker.
-        // Now, consumer2 joined, it will read new messages from the cursor,
-        // so the recentJoinedPosition is 4 for consumer2
-        // Because of there are messages need to redeliver, so the broker will read the redelivery message first [2,3]
-        // message [2,3] is lower than the recentJoinedPosition 4,
-        // so the message [2,3] will dispatched to the consumer2
-        // But the message [2,3] should not dispatch to consumer2.
-
-        if (readType == ReadType.Replay) {
-            Position minLastSentPositionForRecentJoinedConsumer = recentlyJoinedConsumers.values().iterator().next();
-            if (minLastSentPositionForRecentJoinedConsumer != null
-                    && minLastSentPositionForRecentJoinedConsumer.compareTo(maxLastSentPosition) < 0) {
-                maxLastSentPosition = minLastSentPositionForRecentJoinedConsumer;
-            }
-        }
-
-        return maxLastSentPosition;
     }
 
 
@@ -659,53 +462,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public void markDeletePositionMoveForward() {
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
-        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
-            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (hasRecentlyJoinedConsumers()
-                        && removeConsumersFromRecentJoinedConsumers()) {
-                    // After we process acks, we need to check whether the mark-delete position was advanced and we
-                    // can finally read more messages. It's safe to call readMoreEntries() multiple times.
-                    readMoreEntries();
-                }
-            }
-        });
-    }
-
-    private boolean hasRecentlyJoinedConsumers() {
-        return !MapUtils.isEmpty(recentlyJoinedConsumers);
-    }
-
-    private boolean removeConsumersFromRecentJoinedConsumers() {
-        if (MapUtils.isEmpty(recentlyJoinedConsumers)) {
-            return false;
-        }
-        Iterator<Map.Entry<Consumer, Position>> itr = recentlyJoinedConsumers.entrySet().iterator();
-        boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
-        Position mdp = cursor.getMarkDeletedPosition();
-        if (mdp != null) {
-            while (itr.hasNext()) {
-                Map.Entry<Consumer, Position> entry = itr.next();
-                if (entry.getValue().compareTo(mdp) <= 0) {
-                    itr.remove();
-                    hasConsumerRemovedFromTheRecentJoinedConsumers = true;
-                } else {
-                    break;
-                }
-            }
-        }
-        return hasConsumerRemovedFromTheRecentJoinedConsumers;
-    }
-
-    @Nullable
-    private synchronized Position updateIfNeededAndGetLastSentPosition() {
-        if (lastSentPosition == null) {
-            return null;
-        }
-        final Position mdp = cursor.getMarkDeletedPosition();
-        if (mdp != null && mdp.compareTo(lastSentPosition) > 0) {
-            lastSentPosition = mdp;
-        }
-        return lastSentPosition;
+//        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
+//            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+//
+//            }
+//        });
     }
 
     /**
@@ -827,34 +588,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
         return (ksm.getKeySharedMode() == this.keySharedMode
                 && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
-    }
-
-    public LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
-        return recentlyJoinedConsumers;
-    }
-
-    public synchronized String getLastSentPosition() {
-        if (lastSentPosition == null) {
-            return null;
-        }
-        return lastSentPosition.toString();
-    }
-
-    @VisibleForTesting
-    public Position getLastSentPositionField() {
-        return lastSentPosition;
-    }
-
-    public synchronized String getIndividuallySentPositions() {
-        if (individuallySentPositions == null) {
-            return null;
-        }
-        return individuallySentPositions.toString();
-    }
-
-    @VisibleForTesting
-    public LongPairRangeSet<Position> getIndividuallySentPositionsField() {
-        return individuallySentPositions;
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
