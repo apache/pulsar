@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +41,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * One could enable this syncer before migration from one to the other and disable it after the migration finishes.
  */
 @Slf4j
-public class ServiceUnitStateTableViewSyncer implements Cloneable {
+public class ServiceUnitStateTableViewSyncer implements Closeable {
     private static final int MAX_CONCURRENT_SYNC_COUNT = 100;
     private volatile ServiceUnitStateTableView systemTopicTableView;
     private volatile ServiceUnitStateTableView metadataStoreTableView;
@@ -147,6 +148,7 @@ public class ServiceUnitStateTableViewSyncer implements Cloneable {
         return metadataStoreTableView.put(key, data);
     }
 
+    @Override
     public void close() throws IOException {
         if (!isActive) {
             return;
