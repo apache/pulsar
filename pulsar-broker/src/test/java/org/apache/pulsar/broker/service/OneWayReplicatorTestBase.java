@@ -409,7 +409,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         int partitions = ensurePartitionsAreSame(topic);
         admin.topics().setReplicationClusters(topic, clusters);
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
+            TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName);
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
                 checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar.getBrokerService());
@@ -434,7 +434,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(persistentTopic.getTopicPolicies().get().getReplicationClusters());
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getReplicationClusters());
         assertEquals(act, expected);
     }
 

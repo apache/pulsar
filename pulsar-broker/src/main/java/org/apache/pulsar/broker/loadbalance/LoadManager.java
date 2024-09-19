@@ -53,6 +53,10 @@ public interface LoadManager {
 
     void start() throws PulsarServerException;
 
+    default boolean started() {
+        return true;
+    }
+
     /**
      * Is centralized decision making to assign a new bundle.
      */

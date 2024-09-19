@@ -989,11 +989,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.nsService.initialize();
 
             // Start topic level policies service
-            if (config.isSystemTopicAndTopicLevelPoliciesEnabled()) {
-                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
-            }
-
-            this.topicPoliciesService.start();
+            this.topicPoliciesService = initTopicPoliciesService();
+            this.topicPoliciesService.start(this);
 
             // Register heartbeat and bootstrap namespaces.
             this.nsService.registerBootstrapNamespaces();
@@ -2136,5 +2133,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private TopicPoliciesService initTopicPoliciesService() throws Exception {
+        if (!config.isTopicLevelPoliciesEnabled()) {
+            return TopicPoliciesService.DISABLED;
+        }
+        final var className = Optional.ofNullable(config.getTopicPoliciesServiceClassName())
+                .orElse(SystemTopicBasedTopicPoliciesService.class.getName());
+        if (className.equals(SystemTopicBasedTopicPoliciesService.class.getName())) {
+            if (config.isSystemTopicEnabled()) {
+                return new SystemTopicBasedTopicPoliciesService(this);
+            } else {
+                LOG.warn("System topic is disabled while the topic policies service is {}, disable it", className);
+                return TopicPoliciesService.DISABLED;
+            }
+        }
+        return (TopicPoliciesService) Reflections.createInstance(className,
+                Thread.currentThread().getContextClassLoader());
     }
 }
