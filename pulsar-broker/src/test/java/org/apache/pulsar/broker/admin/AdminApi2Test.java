@@ -114,9 +114,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -2913,8 +2911,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     private AtomicInteger injectSchemaCheckCounterForTopic(String topicName) {
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                WhiteboxImpl.getInternalState(pulsar.getBrokerService(), "topics");
+        final var topics = pulsar.getBrokerService().getTopics();
         AbstractTopic topic = (AbstractTopic) topics.get(topicName).join().get();
         AbstractTopic spyTopic = Mockito.spy(topic);
         AtomicInteger counter = new AtomicInteger();
