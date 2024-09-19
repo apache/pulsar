@@ -24,10 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -54,11 +54,7 @@ public class AbstractTopicTest {
                 .useConstructor("topic", brokerService)
                 .defaultAnswer(CALLS_REAL_METHODS));
 
-        ConcurrentOpenHashMap<String, Subscription> subscriptions =
-                ConcurrentOpenHashMap.<String, Subscription>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
+        final var subscriptions = new ConcurrentHashMap<String, Subscription>();
         subscriptions.put("subscription", subscription);
         when(topic.getSubscriptions()).thenAnswer(invocation -> subscriptions);
     }
