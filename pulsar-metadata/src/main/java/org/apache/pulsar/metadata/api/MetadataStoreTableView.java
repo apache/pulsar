@@ -19,11 +19,9 @@
 
 package org.apache.pulsar.metadata.api;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 /**
  * Defines metadata store tableview.
@@ -43,14 +41,6 @@ public interface MetadataStoreTableView<T> {
      * Starts the tableview by filling existing items to its local tableview from the remote metadata store.
      */
     void start() throws MetadataStoreException;
-
-    /**
-     * Reads whether a specific key exists in the local tableview.
-     *
-     * @param key the key to check
-     * @return true if exists. Otherwise, false.
-     */
-    boolean exists(String key);
 
     /**
      * Gets one item from the local tableview.
@@ -89,38 +79,9 @@ public interface MetadataStoreTableView<T> {
     CompletableFuture<Void> delete(String key);
 
     /**
-     * Returns the size of the items in the local tableview.
-     * @return size
-     */
-    int size();
-
-    /**
-     * Reads whether the local tableview is empty or not.
-     * @return true if empty. Otherwise, false
-     */
-    boolean isEmpty();
-
-    /**
      * Returns the entry set of the items in the local tableview.
      * @return entry set
      */
     Set<Map.Entry<String, T>> entrySet();
-
-    /**
-     * Returns the key set of the items in the local tableview.
-     * @return key set
-     */
-    Set<String> keySet();
-
-    /**
-     * Returns the values of the items in the local tableview.
-     * @return values
-     */
-    Collection<T> values();
-
-    /**
-     * Runs the action for each item in the local tableview.
-     */
-    void forEach(BiConsumer<String, T> action);
 }
 

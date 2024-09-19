@@ -51,6 +51,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
 
 @Slf4j
 public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> {
+
+    private static final int FILL_TIMEOUT_IN_MILLIS = 300_000;
     private static final int MAX_CONCURRENT_METADATA_OPS_DURING_FILL = 50;
     private static final long CACHE_REFRESH_FREQUENCY_IN_MILLIS = 600_000;
     private final ConcurrentMap<String, T> data;
@@ -232,12 +234,20 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     }
 
     private void fill() throws MetadataStoreException {
+        long started = System.currentTimeMillis();
         log.info("{} start filling existing items under the pathPrefix:{}", name, pathPrefix);
         ConcurrentLinkedDeque<String> q = new ConcurrentLinkedDeque<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         q.add(pathPrefix);
         LongAdder count = new LongAdder();
         while (!q.isEmpty()) {
+            if (System.currentTimeMillis() - started > FILL_TIMEOUT_IN_MILLIS) {
+                String err = name + " failed to fill existing items in "
+                        + TimeUnit.MILLISECONDS.toSeconds(FILL_TIMEOUT_IN_MILLIS) + " secs. Filled count:"
+                        + count.sum();
+                log.error(err);
+                throw new MetadataStoreException(err);
+            }
             int size = Math.min(MAX_CONCURRENT_METADATA_OPS_DURING_FILL, q.size());
             for (int i = 0; i < size; i++) {
                 String path = q.poll();
@@ -256,7 +266,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         }));
             }
             try {
-                FutureUtil.waitForAll(futures).get(timeoutInMillis * size, TimeUnit.MILLISECONDS);
+                FutureUtil.waitForAll(futures).get(timeoutInMillis, TimeUnit.MILLISECONDS);
             } catch (Throwable e) {
                 Throwable c = FutureUtil.unwrapCompletionException(e);
                 log.error("{} failed to fill existing items", name, c);

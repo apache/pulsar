@@ -2927,9 +2927,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "system topic table views during migration from one to the other. One could enable this"
                     + " syncer before migration and disable it after the migration finishes. "
                     + "It accepts `MetadataStoreToSystemTopicSyncer` or `SystemTopicToMetadataStoreSyncer` to "
-                    + "enable it. Null value disables it."
+                    + "enable it. It accepts `None` to disable it."
     )
-    private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = null;
+    private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
 
     /**** --- Replication. --- ****/
     @FieldContext(
@@ -3831,10 +3831,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public boolean isLoadBalancerServiceUnitTableViewSyncerEnabled() {
-        return loadBalancerServiceUnitTableViewSyncer != null;
+        return loadBalancerServiceUnitTableViewSyncer != ServiceUnitTableViewSyncerType.None;
     }
 
     public enum ServiceUnitTableViewSyncerType {
+        None,
         MetadataStoreToSystemTopicSyncer,
         SystemTopicToMetadataStoreSyncer;
     }

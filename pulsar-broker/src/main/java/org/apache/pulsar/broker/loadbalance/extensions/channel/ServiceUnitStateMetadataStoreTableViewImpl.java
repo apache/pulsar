@@ -108,7 +108,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     @Override
     public ServiceUnitStateData get(String key) {
         if (!isValidState()) {
-            new IllegalStateException(INVALID_STATE_ERROR_MSG);
+            throw new IllegalStateException(INVALID_STATE_ERROR_MSG);
         }
         return tableview.get(key);
     }
