@@ -257,10 +257,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (loadManager == null || !loadManager.started()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
-        final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
+        final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         final var resultFuture = new CompletableFuture<Optional<TopicPolicies>>();
-        preparedFuture.thenRun(() -> policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
-            if (existingFuture != null) {
+        preparedFuture.thenAccept(inserted -> policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
+            if (!inserted || existingFuture != null) {
                 final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                 final var policies = Optional.ofNullable(switch (type) {
                     case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
@@ -306,14 +306,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @VisibleForTesting
-    @Nonnull CompletableFuture<Void> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
+    @Nonnull CompletableFuture<Boolean> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
         requireNonNull(namespace);
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                         .thenCompose(namespacePolicies -> {
                             if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
                                 log.info("[{}] skip prepare init policies cache since the namespace is deleted",
                                         namespace);
-                                return CompletableFuture.completedFuture(null);
+                                return CompletableFuture.completedFuture(false);
                             }
 
                             return policyCacheInitMap.computeIfAbsent(namespace, (k) -> {
@@ -343,7 +343,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 });
                                 // let caller know we've got an exception.
                                 return initFuture;
-                            });
+                            }).thenApply(__ -> true);
                         });
     }
 
