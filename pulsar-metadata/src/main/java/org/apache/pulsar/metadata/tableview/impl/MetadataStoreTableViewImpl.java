@@ -234,14 +234,15 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     }
 
     private void fill() throws MetadataStoreException {
-        long started = System.currentTimeMillis();
+        final var deadline = System.currentTimeMillis() + FILL_TIMEOUT_IN_MILLIS;
         log.info("{} start filling existing items under the pathPrefix:{}", name, pathPrefix);
         ConcurrentLinkedDeque<String> q = new ConcurrentLinkedDeque<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         q.add(pathPrefix);
         LongAdder count = new LongAdder();
         while (!q.isEmpty()) {
-            if (System.currentTimeMillis() - started > FILL_TIMEOUT_IN_MILLIS) {
+            var now = System.currentTimeMillis();
+            if (now >= deadline) {
                 String err = name + " failed to fill existing items in "
                         + TimeUnit.MILLISECONDS.toSeconds(FILL_TIMEOUT_IN_MILLIS) + " secs. Filled count:"
                         + count.sum();
@@ -266,7 +267,9 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         }));
             }
             try {
-                FutureUtil.waitForAll(futures).get(timeoutInMillis, TimeUnit.MILLISECONDS);
+                FutureUtil.waitForAll(futures).get(
+                        Math.min(timeoutInMillis, deadline - now),
+                        TimeUnit.MILLISECONDS);
             } catch (Throwable e) {
                 Throwable c = FutureUtil.unwrapCompletionException(e);
                 log.error("{} failed to fill existing items", name, c);

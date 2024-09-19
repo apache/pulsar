@@ -89,8 +89,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         return metadataStoreTableView.put(key, data);
     }
 
-    private CompletableFuture<Void> dummy(String key, ServiceUnitStateData data) {
-        return CompletableFuture.completedFuture(null);
+    private void dummy(String key, ServiceUnitStateData data) {
     }
 
     private void syncExistingItems()
