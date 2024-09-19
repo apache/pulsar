@@ -56,7 +56,7 @@ public class TransactionAggregator {
 
         if (includeTopicMetrics) {
 
-            pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) ->
+            pulsar.getBrokerService().getMultiLayerTopicsMap().forEach((namespace, bundlesMap) ->
                     bundlesMap.forEach((bundle, topicsMap) -> topicsMap.forEach((name, topic) -> {
                         if (topic instanceof PersistentTopic) {
                             topic.getSubscriptions().values().forEach(subscription -> {

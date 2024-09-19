@@ -1140,9 +1140,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             return t.startsWith(tp);
         };
         Awaitility.await().untilAsserted(() -> {
-            List<String> topics1 = pulsar1.getBrokerService().getTopics().keys()
+            List<String> topics1 = pulsar1.getBrokerService().getTopics().keySet()
                     .stream().filter(topicNameFilter).collect(Collectors.toList());
-            List<String> topics2 = pulsar2.getBrokerService().getTopics().keys()
+            List<String> topics2 = pulsar2.getBrokerService().getTopics().keySet()
                     .stream().filter(topicNameFilter).collect(Collectors.toList());
             Collections.sort(topics1);
             Collections.sort(topics2);
