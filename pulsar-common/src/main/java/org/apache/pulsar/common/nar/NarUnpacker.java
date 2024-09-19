@@ -32,7 +32,9 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -86,19 +88,32 @@ public class NarUnpacker {
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
                  FileLock lock = channel.lock()) {
                 File narWorkingDirectory = new File(parentDirectory, md5Sum);
-                if (narWorkingDirectory.mkdir()) {
+                if (!narWorkingDirectory.exists()) {
+                    File narExtractionTempDirectory = new File(parentDirectory, md5Sum + ".tmp");
+                    if (narExtractionTempDirectory.exists()) {
+                        FileUtils.deleteFile(narExtractionTempDirectory, true);
+                    }
+                    if (!narExtractionTempDirectory.mkdir()) {
+                        throw new IOException("Cannot create " + narExtractionTempDirectory);
+                    }
                     try {
-                        log.info("Extracting {} to {}", nar, narWorkingDirectory);
+                        log.info("Extracting {} to {}", nar, narExtractionTempDirectory);
                         if (extractCallback != null) {
                             extractCallback.run();
                         }
-                        unpack(nar, narWorkingDirectory);
+                        unpack(nar, narExtractionTempDirectory);
                     } catch (IOException e) {
                         log.error("There was a problem extracting the nar file. Deleting {} to clean up state.",
-                                narWorkingDirectory, e);
-                        FileUtils.deleteFile(narWorkingDirectory, true);
+                                narExtractionTempDirectory, e);
+                        try {
+                            FileUtils.deleteFile(narExtractionTempDirectory, true);
+                        } catch (IOException e2) {
+                            log.error("Failed to delete temporary directory {}", narExtractionTempDirectory, e2);
+                        }
                         throw e;
                     }
+                    Files.move(narExtractionTempDirectory.toPath(), narWorkingDirectory.toPath(),
+                            StandardCopyOption.ATOMIC_MOVE);
                 }
                 return narWorkingDirectory;
             }
@@ -166,7 +181,7 @@ public class NarUnpacker {
      * @throws IOException
      *             if cannot read file
      */
-    private static byte[] calculateMd5sum(final File file) throws IOException {
+    protected static byte[] calculateMd5sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
             final MessageDigest md5 = MessageDigest.getInstance("md5");
 
