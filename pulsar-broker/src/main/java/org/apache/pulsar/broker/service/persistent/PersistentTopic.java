@@ -416,6 +416,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
+    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger,
+                    MessageDeduplication messageDeduplication) {
+        super(topic, brokerService);
+        // null check for backwards compatibility with tests which mock the broker service
+        this.orderedExecutor = brokerService.getTopicOrderedExecutor() != null
+                ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
+                : null;
+        this.ledger = ledger;
+        this.messageDeduplication = messageDeduplication;
+        this.backloggedCursorThresholdEntries =
+                brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
+
+        if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            this.transactionBuffer = brokerService.getPulsar()
+                    .getTransactionBufferProvider().newTransactionBuffer(this);
+        } else {
+            this.transactionBuffer = new TransactionBufferDisable(this);
+        }
+        shadowSourceTopic = null;
+    }
+
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
