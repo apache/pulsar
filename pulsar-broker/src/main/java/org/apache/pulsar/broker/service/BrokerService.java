@@ -1208,7 +1208,7 @@ public class BrokerService implements Closeable {
             // v2 topics have a global name so check if the topic is replicated.
             if (t.isReplicated()) {
                 // Delete is disallowed on global topic
-                final List<String> clusters = t.getReplicators().keys();
+                final var clusters = t.getReplicators().keySet();
                 log.error("Delete forbidden topic {} is replicated on clusters {}", topic, clusters);
                 return FutureUtil.failedFuture(
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
@@ -1216,7 +1216,7 @@ public class BrokerService implements Closeable {
 
             // shadow topic should be deleted first.
             if (t.isShadowReplicated()) {
-                final List<String> shadowTopics = t.getShadowReplicators().keys();
+                final var shadowTopics = t.getShadowReplicators().keySet();
                 log.error("Delete forbidden. Topic {} is replicated to shadow topics: {}", topic, shadowTopics);
                 return FutureUtil.failedFuture(new IllegalStateException(
                         "Delete forbidden. Topic " + topic + " is replicated to shadow topics."));

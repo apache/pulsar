@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import io.prometheus.client.Summary;
 import java.time.Clock;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -43,7 +42,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     private final ReplicatedSubscriptionsController controller;
 
     private final Map<String, MarkersMessageIdData> responses = new TreeMap<>();
-    private final List<String> remoteClusters;
+    private final Set<String> remoteClusters;
     private final Set<String> missingClusters;
 
     private final boolean needTwoRounds;
@@ -60,7 +59,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
-                                                  List<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
+                                                  Set<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
         this.snapshotId = UUID.randomUUID().toString();
         this.controller = controller;
         this.remoteClusters = remoteClusters;

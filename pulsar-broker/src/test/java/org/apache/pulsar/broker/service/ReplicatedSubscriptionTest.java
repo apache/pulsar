@@ -68,7 +68,6 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -292,7 +291,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             sentMessages.add(msg);
         }
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
+            final var replicators = topic1.getReplicators();
             assertTrue(replicators != null && replicators.size() == 1, "Replicator should started");
             assertTrue(replicators.values().iterator().next().isConnected(), "Replicator should be connected");
             assertTrue(topic1.getReplicatedSubscriptionController().get().getLastCompletedSnapshotId().isPresent(),
@@ -1072,7 +1071,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> {
             List<String> keys = pulsar1.getBrokerService()
                     .getTopic(topic, false).get().get()
-                    .getReplicators().keys();
+                    .getReplicators().keySet().stream().toList();
             assertEquals(keys.size(), 1);
             assertTrue(pulsar1.getBrokerService()
                     .getTopic(topic, false).get().get()

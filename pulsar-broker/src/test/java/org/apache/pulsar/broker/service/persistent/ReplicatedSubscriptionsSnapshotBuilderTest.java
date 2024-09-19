@@ -28,9 +28,8 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -75,10 +74,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     @Test
     public void testBuildSnapshotWith2Clusters() throws Exception {
-        List<String> remoteClusters = Collections.singletonList("b");
-
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(controller,
-                remoteClusters,
+                Set.of("b"),
                 conf, clock);
 
         assertTrue(markers.isEmpty());
@@ -115,10 +112,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     @Test
     public void testBuildSnapshotWith3Clusters() throws Exception {
-        List<String> remoteClusters = Arrays.asList("b", "c");
-
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(controller,
-                remoteClusters,
+                Set.of("b", "c"),
                 conf, clock);
 
         assertTrue(markers.isEmpty());
@@ -198,10 +193,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     @Test
     public void testBuildTimeout() {
-        List<String> remoteClusters = Collections.singletonList("b");
-
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(controller,
-                remoteClusters,
+                Set.of("b"),
                 conf, clock);
 
         assertFalse(builder.isTimedOut());

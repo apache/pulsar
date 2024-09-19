@@ -29,7 +29,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -750,7 +749,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         assertNotNull(topicRef);
 
         Awaitility.await().untilAsserted(() -> {
-            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            List<String> replicaClusters = topicRef.getReplicators().keySet().stream().sorted().toList();
             assertEquals(replicaClusters.size(), 1);
             assertEquals(replicaClusters.toString(), "[r2]");
         });
@@ -758,7 +757,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // removing topic replica cluster policy, so namespace policy should take effect
         admin1.topics().removeReplicationClusters(persistentTopicName);
         Awaitility.await().untilAsserted(() -> {
-            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            List<String> replicaClusters = topicRef.getReplicators().keySet().stream().sorted().toList();
             assertEquals(replicaClusters.size(), 2);
             assertEquals(replicaClusters.toString(), "[r2, r3]");
         });

@@ -32,7 +32,6 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -118,7 +117,7 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         }
         txn1.commit().get();
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
+            final var replicators = topic1.getReplicators();
             assertTrue(replicators != null && replicators.size() == 1, "Replicator should started");
             assertTrue(replicators.values().iterator().next().isConnected(), "Replicator should be connected");
             assertTrue(topic1.getReplicatedSubscriptionController().get().getLastCompletedSnapshotId().isPresent(),
