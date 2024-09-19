@@ -1086,26 +1086,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_producer_msg_rate_in");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("producer_name"), "producer2");
-        assertEquals(cm.get(0).tags.get("producer_id"), "1");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("producer_name"), "producer1");
+        assertEquals(cm.get(0).tags.get("producer_id"), "0");
 
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("producer_name"), "producer1");
-        assertEquals(cm.get(1).tags.get("producer_id"), "0");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("producer_name"), "producer2");
+        assertEquals(cm.get(1).tags.get("producer_id"), "1");
 
         cm = (List<Metric>) metrics.get("pulsar_producer_msg_throughput_in");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
-        assertEquals(cm.get(0).tags.get("producer_name"), "producer2");
-        assertEquals(cm.get(0).tags.get("producer_id"), "1");
+        assertEquals(cm.get(0).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(0).tags.get("producer_name"), "producer1");
+        assertEquals(cm.get(0).tags.get("producer_id"), "0");
 
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(1).tags.get("producer_name"), "producer1");
-        assertEquals(cm.get(1).tags.get("producer_id"), "0");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.get(1).tags.get("producer_name"), "producer2");
+        assertEquals(cm.get(1).tags.get("producer_id"), "1");
 
         p1.close();
         p2.close();
