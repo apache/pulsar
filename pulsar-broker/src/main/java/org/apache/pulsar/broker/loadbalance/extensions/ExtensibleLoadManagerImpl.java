@@ -182,7 +182,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private SplitManager splitManager;
 
-    private volatile boolean started = false;
+    volatile boolean started = false;
 
     private boolean configuredSystemTopics = false;
 
@@ -320,7 +320,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private static boolean configureSystemTopics(PulsarService pulsar) {
         try {
             if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
-                    && pulsar.getConfiguration().isSystemTopicAndTopicLevelPoliciesEnabled()) {
+                    && pulsar.getConfiguration().isTopicLevelPoliciesEnabled()) {
                 Long threshold = pulsar.getAdminClient().topicPolicies().getCompactionThreshold(TOPIC);
                 if (threshold == null || COMPACTION_THRESHOLD != threshold.longValue()) {
                     pulsar.getAdminClient().topicPolicies().setCompactionThreshold(TOPIC, COMPACTION_THRESHOLD);

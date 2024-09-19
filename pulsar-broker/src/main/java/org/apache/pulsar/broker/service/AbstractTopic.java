@@ -88,7 +88,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicPolicies> {
+public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
@@ -510,17 +510,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected void registerTopicPolicyListener() {
-        if (brokerService.pulsar().getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService()
-                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
-        }
+        brokerService.getPulsar().getTopicPoliciesService()
+                .registerListener(TopicName.getPartitionedTopicName(topic), this);
     }
 
     protected void unregisterTopicPolicyListener() {
-        if (brokerService.pulsar().getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService()
-                    .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
-        }
+        brokerService.getPulsar().getTopicPoliciesService()
+                .unregisterListener(TopicName.getPartitionedTopicName(topic), this);
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {
@@ -1254,16 +1250,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return topicPolicies.getInactiveTopicPolicies().get();
     }
 
-    /**
-     * Get {@link TopicPolicies} for this topic.
-     * @return TopicPolicies, if they exist. Otherwise, the value will not be present.
-     */
-    public Optional<TopicPolicies> getTopicPolicies() {
-        return brokerService.getTopicPolicies(TopicName.get(topic));
-    }
-
     public CompletableFuture<Void> deleteTopicPolicies() {
-        return brokerService.deleteTopicPolicies(TopicName.get(topic));
+        return brokerService.pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(TopicName.get(topic));
     }
 
     protected int getWaitingProducersCount() {

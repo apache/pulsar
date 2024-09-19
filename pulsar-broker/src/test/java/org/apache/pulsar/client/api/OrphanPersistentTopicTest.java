@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -110,7 +109,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 
@@ -217,7 +216,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 

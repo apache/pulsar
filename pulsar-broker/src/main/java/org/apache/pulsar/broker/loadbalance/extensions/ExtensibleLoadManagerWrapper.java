@@ -50,6 +50,10 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
         loadManager.start();
     }
 
+    public boolean started() {
+        return loadManager.started && loadManager.getServiceUnitStateChannel().started();
+    }
+
     @Override
     public void initialize(PulsarService pulsar) {
         loadManager.initialize(pulsar);

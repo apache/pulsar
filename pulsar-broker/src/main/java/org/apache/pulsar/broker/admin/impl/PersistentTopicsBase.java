@@ -84,6 +84,7 @@ import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -447,20 +448,9 @@ public class PersistentTopicsBase extends AdminResource {
                         return CompletableFuture.completedFuture(null);
                     }
                     // update remote cluster
-                    return namespaceResources().getPoliciesAsync(namespaceName)
-                            .thenCompose(policies -> {
-                                if (!policies.isPresent()) {
-                                    return CompletableFuture.completedFuture(null);
-                                }
-                                // Combine namespace level policies and topic level policies.
-                                Set<String> replicationClusters = policies.get().replication_clusters;
-                                TopicPolicies topicPolicies =
-                                        pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
-                                if (topicPolicies != null && topicPolicies.getReplicationClusters() != null) {
-                                    replicationClusters = topicPolicies.getReplicationClustersSet();
-                                }
-                                // Do check replicated clusters.
-                                if (replicationClusters.size() == 0) {
+                    return getReplicationClusters()
+                            .thenCompose(replicationClusters -> {
+                                if (replicationClusters == null || replicationClusters.isEmpty()) {
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 boolean containsCurrentCluster =
@@ -493,6 +483,20 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    private CompletableFuture<Set<String>> getReplicationClusters() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(optionalPolicies -> {
+            if (optionalPolicies.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Query the topic-level policies only if the namespace-level policies exist
+            final var namespacePolicies = optionalPolicies.get();
+            return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
+                    TopicPoliciesService.GetType.DEFAULT
+            ).thenApply(optionalTopicPolicies -> optionalTopicPolicies.map(TopicPolicies::getReplicationClustersSet)
+                    .orElse(namespacePolicies.replication_clusters));
+        });
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
@@ -3655,7 +3659,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> preValidation(boolean authoritative) {
-        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
+        if (!config().isTopicLevelPoliciesEnabled()) {
             return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry."));
         }

@@ -126,6 +126,7 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -1487,14 +1488,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema())
-                                .thenCompose(ignore -> {
-                                    if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
-                                            && brokerService.getPulsar().getConfiguration().isSystemTopicEnabled()) {
-                                        return deleteTopicPolicies();
-                                    } else {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                })
+                                .thenCompose(ignore -> deleteTopicPolicies())
                                 .thenCompose(ignore -> transactionBufferCleanupAndClose())
                                 .whenComplete((v, ex) -> {
                                     if (ex != null) {
@@ -4289,12 +4283,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     protected CompletableFuture<Void> initTopicPolicy() {
-        if (brokerService.pulsar().getConfig().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            brokerService.getPulsar().getTopicPoliciesService()
-                    .registerListener(TopicName.getPartitionedTopicName(topic), this);
-            return CompletableFuture.completedFuture(null).thenRunAsync(() -> onUpdate(
-                            brokerService.getPulsar().getTopicPoliciesService()
-                                    .getTopicPoliciesIfExists(TopicName.getPartitionedTopicName(topic))),
+        final var topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
+        final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
+        if (topicPoliciesService.registerListener(partitionedTopicName, this)) {
+            return topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                    TopicPoliciesService.GetType.DEFAULT
+            ).thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
                     brokerService.getTopicOrderedExecutor());
         }
         return CompletableFuture.completedFuture(null);

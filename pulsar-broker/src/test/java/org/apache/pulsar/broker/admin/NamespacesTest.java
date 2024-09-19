@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -113,7 +114,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -2103,17 +2103,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(systemTopic).create();
         admin.topicPolicies().setMaxConsumers(systemTopic, 5);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            final var policies = TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
+                    TopicName.get(systemTopic));
+            Assert.assertTrue(policies.isPresent());
+            Assert.assertEquals(policies.get().getMaxConsumerPerTopic(), 5);
+        });
 
-        Integer maxConsumerPerTopic = pulsar
-                .getTopicPoliciesService()
-                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get()
-                .getMaxConsumerPerTopic();
-
-        assertEquals(maxConsumerPerTopic, 5);
         admin.topics().delete(systemTopic, true);
-        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
-                .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
-        assertNull(topicPolicies);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+                TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(), TopicName.get(systemTopic))
+                        .isEmpty()));
     }
 
     @Test

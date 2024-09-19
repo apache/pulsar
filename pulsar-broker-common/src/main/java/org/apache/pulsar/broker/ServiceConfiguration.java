@@ -1556,6 +1556,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "The class name of the topic policies service. The default config only takes affect when the "
+                    + "systemTopicEnable config is true"
+    )
+    private String topicPoliciesServiceClassName =
+            "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
@@ -3791,10 +3799,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getTopicOrderedExecutorThreadNum() {
         return numWorkerThreadsForNonPersistentTopic > 0
                 ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
-    }
-
-    public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
-        return topicLevelPoliciesEnabled && systemTopicEnabled;
     }
 
     public Map<String, String> lookupProperties() {
