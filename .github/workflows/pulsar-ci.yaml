@@ -944,7 +944,7 @@ jobs:
 
   system-tests:
     name: CI - System - ${{ matrix.name }}
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runs-on || 'ubuntu-22.04' }}
     timeout-minutes: 60
     needs: ['preconditions', 'pulsar-test-latest-version-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -978,6 +978,8 @@ jobs:
           - name: Pulsar IO
             group: PULSAR_IO
             clean_disk: true
+            # run on ubuntu-20.04 to avoid mssql server image crash
+            runs-on: ubuntu-20.04
 
     steps:
       - name: checkout
