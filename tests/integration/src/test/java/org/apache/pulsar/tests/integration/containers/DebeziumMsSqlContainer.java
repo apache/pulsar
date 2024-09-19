@@ -37,7 +37,7 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
     // "You may install and use copies of the software on any device,
     // including third party shared devices, to design, develop, test and demonstrate your programs.
     // You may not use the software on a device or server in a production environment."
-    private static final String IMAGE_NAME = "mcr.microsoft.com/mssql/server:2019-CU12-ubuntu-20.04";
+    private static final String IMAGE_NAME = "mcr.microsoft.com/mssql/server:2019-CU28-ubuntu-20.04";
 
     public DebeziumMsSqlContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
