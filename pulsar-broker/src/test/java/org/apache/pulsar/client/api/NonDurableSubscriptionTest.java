@@ -262,8 +262,10 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         String subName = "test-sub";
 
         admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subName)
@@ -274,23 +276,14 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        producer.close();
 
         assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgBacklog(), 10);
 
         // 2. receive the message
-        Thread t = new Thread(() -> {
-            while (true) {
-                Message<byte[]> msg;
-                try {
-                    msg = consumer.receive();
-                    consumer.acknowledge(msg);
-                } catch (PulsarClientException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        t.start();
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
 
         // 3. consumed all messages and the msgBacklog is 0
         Awaitility.await().untilAsserted(() ->
