@@ -283,11 +283,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
             for (int i = 0; i < validationPointCount; i++) {
-                Consumer selected = selector.select(i * increment);
+                int hash = i * increment;
+                Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
                 if (expected != removedConsumer) {
-                    assertThat(selected.consumerId()).as("validationPoint %d, removed %s", i,
-                            removedConsumer.toString()).isEqualTo(expected.consumerId());
+                    assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d", i,
+                            removedConsumer.toString(), hash).isEqualTo(expected.consumerId());
                 }
             }
         }
@@ -399,10 +400,11 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             final Consumer addedConsumer = createMockConsumer(consumerName, "index " + i, i);
             selector.addConsumer(addedConsumer);
             for (int j = 0; j < validationPointCount; j++) {
-                Consumer selected = selector.select(j * increment);
+                int hash = j * increment;
+                Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(j);
                 if (expected != addedConsumer) {
-                    assertThat(selected.consumerId()).as("validationPoint %d", j).isEqualTo(expected.consumerId());
+                    assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, hash).isEqualTo(expected.consumerId());
                 }
             }
         }
