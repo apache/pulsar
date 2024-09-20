@@ -267,7 +267,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public synchronized boolean started() {
-        return validateChannelState(LeaderElectionServiceStarted, false);
+        return validateChannelState(Started, true);
     }
 
     public synchronized void start() throws PulsarServerException {
