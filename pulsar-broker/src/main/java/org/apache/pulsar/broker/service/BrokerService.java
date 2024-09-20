@@ -1149,6 +1149,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@Nonnull TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName,
                 TopicPoliciesService.GetType.DEFAULT);
     }
@@ -3510,6 +3513,9 @@ public class BrokerService implements Closeable {
     public @Nonnull CompletableFuture<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
         requireNonNull(tpName);
         // Policies priority: topic level -> namespace level -> broker level
+        if (ExtensibleLoadManagerImpl.isInternalTopic(tpName.toString())) {
+            return CompletableFuture.completedFuture(true);
+        }
         return pulsar.getTopicPoliciesService()
                 .getTopicPoliciesAsync(tpName, TopicPoliciesService.GetType.LOCAL_ONLY)
                 .thenCompose(optionalTopicPolicies -> {
