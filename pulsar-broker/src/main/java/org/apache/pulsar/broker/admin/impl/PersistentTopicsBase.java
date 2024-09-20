@@ -1265,7 +1265,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
             } else {
-                asyncResponse.resume(new ArrayList<>(subscriptions));
+                asyncResponse.resume(subscriptions);
             }
         });
     }
