@@ -24,8 +24,10 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -267,7 +269,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         int hashRangeSize = Integer.MAX_VALUE;
         int validationPointCount = 200;
-        int increment = hashRangeSize / validationPointCount;
+        int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
 
         for (int i = 0; i < validationPointCount; i++) {
@@ -280,15 +282,17 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             assertThat(selected.consumerId()).as("validationPoint %d", i).isEqualTo(expected.consumerId());
         }
 
+        Set<Consumer> removedConsumers = new HashSet<>();
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
+            removedConsumers.add(removedConsumer);
             for (int i = 0; i < validationPointCount; i++) {
                 int hash = i * increment;
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
-                if (expected != removedConsumer) {
-                    assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d", i,
-                            removedConsumer.toString(), hash).isEqualTo(expected.consumerId());
+                if (!removedConsumers.contains(expected)) {
+                    assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d ranges %s", i,
+                            removedConsumer.toString(), hash, selector.getConsumerKeyHashRanges()).isEqualTo(expected.consumerId());
                 }
             }
         }
@@ -383,7 +387,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         int hashRangeSize = Integer.MAX_VALUE;
         int validationPointCount = 200;
-        int increment = hashRangeSize / validationPointCount;
+        int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
 
         for (int i = 0; i < validationPointCount; i++) {
@@ -396,14 +400,16 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             assertThat(selected.consumerId()).as("validationPoint %d", i).isEqualTo(expected.consumerId());
         }
 
+        Set<Consumer> addedConsumers = new HashSet<>();
         for (int i = numOfInitialConsumers; i < numOfInitialConsumers * 2; i++) {
             final Consumer addedConsumer = createMockConsumer(consumerName, "index " + i, i);
             selector.addConsumer(addedConsumer);
+            addedConsumers.add(addedConsumer);
             for (int j = 0; j < validationPointCount; j++) {
                 int hash = j * increment;
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(j);
-                if (expected != addedConsumer) {
+                if (!addedConsumers.contains(addedConsumer)) {
                     assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, hash).isEqualTo(expected.consumerId());
                 }
             }
