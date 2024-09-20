@@ -286,7 +286,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 Consumer selected = selector.select(i * increment);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
                 if (expected != removedConsumer) {
-                    assertThat(selected.consumerId()).as("validationPoint %d", i).isEqualTo(expected.consumerId());
+                    assertThat(selected.consumerId()).as("validationPoint %d, removed %s", i,
+                            removedConsumer.toString()).isEqualTo(expected.consumerId());
                 }
             }
         }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,12 +87,6 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             public int compareTo(ConsumerEntry o) {
                     return CONSUMER_ENTRY_COMPARATOR.compare(this, o);
             }
-
-            // comparison without the usage count so that the consumer doesn't get changed too eagerly
-            // when entries are removed
-            public int baseCompareTo(ConsumerEntry o) {
-                return BASE_CONSUMER_ENTRY_COMPARATOR.compare(this, o);
-            }
         }
 
         private final List<ConsumerEntry> consumers;
@@ -104,13 +97,24 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
 
         public void addConsumer(Consumer consumer, MutableInt selectedCounter) {
-            consumers.add(new ConsumerEntry(consumer, selectedCounter));
-            selectConsumer(null);
+            ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectedCounter);
+            insertConsumer(consumerEntry);
+            selectConsumer();
+        }
+
+        private void insertConsumer(ConsumerEntry consumerEntry) {
+            for (int i = 0; i < consumers.size(); i++) {
+                if (consumers.get(i).compareTo(consumerEntry) > 0) {
+                    consumers.add(i, consumerEntry);
+                    return;
+                }
+            }
+            consumers.add(consumerEntry);
         }
 
         public boolean removeConsumer(Consumer consumer) {
             boolean removed = consumers.removeIf(consumerEntry -> consumerEntry.consumer().equals(consumer));
-            selectConsumer(consumer);
+            selectConsumer();
             return removed;
         }
 
@@ -118,25 +122,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             return selectedConsumerEntry != null ? selectedConsumerEntry.consumer() : null;
         }
 
-        private void selectConsumer(Consumer removedConsumer) {
-            if (consumers.size() > 1) {
-                boolean addOperation = removedConsumer == null;
-                if (addOperation) {
-                    Collections.sort(consumers);
-                }
-                ConsumerEntry newSelectedConsumer = consumers.get(0);
-                // change the selected consumer only if the newer has higher priority,
-                // or the same priority and an earlier name in sorting order
-                if (selectedConsumerEntry == null || addOperation
-                        || selectedConsumerEntry.consumer.equals(removedConsumer)
-                        || selectedConsumerEntry.baseCompareTo(newSelectedConsumer) > 0) {
-                    changeSelectedConsumerEntry(newSelectedConsumer);
-                }
-            } else if (consumers.size() == 1) {
-                changeSelectedConsumerEntry(consumers.get(0));
-            } else {
-                changeSelectedConsumerEntry(null);
-            }
+        private void selectConsumer() {
+            changeSelectedConsumerEntry(consumers.isEmpty() ? null : consumers.get(0));
         }
 
         private void changeSelectedConsumerEntry(ConsumerEntry newSelectedConsumer) {
