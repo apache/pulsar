@@ -127,6 +127,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
 
         private void changeSelectedConsumerEntry(ConsumerEntry newSelectedConsumer) {
+            if (newSelectedConsumer == selectedConsumerEntry) {
+                return;
+            }
             beforeChangingSelectedConsumerEntry();
             selectedConsumerEntry = newSelectedConsumer;
             afterChangingSelectedConsumerEntry();
