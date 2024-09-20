@@ -191,10 +191,10 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 .containsExactlyEntriesOf(selector.getConsumerKeyHashRanges());
 
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
-        expectedResult.put(consumers.get(0), List.of(Range.of(306176209, 365902830)));
-        expectedResult.put(consumers.get(1), List.of(Range.of(216056714, 306176208)));
-        expectedResult.put(consumers.get(2), List.of(Range.of(365902831, 1240826377)));
-        expectedResult.put(consumers.get(3), List.of(Range.of(1240826378, 1862045174)));
+        expectedResult.put(consumers.get(0), List.of(Range.of(216056714, 306176208)));
+        expectedResult.put(consumers.get(1), List.of(Range.of(365902831, 1240826377)));
+        expectedResult.put(consumers.get(2), List.of(Range.of(1240826378, 1862045174)));
+        expectedResult.put(consumers.get(3), List.of(Range.of(306176209, 365902830)));
         expectedResult.put(consumers.get(4), List.of(Range.of(0, 216056713), Range.of(1862045175, 2147483646)));
         assertThat(selector.getConsumerKeyHashRanges()).containsExactlyInAnyOrderEntriesOf(expectedResult);
     }
