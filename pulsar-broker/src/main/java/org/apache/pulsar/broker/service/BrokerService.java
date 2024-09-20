@@ -1177,6 +1177,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@Nonnull TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName,
                 TopicPoliciesService.GetType.DEFAULT);
     }
