@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -555,6 +554,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final var topics = pulsar.getBrokerService().getTopics();
         final var oldTopics = topics.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
                 Map.Entry::getValue));
+        topics.clear();
 
         // The created persistent topic correctly can be found by
         // pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
