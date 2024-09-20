@@ -65,7 +65,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -119,7 +118,7 @@ public class Consumer {
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "permitsReceivedWhileConsumerBlocked");
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
-    private final ConcurrentLongLongPairHashMap pendingAcks;
+    private final PendingAcksMap pendingAcks;
 
     private final ConsumerStatsImpl stats;
 
@@ -166,6 +165,13 @@ public class Consumer {
     private volatile Attributes openTelemetryAttributes;
     private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
+
+    @Getter
+    @Setter
+    private volatile DrainingHashesTracker drainingHashesTracker;
+    @Getter
+    @Setter
+    private volatile PendingAcksMap.PendingAcksAddHandler pendingAcksAddHandler;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -223,12 +229,12 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
+            this.pendingAcks = new PendingAcksMap(ConcurrentLongLongPairHashMap.newBuilder()
                     .autoShrink(subscription.getTopic().getBrokerService()
                             .getPulsar().getConfiguration().isAutoShrinkForConsumerPendingAcksMap())
                     .expectedItems(256)
                     .concurrencyLevel(1)
-                    .build();
+                    .build(), () -> getPendingAcksAddHandler());
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -359,17 +365,43 @@ public class Consumer {
                 // because this consumer is possible to disconnect at this time.
                 if (pendingAcks != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    int stickyKeyHash = stickyKeyHashes == null ? getStickyKeyHash(entry) : stickyKeyHashes.get(i);
-                    long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
-                    if (ackSet != null) {
-                        unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
+                    int stickyKeyHash;
+                    if (stickyKeyHashes == null) {
+                        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                            stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
+                        } else {
+                            stickyKeyHash = 0;
+                        }
+                    } else {
+                        stickyKeyHash = stickyKeyHashes.get(i);
                     }
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, stickyKeyHash);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
-                                        + " broker.service.Consumer for consumerId: {}",
-                                topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize,
-                                consumerId);
+                    boolean sendingAllowed =
+                            pendingAcks.put(consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                                    stickyKeyHash);
+                    if (!sendingAllowed) {
+                        // sending isn't allowed when pending acks doesn't accept adding the entry
+                        // this happens when Key_Shared draining hashes contains the stickyKeyHash
+                        // because of race conditions, it might be resolved at the time of sending
+                        totalEntries--;
+                        entries.set(i, null);
+                        entry.release();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}-{}] Skipping sending of {}:{} ledger entry with batchSize of {} since adding"
+                                            + " to pending acks failed in broker.service.Consumer for consumerId: {}",
+                                    topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                                    consumerId);
+                        }
+                    } else {
+                        long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
+                        if (ackSet != null) {
+                            unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
+                                            + " broker.service.Consumer for consumerId: {}",
+                                    topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                                    consumerId);
+                        }
                     }
                 }
             }
@@ -674,7 +706,7 @@ public class Consumer {
                                                         Consumer consumer) {
         long ackedCount = 0;
         if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
-            && consumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId()) != null) {
+            && consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -1027,9 +1059,24 @@ public class Consumer {
      * @param position
      */
     private boolean removePendingAcks(Consumer ackOwnedConsumer, Position position) {
-        if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
-            // Message was already removed by the other consumer
-            return false;
+        PendingAcksMap ownedConsumerPendingAcks = ackOwnedConsumer.getPendingAcks();
+        if (drainingHashesTracker != null) {
+            LongPair pendingAckEntry = ownedConsumerPendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (pendingAckEntry != null
+                    && ownedConsumerPendingAcks
+                    .remove(position.getLedgerId(), position.getEntryId(), pendingAckEntry.first,
+                            pendingAckEntry.second)) {
+                int hash = (int) pendingAckEntry.second;
+                drainingHashesTracker.reduceRefCount(ackOwnedConsumer, hash);
+            } else {
+                // Message was already removed by the other consumer
+                return false;
+            }
+        } else {
+            if (!ownedConsumerPendingAcks.remove(position.getLedgerId(), position.getEntryId())) {
+                // Message was already removed by the other consumer
+                return false;
+            }
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
@@ -1046,7 +1093,7 @@ public class Consumer {
         return true;
     }
 
-    public ConcurrentLongLongPairHashMap getPendingAcks() {
+    public PendingAcksMap getPendingAcks() {
         return pendingAcks;
     }
 
@@ -1189,16 +1236,6 @@ public class Consumer {
 
     public Map<String, String> getMetadata() {
         return metadata;
-    }
-
-    private int getStickyKeyHash(Entry entry) {
-        final byte[] stickyKey;
-        if (entry instanceof EntryAndMetadata) {
-            stickyKey = ((EntryAndMetadata) entry).getStickyKey();
-        } else {
-            stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
-        }
-        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

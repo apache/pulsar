@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableSet;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
@@ -79,7 +81,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer) {
+        Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
@@ -90,11 +93,15 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 return FutureUtil.failedFuture(e);
             }
         }
-        return CompletableFuture.completedFuture(null);
+        Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
+        Map<Consumer, NavigableSet<Range>> impactedRanges =
+                HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+        return CompletableFuture.completedFuture(impactedRanges);
     }
 
     @Override
-    public synchronized void removeConsumer(Consumer consumer) {
+    public synchronized Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer) {
+        Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
@@ -106,25 +113,49 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 rangeMap.remove(removeRange);
             }
         }
+        Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
+        Map<Consumer, NavigableSet<Range>> impactedRanges =
+                HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+        return impactedRanges;
+    }
+
+    @Override
+    public int makeStickyKeyHash(byte[] stickyKey) {
+        return HashRanges.makeStickyKeyHash(stickyKey, rangeSize);
     }
 
     @Override
     public Consumer select(int hash) {
         if (!rangeMap.isEmpty()) {
-            int slot = hash % rangeSize;
-            return rangeMap.ceilingEntry(slot).getValue();
+            return rangeMap.ceilingEntry(hash).getValue();
         } else {
             return null;
         }
     }
 
     @Override
-    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+    public Range getKeyHashRange() {
+        return Range.of(0, rangeSize - 1);
+    }
+
+    @Override
+    public synchronized Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         Map<Consumer, List<Range>> result = new HashMap<>();
         int start = 0;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
                     .add(Range.of(start, entry.getKey()));
+            start = entry.getKey() + 1;
+        }
+        return result;
+    }
+
+    @Override
+    public synchronized Map<Range, Consumer> getKeyHashRangeToConsumerMapping() {
+        Map<Range, Consumer> result = new TreeMap<>();
+        int start = 0;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            result.put(Range.of(start, entry.getKey()), entry.getValue());
             start = entry.getKey() + 1;
         }
         return result;

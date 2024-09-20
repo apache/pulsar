@@ -1977,7 +1977,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 msgList2.add(msg2);
             }
             Message<Integer> msg3 = consumer3.receive(1, TimeUnit.SECONDS);
-            if (msg2 != null) {
+            if (msg3 != null) {
                 totalReceivedMessages.add(msg3.getValue());
                 msgList3.add(msg3);
             }
@@ -1985,22 +1985,34 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumerWillBeClose = null;
         Consumer<Integer> consumerAlwaysAck = null;
         Consumer<Integer> consumerStuck = null;
+        Runnable consumerStuckAckHandler;
+
         if (!msgList1.isEmpty()) {
             msgList1.forEach(msg -> consumer1.acknowledgeAsync(msg));
             consumerAlwaysAck = consumer1;
             consumerWillBeClose = consumer2;
             consumerStuck = consumer3;
+            consumerStuckAckHandler = () -> {
+                msgList3.forEach(msg -> consumer3.acknowledgeAsync(msg));
+            };
         } else if (!msgList2.isEmpty()){
             msgList2.forEach(msg -> consumer2.acknowledgeAsync(msg));
             consumerAlwaysAck = consumer2;
             consumerWillBeClose = consumer3;
             consumerStuck = consumer1;
+            consumerStuckAckHandler = () -> {
+                msgList1.forEach(msg -> consumer1.acknowledgeAsync(msg));
+            };
         } else {
             msgList3.forEach(msg -> consumer3.acknowledgeAsync(msg));
             consumerAlwaysAck = consumer3;
             consumerWillBeClose = consumer1;
             consumerStuck = consumer2;
+            consumerStuckAckHandler = () -> {
+                msgList2.forEach(msg -> consumer2.acknowledgeAsync(msg));
+            };
         }
+
 
         // 2. Add consumer4 after "consumerWillBeClose" was close, and consumer4 will be stuck due to the mechanism
         //    "recentlyJoinedConsumers".
@@ -2048,6 +2060,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         log.info("Reply read count: {}", replyReadCounter.get());
         assertTrue(replyReadCounter.get() < maxReplayCount);
         // Verify: at last, all messages will be received.
+        consumerStuckAckHandler.run();
         ReceivedMessages<Integer> receivedMessages = ackAllMessages(consumerAlwaysAck, consumerStuck, consumer4);
         totalReceivedMessages.addAll(receivedMessages.messagesReceived.stream().map(p -> p.getRight()).collect(
                 Collectors.toList()));
@@ -2128,8 +2141,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < numberOfKeys; i++) {
             String key = String.valueOf(i);
             byte[] keyBytes = key.getBytes(UTF_8);
-            int hash = StickyKeyConsumerSelector.makeStickyKeyHash(keyBytes);
-            if (dispatcher.getSelector().select(hash).consumerName().equals("c2")) {
+            if (dispatcher.getSelector().select(keyBytes).consumerName().equals("c2")) {
                 keysForC2.add(key);
             }
         }

@@ -23,12 +23,12 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.client.api.Range;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -47,16 +47,23 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final ConsumerNameIndexTracker consumerNameIndexTracker = new ConsumerNameIndexTracker();
 
     private final int numberOfPoints;
+    private final int rangeSize;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
+        this(numberOfPoints, DEFAULT_RANGE_SIZE);
+    }
+
+    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints, int rangeSize) {
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
+        this.rangeSize = rangeSize;
     }
 
     @Override
-    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+    public CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
+            Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
@@ -72,10 +79,18 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     consumerNameIndexTracker.decreaseConsumerRefCount(removed);
                 }
             }
-            return CompletableFuture.completedFuture(null);
+            Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
+            Map<Consumer, NavigableSet<Range>> impactedRanges =
+                    HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+            return CompletableFuture.completedFuture(impactedRanges);
         } finally {
             rwLock.writeLock().unlock();
         }
+    }
+
+    @Override
+    public int makeStickyKeyHash(byte[] stickyKey) {
+        return HashRanges.makeStickyKeyHash(stickyKey, rangeSize);
     }
 
     /**
@@ -88,16 +103,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
      * @param hashRingPointIndex the index of the hash ring point
      * @return the hash value
      */
-    private static int calculateHashForConsumerAndIndex(Consumer consumer, int consumerNameIndex,
+    private int calculateHashForConsumerAndIndex(Consumer consumer, int consumerNameIndex,
                                                         int hashRingPointIndex) {
         String key = consumer.consumerName() + KEY_SEPARATOR + consumerNameIndex + KEY_SEPARATOR + hashRingPointIndex;
-        return Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+        return makeStickyKeyHash(key.getBytes());
     }
 
     @Override
-    public void removeConsumer(Consumer consumer) {
+    public Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
+            Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             int consumerNameIndex = consumerNameIndexTracker.getTrackedIndex(consumerIdentityWrapper);
             if (consumerNameIndex > -1) {
@@ -109,6 +125,10 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 }
             }
+            Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
+            Map<Consumer, NavigableSet<Range>> impactedRanges =
+                    HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+            return impactedRanges;
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -134,6 +154,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
+    public Range getKeyHashRange() {
+        return Range.of(0, rangeSize - 1);
+    }
+
+    @Override
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         Map<Consumer, List<Range>> result = new IdentityHashMap<>();
         rwLock.readLock().lock();
@@ -143,22 +168,81 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             }
             int start = 0;
             int lastKey = 0;
+            Consumer previousConsumer = null;
             for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
                 Consumer consumer = entry.getValue().consumer;
-                result.computeIfAbsent(consumer, key -> new ArrayList<>())
-                        .add(Range.of(start, entry.getKey()));
+                if (consumer == previousConsumer) {
+                    List<Range> ranges = result.get(consumer);
+                    Range previousRange = ranges.remove(ranges.size() - 1);
+                    // join ranges
+                    ranges.add(Range.of(previousRange.getStart(), entry.getKey()));
+                } else {
+                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
+                            .add(Range.of(start, entry.getKey()));
+                }
                 lastKey = entry.getKey();
                 start = lastKey + 1;
+                previousConsumer = consumer;
             }
             // Handle wrap-around in the hash ring, the first consumer will also contain the range from the last key
             // to the maximum value of the hash range
             Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
             List<Range> ranges = result.get(firstConsumer);
-            if (lastKey != Integer.MAX_VALUE - 1) {
-                ranges.add(Range.of(lastKey + 1, Integer.MAX_VALUE - 1));
+            if (lastKey != rangeSize - 1) {
+                Range lastRange = ranges.get(ranges.size() - 1);
+                if (lastRange.getEnd() == lastKey) {
+                    // join ranges
+                    ranges.remove(ranges.size() - 1);
+                    ranges.add(Range.of(lastRange.getStart(), rangeSize - 1));
+                } else {
+                    ranges.add(Range.of(lastKey + 1, rangeSize - 1));
+                }
             }
         } finally {
             rwLock.readLock().unlock();
+        }
+        return result;
+    }
+
+    @Override
+    public Map<Range, Consumer> getKeyHashRangeToConsumerMapping() {
+        rwLock.readLock().lock();
+        try {
+            return internalGetKeyHashRangeToConsumerMapping();
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+
+    private Map<Range, Consumer> internalGetKeyHashRangeToConsumerMapping() {
+        Map<Range, Consumer> result = new TreeMap<>();
+        if (hashRing.isEmpty()) {
+            return result;
+        }
+        int start = 0;
+        int lastKey = 0;
+        Consumer previousConsumer = null;
+        Range previousRange = null;
+        for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
+            Consumer consumer = entry.getValue().consumer;
+            Range range;
+            if (consumer == previousConsumer) {
+                // join ranges
+                result.remove(previousRange);
+                range = Range.of(previousRange.getStart(), entry.getKey());
+            } else {
+                range = Range.of(start, entry.getKey());
+            }
+            result.put(range, consumer);
+            lastKey = entry.getKey();
+            start = lastKey + 1;
+            previousConsumer = consumer;
+            previousRange = range;
+        }
+        // Handle wrap-around
+        Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
+        if (lastKey != rangeSize - 1) {
+            result.put(Range.of(lastKey + 1, rangeSize - 1), firstConsumer);
         }
         return result;
     }

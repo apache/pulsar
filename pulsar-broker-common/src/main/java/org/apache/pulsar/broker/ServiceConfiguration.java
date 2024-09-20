@@ -980,6 +980,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 20000;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, when a blocked key hash gets unblocked,"
+                    + " a redelivery will be attempted after a delay. This setting controls the delay."
+                    + " The reason to have the delay is to batch multiple unblocking events instead of triggering"
+                    + " redelivery for each unblocking event.",
+            dynamic = true
+    )
+    private long keySharedUnblockingIntervalMs = 10L;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher "
             + " unacked messages than this percentage limit and subscription will not receive any new messages "

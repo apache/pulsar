@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 public interface StickyKeyConsumerSelector {
 
@@ -33,13 +33,15 @@ public interface StickyKeyConsumerSelector {
      *
      * @param consumer new consumer
      */
-    CompletableFuture<Void> addConsumer(Consumer consumer);
+    CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer);
 
     /**
      * Remove the consumer.
+     *
      * @param consumer consumer to be removed
+     * @return
      */
-    void removeConsumer(Consumer consumer);
+    Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer);
 
     /**
      * Select a consumer by sticky key.
@@ -51,9 +53,13 @@ public interface StickyKeyConsumerSelector {
         return select(makeStickyKeyHash(stickyKey));
     }
 
-    static int makeStickyKeyHash(byte[] stickyKey) {
-        return Murmur3_32Hash.getInstance().makeHash(stickyKey);
-    }
+    /**
+     * Make a hash from sticky key.
+     *
+     * @param stickyKey sticky key
+     * @return hash the hash value
+     */
+    int makeStickyKeyHash(byte[] stickyKey);
 
     /**
      * Select a consumer by hash.
@@ -64,8 +70,20 @@ public interface StickyKeyConsumerSelector {
     Consumer select(int hash);
 
     /**
+     * Get the full range of hash.
+     * @return the full range of hash
+     */
+    Range getKeyHashRange();
+
+    /**
      * Get key hash ranges handled by each consumer.
      * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
     Map<Consumer, List<Range>> getConsumerKeyHashRanges();
+
+    /**
+     * Get the mapping of hash range to consumer.
+     * @return A map where key is a hash range and value is the consumer that is responsible for the range.
+     */
+    Map<Range, Consumer> getKeyHashRangeToConsumerMapping();
 }

@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import java.nio.charset.StandardCharsets;
+import java.util.function.ToIntFunction;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
@@ -34,6 +34,7 @@ public class EntryAndMetadata implements Entry {
     @Getter
     @Nullable
     private final MessageMetadata metadata;
+    int stickyKeyHash = -1;
 
     private EntryAndMetadata(final Entry entry, @Nullable final MessageMetadata metadata) {
         this.entry = entry;
@@ -51,16 +52,9 @@ public class EntryAndMetadata implements Entry {
 
     public byte[] getStickyKey() {
         if (metadata != null) {
-            if (metadata.hasOrderingKey()) {
-                return metadata.getOrderingKey();
-            } else if (metadata.hasPartitionKey()) {
-                return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
-            } else if (metadata.hasProducerName() && metadata.hasSequenceId()) {
-                String fallbackKey = metadata.getProducerName() + "-" + metadata.getSequenceId();
-                return fallbackKey.getBytes(StandardCharsets.UTF_8);
-            }
+            return Commands.resolveStickyKey(metadata);
         }
-        return "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+        return Commands.NONE_KEY;
     }
 
     @Override
@@ -113,5 +107,16 @@ public class EntryAndMetadata implements Entry {
     @Override
     public boolean release() {
         return entry.release();
+    }
+
+    public int getCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
+        if (stickyKeyHash == -1) {
+            stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
+        }
+        return stickyKeyHash;
+    }
+
+    public int getCachedStickyKeyHash() {
+        return stickyKeyHash != -1 ? stickyKeyHash : 0;
     }
 }

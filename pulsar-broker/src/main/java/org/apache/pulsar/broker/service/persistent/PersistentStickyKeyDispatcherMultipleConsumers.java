@@ -24,10 +24,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -40,6 +42,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.DrainingHashesTracker;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
@@ -51,6 +55,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.slf4j.Logger;
@@ -64,8 +69,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
+    private final DrainingHashesTracker drainingHashesTracker;
 
     private static final LongPairRangeSet.LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
+    private ReadType recentReadTypeInSending;
+    private final LongSupplier keySharedUnblockingIntervalMsSupplier;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -76,6 +84,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // recent joined consumer tracking is required only for AUTO_SPLIT mode when out-of-order delivery is disabled
         this.drainingHashesRequired =
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
+        this.drainingHashesTracker =
+                drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked) : null;
+        this.keySharedUnblockingIntervalMsSupplier = conf::getKeySharedUnblockingIntervalMs;
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -93,6 +104,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
+    }
+
+    private void stickyKeyHashUnblocked(int stickyKeyHash) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Sticky key hash {} is unblocked", getName(), stickyKeyHash);
+        }
+        reScheduleReadInMs(keySharedUnblockingIntervalMsSupplier.getAsLong());
     }
 
     @VisibleForTesting
@@ -118,13 +136,44 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     }
                     return result;
                 })
-        ).thenRun(() -> {
-            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                if (drainingHashesRequired) {
-                    // TODO
-                }
+        ).thenAccept(impactedRanges -> {
+            // TODO: Add some way to prevent changes in between the time the consumer is added and the
+            // time the draining hashes are applied. It might be fine for ConsistentHashingStickyKeyConsumerSelector
+            // since it's not really asynchronous, although it returns a CompletableFuture
+            if (drainingHashesRequired) {
+                consumer.setDrainingHashesTracker(drainingHashesTracker);
+                consumer.setPendingAcksAddHandler(this::handleAddingPendingAck);
+                registerDrainingHashes(consumer, impactedRanges);
             }
         });
+    }
+
+    private synchronized void registerDrainingHashes(Consumer skipConsumer,
+                                                     Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
+        for (Map.Entry<Consumer, NavigableSet<Range>> entry : impactedRangesByConsumer.entrySet()) {
+            Consumer c = entry.getKey();
+            NavigableSet<Range> ranges = entry.getValue();
+            if (c != skipConsumer) {
+                // add all pending acks in the impacted hash ranges to the draining hashes tracker
+                c.getPendingAcks().forEachAndLock((ledgerId, entryId, batchSize, stickyKeyHashLong) -> {
+                    int stickyKeyHash = (int) stickyKeyHashLong;
+                    if (stickyKeyHash == 0) {
+                        log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
+                        return;
+                    }
+                    for (Range range : ranges) {
+                        if (stickyKeyHash >= range.getStart() && stickyKeyHash <= range.getEnd()) {
+                            drainingHashesTracker.addEntry(c, stickyKeyHash);
+                            break;
+                        }
+                        // stop looking for more since the ranges cannot overlap
+                        if (stickyKeyHash > range.getEnd()) {
+                            break;
+                        }
+                    }
+                });
+            }
+        }
     }
 
     @Override
@@ -135,12 +184,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // the broker will try to redeliver the messages to the consumer that has already been closed.
         // As a result, the messages are not redelivered to any consumer, and the mark-delete position does not move,
         // eventually causing all consumers to get stuck.
-        selector.removeConsumer(consumer);
+        Map<Consumer, NavigableSet<Range>> impactedRanges = selector.removeConsumer(consumer);
+        if (drainingHashesRequired) {
+            registerDrainingHashes(consumer, impactedRanges);
+        }
         super.removeConsumer(consumer);
     }
 
     @Override
+    protected synchronized void clearComponentsAfterRemovedAllConsumers() {
+        super.clearComponentsAfterRemovedAllConsumers();
+        if (drainingHashesRequired) {
+            drainingHashesTracker.clear();
+        }
+    }
+
+    @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        recentReadTypeInSending = readType;
         lastNumberOfEntriesProcessed = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
@@ -264,6 +325,38 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return false;
     }
 
+    /**
+     * Check if the sticky hash is already draining or blocked in the replay queue.
+     * If it is, add the message to replay and return false so that the message isn't sent to a consumer.
+     *
+     * @param ledgerId the ledger id of the message
+     * @param entryId the entry id of the message
+     * @param stickyKeyHash the sticky hash of the message
+     * @return true if the message should be added to pending acks, false otherwise
+     */
+    private boolean handleAddingPendingAck(long consumerId, long ledgerId, long entryId, int stickyKeyHash) {
+        if (stickyKeyHash == 0) {
+            log.warn("[{}] Sticky key hash is missing for {}:{}", getName(), ledgerId, entryId);
+            throw new IllegalArgumentException("Sticky key hash is missing for " + ledgerId + ":" + entryId);
+        }
+        DrainingHashesTracker.DrainingHashEntry drainingHashEntry = drainingHashesTracker.getEntry(stickyKeyHash);
+        if (drainingHashEntry != null && drainingHashEntry.getConsumerId() != consumerId) {
+            log.warn("[{}] Another consumer id {} is already draining hash {}. Skipping adding {}:{} to pending acks "
+                            + "for consumer id {}. Adding the message to replay.",
+                    getName(), drainingHashEntry.getConsumerId(), stickyKeyHash, ledgerId, entryId, consumerId);
+            addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            return false;
+        }
+        if (recentReadTypeInSending == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
+            log.warn("[{}] Sticky hash {} is already in the replay queue. "
+                            + "Skipping adding {}:{} to pending acks. Adding the message to replay.",
+                    getName(), stickyKeyHash, ledgerId, entryId);
+            addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            return false;
+        }
+        return true;
+    }
+
     private boolean isReplayQueueSizeBelowLimit() {
         return redeliveryMessages.size() < getEffectiveLookAheadLimit();
     }
@@ -314,7 +407,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // in replay read mode, keep track of consumers for entries, used for look-ahead check
         Set<Consumer> consumersForEntriesForLookaheadCheck = lookAheadAllowed ? new HashSet<>() : null;
 
-        for (Entry entry : entries) {
+        for (Entry inputEntry : entries) {
+            EntryAndMetadata entry;
+            if (inputEntry instanceof EntryAndMetadata entryAndMetadataInstance) {
+                entry = entryAndMetadataInstance;
+            } else {
+                entry = EntryAndMetadata.create(inputEntry,
+                        Commands.peekAndCopyMessageMetadata(inputEntry.getDataBuffer(), getSubscriptionName(), -1));
+            }
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = selector.select(stickyKeyHash);
             MutableBoolean blockedByHash = null;
@@ -328,7 +428,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         permitsForConsumer.computeIfAbsent(consumer,
                                 k -> new MutableInt(getAvailablePermits(consumer)));
                 // a consumer was found for the sticky key hash and the entry can be dispatched
-                if (permits.intValue() > 0 && canDispatchEntry(entry, readType, stickyKeyHash, blockedByHash)) {
+                if (permits.intValue() > 0
+                        && canDispatchEntry(consumer, entry, readType, stickyKeyHash, blockedByHash)) {
                     // decrement the permits for the consumer
                     permits.decrement();
                     // allow the entry to be dispatched
@@ -388,7 +489,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     // checks if the entry can be dispatched to the consumer
-    private boolean canDispatchEntry(Entry entry,
+    private boolean canDispatchEntry(Consumer consumer, Entry entry,
                                      ReadType readType, int stickyKeyHash,
                                      MutableBoolean blockedByHash) {
         // If redeliveryMessages contains messages that correspond to the same hash as the entry to be dispatched
@@ -398,6 +499,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 blockedByHash.setTrue();
             }
             return false;
+        }
+
+        if (drainingHashesRequired) {
+            // If the hash is draining, do not send the message
+            if (drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash)) {
+                if (blockedByHash != null) {
+                    blockedByHash.setTrue();
+                }
+                return false;
+            }
         }
 
         return true;
@@ -457,6 +568,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
+    @Override
+    protected int getStickyKeyHash(Entry entry) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata.getCachedStickyKeyHash(selector::makeStickyKeyHash);
+        }
+        return selector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+    }
 
     @Override
     public void markDeletePositionMoveForward() {

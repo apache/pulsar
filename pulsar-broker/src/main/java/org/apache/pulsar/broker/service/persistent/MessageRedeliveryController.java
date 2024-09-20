@@ -65,6 +65,9 @@ public class MessageRedeliveryController {
 
     public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (!allowOutOfOrderDelivery) {
+            if (stickyKeyHash == 0) {
+                throw new IllegalArgumentException("Sticky key hash should be greater than 0");
+            }
             boolean inserted = hashesToBeBlocked.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
             if (!inserted) {
                 hashesToBeBlocked.put(ledgerId, entryId, stickyKeyHash, 0);
@@ -141,7 +144,7 @@ public class MessageRedeliveryController {
     public boolean containsStickyKeyHashes(Set<Integer> stickyKeyHashes) {
         if (!allowOutOfOrderDelivery) {
             for (Integer stickyKeyHash : stickyKeyHashes) {
-                if (hashesRefCount.containsKey(stickyKeyHash)) {
+                if (stickyKeyHash > 0 && hashesRefCount.containsKey(stickyKeyHash)) {
                     return true;
                 }
             }
@@ -150,7 +153,7 @@ public class MessageRedeliveryController {
     }
 
     public boolean containsStickyKeyHash(int stickyKeyHash) {
-        return !allowOutOfOrderDelivery && hashesRefCount.containsKey(stickyKeyHash);
+        return !allowOutOfOrderDelivery && stickyKeyHash > 0 && hashesRefCount.containsKey(stickyKeyHash);
     }
 
     public Optional<Position> getFirstPositionInReplay() {

@@ -72,7 +72,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -467,9 +466,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField
                 .get(persistentDispatcher);
         redeliveryMessages.add(allEntries.get(0).getLedgerId(), allEntries.get(0).getEntryId(),
-                getStickyKeyHash(allEntries.get(0))); // message1
+                persistentDispatcher.getStickyKeyHash(allEntries.get(0))); // message1
         redeliveryMessages.add(allEntries.get(1).getLedgerId(), allEntries.get(1).getEntryId(),
-                getStickyKeyHash(allEntries.get(1))); // message2
+                persistentDispatcher.getStickyKeyHash(allEntries.get(1))); // message2
 
         // Mock Cursor#asyncReplayEntries
         doAnswer(invocationOnMock -> {
@@ -776,10 +775,5 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
         return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
-    }
-
-    private int getStickyKeyHash(Entry entry) {
-        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscriptionName);
-        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 }

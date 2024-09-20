@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -67,7 +68,6 @@ import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.SharedConsumerAssignor;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
@@ -164,7 +164,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
-        this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay);
+        this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay);
         ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
         this.readFailureBackoff = new Backoff(
                 serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs(),
@@ -239,8 +239,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
-                consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                DrainingHashesTracker drainingHashesTracker = consumer.getDrainingHashesTracker();
+                consumer.getPendingAcks().forEachAndClose((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+                    if (drainingHashesTracker != null) {
+                        drainingHashesTracker.reduceRefCount(consumer, (int) stickyKeyHash);
+                    }
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
@@ -264,7 +268,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    private synchronized void clearComponentsAfterRemovedAllConsumers() {
+    protected synchronized void clearComponentsAfterRemovedAllConsumers() {
         cancelPendingRead();
 
         redeliveryMessages.clear();
@@ -799,8 +803,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         boolean hasChunk = false;
         for (int i = 0; i < metadataArray.length; i++) {
             Entry entry = entries.get(i);
-            MessageMetadata metadata = entry instanceof EntryAndMetadata ? ((EntryAndMetadata) entry).getMetadata()
-                    : Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+            MessageMetadata metadata;
+            if (entry instanceof EntryAndMetadata) {
+                metadata = ((EntryAndMetadata) entry).getMetadata();
+            } else {
+                metadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+                entries.set(i, EntryAndMetadata.create(entry, metadata));
+            }
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
                 if (!hasChunk && metadata.hasUuid()) {
@@ -901,10 +910,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
                         entries.size() - start);
             }
-            entries.subList(start, entries.size()).forEach(entry -> {
-                addEntryToReplay(entry);
-                entry.release();
-            });
+            entries.subList(start, entries.size()).forEach(this::addEntryToReplay);
         }
 
         return true;
@@ -913,6 +919,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected void addEntryToReplay(Entry entry) {
         long stickyKeyHash = getStickyKeyHash(entry);
         addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+        entry.release();
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
@@ -941,7 +948,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (messagesForC < entryAndMetadataList.size()) {
                 for (int i = messagesForC; i < entryAndMetadataList.size(); i++) {
                     final EntryAndMetadata entry = entryAndMetadataList.get(i);
-                    addMessageToReplay(entry);
+                    addEntryToReplay(entry);
                     entryAndMetadataList.set(i, null);
                 }
             }
@@ -1436,9 +1443,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected int getStickyKeyHash(Entry entry) {
-        return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+        // There's no need to calculate the hash for Shared subscription
+        return 0;
     }
-
 
     public Subscription getSubscription() {
         return subscription;
