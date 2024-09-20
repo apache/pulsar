@@ -294,6 +294,32 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
     @Test
+    public void testShouldNotChangeSelectedConsumerWhenConsumerIsRemovedCheckHashRanges() {
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(5);
+        final String consumerName = "consumer";
+        final int numOfInitialConsumers = 10;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < numOfInitialConsumers; i++) {
+            final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+
+        int hashRangeSize = Integer.MAX_VALUE;
+
+        Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
+        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").isEqualTo(expected);
+
+        for (Consumer removedConsumer : consumers) {
+            selector.removeConsumer(removedConsumer);
+            Map<Consumer, List<Range>> actual = selector.getConsumerKeyHashRanges();
+            expected.remove(removedConsumer);
+            assertThat(actual).as("removed %s", removedConsumer.toString())
+                    .containsExactlyInAnyOrderEntriesOf(expected);
+        }
+    }
+
+    @Test
     public void testShouldNotChangeSelectedConsumerWhenConsumerIsAdded() {
         final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         final String consumerName = "consumer";
