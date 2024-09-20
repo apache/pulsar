@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -44,13 +46,116 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     // Consistent-Hash ring
-    private final NavigableMap<Integer, List<Consumer>> hashRing;
+    private final NavigableMap<Integer, HashRingEntry> hashRing;
+    // used for distributing consumer instance selections evenly in the hash ring when there
+    // are multiple instances of consumer with the same consumer name or when there are hash collisions
+    private final Map<Consumer, MutableInt> consumerSelectionCounters;
 
     private final int numberOfPoints;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this.hashRing = new TreeMap<>();
+        this.consumerSelectionCounters = new WeakHashMap<>();
         this.numberOfPoints = numberOfPoints;
+    }
+
+    /**
+     * This class is used to store the consumers and the selected consumer for a hash value in the hash ring.
+     * This attempts to distribute the consumers evenly in the hash ring for consumers with the same
+     * consumer name and priority level. These entries collide in the hash ring.
+     * The selected consumer is the consumer that is selected to serve the hash value.
+     * It is not changed unless a consumer is removed or a colliding consumer with higher priority or
+     * lower selection count is added.
+     */
+    private static class HashRingEntry {
+        // This class is used to store the consumer which it was added to the hash ring
+        // sorting will be by priority, consumer name and usage count of the consumer instance
+        record ConsumerEntry(Consumer consumer, MutableInt consumerSelectionCounter)
+                implements Comparable<ConsumerEntry> {
+            private static final Comparator<ConsumerEntry>
+                    BASE_CONSUMER_ENTRY_COMPARATOR = Comparator.<ConsumerEntry, Integer>
+                            comparing(entry -> entry.consumer().getPriorityLevel()).reversed()
+                    .thenComparing(entry -> entry.consumer().consumerName());
+
+
+            private static final Comparator<ConsumerEntry>
+                    CONSUMER_ENTRY_COMPARATOR = BASE_CONSUMER_ENTRY_COMPARATOR
+                    // prefer the consumer instance with lowest selection count so that consumers get
+                    // evenly distributed
+                    .thenComparing(ConsumerEntry::consumerSelectionCounter);
+
+            @Override
+            public int compareTo(ConsumerEntry o) {
+                    return CONSUMER_ENTRY_COMPARATOR.compare(this, o);
+            }
+
+            // comparison without the usage count so that the consumer doesn't get changed too eagerly
+            // when entries are removed
+            public int baseCompareTo(ConsumerEntry o) {
+                return BASE_CONSUMER_ENTRY_COMPARATOR.compare(this, o);
+            }
+        }
+
+        private final List<ConsumerEntry> consumers;
+        ConsumerEntry selectedConsumerEntry;
+
+        public HashRingEntry() {
+            this.consumers = new ArrayList<>();
+        }
+
+        public void addConsumer(Consumer consumer, MutableInt selectedCounter) {
+            consumers.add(new ConsumerEntry(consumer, selectedCounter));
+            selectConsumer(null);
+        }
+
+        public boolean removeConsumer(Consumer consumer) {
+            boolean removed = consumers.removeIf(consumerEntry -> consumerEntry.consumer().equals(consumer));
+            selectConsumer(consumer);
+            return removed;
+        }
+
+        public Consumer getSelectedConsumer() {
+            return selectedConsumerEntry != null ? selectedConsumerEntry.consumer() : null;
+        }
+
+        private void selectConsumer(Consumer removedConsumer) {
+            if (consumers.size() > 1) {
+                boolean addOperation = removedConsumer == null;
+                if (addOperation) {
+                    Collections.sort(consumers);
+                }
+                ConsumerEntry newSelectedConsumer = consumers.get(0);
+                // change the selected consumer only if the newer has higher priority,
+                // or the same priority and an earlier name in sorting order
+                if (selectedConsumerEntry == null || addOperation
+                        || selectedConsumerEntry.consumer.equals(removedConsumer)
+                        || selectedConsumerEntry.baseCompareTo(newSelectedConsumer) > 0) {
+                    changeSelectedConsumerEntry(newSelectedConsumer);
+                }
+            } else if (consumers.size() == 1) {
+                changeSelectedConsumerEntry(consumers.get(0));
+            } else {
+                changeSelectedConsumerEntry(null);
+            }
+        }
+
+        private void changeSelectedConsumerEntry(ConsumerEntry newSelectedConsumer) {
+            beforeChangingSelectedConsumerEntry();
+            selectedConsumerEntry = newSelectedConsumer;
+            afterChangingSelectedConsumerEntry();
+        }
+
+        private void beforeChangingSelectedConsumerEntry() {
+            if (selectedConsumerEntry != null) {
+                selectedConsumerEntry.consumerSelectionCounter.decrement();
+            }
+        }
+
+        private void afterChangingSelectedConsumerEntry() {
+            if (selectedConsumerEntry != null) {
+                selectedConsumerEntry.consumerSelectionCounter.increment();
+            }
+        }
     }
 
     @Override
@@ -61,22 +166,18 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             // The points are deterministically added based on the hash of the consumer name
             for (int i = 0; i < numberOfPoints; i++) {
                 int hash = calculateHashForConsumerAndIndex(consumer, i);
-                hashRing.compute(hash, (k, v) -> {
-                    if (v == null) {
-                        return Lists.newArrayList(consumer);
-                    } else {
-                        if (!v.contains(consumer)) {
-                            v.add(consumer);
-                            v.sort(Comparator.comparing(Consumer::consumerName, String::compareTo));
-                        }
-                        return v;
-                    }
-                });
+                HashRingEntry hashRingEntry = hashRing.computeIfAbsent(hash, k -> new HashRingEntry());
+                // Add the consumer to the hash ring entry
+                hashRingEntry.addConsumer(consumer, getConsumerSelectedCount(consumer));
             }
             return CompletableFuture.completedFuture(null);
         } finally {
             rwLock.writeLock().unlock();
         }
+    }
+
+    private MutableInt getConsumerSelectedCount(Consumer consumer) {
+        return consumerSelectionCounters.computeIfAbsent(consumer, k -> new MutableInt());
     }
 
     private static int calculateHashForConsumerAndIndex(Consumer consumer, int index) {
@@ -92,15 +193,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (int i = 0; i < numberOfPoints; i++) {
                 int hash = calculateHashForConsumerAndIndex(consumer, i);
                 hashRing.compute(hash, (k, v) -> {
-                    if (v == null) {
-                        return null;
-                    } else {
-                        v.removeIf(c -> c.equals(consumer));
-                        if (v.isEmpty()) {
-                            v = null;
-                        }
-                        return v;
+                    v.removeConsumer(consumer);
+                    if (v.getSelectedConsumer() == null) {
+                        v = null;
                     }
+                    return v;
                 });
             }
         } finally {
@@ -115,16 +212,14 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             if (hashRing.isEmpty()) {
                 return null;
             }
-
-            List<Consumer> consumerList;
-            Map.Entry<Integer, List<Consumer>> ceilingEntry = hashRing.ceilingEntry(hash);
+            HashRingEntry hashRingEntry;
+            Map.Entry<Integer, HashRingEntry> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
-                consumerList =  ceilingEntry.getValue();
+                hashRingEntry =  ceilingEntry.getValue();
             } else {
-                consumerList = hashRing.firstEntry().getValue();
+                hashRingEntry = hashRing.firstEntry().getValue();
             }
-
-            return consumerList.get(hash % consumerList.size());
+            return hashRingEntry.getSelectedConsumer();
         } finally {
             rwLock.readLock().unlock();
         }
@@ -135,13 +230,24 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         Map<Consumer, List<Range>> result = new LinkedHashMap<>();
         rwLock.readLock().lock();
         try {
+            if (hashRing.isEmpty()) {
+                return result;
+            }
             int start = 0;
-            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
-                for (Consumer consumer: entry.getValue()) {
-                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
+            int lastKey = 0;
+            for (Map.Entry<Integer, HashRingEntry> entry: hashRing.entrySet()) {
+                Consumer consumer = entry.getValue().getSelectedConsumer();
+                result.computeIfAbsent(consumer, key -> new ArrayList<>())
                             .add(Range.of(start, entry.getKey()));
-                }
-                start = entry.getKey() + 1;
+                lastKey = entry.getKey();
+                start = lastKey + 1;
+            }
+            // Handle wrap-around
+            HashRingEntry firstHashRingEntry = hashRing.firstEntry().getValue();
+            Consumer firstSelectedConsumer = firstHashRingEntry.getSelectedConsumer();
+            List<Range> ranges = result.get(firstSelectedConsumer);
+            if (lastKey != Integer.MAX_VALUE - 1) {
+                ranges.add(Range.of(lastKey + 1, Integer.MAX_VALUE - 1));
             }
         } finally {
             rwLock.readLock().unlock();
