@@ -25,13 +25,15 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.MetadataStore;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ServiceUnitStateCompactionStrategyTest {
-    ServiceUnitStateCompactionStrategy strategy = new ServiceUnitStateCompactionStrategy();
+public class ServiceUnitStateDataConflictResolverTest {
+    ServiceUnitStateDataConflictResolver strategy = new ServiceUnitStateDataConflictResolver();
     String dst = "dst";
     String src = "src";
 
@@ -89,6 +91,32 @@ public class ServiceUnitStateCompactionStrategyTest {
                 new ServiceUnitStateData(Owned, dst, src, 10),
                 new ServiceUnitStateData(Owned, "broker2", dst, 12)));
 
+    }
+
+    @Test
+    public void testStoreType(){
+        ServiceUnitStateDataConflictResolver strategy = new ServiceUnitStateDataConflictResolver();
+        strategy.setStorageType(SystemTopic);
+        assertFalse(strategy.shouldKeepLeft(
+                null,
+                new ServiceUnitStateData(Owned, dst, 1)));
+        assertFalse(strategy.shouldKeepLeft(
+                null,
+                new ServiceUnitStateData(Owned, dst, 2)));
+        assertFalse(strategy.shouldKeepLeft(
+                new ServiceUnitStateData(Owned, dst, 1),
+                new ServiceUnitStateData(Owned, dst, 3)));
+
+        strategy.setStorageType(MetadataStore);
+        assertFalse(strategy.shouldKeepLeft(
+                null,
+                new ServiceUnitStateData(Owned, dst, 1)));
+        assertTrue(strategy.shouldKeepLeft(
+                null,
+                new ServiceUnitStateData(Owned, dst, 2)));
+        assertTrue(strategy.shouldKeepLeft(
+                new ServiceUnitStateData(Owned, dst, 1),
+                new ServiceUnitStateData(Owned, dst, 3)));
     }
 
     @Test

@@ -20,21 +20,27 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.MetadataStore;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.function.BiConsumer;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
-public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrategy<ServiceUnitStateData> {
+public class ServiceUnitStateDataConflictResolver implements TopicCompactionStrategy<ServiceUnitStateData> {
 
     private final Schema<ServiceUnitStateData> schema;
     private BiConsumer<String, ServiceUnitStateData> skippedMsgHandler;
 
     private boolean checkBrokers = true;
 
-    public ServiceUnitStateCompactionStrategy() {
+    @Setter
+    private ServiceUnitState.StorageType storageType = SystemTopic;
+
+    public ServiceUnitStateDataConflictResolver() {
         schema = Schema.JSON(ServiceUnitStateData.class);
     }
 
@@ -70,8 +76,16 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
             } else if (from.versionId() >= to.versionId()) {
                 return true;
             } else if (from.versionId() < to.versionId() - 1) { // Compacted
-                return false;
+                // If the system topic is compacted, to.versionId can be bigger than from.versionId by 2 or more.
+                // e.g. (Owned, v1) -> (Owned, v3)
+                return storageType != SystemTopic;
             } // else from.versionId() == to.versionId() - 1 // continue to check further
+        } else {
+            // If `from` is null, to.versionId should start at 1 over metadata store.
+            // In this case, to.versionId can be bigger than 1 over the system topic, if compacted.
+            if (storageType == MetadataStore) {
+                return to.versionId() != 1;
+            }
         }
 
         if (to.force()) {
@@ -80,7 +94,7 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
 
         ServiceUnitState prevState = state(from);
         ServiceUnitState state = state(to);
-        if (!ServiceUnitState.isValidTransition(prevState, state)) {
+        if (!ServiceUnitState.isValidTransition(prevState, state, storageType)) {
             return true;
         }
 
