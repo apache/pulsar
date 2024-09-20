@@ -255,9 +255,9 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
     @Test
     public void testShouldNotChangeSelectedConsumerWhenConsumerIsRemoved() {
-        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(25);
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         final String consumerName = "consumer";
-        final int numOfInitialConsumers = 25;
+        final int numOfInitialConsumers = 100;
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
@@ -266,7 +266,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
 
         int hashRangeSize = Integer.MAX_VALUE;
-        int validationPointCount = 100;
+        int validationPointCount = 200;
         int increment = hashRangeSize / validationPointCount;
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
 
@@ -280,8 +280,6 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             assertThat(selected.consumerId()).as("validationPoint %d", i).isEqualTo(expected.consumerId());
         }
 
-        /*
-        TODO: failing test case
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
             for (int i = 0; i < validationPointCount; i++) {
@@ -292,6 +290,45 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 }
             }
         }
-         */
+    }
+
+    @Test
+    public void testShouldNotChangeSelectedConsumerWhenConsumerIsAdded() {
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final String consumerName = "consumer";
+        final int numOfInitialConsumers = 50;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < numOfInitialConsumers; i++) {
+            final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+
+        int hashRangeSize = Integer.MAX_VALUE;
+        int validationPointCount = 200;
+        int increment = hashRangeSize / validationPointCount;
+        List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
+
+        for (int i = 0; i < validationPointCount; i++) {
+            selectedConsumerBeforeRemoval.add(selector.select(i * increment));
+        }
+
+        for (int i = 0; i < validationPointCount; i++) {
+            Consumer selected = selector.select(i * increment);
+            Consumer expected = selectedConsumerBeforeRemoval.get(i);
+            assertThat(selected.consumerId()).as("validationPoint %d", i).isEqualTo(expected.consumerId());
+        }
+
+        for (int i = numOfInitialConsumers; i < numOfInitialConsumers * 2; i++) {
+            final Consumer addedConsumer = createMockConsumer(consumerName, "index " + i, i);
+            selector.addConsumer(addedConsumer);
+            for (int j = 0; j < validationPointCount; j++) {
+                Consumer selected = selector.select(j * increment);
+                Consumer expected = selectedConsumerBeforeRemoval.get(j);
+                if (expected != addedConsumer) {
+                    assertThat(selected.consumerId()).as("validationPoint %d", j).isEqualTo(expected.consumerId());
+                }
+            }
+        }
     }
 }
