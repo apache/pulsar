@@ -316,10 +316,13 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                     continue;
                 }
                 for (Range range : entry.getValue()) {
-                    assertThat(selector.select(range.getStart())).as("removed %s, range %s", removedConsumer, range)
+                    Consumer rangeStartConsumer = selector.select(range.getStart());
+                    assertThat(rangeStartConsumer).as("removed %s, range %s", removedConsumer, range)
                             .isEqualTo(entry.getKey());
-                    assertThat(selector.select(range.getEnd())).as("removed %s, range %s", removedConsumer, range)
+                    Consumer rangeEndConsumer = selector.select(range.getEnd());
+                    assertThat(rangeEndConsumer).as("removed %s, range %s", removedConsumer, range)
                             .isEqualTo(entry.getKey());
+                    assertThat(rangeStartConsumer).isSameAs(rangeEndConsumer);
                 }
             }
             expected = selector.getConsumerKeyHashRanges();
