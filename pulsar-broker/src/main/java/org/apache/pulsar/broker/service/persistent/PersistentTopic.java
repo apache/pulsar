@@ -4286,6 +4286,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         final var topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
         final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
         if (topicPoliciesService.registerListener(partitionedTopicName, this)) {
+            if (ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+                return CompletableFuture.completedFuture(null);
+            }
             return topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
                     TopicPoliciesService.GetType.DEFAULT
             ).thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
