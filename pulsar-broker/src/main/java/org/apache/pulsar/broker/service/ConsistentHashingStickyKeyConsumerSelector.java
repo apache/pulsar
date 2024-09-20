@@ -67,21 +67,20 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
      * lower selection count is added.
      */
     private static class HashRingEntry {
-        // This class is used to store the consumer which it was added to the hash ring
-        // sorting will be by priority, consumer name and usage count of the consumer instance
+        // This class is used to store the consumer added to the hash ring
+        // sorting will be by priority, consumer name and active "selection" count of the consumer instance
+        // so that consumers get evenly distributed
         record ConsumerEntry(Consumer consumer, MutableInt consumerSelectionCounter)
                 implements Comparable<ConsumerEntry> {
-            private static final Comparator<ConsumerEntry>
-                    BASE_CONSUMER_ENTRY_COMPARATOR = Comparator.<ConsumerEntry, Integer>
-                            comparing(entry -> entry.consumer().getPriorityLevel()).reversed()
-                    .thenComparing(entry -> entry.consumer().consumerName());
-
-
-            private static final Comparator<ConsumerEntry>
-                    CONSUMER_ENTRY_COMPARATOR = BASE_CONSUMER_ENTRY_COMPARATOR
-                    // prefer the consumer instance with lowest selection count so that consumers get
-                    // evenly distributed
-                    .thenComparing(ConsumerEntry::consumerSelectionCounter);
+            private static final Comparator<ConsumerEntry> CONSUMER_ENTRY_COMPARATOR =
+                    Comparator.<ConsumerEntry, Integer>
+                            // priority level is the primary sorting key
+                                    comparing(entry -> entry.consumer().getPriorityLevel()).reversed()
+                            // consumer name is the secondary sorting key
+                            .thenComparing(entry -> entry.consumer().consumerName())
+                            // then prefer the consumer instance with lowest selection count
+                            // so that consumers get evenly distributed
+                            .thenComparing(ConsumerEntry::consumerSelectionCounter);
 
             @Override
             public int compareTo(ConsumerEntry o) {
@@ -102,6 +101,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             selectConsumer();
         }
 
+        // use insertion sort so that the consumers don't get unnecessarily switched in removal or addition
         private void insertConsumer(ConsumerEntry consumerEntry) {
             for (int i = 0; i < consumers.size(); i++) {
                 if (consumers.get(i).compareTo(consumerEntry) > 0) {
