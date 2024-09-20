@@ -295,9 +295,9 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
     @Test
     public void testShouldNotChangeSelectedConsumerWhenConsumerIsRemovedCheckHashRanges() {
-        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(5);
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         final String consumerName = "consumer";
-        final int numOfInitialConsumers = 10;
+        final int numOfInitialConsumers = 25;
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
@@ -305,17 +305,63 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = Integer.MAX_VALUE;
+        Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
+        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").isEqualTo(expected);
+        System.out.println(expected);
+
+        for (Consumer removedConsumer : consumers) {
+            selector.removeConsumer(removedConsumer);
+            for (Map.Entry<Consumer, List<Range>> entry : expected.entrySet()) {
+                if (entry.getKey() == removedConsumer) {
+                    continue;
+                }
+                for (Range range : entry.getValue()) {
+                    assertThat(selector.select(range.getStart())).as("removed %s, range %s", removedConsumer, range)
+                            .isEqualTo(entry.getKey());
+                    assertThat(selector.select(range.getEnd())).as("removed %s, range %s", removedConsumer, range)
+                            .isEqualTo(entry.getKey());
+                }
+            }
+            expected = selector.getConsumerKeyHashRanges();
+        }
+    }
+
+    @Test
+    public void testShouldNotChangeSelectedConsumerUnnecessarilyWhenConsumerIsAddedCheckHashRanges() {
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final String consumerName = "consumer";
+        final int numOfInitialConsumers = 25;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < numOfInitialConsumers; i++) {
+            final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
         assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").isEqualTo(expected);
 
-        for (Consumer removedConsumer : consumers) {
-            selector.removeConsumer(removedConsumer);
-            Map<Consumer, List<Range>> actual = selector.getConsumerKeyHashRanges();
-            expected.remove(removedConsumer);
-            assertThat(actual).as("removed %s", removedConsumer.toString())
-                    .containsExactlyInAnyOrderEntriesOf(expected);
+        for (int i = numOfInitialConsumers; i < numOfInitialConsumers * 2; i++) {
+            final Consumer addedConsumer = createMockConsumer(consumerName, "index " + i, i);
+            selector.addConsumer(addedConsumer);
+            for (Map.Entry<Consumer, List<Range>> entry : expected.entrySet()) {
+                if (entry.getKey() == addedConsumer) {
+                    continue;
+                }
+                for (Range range : entry.getValue()) {
+                    Consumer rangeStartConsumer = selector.select(range.getStart());
+                    if (rangeStartConsumer != addedConsumer) {
+                        assertThat(rangeStartConsumer).as("added %s, range start %s", addedConsumer, range)
+                                .isEqualTo(entry.getKey());
+                    }
+                    Consumer rangeEndConsumer = selector.select(range.getStart());
+                    if (rangeEndConsumer != addedConsumer) {
+                        assertThat(rangeEndConsumer).as("added %s, range end %s", addedConsumer, range)
+                                .isEqualTo(entry.getKey());
+                    }
+                }
+            }
+            expected = selector.getConsumerKeyHashRanges();
         }
     }
 
