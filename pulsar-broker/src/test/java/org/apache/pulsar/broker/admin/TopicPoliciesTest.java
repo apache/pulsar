@@ -88,10 +88,8 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -3199,8 +3197,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Inject an error that makes dispatch rate update fail.
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
-        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
-                WhiteboxImpl.getInternalState(persistentTopic, "subscriptions");
+        final var subscriptions = persistentTopic.getSubscriptions();
         PersistentSubscription mockedSubscription = Mockito.mock(PersistentSubscription.class);
         Mockito.when(mockedSubscription.getDispatcher()).thenThrow(new RuntimeException("Mocked error: getDispatcher"));
         subscriptions.put("mockedSubscription", mockedSubscription);

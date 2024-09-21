@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -96,7 +97,6 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
@@ -105,9 +105,9 @@ import org.slf4j.LoggerFactory;
 public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPolicyListener {
 
     // Subscriptions to this topic
-    private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
+    private final Map<String, NonPersistentSubscription> subscriptions = new ConcurrentHashMap<>();
 
-    private final ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators;
+    private final Map<String, NonPersistentReplicator> replicators = new ConcurrentHashMap<>();
 
     // Ever increasing counter of entries added
     private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
@@ -152,17 +152,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     public NonPersistentTopic(String topic, BrokerService brokerService) {
         super(topic, brokerService);
-
-        this.subscriptions =
-                ConcurrentOpenHashMap.<String, NonPersistentSubscription>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
-        this.replicators =
-                ConcurrentOpenHashMap.<String, NonPersistentReplicator>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
         this.isFenced = false;
         registerTopicPolicyListener();
     }
@@ -446,8 +435,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     if (failIfHasSubscriptions) {
                         if (!subscriptions.isEmpty()) {
                             isFenced = false;
-                            deleteFuture.completeExceptionally(
-                                    new TopicBusyException("Topic has subscriptions:" + subscriptions.keys()));
+                            deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions:"
+                                    + subscriptions.keySet().stream().toList()));
                             return;
                         }
                     } else {
@@ -714,18 +703,18 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, NonPersistentSubscription> getSubscriptions() {
+    public Map<String, NonPersistentSubscription> getSubscriptions() {
         return subscriptions;
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, NonPersistentReplicator> getReplicators() {
+    public Map<String, NonPersistentReplicator> getReplicators() {
         return replicators;
     }
 
     @Override
-    public ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators() {
-        return ConcurrentOpenHashMap.emptyMap();
+    public Map<String, ? extends Replicator> getShadowReplicators() {
+        return Map.of();
     }
 
     @Override
@@ -1043,7 +1032,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     private CompletableFuture<Void> disconnectReplicators() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators = getReplicators();
         replicators.forEach((r, replicator) -> {
             futures.add(replicator.terminate());
         });

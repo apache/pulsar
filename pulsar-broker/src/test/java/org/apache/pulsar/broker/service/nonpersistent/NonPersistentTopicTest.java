@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -212,7 +211,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
 
-        ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptionMap = mockTopic.getSubscriptions();
+        final var subscriptionMap = mockTopic.getSubscriptions();
         assertEquals(subscriptionMap.size(), 4);
 
         // Check exclusive subscription

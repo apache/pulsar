@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -576,7 +577,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public abstract int getNumberOfSameAddressConsumers(String clientAddress);
 
     protected int getNumberOfSameAddressConsumers(final String clientAddress,
-            final List<? extends Subscription> subscriptions) {
+            final Collection<? extends Subscription> subscriptions) {
         int count = 0;
         if (clientAddress != null) {
             for (Subscription subscription : subscriptions) {
