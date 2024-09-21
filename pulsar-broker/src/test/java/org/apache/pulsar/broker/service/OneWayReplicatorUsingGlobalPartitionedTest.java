@@ -37,7 +37,6 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -215,13 +214,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         p.send("msg-1");
         p.close();
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps =
-                    pulsar1.getBrokerService().getTopics();
+            var tps = pulsar1.getBrokerService().getTopics();
             assertTrue(tps.containsKey(topicP0));
             assertTrue(tps.containsKey(topicP1));
             assertTrue(tps.containsKey(topicChangeEvents));
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps2 =
-                    pulsar2.getBrokerService().getTopics();
+            var tps2 = pulsar2.getBrokerService().getTopics();
             assertTrue(tps2.containsKey(topicP0));
             assertTrue(tps2.containsKey(topicP1));
             assertTrue(tps2.containsKey(topicChangeEvents));
@@ -237,8 +234,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         // Verify the result.
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
         Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps =
-                    pulsar1.getBrokerService().getTopics();
+            var tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topicP0));
             assertFalse(tps.containsKey(topicP1));
             assertFalse(tps.containsKey(topicChangeEvents));

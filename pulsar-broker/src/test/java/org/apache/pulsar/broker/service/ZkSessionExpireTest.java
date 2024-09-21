@@ -161,8 +161,8 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         // Verify: the topic on broker-2 is fine.
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicName, false);
-            log.info("broker 1 topics {}", pulsar1.getBrokerService().getTopics().keys());
-            log.info("broker 2 topics {}", pulsar2.getBrokerService().getTopics().keys());
+            log.info("broker 1 topics {}", pulsar1.getBrokerService().getTopics().keySet());
+            log.info("broker 2 topics {}", pulsar2.getBrokerService().getTopics().keySet());
             log.info("broker 1 bundles {}", pulsar1.getNamespaceService().getOwnershipCache().getOwnedBundles()
                     .keySet().stream().map(k -> k.getNamespaceObject().toString() + "/" + k.getBundleRange())
                     .filter(s -> s.contains(defaultNamespace)).collect(Collectors.toList()));

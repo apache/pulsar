@@ -75,7 +75,6 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -415,11 +414,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 boolean exist = false;
                 for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                    Field field = BrokerService.class.getDeclaredField("topics");
-                    field.setAccessible(true);
-                    ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                            (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                    .get(getPulsarServiceList().get(i).getBrokerService());
+                    final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                     CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
                     if (topicFuture != null) {
@@ -790,9 +785,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             Field field = BrokerService.class.getDeclaredField("topics");
             field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {
@@ -1261,9 +1254,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             Field field = BrokerService.class.getDeclaredField("topics");
             field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {

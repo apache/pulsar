@@ -26,7 +26,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -34,9 +33,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -44,7 +43,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -593,12 +591,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             return false;
         });
 
-        Field field2 = BrokerService.class.getDeclaredField("topics");
-        field2.setAccessible(true);
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>)
-                        field2.get(pulsar.getBrokerService());
-
+        final var topics = pulsar.getBrokerService().getTopics();
         try {
             pulsar.getBrokerService().getTopic(topic, false).join().get();
             Assert.fail();

@@ -25,9 +25,7 @@ import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -37,7 +35,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -205,8 +202,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // Wait for loading topic up.
         Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps
-                    = pulsar1.getBrokerService().getTopics();
+            var tps = pulsar1.getBrokerService().getTopics();
             assertTrue(tps.containsKey(topic));
             assertTrue(tps.containsKey(topicChangeEvents));
         });
@@ -215,8 +211,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // Verify the result.
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
         Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps
-                    = pulsar1.getBrokerService().getTopics();
+            var tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
             assertFalse(pulsar1.getNamespaceService().checkTopicExistsAsync(TopicName.get(topic))

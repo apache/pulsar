@@ -1601,18 +1601,16 @@ public class NamespaceService implements AutoCloseable {
                         // Non-persistent topics don't have managed ledgers so we have to retrieve them from local
                         // cache.
                         List<String> topics = new ArrayList<>();
-                        synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
-                            if (pulsar.getBrokerService().getMultiLayerTopicMap()
+                        synchronized (pulsar.getBrokerService().getMultiLayerTopicsMap()) {
+                            if (pulsar.getBrokerService().getMultiLayerTopicsMap()
                                     .containsKey(namespaceName.toString())) {
-                                pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString())
-                                        .forEach((__, bundle) -> {
-                                            bundle.forEach((topicName, topic) -> {
-                                                if (topic instanceof NonPersistentTopic
-                                                        && ((NonPersistentTopic) topic).isActive()) {
-                                                    topics.add(topicName);
-                                                }
-                                            });
-                                        });
+                                pulsar.getBrokerService().getMultiLayerTopicsMap().get(namespaceName.toString())
+                                        .forEach((__, bundle) -> bundle.forEach((topicName, topic) -> {
+                                            if (topic instanceof NonPersistentTopic
+                                                    && ((NonPersistentTopic) topic).isActive()) {
+                                                topics.add(topicName);
+                                            }
+                                        }));
                             }
                         }
 

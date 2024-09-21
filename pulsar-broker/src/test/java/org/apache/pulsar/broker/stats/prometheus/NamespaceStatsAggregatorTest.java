@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -48,17 +50,14 @@ import org.testng.annotations.Test;
 public class NamespaceStatsAggregatorTest {
     protected PulsarService pulsar;
     private BrokerService broker;
-    private ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
-            multiLayerTopicsMap;
+    private Map<String, Map<String, Map<String, Topic>>> multiLayerTopicsMap;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
+        multiLayerTopicsMap = new ConcurrentHashMap<>();
         pulsar = Mockito.mock(PulsarService.class);
         broker = Mockito.mock(BrokerService.class);
-        doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicMap();
+        doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicsMap();
         Mockito.when(pulsar.getLocalMetadataStore()).thenReturn(Mockito.mock(ZKMetadataStore.class));
         ServiceConfiguration mockConfig = Mockito.mock(ServiceConfiguration.class);
         doReturn(mockConfig).when(pulsar).getConfiguration();
@@ -71,8 +70,8 @@ public class NamespaceStatsAggregatorTest {
         final String namespace = "tenant/cluster/ns";
 
         // prepare multi-layer topic map
-        ConcurrentOpenHashMap bundlesMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap topicsMap = ConcurrentOpenHashMap.newBuilder().build();
+        final var bundlesMap = new ConcurrentHashMap<String, Map<String, Topic>>();
+        final var topicsMap = new ConcurrentHashMap<String, Topic>();
         ConcurrentOpenHashMap subscriptionsMaps = ConcurrentOpenHashMap.newBuilder().build();
         bundlesMap.put("my-bundle", topicsMap);
         multiLayerTopicsMap.put(namespace, bundlesMap);

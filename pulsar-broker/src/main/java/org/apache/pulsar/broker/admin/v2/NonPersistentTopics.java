@@ -62,7 +62,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -463,18 +462,17 @@ public class NonPersistentTopics extends PersistentTopics {
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
                         .thenAccept(nsBundle -> {
-                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                                    pulsar().getBrokerService()
-                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
+                                    .get(namespaceName.toString());
                             if (bundleTopics == null || bundleTopics.isEmpty()) {
                                 asyncResponse.resume(Collections.emptyList());
                                 return;
                             }
                             final List<String> topicList = new ArrayList<>();
                             String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            final var topicMap = bundleTopics.get(bundleKey);
                             if (topicMap != null) {
-                                topicList.addAll(topicMap.keys().stream()
+                                topicList.addAll(topicMap.keySet().stream()
                                         .filter(name -> !TopicName.get(name).isPersistent())
                                         .collect(Collectors.toList()));
                             }

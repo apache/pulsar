@@ -92,7 +92,6 @@ import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -200,20 +199,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         Awaitility.await().until(() -> {
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
-                Field field = BrokerService.class.getDeclaredField("topics");
-                field.setAccessible(true);
-                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                .get(getPulsarServiceList().get(i).getBrokerService());
+                final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                 CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + testTopic);
                 if (completableFuture != null) {
                     Optional<Topic> topic = completableFuture.get();
                     if (topic.isPresent()) {
                         PersistentTopic persistentTopic = (PersistentTopic) topic.get();
-                        field = PersistentTopic.class.getDeclaredField("transactionBuffer");
-                        field.setAccessible(true);
                         TopicTransactionBuffer topicTransactionBuffer =
-                                (TopicTransactionBuffer) field.get(persistentTopic);
+                                (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
                         if (topicTransactionBuffer.checkIfReady()) {
                             return true;
                         } else {
@@ -454,17 +447,13 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertTrue(((MessageIdImpl) messageId2).getLedgerId() != ((MessageIdImpl) messageId1).getLedgerId());
         boolean exist = false;
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
-            Field field = BrokerService.class.getDeclaredField("topics");
-            field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + ABORT_DELETE);
             if (completableFuture != null) {
                 Optional<Topic> topic = completableFuture.get();
                 if (topic.isPresent()) {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
-                    field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
+                    var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
                     NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers
                             = (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(persistentTopic.getManagedLedger());
