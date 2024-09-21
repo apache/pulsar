@@ -2912,6 +2912,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean loadBalancerMultiPhaseBundleUnload = true;
 
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Name of ServiceUnitStateTableView implementation class to use"
+    )
+    private String loadManagerServiceUnitStateTableViewClassName =
+            "org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify ServiceUnitTableViewSyncer to sync service unit(bundle) states between metadata store and "
+                    + "system topic table views during migration from one to the other. One could enable this"
+                    + " syncer before migration and disable it after the migration finishes. "
+                    + "It accepts `MetadataStoreToSystemTopicSyncer` or `SystemTopicToMetadataStoreSyncer` to "
+                    + "enable it. It accepts `None` to disable it."
+    )
+    private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -3809,5 +3828,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             }
         });
         return map;
+    }
+
+    public boolean isLoadBalancerServiceUnitTableViewSyncerEnabled() {
+        return loadBalancerServiceUnitTableViewSyncer != ServiceUnitTableViewSyncerType.None;
+    }
+
+    public enum ServiceUnitTableViewSyncerType {
+        None,
+        MetadataStoreToSystemTopicSyncer,
+        SystemTopicToMetadataStoreSyncer;
     }
 }

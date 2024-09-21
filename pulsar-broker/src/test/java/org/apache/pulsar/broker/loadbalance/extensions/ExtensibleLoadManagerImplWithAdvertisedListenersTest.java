@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
@@ -36,8 +37,10 @@ import org.testng.annotations.Test;
 public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends ExtensibleLoadManagerImplBaseTest {
 
     public String brokerServiceUrl;
-    public ExtensibleLoadManagerImplWithAdvertisedListenersTest() {
-        super("public/test");
+
+    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+    public ExtensibleLoadManagerImplWithAdvertisedListenersTest(String serviceUnitStateTableViewClassName) {
+        super("public/test", serviceUnitStateTableViewClassName);
     }
 
     @Override
@@ -69,7 +72,9 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
             throws Exception {
-        ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(topicDomain, subscriptionType,
+        ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
+                clients,
+                topicDomain, subscriptionType,
                 defaultTestNamespace, admin,
                 brokerServiceUrl,
                 pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
@@ -78,7 +83,9 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
-        ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(topicDomain, subscriptionType,
+        ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
+                clients,
+                topicDomain, subscriptionType,
                 defaultTestNamespace, admin,
                 brokerServiceUrl,
                 pulsar1);
@@ -91,7 +98,9 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
     public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
-        ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(topicDomain, defaultTestNamespace, admin,
+        ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
+                clients,
+                topicDomain, defaultTestNamespace, admin,
                 brokerServiceUrl, pulsar1, pulsar2);
     }
 

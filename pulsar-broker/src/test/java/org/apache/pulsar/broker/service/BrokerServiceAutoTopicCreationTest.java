@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -25,14 +26,13 @@ import static org.testng.Assert.fail;
 
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -45,7 +45,6 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -547,20 +546,19 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         tenantInfo.setAllowedClusters(Set.of(configClusterName));
         admin.tenants().createTenant("pulsar", tenantInfo);
         admin.namespaces().createNamespace(namespaceName);
-        admin.topics().createNonPartitionedTopic(ServiceUnitStateChannelImpl.TOPIC);
+        admin.topics().createNonPartitionedTopic(TOPIC);
         admin.topics().createNonPartitionedTopic(ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC);
         admin.topics().createNonPartitionedTopic(ExtensibleLoadManagerImpl.TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
 
         // clear the topics to test the auto creation of non-persistent topics.
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                pulsar.getBrokerService().getTopics();
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> oldTopics = new ConcurrentOpenHashMap<>();
-        topics.forEach((key, val) -> oldTopics.put(key, val));
+        final var topics = pulsar.getBrokerService().getTopics();
+        final var oldTopics = topics.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
+                Map.Entry::getValue));
         topics.clear();
 
         // The created persistent topic correctly can be found by
         // pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
-        Producer producer = pulsarClient.newProducer().topic(ServiceUnitStateChannelImpl.TOPIC).create();
+        Producer producer = pulsarClient.newProducer().topic(TOPIC).create();
 
         // The created non-persistent topics cannot be found, as we did topics.clear()
         try {

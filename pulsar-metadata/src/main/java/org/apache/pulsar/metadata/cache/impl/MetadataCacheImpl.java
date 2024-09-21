@@ -61,15 +61,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
-    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig<T> cacheConfig) {
         this(store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig);
     }
 
-    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig cacheConfig) {
+    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig) {
         this(store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig);
     }
 
-    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig<T> cacheConfig) {
         this.store = store;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
@@ -98,7 +98,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             Optional<CacheGetResult<T>> oldValue,
                             Executor executor) {
                         if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
-                            return readValueFromStore(key);
+                            return readValueFromStore(key).thenApply(val -> {
+                                if (cacheConfig.getAsyncReloadConsumer() != null) {
+                                    cacheConfig.getAsyncReloadConsumer().accept(key, val);
+                                }
+                                return val;
+                            });
                         } else {
                             // Do not try to refresh the cache item if we know that we're not connected to the
                             // metadata store
