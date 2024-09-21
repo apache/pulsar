@@ -23,10 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Optional;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -56,7 +54,7 @@ public class ReplicatorAdminTlsWithKeyStoreTest extends ReplicatorTestBase {
             ns.getClusterPulsarAdmin(cluster3, Optional.of(admin1.clusters().getCluster(cluster3)));
 
             // verify the admin
-            ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins = ns.getClusterAdmins();
+            final var clusterAdmins = ns.getClusterAdmins();
             assertFalse(clusterAdmins.isEmpty());
             clusterAdmins.forEach((cluster, admin) -> {
                 ClientConfigurationData clientConfigData = ((PulsarAdminImpl) admin).getClientConfigData();

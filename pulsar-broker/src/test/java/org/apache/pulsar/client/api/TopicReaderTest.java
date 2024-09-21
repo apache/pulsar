@@ -996,7 +996,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopics().keys().forEach(topicName -> {
+        pulsar.getBrokerService().getTopics().keySet().forEach(topicName -> {
             try {
                 pulsar.getBrokerService().getTopicReference(topicName).get().close(false).get();
             } catch (Exception e) {
