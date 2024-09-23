@@ -1259,7 +1259,11 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed();
+            if (t instanceof BrokerServiceException.BundleUnloadingException) {
+                pulsarStats.recordConcurrencyLoadTopicAndUnloadBundle();
+            } else {
+                pulsarStats.recordTopicLoadFailed();
+            }
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });

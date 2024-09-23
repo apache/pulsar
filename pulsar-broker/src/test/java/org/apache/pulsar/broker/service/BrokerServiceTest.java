@@ -50,6 +50,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +79,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -1674,6 +1676,18 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().unload(topic);
 
+        // Get original counter.
+        MutableInt failedLoadTopic1 = new MutableInt(0);
+        MutableInt concurrencyLoadTopicAndUnloadBundle1 = new MutableInt(0);
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                .request().get(String.class);
+        long failedLoadTopic = parseLongMetric(response, "pulsar_topic_load_failed_count");
+        long concurrencyLoadTopicAndUnloadBundle =
+                parseLongMetric(response, "pulsar_concurrency_load_topic_and_unload_bundle_count");
+        failedLoadTopic1.setValue(failedLoadTopic);
+        concurrencyLoadTopicAndUnloadBundle1.setValue(concurrencyLoadTopicAndUnloadBundle);
+
         // Inject an error that makes the topic load fails.
         AtomicBoolean failMarker = new AtomicBoolean(true);
         mockZooKeeper.failConditional(KeeperException.Code.NODEEXISTS, (op, path) -> {
@@ -1686,19 +1700,14 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // Do test
         CompletableFuture<Producer<byte[]>> producer = pulsarClient.newProducer().topic(topic).createAsync();
-        JerseyClient httpClient = JerseyClientBuilder.createClient();
-        Awaitility.await().until(() -> {
-            String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+        Awaitility.await().untilAsserted(() -> {
+            String response2 = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
                     .request().get(String.class);
-            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
-            if (!metricMap.containsKey("pulsar_topic_load_failed_count")) {
-                return false;
-            }
-            double topic_load_failed_count = 0;
-            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
-                topic_load_failed_count += metric.value;
-            }
-            return topic_load_failed_count >= 1D;
+            long failedLoadTopic2 = parseLongMetric(response2, "pulsar_topic_load_failed_count");
+            long concurrencyLoadTopicAndUnloadBundle2 =
+                    parseLongMetric(response2, "pulsar_concurrency_load_topic_and_unload_bundle_count");
+            assertTrue(failedLoadTopic2 > failedLoadTopic1.getValue());
+            assertTrue(concurrencyLoadTopicAndUnloadBundle2 == concurrencyLoadTopicAndUnloadBundle1.getValue());
         });
 
         // Remove the injection.
@@ -1708,6 +1717,74 @@ public class BrokerServiceTest extends BrokerTestBase {
         producer.join().close();
         admin.topics().delete(topic);
         admin.namespaces().deleteNamespace(namespace);
+    }
+
+    @Test
+    public void testMetricsPersistentTopicLoadFailsDueToBundleUnloading() throws Exception {
+        final String namespace = "prop/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String topic = "persistent://" + namespace + "/topic1_" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.namespaces().unload(namespace);
+
+        // Get original counter.
+        MutableInt failedLoadTopic1 = new MutableInt(0);
+        MutableInt concurrencyLoadTopicAndUnloadBundle1 = new MutableInt(0);
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                .request().get(String.class);
+        long failedLoadTopic = parseLongMetric(response, "pulsar_topic_load_failed_count");
+        long concurrencyLoadTopicAndUnloadBundle =
+                parseLongMetric(response, "pulsar_concurrency_load_topic_and_unload_bundle_count");
+        failedLoadTopic1.setValue(failedLoadTopic);
+        concurrencyLoadTopicAndUnloadBundle1.setValue(concurrencyLoadTopicAndUnloadBundle);
+
+        // Inject an error that makes the topic load fails.
+        AtomicBoolean failMarker = new AtomicBoolean(true);
+        mockZooKeeper.failConditional(KeeperException.Code.NODEEXISTS, (op, path) -> {
+            if (failMarker.get() && op.equals(MockZooKeeper.Op.CREATE) &&
+                    path.startsWith("/namespace/" + namespace)) {
+                return true;
+            }
+            return false;
+        });
+
+        // Do test
+        try {
+            pulsar.getBrokerService().loadOrCreatePersistentTopic(topic, true, Collections.emptyMap(), null).join();
+        } catch (Exception ex) {
+            // ignore, because we injected an error above.
+        }
+        Awaitility.await().untilAsserted(() -> {
+            String response2 = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            long failedLoadTopic2 = parseLongMetric(response2, "pulsar_topic_load_failed_count");
+            long concurrencyLoadTopicAndUnloadBundle2 =
+                    parseLongMetric(response2, "pulsar_concurrency_load_topic_and_unload_bundle_count");
+            assertTrue(failedLoadTopic2 == failedLoadTopic1.getValue());
+            assertTrue(concurrencyLoadTopicAndUnloadBundle2 > concurrencyLoadTopicAndUnloadBundle1.getValue());
+        });
+
+        // Remove the injection.
+        failMarker.set(false);
+        // cleanup.
+        httpClient.close();
+        admin.topics().delete(topic);
+        admin.namespaces().deleteNamespace(namespace);
+    }
+
+    private long parseLongMetric(String metricsResponse, String metricName) {
+        Multimap<String, PrometheusMetricsClient.Metric> metricMap =
+                PrometheusMetricsClient.parseMetrics(metricsResponse);
+        if (!metricMap.containsKey(metricName)) {
+            return 0;
+        }
+        double counter = 0;
+        for (PrometheusMetricsClient.Metric metric :
+                metricMap.get(metricName)) {
+            counter += metric.value;
+        }
+        return Double.valueOf(counter).longValue();
     }
 
     @Test

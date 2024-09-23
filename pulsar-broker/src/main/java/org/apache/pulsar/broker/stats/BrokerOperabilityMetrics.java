@@ -132,6 +132,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     Metrics getTopicLoadMetrics() {
         Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
         metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
+        metrics.put("brk_concurrency_load_topic_and_unload_bundle_count",
+                CONCURRENCY_LOAD_TOPIC_AND_UNLOAD_BUNDLE.get());
         return metrics;
     }
 
