@@ -134,7 +134,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
-    protected int lastNumberOfEntriesDispatched;
+    // tracks how many entries were processed by consumers in the last trySendMessagesToConsumers call
+    // the number includes also delayed messages, marker messages, aborted txn messages and filtered messages
+    // When no messages were processed, the value is 0. This is also an indication that the dispatcher didn't
+    // make progress in the last trySendMessagesToConsumers call.
+    protected int lastNumberOfEntriesProcessed;
     protected boolean skipNextBackoff;
     private final Backoff retryBackoff;
     protected enum ReadType {
@@ -727,19 +731,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                                                   boolean needAcquireSendInProgress,
                                                                   long totalBytesSize) {
         boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
-        int entriesDispatched = lastNumberOfEntriesDispatched;
+        int entriesProcessed = lastNumberOfEntriesProcessed;
         updatePendingBytesToDispatch(-totalBytesSize);
-        if (entriesDispatched > 0) {
-            // Reset the backoff when we successfully dispatched messages
+        boolean canReadMoreImmediately = false;
+        if (entriesProcessed > 0 || skipNextBackoff) {
+            // Reset the backoff when messages were processed
             retryBackoff.reset();
+            // Reset the possible flag to skip the backoff delay
+            skipNextBackoff = false;
+            canReadMoreImmediately = true;
         }
         if (triggerReadingMore) {
-            if (entriesDispatched > 0 || skipNextBackoff) {
-                skipNextBackoff = false;
+            if (canReadMoreImmediately) {
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
-            } else if (entriesDispatched == 0) {
-                // If no messages were dispatched, we need to reschedule a new read with an increasing backoff delay
+            } else {
+                // reschedule a new read with an increasing backoff delay
                 reScheduleReadWithBackoff();
             }
         }
@@ -779,7 +786,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
-        lastNumberOfEntriesDispatched = 0;
+        lastNumberOfEntriesProcessed = 0;
 
         int entriesToDispatch = entries.size();
         // Trigger read more messages
@@ -809,6 +816,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
+        long totalEntriesProcessed = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
         // If the dispatcher is closed, firstAvailableConsumerPermits will be 0, which skips dispatching the
@@ -820,6 +828,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
                 entries.subList(start, entries.size()).forEach(Entry::release);
                 cursor.rewind();
+                lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
                 return false;
             }
 
@@ -863,6 +872,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
+            totalEntriesProcessed += entriesForThisConsumer.size();
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -882,7 +892,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        lastNumberOfEntriesDispatched = (int) totalEntries;
+        lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
@@ -917,6 +927,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
+        long totalEntriesProcessed = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
         for (Map.Entry<Consumer, List<EntryAndMetadata>> current : assignResult.entrySet()) {
             final Consumer consumer = current.getKey();
@@ -947,6 +958,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+            totalEntriesProcessed += entryAndMetadataList.size();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
@@ -962,7 +974,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        lastNumberOfEntriesDispatched = (int) totalEntries;
+        lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         return numConsumers.get() == 0; // trigger a new readMoreEntries() call

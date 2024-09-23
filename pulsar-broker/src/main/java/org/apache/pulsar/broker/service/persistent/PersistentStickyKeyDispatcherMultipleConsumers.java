@@ -190,10 +190,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        lastNumberOfEntriesDispatched = 0;
+        lastNumberOfEntriesProcessed = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
+        long totalEntriesProcessed = 0;
         int entriesCount = entries.size();
 
         // Trigger read more messages
@@ -233,6 +234,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         } else if (readType == ReadType.Replay) {
                             entries.forEach(Entry::release);
                         }
+                        skipNextBackoff = true;
                         return true;
                     }
                 }
@@ -298,6 +300,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForConsumer.size());
             totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+            totalEntriesProcessed += entriesForConsumer.size();
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -368,7 +371,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
 
-        lastNumberOfEntriesDispatched = (int) totalEntries;
+        lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
 
         // acquire message-dispatch permits for already delivered messages
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
@@ -387,8 +390,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return true;
         }
 
-        // if no messages were sent, we should retry after a backoff delay
-        if (entriesByConsumerForDispatching.size() == 0) {
+        // if no messages were sent to consumers, we should retry
+        if (totalEntries == 0) {
             return true;
         }
 
