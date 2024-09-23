@@ -87,7 +87,8 @@ RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://m
      && apt-get autoclean \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/* \
-     && pip3 install pyyaml==6.0.1
+     && pip3 install --no-cache-dir --upgrade pip \
+     && pip3 install --no-cache-dir pyyaml==6.0.1
 
 # Copy Eclipse Temurin Package
 ENV JAVA_HOME=/opt/java/openjdk
