@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -32,7 +34,6 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
 
@@ -40,7 +41,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
     protected final ProducerInterceptors interceptors;
-    protected final ConcurrentOpenHashMap<SchemaHash, byte[]> schemaCache;
+    protected final Map<SchemaHash, byte[]> schemaCache = new ConcurrentHashMap<>();
     protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
@@ -50,8 +51,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
-        this.schemaCache =
-                ConcurrentOpenHashMap.<SchemaHash, byte[]>newBuilder().build();
         if (!conf.isMultiSchema()) {
             multiSchemaMode = MultiSchemaMode.Disabled;
         }

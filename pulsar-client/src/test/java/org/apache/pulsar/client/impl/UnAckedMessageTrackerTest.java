@@ -31,13 +31,11 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -113,8 +111,7 @@ public class UnAckedMessageTrackerTest  {
         ChunkMessageIdImpl chunkedMessageId =
                 new ChunkMessageIdImpl(chunkMsgIds[0], chunkMsgIds[chunkMsgIds.length - 1]);
 
-        consumer.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
         consumer.unAckedChunkedMessageIdSequenceMap.put(chunkedMessageId, chunkMsgIds);
 
         // Redeliver chunked message
