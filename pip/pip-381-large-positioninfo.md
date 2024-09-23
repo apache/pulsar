@@ -144,4 +144,4 @@ Proposed implementation: https://github.com/apache/pulsar/pull/22799
 Updated afterwards
 -->
 * Mailing List discussion thread: https://lists.apache.org/thread/8sm0h804v5914zowghrqxr92fp7c255d
-* Mailing List voting thread:
+* Mailing List voting thread: https://lists.apache.org/thread/q31fx0rox9tdt34xsmo1ol1l76q8vk99
