@@ -71,6 +71,16 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class BundleUnloadingException extends ServiceUnitNotReadyException {
+        public BundleUnloadingException(String msg) {
+            super(msg);
+        }
+
+        public BundleUnloadingException(String msg, Throwable t) {
+            super(msg, t);
+        }
+    }
+
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
             super(t);
