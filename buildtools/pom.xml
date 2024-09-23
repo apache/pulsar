@@ -31,12 +31,12 @@
 
   <groupId>com.datastax.oss</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.1.4.7</version>
+  <version>3.1.4.8-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
   <properties>
-    <project.build.outputTimestamp>2024-09-23T05:35:46Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-09-23T05:36:44Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
