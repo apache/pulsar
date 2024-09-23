@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -95,35 +96,31 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             this.consumers = new ArrayList<>();
         }
 
-        public void addConsumer(Consumer consumer, MutableInt selectedCounter) {
-            ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectedCounter);
-            insertConsumer(consumerEntry);
-            selectConsumer();
-        }
-
-        // use insertion sort so that the consumers don't get unnecessarily switched in removal or addition
-        private void insertConsumer(ConsumerEntry consumerEntry) {
-            for (int i = 0; i < consumers.size(); i++) {
-                if (consumers.get(i).compareTo(consumerEntry) > 0) {
-                    consumers.add(i, consumerEntry);
-                    return;
-                }
-            }
-            consumers.add(consumerEntry);
-        }
-
-        public boolean removeConsumer(Consumer consumer) {
-            boolean removed = consumers.removeIf(consumerEntry -> consumerEntry.consumer().equals(consumer));
-            selectConsumer();
-            return removed;
-        }
-
         public Consumer getSelectedConsumer() {
             return selectedConsumerEntry != null ? selectedConsumerEntry.consumer() : null;
         }
 
-        private void selectConsumer() {
-            changeSelectedConsumerEntry(consumers.isEmpty() ? null : consumers.get(0));
+        public void addConsumer(Consumer consumer, MutableInt selectedCounter) {
+            ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectedCounter);
+            consumers.add(consumerEntry);
+            if (selectedConsumerEntry == null || consumerEntry.compareTo(selectedConsumerEntry) < 0) {
+                // if the new consumer has a higher priority or lower selection count
+                // than the currently selected consumer, select the new consumer
+                changeSelectedConsumerEntry(consumerEntry);
+            }
+        }
+
+        public boolean removeConsumer(Consumer consumer) {
+            boolean removed = consumers.removeIf(consumerEntry -> consumerEntry.consumer() == consumer);
+            if (removed && consumer == getSelectedConsumer()) {
+                // if the selected consumer was removed, a new consumer will be selected.
+                // The consumers are sorted here to ensure that the consumer with the
+                // lowest selection count is selected
+                Collections.sort(consumers);
+                // select the first consumer in sorting order
+                changeSelectedConsumerEntry(consumers.isEmpty() ? null : consumers.get(0));
+            }
+            return removed;
         }
 
         private void changeSelectedConsumerEntry(ConsumerEntry newSelectedConsumer) {
