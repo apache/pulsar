@@ -1231,14 +1231,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
                     + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
                     + "delay. This parameter sets the initial backoff delay in milliseconds.")
-    private int dispatcherRetryBackoffInitialTimeInMs = 100;
+    private int dispatcherRetryBackoffInitialTimeInMs = 1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
                     + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
                     + "delay. This parameter sets the maximum backoff delay in milliseconds.")
-    private int dispatcherRetryBackoffMaxTimeInMs = 1000;
+    private int dispatcherRetryBackoffMaxTimeInMs = 10;
 
     @FieldContext(
             dynamic = true,
