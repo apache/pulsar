@@ -696,10 +696,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
         int entriesDispatched = lastNumberOfEntriesDispatched;
         updatePendingBytesToDispatch(-totalBytesSize);
+        if (entriesDispatched > 0) {
+            // Reset the backoff when we successfully dispatched messages
+            retryBackoff.reset();
+        }
         if (triggerReadingMore) {
             if (entriesDispatched > 0) {
-                // Reset the backoff when we successfully dispatched messages
-                retryBackoff.reset();
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
             } else if (entriesDispatched == 0) {
