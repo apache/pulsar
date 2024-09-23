@@ -149,7 +149,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry(new byte[]{3});
         ledger.addEntry(new byte[]{4});
         ledger.addEntry(new byte[]{5});
-        // Persistent cursor info to ledger.
+        // Persist cursor info to ledger.
         c1.delete(PositionFactory.create(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId()));
         Awaitility.await().until(() ->c1.getStats().getPersistLedgerSucceed() > 0);
         // Make cursor ledger can not work.
@@ -3276,9 +3276,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     try {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
-                        byte[] data = entry.getEntry();
+                        ByteBuf data = entry.getEntryBuffer();
                         data = ManagedCursorImpl.decompressDataIfNeeded(data, lh);
-                        positionInfo = PositionInfo.parseFrom(data);
+                        positionInfo = PositionInfo.parseFrom(data.nioBuffer());
                         individualDeletedMessagesCount.set(positionInfo.getIndividualDeletedMessagesCount());
                     } catch (Exception e) {
                     }
