@@ -68,7 +68,6 @@
             <configuration>
               <skip>false</skip>
               <injectAllReactorProjects>true</injectAllReactorProjects>
-              <runOnlyOnce>true</runOnlyOnce>
               <skipPoms>false</skipPoms>
             </configuration>
           </plugin>
