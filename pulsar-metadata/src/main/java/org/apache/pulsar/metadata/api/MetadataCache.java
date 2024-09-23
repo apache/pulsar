@@ -57,7 +57,7 @@ public interface MetadataCache<T> {
      *
      * @param path
      *            the path of the object in the metadata store
-     * @return the cached object or an empty {@link Optional} is the cache doesn't have the object
+     * @return the cached object or an empty {@link Optional} is the cache does not have the object
      */
     Optional<T> getIfCached(String path);
 
