@@ -406,15 +406,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, readAfterMs);
             }
-            Runnable runnable = () -> {
-                isRescheduleReadInProgress.set(false);
-                readMoreEntries();
-            };
-            if (readAfterMs > 0) {
-                topic.getBrokerService().executor().schedule(runnable, readAfterMs, TimeUnit.MILLISECONDS);
-            } else {
-                topic.getBrokerService().executor().execute(runnable);
-            }
+            topic.getBrokerService().executor().schedule(
+                    () -> {
+                        isRescheduleReadInProgress.set(false);
+                        readMoreEntries();
+                        },
+                    readAfterMs, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -798,7 +795,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
-        lastNumberOfEntriesDispatched = (int) totalEntries;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
@@ -811,8 +807,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
             });
-        }
 
+            lastNumberOfEntriesDispatched = entriesToDispatch;
+        }
         return true;
     }
 
