@@ -3053,7 +3053,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(
                             "Producers cannot connect or send message without a schema to topics with a schema"
-                         +"when SchemaValidaitonEnforced is enabled"));
+                         + "when SchemaValidaitonEnforced is enabled"));
                 } else {
                     result.complete(SchemaVersion.Empty);
                 }
