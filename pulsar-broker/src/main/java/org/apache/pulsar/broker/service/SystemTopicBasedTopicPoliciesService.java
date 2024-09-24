@@ -254,7 +254,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // initialization by calling this method. At the moment, the load manager does not start so the lookup
         // for "__change_events" will fail. In this case, just return an empty policies to avoid deadlock.
         final var loadManager = pulsarService.getLoadManager().get();
-        if (loadManager == null || !loadManager.started()) {
+        if (loadManager == null || !loadManager.started() || closed.get()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
@@ -308,6 +308,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     @Nonnull CompletableFuture<Boolean> prepareInitPoliciesCacheAsync(@Nonnull NamespaceName namespace) {
         requireNonNull(namespace);
+        if (closed.get()) {
+            return CompletableFuture.completedFuture(false);
+        }
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                         .thenCompose(namespacePolicies -> {
                             if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
@@ -331,6 +334,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         });
                                 initFuture.exceptionally(ex -> {
                                     try {
+                                        if (closed.get()) {
+                                            return null;
+                                        }
                                         log.error("[{}] Failed to create reader on __change_events topic",
                                                 namespace, ex);
                                         cleanCacheAndCloseReader(namespace, false);
