@@ -149,6 +149,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerImpl ledger;
     private final String name;
     private final String cursorInfoCompressionType;
+    private final boolean isChunkingEnabled;
 
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
@@ -241,7 +242,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
 
-    protected int maxPositionChunkSize = 1024 * 1024;
+    private final int maxPositionChunkSize;
 
     static class MarkDeleteEntry {
         final Position newPosition;
@@ -355,7 +356,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             markDeleteLimiter = null;
         }
         this.mbean = new ManagedCursorMXBeanImpl(this);
-        this.cursorInfoCompressionType = ledger.getFactory().getConfig().getManagedCursorInfoCompressionType();
+        this.cursorInfoCompressionType = getConfig().getCursorInfoCompressionType();
+        this.isChunkingEnabled = getConfig().isPersistentUnackedRangesWithMultipleEntriesEnabled();
+        this.maxPositionChunkSize = getConfig().getPersistentUnackedRangesMaxEntrySize();
     }
 
     private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
@@ -3382,7 +3385,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int offset = 0;
         final int len = data.readableBytes();
-        int numParts = 1 + (len / maxPositionChunkSize);
+        int numParts = isChunkingEnabled ? 1 + (len / maxPositionChunkSize) : 1;
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={} data size {} bytes, numParts {}",

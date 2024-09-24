@@ -45,7 +45,9 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
+    private String cursorInfoCompressionType = "NONE";
     private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
+    private int persistentUnackedRangesMaxEntrySize = 1024 * 1024;
     private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInMetadataStore = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -480,12 +482,47 @@ public class ManagedLedgerConfig {
         return maxBatchDeletedIndexToPersist;
     }
 
+    /**
+     * @return true if persistent unacked ranges with multiple entries enabled.
+     */
     public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
         return persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
+    /**
+     * If enabled, the maximum "acknowledgment holes" will be stored in multiple entries, allowing the higher limits.
+     * @param multipleEntriesEnabled
+     */
     public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean multipleEntriesEnabled) {
         this.persistentUnackedRangesWithMultipleEntriesEnabled = multipleEntriesEnabled;
+    }
+
+    /**
+     * @return max entry size for persistent unacked ranges.
+     */
+    public int getPersistentUnackedRangesMaxEntrySize() {
+        return persistentUnackedRangesMaxEntrySize;
+    }
+
+    /**
+     * If persistentUnackedRangesWithMultipleEntriesEnabled, this sets maximum entry size for storage in bytes.
+     */
+    public void setPersistentUnackedRangesMaxEntrySize(int persistentUnackedRangesMaxEntrySize) {
+        this.persistentUnackedRangesMaxEntrySize = persistentUnackedRangesMaxEntrySize;
+    }
+
+    /**
+     * @return compression type to use for cursor info.
+     */
+    public String getCursorInfoCompressionType() {
+        return cursorInfoCompressionType;
+    }
+
+    /**
+     * Set the compression type to use for cursor info.
+     */
+    public void setCursorInfoCompressionType(String cursorInfoCompressionType) {
+        this.cursorInfoCompressionType = cursorInfoCompressionType;
     }
 
     /**

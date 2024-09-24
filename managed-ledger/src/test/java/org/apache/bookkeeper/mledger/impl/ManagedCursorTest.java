@@ -3624,10 +3624,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testRecoverCursorCorruptLastEntry() throws Exception {
-        ManagedLedger ml = factory.open("testRecoverCursorCorruptLastEntry");
-        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
         // force chunking
-        c.maxPositionChunkSize = 2;
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPersistentUnackedRangesWithMultipleEntriesEnabled(true);
+        config.setPersistentUnackedRangesMaxEntrySize(2);
+        config.setCursorInfoCompressionType("LZ4");
+
+        ManagedLedger ml = factory.open("testRecoverCursorCorruptLastEntry", config);
+        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
 
         // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
         assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);

@@ -81,6 +81,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionThresholdInBytes(
                 conf.getManagedCursorInfoCompressionThresholdInBytes());
+        managedLedgerFactoryConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
+                conf.isPersistentUnackedRangesWithMultipleEntriesEnabled());
+        managedLedgerFactoryConfig.setPersistentUnackedRangesMaxEntrySize(
+                conf.getPersistentUnackedRangesMaxEntrySize());
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {

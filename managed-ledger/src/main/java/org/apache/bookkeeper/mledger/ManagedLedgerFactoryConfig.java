@@ -108,6 +108,16 @@ public class ManagedLedgerFactoryConfig {
      */
     private long managedCursorInfoCompressionThresholdInBytes = 0;
 
+    /**
+     * If enabled, the maximum "acknowledgment holes" will be stored in multiple entries, allowing the higher limits.
+     */
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
+
+    /**
+     * If persistentUnackedRangesWithMultipleEntriesEnabled, this sets maximum entry size for storage in bytes.
+     */
+    private int persistentUnackedRangesMaxEntrySize = 1024 * 1024;
+
     public MetadataCompressionConfig getCompressionConfigForManagedLedgerInfo() {
         return new MetadataCompressionConfig(managedLedgerInfoCompressionType,
                 managedLedgerInfoCompressionThresholdInBytes);
