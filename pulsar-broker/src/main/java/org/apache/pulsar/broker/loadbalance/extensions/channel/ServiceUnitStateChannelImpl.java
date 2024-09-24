@@ -412,9 +412,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (owner.isPresent()) {
                 return isTargetBroker(owner.get());
             } else {
-                String msg = "There is no channel owner now.";
-                log.error(msg);
-                throw new IllegalStateException(msg);
+                throw new IllegalStateException("There is no channel owner now.");
             }
         });
     }
@@ -851,7 +849,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
+    private CompletableFuture<Void> handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
@@ -865,8 +863,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             : CompletableFuture.completedFuture(0)).thenApply(__ -> null);
             stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+            return future;
         } else {
             stateChangeListeners.notify(serviceUnit, data, null);
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1385,8 +1385,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void waitForCleanups(String broker, boolean excludeSystemTopics, int maxWaitTimeInMillis) {
         long started = System.currentTimeMillis();
+        final var futures = new HashMap<String, CompletableFuture<Void>>();
         while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
             boolean cleaned = true;
+            futures.clear();
             for (var etr : tableview.entrySet()) {
                 var serviceUnit = etr.getKey();
                 var data = etr.getValue();
@@ -1395,7 +1397,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     continue;
                 }
 
-                if (data.state() == Owned && broker.equals(data.dstBroker())) {
+                if (data.state() == Free) {
+                    futures.put(serviceUnit, handleFreeEvent(serviceUnit, data));
+                } else if (data.state() == Owned && broker.equals(data.dstBroker())) {
                     cleaned = false;
                     break;
                 }
@@ -1410,6 +1414,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             brokerId);
                 }
             }
+        }
+        var waitTimeMs = started + maxWaitTimeInMillis - System.currentTimeMillis();
+        if (waitTimeMs < 0) {
+            waitTimeMs = 0;
+        }
+        try {
+            FutureUtil.waitForAll(futures.values()).get(waitTimeMs, MILLISECONDS);
+        } catch (ExecutionException e) {
+            log.error("Failed to tombstone {}", futures.keySet(), e.getCause());
+        } catch (TimeoutException __) {
+            log.warn("Failed to tombstone {} in {} ms", futures.keySet(), waitTimeMs);
+        } catch (InterruptedException ignored) {
         }
         log.info("Finished cleanup waiting for orphan broker:{}. Elapsed {} ms", brokerId,
                 System.currentTimeMillis() - started);
@@ -1432,6 +1448,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
+        try {
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        } catch (Exception e) {
+            log.error("Failed to flush", e);
+        }
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();

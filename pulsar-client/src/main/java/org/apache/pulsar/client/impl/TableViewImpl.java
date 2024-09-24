@@ -364,8 +364,8 @@ public class TableViewImpl<T> implements TableView<T> {
                                   }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                                       log.error("Reader {} was closed while reading existing messages.",
-                                               reader.getTopic(), ex);
+                                       log.info("Reader {} was closed while reading existing messages.",
+                                               reader.getTopic());
                                    } else {
                                        log.warn("Reader {} was interrupted while reading existing messages. ",
                                                reader.getTopic(), ex);
@@ -393,8 +393,7 @@ public class TableViewImpl<T> implements TableView<T> {
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                        log.error("Reader {} was closed while reading tail messages.",
-                                reader.getTopic(), ex);
+                        log.info("Reader {} was closed while reading tail messages.", reader.getTopic());
                         // Fail all refresh request when no more messages can be read.
                         pendingRefreshRequests.keySet().forEach(future -> {
                             pendingRefreshRequests.remove(future);
