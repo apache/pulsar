@@ -270,8 +270,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
                 final boolean skipDueToSeek = duringSeek;
-                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !skipDueToSeek) {
+                MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                ClientCnx cnx = msgImpl.getCnx();
+                boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
+                if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
+                } else if (!isValidEpoch) {
+                    consumer.increaseAvailablePermits(cnx);
                 } else if (skipDueToSeek) {
                     log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
                             msg.getMessageId());
