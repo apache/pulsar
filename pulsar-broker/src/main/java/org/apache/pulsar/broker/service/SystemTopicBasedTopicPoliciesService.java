@@ -687,14 +687,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (closed.compareAndSet(false, true)) {
             writerCaches.synchronous().invalidateAll();
             readerCaches.values().forEach(future -> {
-                if (future != null && !future.isCompletedExceptionally()) {
-                    future.thenAccept(reader -> {
-                        try {
-                            reader.close();
-                        } catch (Exception e) {
-                            log.error("Failed to close reader.", e);
-                        }
-                    });
+                try {
+                    final var reader = future.getNow(null);
+                    if (reader != null) {
+                        reader.close();
+                        log.info("Closed the reader for topic policies");
+                    } else {
+                        // Avoid blocking the thread that the reader is created
+                        future.thenAccept(SystemTopicClient.Reader::closeAsync).whenComplete((__, e) -> {
+                            if (e == null) {
+                                log.info("Closed the reader for topic policies");
+                            } else {
+                                log.error("Failed to close the reader for topic policies", e);
+                            }
+                        });
+                    }
+                } catch (Throwable ignored) {
                 }
             });
             readerCaches.clear();
