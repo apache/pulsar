@@ -111,6 +111,10 @@ public class CmdConsume extends AbstractCmdConsume {
     @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
     private boolean replicateSubscriptionState = false;
 
+    @Option(names = {"-rc",
+            "--readCompacted"}, description = "Whether to read from the compacted topic or full message topic backlog")
+    private boolean readCompacted = false;
+
     public CmdConsume() {
         // Do nothing
         super();
@@ -158,6 +162,7 @@ public class CmdConsume extends AbstractCmdConsume {
                     .subscriptionMode(subscriptionMode)
                     .subscriptionInitialPosition(subscriptionInitialPosition)
                     .poolMessages(poolMessages)
+                    .readCompacted(readCompacted)
                     .replicateSubscriptionState(replicateSubscriptionState);
 
             if (isRegex) {
