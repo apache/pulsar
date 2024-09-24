@@ -133,7 +133,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     } else {
                         return Functions.bytesToSchemaInfo(stored.data)
                                 .thenApply(Functions::schemaInfoToSchema)
-                                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version));
+                                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+                                .thenApply((schema) -> {
+                                    if (schema != null && schema.schema.isDeleted()) {
+                                        return null;
+                                    } else {
+                                        return schema;
+                                    }
+                                });
                     }
                 })
                 .whenComplete((v, t) -> {
