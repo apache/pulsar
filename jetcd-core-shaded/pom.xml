@@ -110,6 +110,9 @@
                 <relocation>
                   <pattern>io.grpc.netty</pattern>
                   <shadedPattern>io.grpc.netty.shaded.io.grpc.netty</shadedPattern>
+                  <excludes>
+                    <exclude>io.grpc.netty.shaded.*</exclude>
+                  </excludes>
                 </relocation>
                 <!-- relocate to use grpc-netty-shaded packages -->
                 <relocation>
