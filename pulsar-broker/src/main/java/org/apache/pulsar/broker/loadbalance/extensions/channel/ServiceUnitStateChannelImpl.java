@@ -1273,7 +1273,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return;
             }
         } catch (Exception e) {
-            log.error("Failed to handle broker deletion event.", e);
+            if (e instanceof ExecutionException && e.getCause() instanceof IllegalStateException) {
+                log.warn("Failed to handle broker deletion event due to {}", e.getMessage());
+            } else {
+                log.error("Failed to handle broker deletion event.", e);
+            }
             return;
         }
         MetadataState state = getMetadataState();
