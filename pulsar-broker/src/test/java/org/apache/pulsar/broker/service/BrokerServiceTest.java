@@ -67,7 +67,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -81,7 +80,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
-import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -1679,8 +1677,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.topics().unload(topic);
 
         // Get original counter.
-        AtomicLong failedLoadTopic1 = new AtomicLong(0);
-        AtomicLong concurrencyLoadTopicAndUnloadBundle1 = new AtomicLong(0);
+        final AtomicLong failedLoadTopic1 = new AtomicLong(0);
+        final AtomicLong concurrencyLoadTopicAndUnloadBundle1 = new AtomicLong(0);
         JerseyClient httpClient = JerseyClientBuilder.createClient();
         String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
                 .request().get(String.class);
@@ -1730,8 +1728,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.namespaces().unload(namespace);
 
         // Get original counter.
-        AtomicLong failedLoadTopic1 = new AtomicLong(0);
-        AtomicLong concurrencyLoadTopicAndUnloadBundle1 = new AtomicLong(0);
+        final AtomicLong failedLoadTopic1 = new AtomicLong(0);
+        final AtomicLong concurrencyLoadTopicAndUnloadBundle1 = new AtomicLong(0);
         JerseyClient httpClient = JerseyClientBuilder.createClient();
         String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
                 .request().get(String.class);
