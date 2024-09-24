@@ -242,9 +242,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
-        // Disable the dispatcher retry backoff in tests by default
-        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
-        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
     }
 
     protected final void init() throws Exception {
