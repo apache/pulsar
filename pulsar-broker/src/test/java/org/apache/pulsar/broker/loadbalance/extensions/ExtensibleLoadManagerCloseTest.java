@@ -42,11 +42,12 @@ import org.testng.annotations.Test;
 public class ExtensibleLoadManagerCloseTest {
 
     private static final String clusterName = "test";
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
     private final List<PulsarService> brokers = new ArrayList<>();
+    private LocalBookkeeperEnsemble bk;
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
+        bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
         bk.start();
     }
 
