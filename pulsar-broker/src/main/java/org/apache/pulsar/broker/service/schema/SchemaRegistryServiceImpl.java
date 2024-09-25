@@ -142,7 +142,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                             return schema;
                                         }
                                     }
-                                    return schema;    
+                                    return schema;
                                 });
                     }
                 })
