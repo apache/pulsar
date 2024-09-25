@@ -141,6 +141,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
+    private volatile boolean disablePubOwnedEvent = false;
 
     public enum EventType {
         Assign,
@@ -255,6 +256,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public void cleanOwnerships() {
+        disablePubOwnedEvent = true;
         doCleanup(brokerId, true);
     }
 
@@ -817,6 +819,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.dstBroker())) {
+            if (disablePubOwnedEvent) {
+                log.info("Skip assigning self({}) as the owner after cleanOwnerships", serviceUnit);
+                final var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
+                if (getOwnerRequest != null) {
+                    getOwnerRequest.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                            "lookup during ownership cleanup"));
+                }
+                return;
+            }
             ServiceUnitStateData next = new ServiceUnitStateData(
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
@@ -1439,7 +1450,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 System.currentTimeMillis() - started);
     }
 
-    private synchronized void doCleanup(String broker, boolean gracefully) {
+    private void doCleanup(String broker, boolean gracefully) {
         try {
             if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
                     .isEmpty()) {
