@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,8 +33,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
+import org.assertj.core.data.Offset;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -178,27 +182,58 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testConsumersGetEvenlyMappedWhenThereAreCollisions()
+    public void testConsumersGetSufficientlyAccuratelyEvenlyMapped()
             throws BrokerServiceException.ConsumerAssignException {
-        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(5);
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         List<Consumer> consumers = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            // use the same name for all consumers
-            Consumer consumer = createMockConsumer("consumer", "index " + i, i);
+        for (int i = 0; i < 20; i++) {
+            // use the same name for all consumers, use toString to distinguish them
+            Consumer consumer = createMockConsumer("consumer", String.format("index %02d", i), i);
             selector.addConsumer(consumer);
             consumers.add(consumer);
         }
-        // check that results are the same when called multiple times
-        assertThat(selector.getConsumerKeyHashRanges())
-                .containsExactlyEntriesOf(selector.getConsumerKeyHashRanges());
+        printConsumerRangesStats(selector);
 
-        Map<Consumer, List<Range>> expectedResult = new HashMap<>();
-        expectedResult.put(consumers.get(0), List.of(Range.of(216056714, 306176208)));
-        expectedResult.put(consumers.get(1), List.of(Range.of(365902831, 1240826377)));
-        expectedResult.put(consumers.get(2), List.of(Range.of(1240826378, 1862045174)));
-        expectedResult.put(consumers.get(3), List.of(Range.of(306176209, 365902830)));
-        expectedResult.put(consumers.get(4), List.of(Range.of(0, 216056713), Range.of(1862045175, 2147483646)));
-        assertThat(selector.getConsumerKeyHashRanges()).containsExactlyInAnyOrderEntriesOf(expectedResult);
+        int totalSelections = 10000;
+
+        Map<Consumer, MutableInt> consumerSelectionCount = new HashMap<>();
+        for (int i = 0; i < totalSelections; i++) {
+            Consumer selectedConsumer = selector.select(("key " + i).getBytes(StandardCharsets.UTF_8));
+            consumerSelectionCount.computeIfAbsent(selectedConsumer, c -> new MutableInt()).increment();
+        }
+
+        printSelectionCountStats(consumerSelectionCount);
+
+        int averageCount = totalSelections / consumers.size();
+        int allowedVariance = (int) (0.5d * averageCount);
+        System.out.println("averageCount: " + averageCount + " allowedVariance: " + allowedVariance);
+
+        for (Map.Entry<Consumer, MutableInt> entry : consumerSelectionCount.entrySet()) {
+            assertThat(entry.getValue().intValue()).describedAs("consumer: %s", entry.getKey())
+                    .isCloseTo(averageCount, Offset.offset(allowedVariance));
+        }
+
+    }
+
+    private static void printSelectionCountStats(Map<Consumer, MutableInt> consumerSelectionCount) {
+        int totalSelections = consumerSelectionCount.values().stream().mapToInt(MutableInt::intValue).sum();
+        consumerSelectionCount.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(Consumer::toString)))
+                .forEach(entry -> System.out.println(
+                        String.format("consumer: %s got selected %d times. ratio: %.2f%%", entry.getKey(),
+                                entry.getValue().intValue(),
+                                ((double) entry.getValue().intValue() / totalSelections) * 100.0d)));
+    }
+
+    private static void printConsumerRangesStats(ConsistentHashingStickyKeyConsumerSelector selector) {
+        selector.getConsumerKeyHashRanges().entrySet().stream()
+                .map(entry -> Map.entry(entry.getKey(),
+                        entry.getValue().stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()))
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(Consumer::toString)))
+                .forEach(entry -> System.out.println(
+                        String.format("consumer: %s total ranges size: %d ratio: %.2f%%", entry.getKey(),
+                                entry.getValue(),
+                                ((double) entry.getValue() / (Integer.MAX_VALUE - 1)) * 100.0d)));
     }
 
     private static Consumer createMockConsumer(String consumerName, String toString, long id) {
@@ -417,4 +452,5 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             }
         }
     }
+
 }

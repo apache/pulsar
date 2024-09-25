@@ -30,7 +30,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -49,13 +49,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final NavigableMap<Integer, HashRingEntry> hashRing;
     // used for distributing consumer instance selections evenly in the hash ring when there
     // are multiple instances of consumer with the same consumer name or when there are other hash collisions
-    private final Map<Consumer, MutableInt> consumerSelectionCounters;
+    private final Map<Consumer, MutableLong> consumerSelectionWeightCounters;
 
     private final int numberOfPoints;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this.hashRing = new TreeMap<>();
-        this.consumerSelectionCounters = new WeakHashMap<>();
+        this.consumerSelectionWeightCounters = new WeakHashMap<>();
         this.numberOfPoints = numberOfPoints;
     }
 
@@ -68,12 +68,14 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
      * lower selection count is added.
      */
     private static class HashRingEntry {
+        private final int rangeSize;
+
         // This class is used to store the consumer added to the hash ring
         // sorting will be by active "selection" count of the consumer instance so that consumers get evenly distributed
-        record ConsumerEntry(Consumer consumer, MutableInt consumerSelectionCounter)
+        record ConsumerEntry(Consumer consumer, MutableLong selectionWeight)
                 implements Comparable<ConsumerEntry> {
             private static final Comparator<ConsumerEntry> COMPARE_BY_SELECTION_COUNT =
-                    Comparator.comparing(ConsumerEntry::consumerSelectionCounter);
+                    Comparator.comparing(ConsumerEntry::selectionWeight);
 
             @Override
             public int compareTo(ConsumerEntry o) {
@@ -84,7 +86,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         private final List<ConsumerEntry> consumers;
         ConsumerEntry selectedConsumerEntry;
 
-        public HashRingEntry() {
+        public HashRingEntry(int rangeSize) {
+            this.rangeSize = rangeSize;
             this.consumers = new ArrayList<>();
         }
 
@@ -92,10 +95,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             return selectedConsumerEntry != null ? selectedConsumerEntry.consumer() : null;
         }
 
-        public void addConsumer(Consumer consumer, MutableInt selectedCounter) {
-            ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectedCounter);
+        public void addConsumer(Consumer consumer, MutableLong selectionWeight) {
+            ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectionWeight);
             consumers.add(consumerEntry);
-            if (selectedConsumerEntry == null || consumerEntry.compareTo(selectedConsumerEntry) < 0) {
+            if (selectedConsumerEntry == null || consumerEntry.selectionWeight().longValue() + rangeSize
+                    <= selectedConsumerEntry.selectionWeight().longValue()) {
                 // if the new consumer lower selection count
                 // than the currently selected consumer, select the new consumer
                 changeSelectedConsumerEntry(consumerEntry);
@@ -126,13 +130,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
         private void beforeChangingSelectedConsumerEntry() {
             if (selectedConsumerEntry != null) {
-                selectedConsumerEntry.consumerSelectionCounter.decrement();
+                selectedConsumerEntry.selectionWeight.add(-rangeSize);
             }
         }
 
         private void afterChangingSelectedConsumerEntry() {
             if (selectedConsumerEntry != null) {
-                selectedConsumerEntry.consumerSelectionCounter.increment();
+                selectedConsumerEntry.selectionWeight.add(rangeSize);
             }
         }
     }
@@ -143,11 +147,33 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         try {
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
+
+            // since there might be hash collisions, we need to ensure that the consumers are evenly distributed
+            // in the hash ring. This is done by calculating the range size for each consumer so that a
+            // weight can be calculated for the selection of a consumer in a specific entry
+
+            // first calculate the hash for each point and sort them
+            List<Integer> hashKeys = new ArrayList<>();
             for (int i = 0; i < numberOfPoints; i++) {
                 int hash = calculateHashForConsumerAndIndex(consumer, i);
-                HashRingEntry hashRingEntry = hashRing.computeIfAbsent(hash, k -> new HashRingEntry());
+                hashKeys.add(hash);
+            }
+            Collections.sort(hashKeys);
+
+            // start from the last hash key, mapping it to a negative value so that range size can be calculated
+            // for the first entry
+            int maxHashValue = Integer.MAX_VALUE - 1;
+            int lastHashValue = hashKeys.get(hashKeys.size() - 1);
+            int remainingSlotSize = maxHashValue - (lastHashValue + 1);
+            int start = -remainingSlotSize;
+            MutableLong consumerSelectionWeight = getConsumerSelectionWeight(consumer);
+            for (int hash : hashKeys) {
+                // Calculate the range size for the hash
+                int rangeSize = hash - start;
+                HashRingEntry hashRingEntry = hashRing.computeIfAbsent(hash, k -> new HashRingEntry(rangeSize));
                 // Add the consumer to the hash ring entry
-                hashRingEntry.addConsumer(consumer, getConsumerSelectedCount(consumer));
+                hashRingEntry.addConsumer(consumer, consumerSelectionWeight);
+                start = hash + 1;
             }
             return CompletableFuture.completedFuture(null);
         } finally {
@@ -155,8 +181,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
-    private MutableInt getConsumerSelectedCount(Consumer consumer) {
-        return consumerSelectionCounters.computeIfAbsent(consumer, k -> new MutableInt());
+    private MutableLong getConsumerSelectionWeight(Consumer consumer) {
+        return consumerSelectionWeightCounters.computeIfAbsent(consumer, k -> new MutableLong());
     }
 
     private static int calculateHashForConsumerAndIndex(Consumer consumer, int index) {
