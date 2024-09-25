@@ -650,8 +650,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void cancelPendingRead() {
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
+        if ((havePendingRead || havePendingReplayRead) && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
+            havePendingReplayRead = false;
         }
     }
 
