@@ -48,7 +48,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     // Consistent-Hash ring
     private final NavigableMap<Integer, HashRingEntry> hashRing;
     // used for distributing consumer instance selections evenly in the hash ring when there
-    // are multiple instances of consumer with the same consumer name or when there are hash collisions
+    // are multiple instances of consumer with the same consumer name or when there are other hash collisions
     private final Map<Consumer, MutableInt> consumerSelectionCounters;
 
     private final int numberOfPoints;
@@ -61,31 +61,23 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     /**
      * This class is used to store the consumers and the selected consumer for a hash value in the hash ring.
-     * This attempts to distribute the consumers evenly in the hash ring for consumers with the same
-     * consumer name and priority level. These entries collide in the hash ring.
+     * This distributes the consumers evenly in the hash ring for consumers that collide. Consumers with the same
+     * consumer name in all cases.
      * The selected consumer is the consumer that is selected to serve the hash value.
-     * It is not changed unless a consumer is removed or a colliding consumer with higher priority or
+     * It is not changed unless a consumer is removed or a colliding consumer with a
      * lower selection count is added.
      */
     private static class HashRingEntry {
         // This class is used to store the consumer added to the hash ring
-        // sorting will be by priority, consumer name and active "selection" count of the consumer instance
-        // so that consumers get evenly distributed
+        // sorting will be by active "selection" count of the consumer instance so that consumers get evenly distributed
         record ConsumerEntry(Consumer consumer, MutableInt consumerSelectionCounter)
                 implements Comparable<ConsumerEntry> {
-            private static final Comparator<ConsumerEntry> CONSUMER_ENTRY_COMPARATOR =
-                    Comparator.<ConsumerEntry, Integer>
-                            // priority level is the primary sorting key
-                                    comparing(entry -> entry.consumer().getPriorityLevel()).reversed()
-                            // consumer name is the secondary sorting key
-                            .thenComparing(entry -> entry.consumer().consumerName())
-                            // then prefer the consumer instance with lowest selection count
-                            // so that consumers get evenly distributed
-                            .thenComparing(ConsumerEntry::consumerSelectionCounter);
+            private static final Comparator<ConsumerEntry> COMPARE_BY_SELECTION_COUNT =
+                    Comparator.comparing(ConsumerEntry::consumerSelectionCounter);
 
             @Override
             public int compareTo(ConsumerEntry o) {
-                    return CONSUMER_ENTRY_COMPARATOR.compare(this, o);
+                    return COMPARE_BY_SELECTION_COUNT.compare(this, o);
             }
         }
 
@@ -104,7 +96,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             ConsumerEntry consumerEntry = new ConsumerEntry(consumer, selectedCounter);
             consumers.add(consumerEntry);
             if (selectedConsumerEntry == null || consumerEntry.compareTo(selectedConsumerEntry) < 0) {
-                // if the new consumer has a higher priority or lower selection count
+                // if the new consumer lower selection count
                 // than the currently selected consumer, select the new consumer
                 changeSelectedConsumerEntry(consumerEntry);
             }
