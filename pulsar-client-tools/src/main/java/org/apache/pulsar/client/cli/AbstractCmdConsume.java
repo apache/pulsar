@@ -27,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -40,7 +41,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -87,7 +90,8 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    protected String interpretMessage(Message<?> message, boolean displayHex) throws IOException {
+    protected String interpretMessage(Message<?> message, boolean displayHex, boolean printMetadata)
+            throws IOException {
         StringBuilder sb = new StringBuilder();
 
         String properties = Arrays.toString(message.getProperties().entrySet().toArray());
@@ -121,6 +125,45 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             sb.append("properties:").append(properties).append(", ");
         }
         sb.append("content:").append(data);
+
+        if (printMetadata) {
+            if (message.getEncryptionCtx().isPresent()) {
+                EncryptionContext encContext = message.getEncryptionCtx().get();
+                if (encContext.getKeys() != null && !encContext.getKeys().isEmpty()) {
+                    sb.append(", ");
+                    sb.append("encryption-keys:").append(", ");
+                    encContext.getKeys().forEach((keyName, keyInfo) -> {
+                        String metadata = Arrays.toString(keyInfo.getMetadata().entrySet().toArray());
+                        sb.append("name:").append(keyName).append(", ").append("key-value:")
+                                .append(Base64.getEncoder().encode(keyInfo.getKeyValue())).append(", ")
+                                .append("metadata:").append(metadata).append(", ");
+
+                    });
+                    sb.append(", ").append("param:").append(Base64.getEncoder().encode(encContext.getParam()))
+                            .append(", ").append("algorithm:").append(encContext.getAlgorithm()).append(", ")
+                            .append("compression-type:").append(encContext.getCompressionType()).append(", ")
+                            .append("uncompressed-size").append(encContext.getUncompressedMessageSize()).append(", ")
+                            .append("batch-size")
+                            .append(encContext.getBatchSize().isPresent() ? encContext.getBatchSize().get() : 1);
+                }
+            }
+            if (message.hasBrokerPublishTime()) {
+                sb.append(", ").append("publish-time:").append(DateFormatter.format(message.getPublishTime()));
+            }
+            sb.append(", ").append("event-time:").append(DateFormatter.format(message.getEventTime()));
+            sb.append(", ").append("message-id:").append(message.getMessageId());
+            sb.append(", ").append("producer-name:").append(message.getProducerName());
+            sb.append(", ").append("sequence-id:").append(message.getSequenceId());
+            sb.append(", ").append("replicated-from:").append(message.getReplicatedFrom());
+            sb.append(", ").append("redelivery-count:").append(message.getRedeliveryCount());
+            sb.append(", ").append("ordering-key:")
+                    .append(message.getOrderingKey() != null ? new String(message.getOrderingKey()) : "");
+            sb.append(", ").append("schema-version:")
+                    .append(message.getSchemaVersion() != null ? new String(message.getSchemaVersion()) : "");
+            if (message.hasIndex()) {
+                sb.append(", ").append("index:").append(message.getIndex());
+            }
+        }
 
         return sb.toString();
     }
