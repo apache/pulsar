@@ -135,7 +135,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                 .thenApply(Functions::schemaInfoToSchema)
                                 .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
                                 .thenApply((schema) -> {
-                                    if(version == SchemaVersion.Latest){
+                                    if (version == SchemaVersion.Latest) {
                                         if (schema != null && schema.schema.isDeleted()) {
                                             return null;
                                         } else {
