@@ -67,7 +67,7 @@ public class ServiceUnitStateDataConflictResolver implements TopicCompactionStra
 
     @Override
     public boolean shouldKeepLeft(ServiceUnitStateData from, ServiceUnitStateData to) {
-        if (to == null) {
+        if (to == null || to.state() == ServiceUnitState.Free) {
             return false;
         }
 
