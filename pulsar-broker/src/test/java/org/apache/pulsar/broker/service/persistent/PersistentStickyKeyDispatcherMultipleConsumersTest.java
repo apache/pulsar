@@ -46,6 +46,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -994,6 +996,86 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     assertEquals(retryDelays.get(0), 0, "Resetted retry delay should be 0ms");
                 }
         );
+    }
+
+
+    @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
+    public void testNoBackoffDelayWhenDelayedMessages(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
+            throws Exception {
+        persistentDispatcher.close();
+
+        doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
+                .isDispatcherDispatchMessagesInSubscriptionThread();
+
+        AtomicInteger readMoreEntriesCalled = new AtomicInteger(0);
+        AtomicInteger reScheduleReadInMsCalled = new AtomicInteger(0);
+        AtomicBoolean delayAllMessages = new AtomicBoolean(true);
+
+        PersistentDispatcherMultipleConsumers dispatcher;
+        if (isKeyShared) {
+            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    reScheduleReadInMsCalled.incrementAndGet();
+                }
+
+                @Override
+                public synchronized void readMoreEntries() {
+                    readMoreEntriesCalled.incrementAndGet();
+                }
+
+                @Override
+                public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+                    if (delayAllMessages.get()) {
+                        // simulate delayed message
+                        return true;
+                    }
+                    return super.trackDelayedDelivery(ledgerId, entryId, msgMetadata);
+                }
+            };
+        } else {
+            dispatcher = new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    reScheduleReadInMsCalled.incrementAndGet();
+                }
+
+                @Override
+                public synchronized void readMoreEntries() {
+                    readMoreEntriesCalled.incrementAndGet();
+                }
+
+                @Override
+                public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+                    if (delayAllMessages.get()) {
+                        // simulate delayed message
+                        return true;
+                    }
+                    return super.trackDelayedDelivery(ledgerId, entryId, msgMetadata);
+                }
+            };
+        }
+
+        doAnswer(invocationOnMock -> {
+            GenericFutureListener<Future<Void>> listener = invocationOnMock.getArgument(0);
+            Future<Void> future = mock(Future.class);
+            when(future.isDone()).thenReturn(true);
+            listener.operationComplete(future);
+            return channelMock;
+        }).when(channelMock).addListener(any());
+
+        // add a consumer with permits
+        consumerMockAvailablePermits.set(1000);
+        dispatcher.addConsumer(consumerMock);
+
+        List<Entry> entries = new ArrayList<>(List.of(EntryImpl.create(1, 1, createMessage("message1", 1))));
+        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
+            assertTrue(readMoreEntriesCalled.get() >= 1);
+        });
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {
