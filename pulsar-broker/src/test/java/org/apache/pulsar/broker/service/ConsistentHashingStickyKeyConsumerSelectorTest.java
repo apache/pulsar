@@ -253,6 +253,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         consumers.forEach(selector::removeConsumer);
         // then there should be no mapping remaining
         Assert.assertEquals(selector.getConsumerKeyHashRanges().size(), 0);
+        // when consumers are removed again, should not fail
+        consumers.forEach(selector::removeConsumer);
     }
 
     @Test

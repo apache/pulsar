@@ -180,9 +180,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             for (int i = 0; i < numberOfPoints; i++) {
                 int hash = calculateHashForConsumerAndIndex(consumer, i);
                 hashRing.compute(hash, (k, v) -> {
-                    v.removeConsumer(consumer);
-                    if (v.getSelectedConsumer() == null) {
-                        v = null;
+                    if (v != null) {
+                        v.removeConsumer(consumer);
+                        if (v.getSelectedConsumer() == null) {
+                            v = null;
+                        }
                     }
                     return v;
                 });
