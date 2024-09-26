@@ -25,6 +25,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.opentelemetry.api.common.Attributes;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -694,7 +696,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         final long originalDelayedDeliveryFixedDelayDetectionLookahead =
                 pulsar.getConfig().getDelayedDeliveryFixedDelayDetectionLookahead();;
         final int delayedDeliveryFixedDelayDetectionLookahead = 10;
-        final int entries = delayedDeliveryFixedDelayDetectionLookahead * 10;
+        final int msgNoDelayed = 15;
+        final int receiverQueueSize = 10;
+        final int msgDelayed = delayedDeliveryFixedDelayDetectionLookahead * 10;
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String sName = "delayed_s1";
         DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
@@ -709,27 +713,57 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
 
+        // Send some message no-delayed.
+        // Send many messages delayed.
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        for (int i = 0; i < entries; i++) {
+        for (int i = 0; i < msgNoDelayed; i++) {
+            producer.newMessage().send();
+        }
+        for (int i = 0; i < msgDelayed; i++) {
             producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value(i + "").send();
         }
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(sName)
-                .receiverQueueSize(delayedDeliveryFixedDelayDetectionLookahead * 2)
+        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(sName)
+                .receiverQueueSize(receiverQueueSize)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(sName)
+                .receiverQueueSize(receiverQueueSize)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
+        // Wait for the checker that named "shouldPauseDeliveryForDelayTracker".
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentTopic
                 .getSubscription(sName).getDispatcher();
         Awaitility.await().untilAsserted(() -> {
             assertTrue(dispatcher.shouldPauseDeliveryForDelayTracker());
             assertTrue(dispatcher.getNumberOfDelayedMessages() >= delayedDeliveryFixedDelayDetectionLookahead);
         });
-
-        SubscriptionStats subscriptionStats = persistentTopic.getStats(true, false, false)
+        // Verify: backlog stats
+        SubscriptionStats subscriptionStats1 = persistentTopic.getStats(true, false, false)
                 .getSubscriptions().get(sName);
-        assertEquals(subscriptionStats.getMsgBacklog(), entries);
-        assertEquals(subscriptionStats.getMsgDelayed(), entries);
-        assertEquals(subscriptionStats.getMsgBacklogNoDelayed(), 0);
-        assertTrue(subscriptionStats.getMsgDelayedInMemory() < entries);
+        assertEquals(subscriptionStats1.getMsgBacklog(), msgDelayed + msgNoDelayed);
+        assertEquals(subscriptionStats1.getMsgDelayed(), msgDelayed);
+        assertEquals(subscriptionStats1.getMsgBacklogNoDelayed(), msgNoDelayed);
+        assertEquals(subscriptionStats1.getMsgInReplay(), 0);
+        assertTrue(subscriptionStats1.getMsgDelayedInMemory() < msgDelayed);
+
+        // Let some messages being pushed into replay queue.
+        consumer2.close();
+        // Wait for the checker that named "shouldPauseDeliveryForDelayTracker".
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(dispatcher.shouldPauseDeliveryForDelayTracker());
+            assertTrue(dispatcher.getNumberOfDelayedMessages() >= delayedDeliveryFixedDelayDetectionLookahead);
+        });
+        // And verify: backlog stats
+        Awaitility.await().atMost(Duration.ofSeconds(3600)).untilAsserted(() -> {
+            SubscriptionStats subscriptionStats2 = persistentTopic.getStats(true, false, false)
+                    .getSubscriptions().get(sName);
+            assertEquals(subscriptionStats2.getMsgBacklog(), msgDelayed + msgNoDelayed);
+            assertEquals(subscriptionStats2.getMsgDelayed(), msgDelayed);
+            assertEquals(subscriptionStats2.getMsgBacklogNoDelayed(), msgNoDelayed);
+            GrowableArrayBlockingQueue incomingMessages =
+                    WhiteboxImpl.getInternalState(consumer1, "incomingMessages");
+            assertEquals(subscriptionStats2.getMsgInReplay(), msgNoDelayed - incomingMessages.size());
+            assertTrue(subscriptionStats2.getMsgDelayedInMemory() < msgDelayed);
+        });
 
         // cleanup.
         DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory2 =
@@ -739,7 +773,8 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     originalDelayedDeliveryFixedDelayDetectionLookahead);
             delayedDeliveryTrackerFactory2.initialize(pulsar);
         }
-        consumer.close();
+        consumer1.close();
+        consumer2.close();
         producer.close();
         admin.topics().delete(topic, false);
     }

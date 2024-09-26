@@ -1277,7 +1277,11 @@ public class PersistentSubscription extends AbstractSubscription {
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
                 subStats.msgInReplay = d.getNumberOfMessagesInReplay();
                 if (d.isAllMessagesAreFixedDelayed()) {
-                    subStats.msgDelayed = subStats.msgBacklog;
+                    long msgDeliveredOut = 0;
+                    for (Consumer c : dispatcher.getConsumers()){
+                        msgDeliveredOut += c.getUnackedMessages();
+                    }
+                    subStats.msgDelayed = subStats.msgBacklog - msgDeliveredOut - subStats.msgInReplay;
                     subStats.msgDelayedInMemory = d.getNumberOfDelayedMessages();
                 } else {
                     subStats.msgDelayed = d.getNumberOfDelayedMessages();
