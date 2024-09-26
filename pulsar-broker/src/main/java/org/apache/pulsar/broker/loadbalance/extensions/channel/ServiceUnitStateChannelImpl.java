@@ -1395,10 +1395,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void waitForCleanups(String broker, boolean excludeSystemTopics, int maxWaitTimeInMillis) {
         long started = System.currentTimeMillis();
-        final var futures = new HashMap<String, CompletableFuture<Void>>();
         while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
             boolean cleaned = true;
-            futures.clear();
             for (var etr : tableview.entrySet()) {
                 var serviceUnit = etr.getKey();
                 var data = etr.getValue();
@@ -1407,9 +1405,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     continue;
                 }
 
-                if (data.state() == Free) {
-                    futures.put(serviceUnit, handleFreeEvent(serviceUnit, data));
-                } else if (data.state() == Owned && broker.equals(data.dstBroker())) {
+                if (data.state() == Owned && broker.equals(data.dstBroker())) {
                     cleaned = false;
                     break;
                 }
@@ -1429,18 +1425,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     log.warn("Failed to flush the table view in {} ms", OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS);
                 }
             }
-        }
-        var waitTimeMs = started + maxWaitTimeInMillis - System.currentTimeMillis();
-        if (waitTimeMs < 0) {
-            waitTimeMs = 0;
-        }
-        try {
-            FutureUtil.waitForAll(futures.values()).get(waitTimeMs, MILLISECONDS);
-        } catch (ExecutionException e) {
-            log.error("Failed to tombstone {}", futures.keySet(), e.getCause());
-        } catch (TimeoutException __) {
-            log.warn("Failed to tombstone {} in {} ms", futures.keySet(), waitTimeMs);
-        } catch (InterruptedException ignored) {
         }
         log.info("Finished cleanup waiting for orphan broker:{}. Elapsed {} ms", brokerId,
                 System.currentTimeMillis() - started);
