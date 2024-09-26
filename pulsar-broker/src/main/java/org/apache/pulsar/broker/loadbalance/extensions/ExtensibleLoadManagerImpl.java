@@ -221,7 +221,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     public Set<NamespaceBundle> getOwnedServiceUnits() {
-        if (!running()) {
+        if (state.get() == State.INIT) {
             log.warn("Failed to get owned service units, load manager is not started.");
             return Collections.emptySet();
         }
