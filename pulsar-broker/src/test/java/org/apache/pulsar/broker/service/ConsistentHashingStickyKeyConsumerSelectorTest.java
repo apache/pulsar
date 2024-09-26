@@ -47,7 +47,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     @Test
     public void testConsumerSelect() throws ConsumerAssignException {
 
-        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         String key1 = "anyKey";
         Assert.assertNull(selector.select(key1.getBytes()));
 
@@ -61,7 +61,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer2);
 
         final int N = 1000;
-        final double PERCENT_ERROR = 0.25; // 25 %
+        final double PERCENT_ERROR = 0.20; // 20 %
 
         Map<String, Integer> selectionMap = new HashMap<>();
         for (int i = 0; i < N; i++) {
