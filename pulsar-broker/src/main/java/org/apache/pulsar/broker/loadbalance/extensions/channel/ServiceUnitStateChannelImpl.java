@@ -256,7 +256,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public void cleanOwnerships() {
-        disablePubOwnedEvent = true;
+        disable();
         doCleanup(brokerId, true);
     }
 
@@ -679,11 +679,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     brokerId, serviceUnit, data, totalHandledRequests);
         }
 
+        ServiceUnitState state = state(data);
         if (channelState == Disabled) {
+            final var request = getOwnerRequests.remove(serviceUnit);
+            if (request != null) {
+                request.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                        "cancel the lookup request for " + serviceUnit + " when receiving " + state));
+            }
             return;
         }
-
-        ServiceUnitState state = state(data);
         try {
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
@@ -819,15 +823,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.dstBroker())) {
-            if (disablePubOwnedEvent) {
-                log.info("Skip assigning self({}) as the owner after cleanOwnerships", serviceUnit);
-                final var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
-                if (getOwnerRequest != null) {
-                    getOwnerRequest.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
-                            "lookup during ownership cleanup"));
-                }
-                return;
-            }
             ServiceUnitStateData next = new ServiceUnitStateData(
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
@@ -1423,7 +1418,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 break;
             } else {
                 try {
-                    tableview.flush(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS);
+                    tableview.flush(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
+                    Thread.sleep(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS / 2);
                 } catch (InterruptedException e) {
                     log.warn("Interrupted while delaying the next service unit clean-up. Cleaning broker:{}",
                             brokerId);
