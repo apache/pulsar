@@ -24,6 +24,7 @@ import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
@@ -143,6 +144,16 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     }
 
     @Override
+    public Map<Long, long[]> toRanges(int maxRanges) {
+        return rangeSet.toRanges(maxRanges);
+    }
+
+    @Override
+    public void build(Map<Long, long[]> internalRange) {
+        rangeSet.build(internalRange);
+    }
+
+    @Override
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         return rangeSet.cardinality(lowerKey, lowerValue, upperKey, upperValue);
     }
@@ -175,5 +186,23 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     @Override
     public String toString() {
         return rangeSet.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return rangeSet.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof RangeSetWrapper)) {
+            return false;
+        }
+        if (this == obj) {
+            return true;
+        }
+        @SuppressWarnings("rawtypes")
+        RangeSetWrapper set = (RangeSetWrapper) obj;
+        return this.rangeSet.equals(set.rangeSet);
     }
 }

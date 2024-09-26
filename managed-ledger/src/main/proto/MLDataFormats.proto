@@ -82,11 +82,17 @@ message PositionInfo {
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
+    repeated LongListMap individualDeletedMessageRanges = 6;
 }
 
 message NestedPositionInfo {
     required int64 ledgerId = 1;
     required int64 entryId  = 2;
+}
+
+message LongListMap {
+    required int64 key = 1;
+    repeated int64 values  = 2;
 }
 
 message MessageRange {
