@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
@@ -43,14 +44,17 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -683,5 +687,59 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertEquals(ex.getMessage(), "Exceeds max allowed delivery delay of "
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
+    }
+
+    @Test
+    public void testMsgBacklogNoDelayedWhenFixedDelay() throws Exception {
+        final long originalDelayedDeliveryFixedDelayDetectionLookahead =
+                pulsar.getConfig().getDelayedDeliveryFixedDelayDetectionLookahead();;
+        final int delayedDeliveryFixedDelayDetectionLookahead = 10;
+        final int entries = delayedDeliveryFixedDelayDetectionLookahead * 10;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String sName = "delayed_s1";
+        DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
+                WhiteboxImpl.getInternalState(pulsar.getBrokerService(), "delayedDeliveryTrackerFactory");
+        if (delayedDeliveryTrackerFactory != null) {
+            pulsar.getConfig()
+                    .setDelayedDeliveryFixedDelayDetectionLookahead(delayedDeliveryFixedDelayDetectionLookahead);
+            delayedDeliveryTrackerFactory.initialize(pulsar);
+        }
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, sName, MessageId.earliest);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < entries; i++) {
+            producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value(i + "").send();
+        }
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(sName)
+                .receiverQueueSize(20).subscriptionType(SubscriptionType.Shared).subscribe();
+
+        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentTopic
+                .getSubscription(sName).getDispatcher();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(dispatcher.shouldPauseDeliveryForDelayTracker());
+            assertTrue(dispatcher.getNumberOfDelayedMessages() >= delayedDeliveryFixedDelayDetectionLookahead);
+        });
+
+        SubscriptionStats subscriptionStats = persistentTopic.getStats(true, false, false)
+                .getSubscriptions().get(sName);
+        assertEquals(subscriptionStats.getMsgBacklog(), entries);
+        assertEquals(subscriptionStats.getMsgDelayed(), entries);
+        assertEquals(subscriptionStats.getMsgBacklogNoDelayed(), 0);
+        assertTrue(subscriptionStats.getMsgDelayedInMemory() < entries);
+
+        // cleanup.
+        DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory2 =
+                WhiteboxImpl.getInternalState(pulsar.getBrokerService(), "delayedDeliveryTrackerFactory");
+        if (delayedDeliveryTrackerFactory2 != null) {
+            pulsar.getConfig().setDelayedDeliveryFixedDelayDetectionLookahead(
+                    originalDelayedDeliveryFixedDelayDetectionLookahead);
+            delayedDeliveryTrackerFactory2.initialize(pulsar);
+        }
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topic, false);
     }
 }
