@@ -721,7 +721,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer);
                         if (consumer.getTopic().contains("-partition-")) {
                             partionedTopicPresent = true;
-                        }});
+                        }
+                });
     }
 
     private void reloadConsumersFromMultiTopicsConsumers() {
@@ -738,7 +739,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                          topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c);
                          if (c.getTopic().contains("-partition-")) {
                             partionedTopicPresent = true;
-                         }});
+                         }
+                });
     }
 
     // returns null if consumer not found
@@ -761,7 +763,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             throw new PulsarClientException("Getting consumer is not supported");
         }
 
-        if (partition != 0 && partionedTopicPresent == false) {
+        if ((partition != 0) && (partionedTopicPresent == false)) {
             throw new PulsarClientException("No Partioned topic present");
         }
 
