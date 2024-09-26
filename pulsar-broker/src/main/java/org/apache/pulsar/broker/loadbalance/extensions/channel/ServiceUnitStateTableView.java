@@ -27,8 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
@@ -39,8 +37,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
  * ServiceUnitStateTableView receives notifications whenever ownership states are updated in the remote store, and
  * upon notification, it applies the updates to its local tableview with the listener logic.
  */
-@InterfaceStability.Evolving
-@InterfaceAudience.LimitedPrivate
 public interface ServiceUnitStateTableView extends Closeable {
 
     /**
@@ -50,13 +46,11 @@ public interface ServiceUnitStateTableView extends Closeable {
      * @param pulsar pulsar service reference
      * @param tailItemListener listener to listen tail(newly updated) items
      * @param existingItemListener listener to listen existing items
-     * @param skippedItemListener listener for items that are skipped by the topic compaction strategy
      * @throws IOException if it fails to init the tableview.
      */
     void start(PulsarService pulsar,
                BiConsumer<String, ServiceUnitStateData> tailItemListener,
-               BiConsumer<String, ServiceUnitStateData> existingItemListener,
-               BiConsumer<String, ServiceUnitStateData> skippedItemListener) throws IOException;
+               BiConsumer<String, ServiceUnitStateData> existingItemListener) throws IOException;
 
 
     /**

@@ -100,8 +100,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         metadataStoreTableView.start(
                 pulsar,
                 this::dummy,
-                this::dummy,
-                (__, ___) -> {}
+                this::dummy
         );
 
         @Cleanup
@@ -109,8 +108,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         systemTopicTableView.start(
                 pulsar,
                 this::dummy,
-                this::dummy,
-                (__, ___) -> {}
+                this::dummy
         );
 
 
@@ -154,8 +152,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         this.metadataStoreTableView.start(
                 pulsar,
                 this::syncToSystemTopic,
-                this::dummy,
-                (__, ___) -> {}
+                this::dummy
         );
         log.info("Started MetadataStoreTableView");
 
@@ -163,8 +160,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         this.systemTopicTableView.start(
                 pulsar,
                 this::syncToMetadataStore,
-                this::dummy,
-                (__, ___) -> {}
+                this::dummy
         );
         log.info("Started SystemTopicTableView");
 

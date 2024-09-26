@@ -56,13 +56,11 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
 
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
-                      BiConsumer<String, ServiceUnitStateData> skippedItemListener)
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener)
             throws MetadataStoreException {
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
-        conflictResolver.setSkippedMsgHandler(skippedItemListener);
         tableview = new MetadataStoreTableViewImpl<>(ServiceUnitStateData.class,
                 pulsar.getBrokerId(),
                 pulsar.getLocalMetadataStore(),

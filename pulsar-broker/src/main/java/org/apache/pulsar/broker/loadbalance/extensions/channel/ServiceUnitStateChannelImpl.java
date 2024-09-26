@@ -309,7 +309,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
-            tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleSkippedEvent);
+            tableview.start(pulsar, this::handleEvent, this::handleExisting);
 
             if (debug) {
                 log.info("Successfully started the channel tableview.");
@@ -778,11 +778,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleSkippedEvent(String serviceUnit, ServiceUnitStateData skippedData) {
-        if (skippedData.state() == Free) {
-            handleFreeEvent(serviceUnit, skippedData);
-            return;
-        }
+    private void handleSkippedEvent(String serviceUnit) {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);

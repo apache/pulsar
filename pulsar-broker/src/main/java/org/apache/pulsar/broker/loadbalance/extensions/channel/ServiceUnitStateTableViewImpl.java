@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +38,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 @Slf4j
 public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase {
@@ -55,8 +53,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
 
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
-                      BiConsumer<String, ServiceUnitStateData> skippedItemListener) throws IOException {
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener) throws IOException {
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
 
         init(pulsar);
@@ -101,13 +98,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
         tableview.listen(tailItemListener);
         tableview.forEach(this::updateOwnedServiceUnits);
         tableview.forEach(existingItemListener);
-        final var strategy = (ServiceUnitStateDataConflictResolver) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
-        if (strategy == null) {
-            String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
-            log.error(err);
-            throw new IllegalStateException(err);
-        }
-        strategy.setSkippedMsgHandler(skippedItemListener);
+
     }
 
     private boolean isValidState() {
