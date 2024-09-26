@@ -718,7 +718,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                                 ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
                                 : Stream.of(consumer))
                 .forEach(consumer -> {
-                        topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer)
+                        topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer);
                         if (consumer.getTopic().contains("-partition-")) {
                             partionedTopicPresent = true;
                         }});
@@ -735,7 +735,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                                 ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
                                 : Stream.empty() // no changes expected in regular consumers
                 ).forEach(c -> {
-                         topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c)
+                         topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c);
                          if (c.getTopic().contains("-partition-")) {
                             partionedTopicPresent = true;
                          }});
@@ -762,7 +762,6 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
 
         if (partition != 0 && partionedTopicPresent == false) {
-            System.out.println("using condition");
             throw new PulsarClientException("No Partioned topic present");
         }
 
