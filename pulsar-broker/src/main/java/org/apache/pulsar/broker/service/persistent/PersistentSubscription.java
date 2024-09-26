@@ -1276,7 +1276,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 subStats.unackedMessages = d.getTotalUnackedMessages();
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
                 subStats.msgInReplay = d.getNumberOfMessagesInReplay();
-                if (d.isAllMessagesAreFixedDelayed()) {
+                if (d.isAllWaitingReadMessagesAreFixedDelayed()) {
                     long msgDeliveredOut = 0;
                     for (Consumer c : dispatcher.getConsumers()){
                         msgDeliveredOut += c.getUnackedMessages();

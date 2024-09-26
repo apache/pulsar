@@ -151,7 +151,7 @@ public interface Dispatcher {
      */
     default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
 
-    default boolean isAllMessagesAreFixedDelayed() {
+    default boolean isAllWaitingReadMessagesAreFixedDelayed() {
         return false;
     }
 

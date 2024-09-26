@@ -1335,7 +1335,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public boolean isAllMessagesAreFixedDelayed() {
+    public boolean isAllWaitingReadMessagesAreFixedDelayed() {
         return shouldPauseDeliveryForDelayTracker();
     }
 
