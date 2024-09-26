@@ -808,7 +808,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         try {
             topBundlesLoadDataStore.shutdown();
         } catch (IOException e) {
-            log.warn("Failed to shutdown brokerLoadDataStore", e);
+            log.warn("Failed to shutdown topBundlesLoadDataStore", e);
         }
     }
 
