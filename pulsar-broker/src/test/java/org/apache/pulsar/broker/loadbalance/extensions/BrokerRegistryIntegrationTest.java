@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,6 +36,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class BrokerRegistryIntegrationTest {
 
@@ -42,6 +44,8 @@ public class BrokerRegistryIntegrationTest {
     private final int zkPort = PortManager.nextFreePort();
     private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
     private PulsarService pulsar;
+    private BrokerRegistry brokerRegistry;
+    private String brokerMetadataPath;
 
     @BeforeClass
     protected void setup() throws Exception {
@@ -53,6 +57,8 @@ public class BrokerRegistryIntegrationTest {
         admin.tenants().createTenant("public", TenantInfo.builder()
                 .allowedClusters(Collections.singleton(clusterName)).build());
         admin.namespaces().createNamespace("public/default");
+        brokerRegistry = ((ExtensibleLoadManagerWrapper) pulsar.getLoadManager().get()).get().getBrokerRegistry();
+        brokerMetadataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
     }
 
     @AfterClass(alwaysRun = true)
@@ -65,22 +71,32 @@ public class BrokerRegistryIntegrationTest {
 
     @Test
     public void testRecoverFromNodeDeletion() throws Exception {
-        final var metadataStore = pulsar.getLocalMetadataStore();
-        final var children = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get();
-        Assert.assertEquals(children, List.of(pulsar.getBrokerId()));
-
         // Simulate the case that the node was somehow deleted (e.g. by session timeout)
-        final var path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
-        metadataStore.delete(path, Optional.empty());
-        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
-            final var newChildren = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join();
-            Assert.assertEquals(newChildren, List.of(pulsar.getBrokerId()));
-        });
+        Assert.assertEquals(brokerRegistry.getAvailableBrokersAsync().get(), List.of(pulsar.getBrokerId()));
+        pulsar.getLocalMetadataStore().delete(brokerMetadataPath, Optional.empty());
+        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
+                brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
 
         // If the node is deleted by unregister(), it should not recreate the path
-        ((ExtensibleLoadManagerWrapper) pulsar.getLoadManager().get()).get().getBrokerRegistry().unregister();
+        brokerRegistry.unregister();
         Thread.sleep(3000);
-        Assert.assertTrue(metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join().isEmpty());
+        Assert.assertTrue(brokerRegistry.getAvailableBrokersAsync().get().isEmpty());
+
+        // Restore the normal state
+        brokerRegistry.registerAsync().get();
+        Assert.assertEquals(brokerRegistry.getAvailableBrokersAsync().get(), List.of(pulsar.getBrokerId()));
+    }
+
+    @Test
+    public void testRegisterAgain() throws Exception {
+        final var metadataStore = pulsar.getLocalMetadataStore();
+        final var oldResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
+        log.info("Old result: {} {}", new String(oldResult.getValue()), oldResult.getStat().getVersion());
+        brokerRegistry.registerAsync().get();
+        final var newResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
+        log.info("New result: {} {}", new String(newResult.getValue()), newResult.getStat().getVersion());
+        Assert.assertTrue(newResult.getStat().getVersion() > oldResult.getStat().getVersion());
+        Assert.assertEquals(newResult.getValue(), oldResult.getValue());
     }
 
     private ServiceConfiguration brokerConfig() {
