@@ -680,7 +680,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         ServiceUnitState state = state(data);
-        if (channelState == Disabled) {
+        if (channelState == Disabled && (data == null || !data.force())) {
             final var request = getOwnerRequests.remove(serviceUnit);
             if (request != null) {
                 request.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
@@ -1442,7 +1442,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 System.currentTimeMillis() - started);
     }
 
-    private void doCleanup(String broker, boolean gracefully) {
+    private synchronized void doCleanup(String broker, boolean gracefully) {
         try {
             if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
                     .isEmpty()) {

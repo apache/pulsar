@@ -624,21 +624,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                 filter.filterAsync(availableBrokerCandidates, bundle, context);
                         futures.add(future);
                     }
-                    CompletableFuture<Optional<String>> result = new CompletableFuture<>();
-                    FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            // TODO: We may need to revisit this error case.
-                            log.error("Failed to filter out brokers when select bundle: {}", bundle, ex);
-                        }
+                    return FutureUtil.waitForAll(futures).thenApply(__ -> {
                         if (availableBrokerCandidates.isEmpty()) {
-                            result.complete(Optional.empty());
-                            return;
+                            return Optional.empty();
                         }
                         Set<String> candidateBrokers = availableBrokerCandidates.keySet();
-
-                        result.complete(getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
+                        return getBrokerSelectionStrategy().select(candidateBrokers, bundle, context);
                     });
-                    return result;
                 });
     }
 
@@ -676,6 +668,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                               boolean force,
                                                               long timeout,
                                                               TimeUnit timeoutUnit) {
+        if (state.get() == State.INIT) {
+            return CompletableFuture.completedFuture(null);
+        }
         if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
             log.info("Skip unloading namespace bundle: {}.", bundle);
             return CompletableFuture.completedFuture(null);
@@ -768,20 +763,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             return;
         }
         try {
-            if (brokerLoadDataReportTask != null) {
-                brokerLoadDataReportTask.cancel(true);
-            }
-
-            if (topBundlesLoadDataReportTask != null) {
-                topBundlesLoadDataReportTask.cancel(true);
-            }
-
-            if (monitorTask != null) {
-                monitorTask.cancel(true);
-            }
-
-            this.brokerLoadDataStore.shutdown();
-            this.topBundlesLoadDataStore.shutdown();
+            stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();
             this.serviceUnitStateTableViewSyncer.close();
@@ -805,6 +787,28 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
 
             }
+        }
+    }
+
+    private void stopLoadDataReportTasks() {
+        if (brokerLoadDataReportTask != null) {
+            brokerLoadDataReportTask.cancel(true);
+        }
+        if (topBundlesLoadDataReportTask != null) {
+            topBundlesLoadDataReportTask.cancel(true);
+        }
+        if (monitorTask != null) {
+            monitorTask.cancel(true);
+        }
+        try {
+            brokerLoadDataStore.shutdown();
+        } catch (IOException e) {
+            log.warn("Failed to shutdown brokerLoadDataStore", e);
+        }
+        try {
+            topBundlesLoadDataStore.shutdown();
+        } catch (IOException e) {
+            log.warn("Failed to shutdown brokerLoadDataStore", e);
         }
     }
 
@@ -1018,9 +1022,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         if (!state.compareAndSet(State.RUNNING, State.DISABLED)) {
             failForUnexpectedState("disableBroker");
         }
+        stopLoadDataReportTasks();
         serviceUnitStateChannel.cleanOwnerships();
-        leaderElectionService.close();
         brokerRegistry.unregister();
+        leaderElectionService.close();
         final var availableBrokers = brokerRegistry.getAvailableBrokersAsync()
                 .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         if (availableBrokers.isEmpty()) {
@@ -1033,7 +1038,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private void closeInternalTopics() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (String name : INTERNAL_TOPICS) {
+        for (String name : Set.of(BROKER_LOAD_DATA_STORE_TOPIC, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC)) {
             pulsar.getBrokerService()
                     .getTopicReference(name)
                     .ifPresent(topic -> futures.add(topic.close(true)

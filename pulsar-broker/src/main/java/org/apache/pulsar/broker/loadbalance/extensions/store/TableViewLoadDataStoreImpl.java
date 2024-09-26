@@ -92,7 +92,11 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     public synchronized Optional<T> get(String key) {
         String msg = validateTableView();
         if (StringUtils.isNotBlank(msg)) {
-            throw new IllegalStateException(msg);
+            if (msg.equals(SHUTDOWN_ERR_MSG)) {
+                return Optional.empty();
+            } else {
+                throw new IllegalStateException(msg);
+            }
         }
         return Optional.ofNullable(tableView.get(key));
     }
@@ -193,7 +197,9 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     @Override
     public synchronized void close() throws IOException {
-        validateState();
+        if (isShutdown) {
+            return;
+        }
         closeProducer();
         closeTableView();
     }
