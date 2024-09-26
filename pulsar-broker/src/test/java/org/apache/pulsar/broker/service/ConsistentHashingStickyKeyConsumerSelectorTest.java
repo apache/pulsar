@@ -458,4 +458,26 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
     }
 
+    @Test
+    public void testShouldNotChangeMappingWhenConsumerLeavesAndRejoins() {
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final String consumerName = "consumer";
+        final int numOfInitialConsumers = 25;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < numOfInitialConsumers; i++) {
+            final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+
+        Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
+        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
+
+        selector.removeConsumer(consumers.get(0));
+        selector.removeConsumer(consumers.get(numOfInitialConsumers / 2));
+        selector.addConsumer(consumers.get(0));
+        selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
+
+        assertThat(selector.getConsumerKeyHashRanges()).as("ranges shouldn't change").containsExactlyInAnyOrderEntriesOf(expected);
+    }
 }
