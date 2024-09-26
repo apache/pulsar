@@ -1038,7 +1038,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private void closeInternalTopics() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (String name : Set.of(BROKER_LOAD_DATA_STORE_TOPIC, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC)) {
+        for (String name : INTERNAL_TOPICS) {
             pulsar.getBrokerService()
                     .getTopicReference(name)
                     .ifPresent(topic -> futures.add(topic.close(true)
