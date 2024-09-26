@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata.impl;
+package org.apache.pulsar.broker.loadbalance.extensions;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -26,10 +26,6 @@ import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
-import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -40,7 +36,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class MetadataStoreNodeDeletedTest {
+public class BrokerRegistryIntegrationTest {
 
     private static final String clusterName = "test";
     private final int zkPort = PortManager.nextFreePort();
@@ -68,15 +64,14 @@ public class MetadataStoreNodeDeletedTest {
     }
 
     @Test
-    public void testLookupAfterSessionTimeout() throws Exception {
-        final var metadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
+    public void testRecoverFromNodeDeletion() throws Exception {
+        final var metadataStore = pulsar.getLocalMetadataStore();
         final var children = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get();
         Assert.assertEquals(children, List.of(pulsar.getBrokerId()));
 
         // Simulate the case that the node was somehow deleted (e.g. by session timeout)
         final var path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
         metadataStore.delete(path, Optional.empty());
-        metadataStore.receivedNotification(new Notification(NotificationType.Deleted, path));
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
             final var newChildren = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join();
             Assert.assertEquals(newChildren, List.of(pulsar.getBrokerId()));
