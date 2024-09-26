@@ -25,6 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 
@@ -32,6 +34,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
  * Responsible for registering the current Broker lookup info to
  * the distributed store (e.g. Zookeeper) for broker discovery.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Unstable
 public interface BrokerRegistry extends AutoCloseable {
 
     /**
@@ -47,7 +51,7 @@ public interface BrokerRegistry extends AutoCloseable {
     /**
      * Register local broker to metadata store.
      */
-    void register() throws MetadataStoreException;
+    CompletableFuture<Void> registerAsync();
 
     /**
      * Unregister the broker.

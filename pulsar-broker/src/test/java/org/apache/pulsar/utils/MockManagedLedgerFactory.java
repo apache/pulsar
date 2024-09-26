@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions;
+package org.apache.pulsar.utils;
 
 import java.util.Map;
 import java.util.Optional;

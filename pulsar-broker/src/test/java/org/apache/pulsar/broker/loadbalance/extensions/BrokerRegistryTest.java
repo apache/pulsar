@@ -332,7 +332,7 @@ public class BrokerRegistryTest {
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
 
         // Check state after re-register.
-        brokerRegistry.register();
+        brokerRegistry.registerAsync().get();
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
 
         // Check state after close.

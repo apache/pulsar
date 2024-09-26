@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions;
+package org.apache.pulsar.utils;
 
 import com.google.common.collect.Range;
 import java.util.ArrayList;

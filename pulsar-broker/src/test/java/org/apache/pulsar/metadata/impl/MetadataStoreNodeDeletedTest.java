@@ -16,22 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions;
+package org.apache.pulsar.metadata.impl;
 
+import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.utils.MockManagedLedgerStorage;
+import org.apache.pulsar.utils.MockSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class MetadataStoreSessionExpiredTest {
+public class MetadataStoreNodeDeletedTest {
 
     private static final String clusterName = "test";
     private PulsarService pulsar;
@@ -54,8 +65,23 @@ public class MetadataStoreSessionExpiredTest {
 
     @Test
     public void testLookupAfterSessionTimeout() throws Exception {
-        final var topic = "test-lookup-after-session-timeout";
-        pulsar.getAdminClient().topics().createPartitionedTopic(topic, 1);
+        final var metadataStore = (LocalMemoryMetadataStore) pulsar.getLocalMetadataStore();
+        final var children = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get();
+        Assert.assertEquals(children, List.of(pulsar.getBrokerId()));
+
+        // Simulate the case that the node was somehow deleted (e.g. by session timeout)
+        final var path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
+        metadataStore.delete(path, Optional.empty());
+        metadataStore.receivedNotification(new Notification(NotificationType.Deleted, path));
+        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            final var newChildren = metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join();
+            Assert.assertEquals(newChildren, List.of(pulsar.getBrokerId()));
+        });
+
+        // If the node is deleted by unregister(), it should not recreate the path
+        ((ExtensibleLoadManagerWrapper) pulsar.getLoadManager().get()).get().getBrokerRegistry().unregister();
+        Thread.sleep(3000);
+        Assert.assertTrue(metadataStore.getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).join().isEmpty());
     }
 
     private ServiceConfiguration brokerConfig() {

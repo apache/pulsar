@@ -1276,6 +1276,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to handle broker deletion event.", e);
             return;
         }
+        brokerRegistry.registerAsync();
         MetadataState state = getMetadataState();
         log.info("Handling broker:{} ownership cleanup based on metadata connection state:{}, event:{}, event_ts:{}:",
                 broker, state, lastMetadataSessionEvent, lastMetadataSessionEventTimestamp);

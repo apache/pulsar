@@ -1211,7 +1211,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().register();
+                loadManager4.getBrokerRegistry().registerAsync().get();
 
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                 assertNotNull(result);
@@ -1423,7 +1423,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().register();
+                loadManager4.getBrokerRegistry().registerAsync().get();
 
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                 assertNotNull(result);
