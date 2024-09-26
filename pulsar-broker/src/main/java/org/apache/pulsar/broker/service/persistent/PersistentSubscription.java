@@ -1269,16 +1269,23 @@ public class PersistentSubscription extends AbstractSubscription {
                     ((PersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
         }
 
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
         if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
-                subStats.msgDelayed = d.getNumberOfDelayedMessages();
                 subStats.msgInReplay = d.getNumberOfMessagesInReplay();
+                if (d.isAllMessagesAreFixedDelayed()) {
+                    subStats.msgDelayed = subStats.msgBacklog;
+                    subStats.msgDelayedInMemory = d.getNumberOfDelayedMessages();
+                } else {
+                    subStats.msgDelayed = d.getNumberOfDelayedMessages();
+                    subStats.msgDelayedInMemory = subStats.msgDelayed;
+                }
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());

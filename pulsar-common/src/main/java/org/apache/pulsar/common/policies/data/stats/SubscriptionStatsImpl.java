@@ -73,6 +73,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Number of delayed messages currently being tracked. */
     public long msgDelayed;
+    /** Number of delayed messages currently being tracked. */
+    public long msgDelayedInMemory;
 
     /** Number of messages registered for replay. */
     public long msgInReplay;
