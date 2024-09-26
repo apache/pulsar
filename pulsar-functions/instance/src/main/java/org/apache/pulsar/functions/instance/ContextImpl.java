@@ -763,7 +763,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             throw new PulsarClientException("Getting consumer is not supported");
         }
 
-        if ((partition != 0) && (partionedTopicPresent == false)) {
+        if ((partition != 0) && (!partionedTopicPresent)) {
             throw new PulsarClientException("No Partioned topic present");
         }
 
