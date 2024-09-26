@@ -1234,6 +1234,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             handleBrokerCreationEvent(broker);
         } else if (type == NotificationType.Deleted) {
             log.info("BrokerRegistry detected the broker:{} registry has been deleted.", broker);
+            if (brokerRegistry.getBrokerId().equals(broker)) {
+                brokerRegistry.registerAsync();
+            }
             handleBrokerDeletionEvent(broker);
         }
     }
@@ -1276,7 +1279,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to handle broker deletion event.", e);
             return;
         }
-        brokerRegistry.registerAsync();
         MetadataState state = getMetadataState();
         log.info("Handling broker:{} ownership cleanup based on metadata connection state:{}, event:{}, event_ts:{}:",
                 broker, state, lastMetadataSessionEvent, lastMetadataSessionEventTimestamp);
