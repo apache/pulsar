@@ -122,6 +122,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private static final String[] userMetricsLabelNames;
 
     private boolean exposePulsarAdminClientEnabled;
+    private boolean partionedTopicPresent;
 
     private List<Consumer<?>> inputConsumers;
     private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
@@ -716,7 +717,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         consumer instanceof MultiTopicsConsumerImpl
                                 ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
                                 : Stream.of(consumer))
-                .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
+                .forEach(consumer -> {
+                        topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer)
+                        if (consumer.getTopic().contains("-partition-")) {
+                            partionedTopicPresent = true;
+                        }});
     }
 
     private void reloadConsumersFromMultiTopicsConsumers() {
@@ -729,7 +734,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         c instanceof MultiTopicsConsumerImpl
                                 ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
                                 : Stream.empty() // no changes expected in regular consumers
-                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+                ).forEach(c -> {
+                         topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c)
+                         if (c.getTopic().contains("-partition-")) {
+                            partionedTopicPresent = true;
+                         }});
     }
 
     // returns null if consumer not found
@@ -750,6 +759,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
         if (inputConsumers == null) {
             throw new PulsarClientException("Getting consumer is not supported");
+        }
+
+        if (partition != 0 && partionedTopicPresent == false) {
+            System.out.println("using condition");
+            throw new PulsarClientException("No Partioned topic present");
         }
 
         Consumer<?> consumer = tryGetConsumer(topic, partition);
