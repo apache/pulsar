@@ -141,7 +141,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
-    private volatile boolean disablePubOwnedEvent = false;
 
     public enum EventType {
         Assign,
