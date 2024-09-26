@@ -714,7 +714,8 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value(i + "").send();
         }
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(sName)
-                .receiverQueueSize(20).subscriptionType(SubscriptionType.Shared).subscribe();
+                .receiverQueueSize(delayedDeliveryFixedDelayDetectionLookahead * 2)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
 
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentTopic
                 .getSubscription(sName).getDispatcher();
