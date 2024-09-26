@@ -165,19 +165,22 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 .containsExactlyEntriesOf(selector.getConsumerKeyHashRanges());
 
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
+        assertThat(consumers.get(0).consumerName()).isEqualTo("consumer1");
         expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(119056335, 242013991),
-                Range.of(722195657, 1656011842),
-                Range.of(1707482098, 1914695766)));
+                Range.of(95615213, 440020355),
+                Range.of(440020356, 455987436),
+                Range.of(1189794593, 1264144431)));
+        assertThat(consumers.get(1).consumerName()).isEqualTo("consumer2");
         expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(0, 90164503),
-                Range.of(90164504, 119056334),
-                Range.of(382436668, 722195656),
-                Range.of(1914695767, 2147483646)));
+                Range.of(939655188, 1189794592),
+                Range.of(1314727625, 1977451233),
+                Range.of(1977451234, 2016237253)));
+        assertThat(consumers.get(2).consumerName()).isEqualTo("consumer3");
         expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(242013992, 242377547),
-                Range.of(242377548, 382436667),
-                Range.of(1656011843, 1707482097)));
+                Range.of(0, 95615212),
+                Range.of(455987437, 939655187),
+                Range.of(1264144432, 1314727624),
+                Range.of(2016237255, 2147483646)));
         assertThat(selector.getConsumerKeyHashRanges()).containsExactlyInAnyOrderEntriesOf(expectedResult);
     }
 
@@ -205,7 +208,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         printSelectionCountStats(consumerSelectionCount);
 
         int averageCount = totalSelections / consumers.size();
-        int allowedVariance = (int) (0.5d * averageCount);
+        int allowedVariance = (int) (0.2d * averageCount);
         System.out.println("averageCount: " + averageCount + " allowedVariance: " + allowedVariance);
 
         for (Map.Entry<Consumer, MutableInt> entry : consumerSelectionCount.entrySet()) {
@@ -213,6 +216,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                     .isCloseTo(averageCount, Offset.offset(allowedVariance));
         }
 
+        consumers.forEach(selector::removeConsumer);
+        assertThat(selector.getConsumerKeyHashRanges()).isEmpty();
     }
 
     private static void printSelectionCountStats(Map<Consumer, MutableInt> consumerSelectionCount) {
@@ -348,7 +353,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
-        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").isEqualTo(expected);
+        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
         System.out.println(expected);
 
         for (Consumer removedConsumer : consumers) {
@@ -384,7 +389,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
-        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").isEqualTo(expected);
+        assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
 
         for (int i = numOfInitialConsumers; i < numOfInitialConsumers * 2; i++) {
             final Consumer addedConsumer = createMockConsumer(consumerName, "index " + i, i);
