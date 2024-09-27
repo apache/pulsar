@@ -80,6 +80,7 @@ FROM apachepulsar/glibc-base:2.38 as glibc
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM alpine:$ALPINE_VERSION
 ENV LANG C.UTF-8
+ENV PTHREAD_STACK_MIN 2097152
 
 # Install some utilities, some are required by Pulsar scripts
 RUN apk add --no-cache \
