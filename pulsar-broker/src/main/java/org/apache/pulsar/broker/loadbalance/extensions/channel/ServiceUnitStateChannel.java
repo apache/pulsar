@@ -44,6 +44,11 @@ public interface ServiceUnitStateChannel extends Closeable {
     void start() throws PulsarServerException;
 
     /**
+     * Whether the channel started.
+     */
+    boolean started();
+
+    /**
      * Closes the ServiceUnitStateChannel.
      * @throws PulsarServerException if it fails to close the channel.
      */

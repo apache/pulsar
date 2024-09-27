@@ -1551,6 +1551,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(Optional.empty(), channel2.getOwnerAsync(freeBundle).get());
         assertTrue(channel2.getOwnerAsync(deletedBundle).isCompletedExceptionally());
         assertTrue(channel2.getOwnerAsync(splittingBundle).get().isEmpty());
+        ServiceUnitStateChannel finalLeaderChannel = leaderChannel;
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> getCleanupJobs(finalLeaderChannel).isEmpty());
 
         // clean-up
         FieldUtils.writeDeclaredField(leaderChannel, "maxCleanupDelayTimeInSecs", 3 * 60, true);
@@ -1621,8 +1624,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .monitorOwnerships(List.of(brokerId1, brokerId2, "broker-3"));
 
         ServiceUnitStateChannel finalLeaderChannel = leaderChannel;
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> getCleanupJobs(finalLeaderChannel).isEmpty());
-
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> getCleanupJobs(finalLeaderChannel).isEmpty());
 
         waitUntilNewOwner(channel2, releasingBundle1, brokerId2);
         waitUntilNewOwner(channel2, releasingBundle2, brokerId2);
