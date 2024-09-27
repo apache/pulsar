@@ -684,7 +684,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internalStats");
         path = path.queryParam("metadata", metadata);
-        CompletableFuture<InputStream> future = new CompletableFuture<>();
         return asyncGetRequest(path, new FutureCallback<InputStream>() {});
     }
 

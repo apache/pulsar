@@ -833,7 +833,7 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(topicName);
             if (streaming) {
-                try (InputStream in = getTopics().streamPartitionedInternalStats(topic);) {
+                try (InputStream in = getTopics().streamPartitionedInternalStats(topic)) {
                     int size;
                     byte[] buffer = new byte[2048];
                     while ((size = in.read(buffer)) != -1) {
