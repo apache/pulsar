@@ -332,7 +332,7 @@ public class BrokerRegistryTest {
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
 
         // Check state after re-register.
-        brokerRegistry.register();
+        brokerRegistry.registerAsync().get();
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
 
         // Check state after close.
@@ -396,8 +396,8 @@ public class BrokerRegistryTest {
         assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
     }
 
-    public BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
-        return WhiteboxImpl.getInternalState(brokerRegistry, BrokerRegistryImpl.State.class);
+    private static BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
+        return brokerRegistry.state.get();
     }
 }
 
