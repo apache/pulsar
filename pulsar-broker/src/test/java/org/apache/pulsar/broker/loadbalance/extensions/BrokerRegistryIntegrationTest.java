@@ -96,10 +96,13 @@ public class BrokerRegistryIntegrationTest {
         final var oldResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
         log.info("Old result: {} {}", new String(oldResult.getValue()), oldResult.getStat().getVersion());
         brokerRegistry.registerAsync().get();
-        final var newResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
-        log.info("New result: {} {}", new String(newResult.getValue()), newResult.getStat().getVersion());
-        Assert.assertTrue(newResult.getStat().getVersion() > oldResult.getStat().getVersion());
-        Assert.assertEquals(newResult.getValue(), oldResult.getValue());
+
+        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            final var newResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
+            log.info("New result: {} {}", new String(newResult.getValue()), newResult.getStat().getVersion());
+            Assert.assertTrue(newResult.getStat().getVersion() > oldResult.getStat().getVersion());
+            Assert.assertEquals(newResult.getValue(), oldResult.getValue());
+        });
     }
 
     private ServiceConfiguration brokerConfig() {
