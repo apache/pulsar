@@ -675,17 +675,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> entries, Object ctx) {
                 CompositeByteBuf buffer = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
 
-                AtomicInteger readableBytes = new AtomicInteger(0);
                 entries.asIterator().forEachRemaining(entry -> {
                     if (log.isInfoEnabled()) {
                         log.debug("pos {} len {} bytes ", entry.getEntryId(), entry.getLength());
                     }
                     ByteBuf part = entry.getEntryBuffer();
-                    buffer.addComponent(part);
-                    readableBytes.addAndGet(part.readableBytes());
+                    buffer.addComponent(true, part);
                 });
-                buffer.writerIndex(readableBytes.get())
-                        .readerIndex(0);
 
                 log.info("Read {} chunks, total of {} bytes, expected {} bytes", chunkSequenceFooter.numParts,
                         buffer.readableBytes(), chunkSequenceFooter.length);
@@ -3503,10 +3499,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             ByteBuf szBuf = PulsarByteBufAllocator.DEFAULT.buffer(4).writeInt(uncompressedSize);
 
             CompositeByteBuf result = PulsarByteBufAllocator.DEFAULT.compositeBuffer(2);
-            result.addComponent(szBuf)
-                    .addComponent(encode);
-            result.readerIndex(0)
-                    .writerIndex(4 + compressedSize);
+            result.addComponent(true, szBuf)
+                    .addComponent(true, encode);
 
             if (log.isInfoEnabled()) {
                 int ratio = (int) (compressedSize * 100.0 / uncompressedSize);
