@@ -624,7 +624,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                 filter.filterAsync(availableBrokerCandidates, bundle, context);
                         futures.add(future);
                     }
-                    return FutureUtil.waitForAll(futures).thenApply(__ -> {
+                    return FutureUtil.waitForAll(futures).exceptionally(e -> {
+                        // TODO: We may need to revisit this error case.
+                        log.error("Failed to filter out brokers when select bundle: {}", bundle, e);
+                        return null;
+                    }).thenApply(__ -> {
                         if (availableBrokerCandidates.isEmpty()) {
                             return Optional.empty();
                         }
