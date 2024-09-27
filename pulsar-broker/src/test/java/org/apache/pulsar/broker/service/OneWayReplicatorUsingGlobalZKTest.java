@@ -182,7 +182,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testReplicationCountMetrics();
     }
 
-    @Test(enabled = true)
+    @Test
     public void testRemoveCluster() throws Exception {
         // Initialize.
         final String ns1 = defaultTenant + "/" + "ns_73b1a31afce34671a5ddc48fe5ad7fc8";
