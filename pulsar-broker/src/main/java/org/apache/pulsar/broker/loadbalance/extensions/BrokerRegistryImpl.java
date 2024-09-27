@@ -74,7 +74,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         Closed
     }
 
-    private final AtomicReference<State> state = new AtomicReference<>(State.Init);
+    @VisibleForTesting
+    final AtomicReference<State> state = new AtomicReference<>(State.Init);
 
     public BrokerRegistryImpl(PulsarService pulsar) {
         this.pulsar = pulsar;

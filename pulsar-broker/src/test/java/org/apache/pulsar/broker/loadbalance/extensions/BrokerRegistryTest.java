@@ -396,8 +396,8 @@ public class BrokerRegistryTest {
         assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
     }
 
-    public BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
-        return WhiteboxImpl.getInternalState(brokerRegistry, BrokerRegistryImpl.State.class);
+    private static BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
+        return brokerRegistry.state.get();
     }
 }
 
