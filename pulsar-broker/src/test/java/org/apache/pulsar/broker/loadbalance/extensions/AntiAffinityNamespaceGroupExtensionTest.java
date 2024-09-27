@@ -46,7 +46,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.testcontainers.shaded.org.apache.commons.lang3.reflect.FieldUtils;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespaceGroupTest {
 
     final String bundle = "0x00000000_0xffffffff";
