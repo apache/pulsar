@@ -133,7 +133,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject()) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
-        return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
+        return pulsarService.getNamespaceService().checkTopicExists(NamespaceEventsSystemTopicFactory
+                .getEventsTopicName(topicName.getNamespaceObject())).thenCompose(topicExistsInfo -> {
+            if (topicExistsInfo.isExists()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
+        });
     }
 
     @Override
