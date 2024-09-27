@@ -92,7 +92,8 @@ RUN apk add --no-cache \
             ca-certificates \
             procps \
             curl \
-            bind-tools
+            bind-tools \
+            openssl
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
