@@ -754,9 +754,9 @@ public class CmdTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException, IOException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String topic = validateTopicName(topicName);
             if (streaming) {
-                try (InputStream in = getTopics().streamInternalStats(persistentTopic, metadata);) {
+                try (InputStream in = getTopics().streamInternalStats(topic, metadata);) {
                     int size;
                     byte[] buffer = new byte[2048];
                     while ((size = in.read(buffer)) != -1) {
@@ -764,7 +764,7 @@ public class CmdTopics extends CmdBase {
                     }
                 }
             } else {
-                print(getTopics().getInternalStats(persistentTopic, metadata));
+                print(getTopics().getInternalStats(topic, metadata));
             }
         }
     }
