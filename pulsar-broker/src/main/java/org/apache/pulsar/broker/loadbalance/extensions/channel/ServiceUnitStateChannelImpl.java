@@ -1234,11 +1234,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             handleBrokerCreationEvent(broker);
         } else if (type == NotificationType.Deleted) {
             log.info("BrokerRegistry detected the broker:{} registry has been deleted.", broker);
-            // The registered node is an ephemeral node that could be deleted when the metadata store client's session
-            // is expired. In this case, we should register again.
-            if (brokerRegistry.getBrokerId().equals(broker)) {
-                brokerRegistry.registerAsync();
-            }
             handleBrokerDeletionEvent(broker);
         }
     }

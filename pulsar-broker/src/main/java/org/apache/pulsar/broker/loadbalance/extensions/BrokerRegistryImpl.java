@@ -82,6 +82,13 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.brokerLookupDataMetadataCache = pulsar.getLocalMetadataStore().getMetadataCache(BrokerLookupData.class);
         this.scheduler = pulsar.getLoadManagerExecutor();
         this.listeners = new ArrayList<>();
+        // The registered node is an ephemeral node that could be deleted when the metadata store client's session
+        // is expired. In this case, we should register again.
+        this.listeners.add((broker, notificationType) -> {
+            if (notificationType == NotificationType.Deleted && getBrokerId().equals(broker)) {
+                registerAsync();
+            }
+        });
         this.brokerIdKeyPath = keyPath(pulsar.getBrokerId());
         this.brokerLookupData = new BrokerLookupData(
                 pulsar.getWebServiceAddress(),
