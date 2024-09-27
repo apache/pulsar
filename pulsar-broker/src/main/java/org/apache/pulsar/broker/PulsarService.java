@@ -513,6 +513,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 return closeFuture;
             }
             LOG.info("Closing PulsarService");
+            if (topicPoliciesService != null) {
+                topicPoliciesService.close();
+            }
             if (brokerService != null) {
                 brokerService.unloadNamespaceBundlesGracefully();
             }
@@ -633,10 +636,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionBufferClient.close();
             }
 
-            if (topicPoliciesService != null) {
-                topicPoliciesService.close();
-                topicPoliciesService = null;
-            }
 
             if (client != null) {
                 client.close();
