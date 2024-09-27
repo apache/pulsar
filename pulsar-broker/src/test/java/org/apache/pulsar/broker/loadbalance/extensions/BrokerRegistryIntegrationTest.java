@@ -72,7 +72,8 @@ public class BrokerRegistryIntegrationTest {
     @Test
     public void testRecoverFromNodeDeletion() throws Exception {
         // Simulate the case that the node was somehow deleted (e.g. by session timeout)
-        Assert.assertEquals(brokerRegistry.getAvailableBrokersAsync().get(), List.of(pulsar.getBrokerId()));
+        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
+                brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
         pulsar.getLocalMetadataStore().delete(brokerMetadataPath, Optional.empty());
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
@@ -89,6 +90,8 @@ public class BrokerRegistryIntegrationTest {
 
     @Test
     public void testRegisterAgain() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
+                brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
         final var metadataStore = pulsar.getLocalMetadataStore();
         final var oldResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
         log.info("Old result: {} {}", new String(oldResult.getValue()), oldResult.getStat().getVersion());
