@@ -89,13 +89,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
-            if (schema != null && schema.schema.isDeleted()) {
-                return null;
-            } else {
-                return schema;
-            }
-        });
+        return getSchema(schemaId, SchemaVersion.Latest);
     }
 
     @Override
