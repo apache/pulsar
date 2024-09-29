@@ -440,6 +440,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                                 // Clean the map if initialization fails
                                 ledgers.remove(name, future);
+                                entryCacheManager.removeEntryCache(name);
 
                                 if (pendingInitializeLedgers.remove(name, pendingLedger)) {
                                     pendingLedger.ledger.asyncClose(new CloseCallback() {
