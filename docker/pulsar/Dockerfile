@@ -18,6 +18,7 @@
 #
 
 ARG ALPINE_VERSION=3.20
+ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -54,7 +55,7 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM amazoncorretto:21-alpine AS jvm
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine AS jvm
 
 RUN apk add --no-cache binutils
 
