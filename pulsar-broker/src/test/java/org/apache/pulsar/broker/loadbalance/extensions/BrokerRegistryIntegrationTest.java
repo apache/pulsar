@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class BrokerRegistryIntegrationTest {
 
     private static final String clusterName = "test";
@@ -74,7 +74,7 @@ public class BrokerRegistryIntegrationTest {
         }
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRecoverFromNodeDeletion() throws Exception {
         // Simulate the case that the node was somehow deleted (e.g. by session timeout)
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
@@ -93,7 +93,7 @@ public class BrokerRegistryIntegrationTest {
         Assert.assertEquals(brokerRegistry.getAvailableBrokersAsync().get(), List.of(pulsar.getBrokerId()));
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRegisterAgain() throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
