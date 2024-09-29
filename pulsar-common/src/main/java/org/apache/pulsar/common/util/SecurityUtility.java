@@ -133,12 +133,12 @@ public class SecurityUtility {
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
             if (e instanceof ClassNotFoundException) {
-                log.warn("Conscrypt isn't available in the classpath. Using JDK default security provider.");
+                log.debug("Conscrypt isn't available in the classpath. Using JDK default security provider.");
             } else if (e.getCause() instanceof UnsatisfiedLinkError) {
-                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+                log.debug("Conscrypt isn't available for {} {}. Using JDK default security provider.",
                         System.getProperty("os.name"), System.getProperty("os.arch"));
             } else {
-                log.warn("Conscrypt isn't available. Using JDK default security provider."
+                log.debug("Conscrypt isn't available. Using JDK default security provider."
                         + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
             }
             return null;
@@ -148,7 +148,7 @@ public class SecurityUtility {
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            log.debug("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
         }
 
