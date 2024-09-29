@@ -83,13 +83,6 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.brokerLookupDataMetadataCache = pulsar.getLocalMetadataStore().getMetadataCache(BrokerLookupData.class);
         this.scheduler = pulsar.getLoadManagerExecutor();
         this.listeners = new ArrayList<>();
-        // The registered node is an ephemeral node that could be deleted when the metadata store client's session
-        // is expired. In this case, we should register again.
-        this.listeners.add((broker, notificationType) -> {
-            if (notificationType == NotificationType.Deleted && getBrokerId().equals(broker)) {
-                registerAsync();
-            }
-        });
         this.brokerIdKeyPath = keyPath(pulsar.getBrokerId());
         this.brokerLookupData = new BrokerLookupData(
                 pulsar.getWebServiceAddress(),
@@ -223,11 +216,16 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             if (log.isDebugEnabled()) {
                 log.debug("Handle notification: [{}]", t);
             }
+            // The registered node is an ephemeral node that could be deleted when the metadata store client's session
+            // is expired. In this case, we should register again.
+            final var brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
+            if (t.getType() == NotificationType.Deleted && getBrokerId().equals(brokerId)) {
+                registerAsync();
+            }
             if (listeners.isEmpty()) {
                 return;
             }
             this.scheduler.submit(() -> {
-                String brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
                 for (BiConsumer<String, NotificationType> listener : listeners) {
                     listener.accept(brokerId, t.getType());
                 }
