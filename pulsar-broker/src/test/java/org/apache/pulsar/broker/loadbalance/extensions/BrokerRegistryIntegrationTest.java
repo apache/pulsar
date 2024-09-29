@@ -63,10 +63,15 @@ public class BrokerRegistryIntegrationTest {
 
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
+        final var startMs = System.currentTimeMillis();
         if (pulsar != null) {
             pulsar.close();
         }
+        final var elapsedMs = System.currentTimeMillis() - startMs;
         bk.stop();
+        if (elapsedMs > 5000) {
+            throw new RuntimeException("Broker took " + elapsedMs + "ms to close");
+        }
     }
 
     @Test(enabled = false)
@@ -105,7 +110,7 @@ public class BrokerRegistryIntegrationTest {
         });
     }
 
-    private ServiceConfiguration brokerConfig() {
+    protected ServiceConfiguration brokerConfig() {
         final var config = new ServiceConfiguration();
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
