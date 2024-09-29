@@ -611,10 +611,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     }
 
     private static Optional<DispatchRateLimiter> getRateLimiter(PersistentTopic topic) {
-        if (topic.getReplicators().isEmpty()) {
-            return Optional.empty();
-        }
-        return topic.getReplicators().values().iterator().next().getRateLimiter();
+        return topic.getReplicators().values().stream().findFirst().map(Replicator::getRateLimiter).orElseThrow();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorRateLimiterTest.class);
