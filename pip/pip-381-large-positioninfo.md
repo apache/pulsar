@@ -95,6 +95,7 @@ No public-facing changes
 * **managedLedgerMaxUnackedRangesToPersist**: int, default 10000 (existing parameter). Controls number of unacked ranges to store.
 * **persistentUnackedRangesWithMultipleEntriesEnabled**: boolean, default false. If true, the PositionInfo state is stored as multiple entries in BookKeeper if it grows too large.
 * **persistentUnackedRangesMaxEntrySize**: int, default 1MB. Maximum size of a single entry in BookKeeper, in bytes.
+* **cursorInfoCompressionType**: string, default "NONE". Compression type to use for the PositionInfo state.
 
 ### CLI
 
