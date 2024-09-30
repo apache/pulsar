@@ -21,6 +21,8 @@ The PositionInfo state is stored to the BookKeeper as a single entry, and it can
 Currently, this means that BookKeeper can fail persisting too large PositionInfo state, e.g. over 1MB 
 by default and the ManagedCursor recovery on topic reload might not succeed.
 
+There is an abandoned PIP-81 for similar problem, this PIP takes over.
+
 # Motivation
 
 While keeping the number of ranges low to prevent such problems is a common sense solution, there are cases
@@ -90,7 +92,9 @@ No public-facing changes
 
 ### Configuration
 
-None
+* **managedLedgerMaxUnackedRangesToPersist**: int, default 10000 (existing parameter). Controls number of unacked ranges to store.
+* **persistentUnackedRangesWithMultipleEntriesEnabled**: boolean, default false. If true, the PositionInfo state is stored as multiple entries in BookKeeper if it grows too large.
+* **persistentUnackedRangesMaxEntrySize**: int, default 1MB. Maximum size of a single entry in BookKeeper, in bytes.
 
 ### CLI
 
@@ -138,10 +142,11 @@ Not affected AFAIK.
 
 # Links
 
-Proposed implementation: https://github.com/apache/pulsar/pull/22799
+* Proposed implementation: https://github.com/apache/pulsar/pull/22799
+* PIP-81: https://github.com/apache/pulsar/wiki/PIP-81:-Split-the-individual-acknowledgments-into-multiple-entries
+* PR that implements better storage format for the unacked ranges (alternative 2): https://github.com/apache/pulsar/pull/9292
 
-<!--
-Updated afterwards
--->
+ML discussion and voting threads:
+
 * Mailing List discussion thread: https://lists.apache.org/thread/8sm0h804v5914zowghrqxr92fp7c255d
 * Mailing List voting thread: https://lists.apache.org/thread/q31fx0rox9tdt34xsmo1ol1l76q8vk99
