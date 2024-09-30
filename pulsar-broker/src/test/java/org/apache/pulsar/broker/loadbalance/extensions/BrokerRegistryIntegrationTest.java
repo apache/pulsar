@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class BrokerRegistryIntegrationTest {
 
     private static final String clusterName = "test";
@@ -63,13 +63,18 @@ public class BrokerRegistryIntegrationTest {
 
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
+        final var startMs = System.currentTimeMillis();
         if (pulsar != null) {
             pulsar.close();
         }
+        final var elapsedMs = System.currentTimeMillis() - startMs;
         bk.stop();
+        if (elapsedMs > 5000) {
+            throw new RuntimeException("Broker took " + elapsedMs + "ms to close");
+        }
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRecoverFromNodeDeletion() throws Exception {
         // Simulate the case that the node was somehow deleted (e.g. by session timeout)
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
@@ -88,7 +93,7 @@ public class BrokerRegistryIntegrationTest {
         Assert.assertEquals(brokerRegistry.getAvailableBrokersAsync().get(), List.of(pulsar.getBrokerId()));
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRegisterAgain() throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
@@ -105,7 +110,7 @@ public class BrokerRegistryIntegrationTest {
         });
     }
 
-    private ServiceConfiguration brokerConfig() {
+    protected ServiceConfiguration brokerConfig() {
         final var config = new ServiceConfiguration();
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");

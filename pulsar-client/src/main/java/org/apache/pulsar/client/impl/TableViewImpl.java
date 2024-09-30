@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
@@ -259,7 +260,11 @@ public class TableViewImpl<T> implements TableView<T> {
     @Override
     public CompletableFuture<Void> refreshAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        reader.thenCompose(reader -> getLastMessageIds(reader).thenAccept(lastMessageIds -> {
+        reader.thenCompose(reader -> getLastMessageIdOfNonEmptyTopics(reader).thenAccept(lastMessageIds -> {
+            if (lastMessageIds.isEmpty()) {
+                completableFuture.complete(null);
+                return;
+            }
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
             pendingRefreshRequests.put(completableFuture, lastMessageIds);
@@ -291,8 +296,12 @@ public class TableViewImpl<T> implements TableView<T> {
         AtomicLong messagesRead = new AtomicLong();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        getLastMessageIds(reader).thenAccept(maxMessageIds -> {
-            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        getLastMessageIdOfNonEmptyTopics(reader).thenAccept(lastMessageIds -> {
+            if (lastMessageIds.isEmpty()) {
+                future.complete(null);
+                return;
+            }
+            readAllExistingMessages(reader, future, startTime, messagesRead, lastMessageIds);
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
@@ -300,13 +309,15 @@ public class TableViewImpl<T> implements TableView<T> {
         return future;
     }
 
-    private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIds(Reader<T> reader) {
+    private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIdOfNonEmptyTopics(Reader<T> reader) {
         return reader.getLastMessageIdsAsync().thenApply(lastMessageIds -> {
-            Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
+            Map<String, TopicMessageId> lastMessageIdMap = new ConcurrentHashMap<>();
             lastMessageIds.forEach(topicMessageId -> {
-                maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
+                if (((MessageIdAdv) topicMessageId).getEntryId() >= 0) {
+                    lastMessageIdMap.put(topicMessageId.getOwnerTopic(), topicMessageId);
+                } // else: a negative entry id represents an empty topic so that we don't have to read messages from it
             });
-            return maxMessageIds;
+            return lastMessageIdMap;
         });
     }
 
