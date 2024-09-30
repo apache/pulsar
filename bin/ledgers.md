@@ -1,0 +1,2 @@
+- "q6/persist/botnet_legacy_proto_bytes-partition-1"
+  - 
