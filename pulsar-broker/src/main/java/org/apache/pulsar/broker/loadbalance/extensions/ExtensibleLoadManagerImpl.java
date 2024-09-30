@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewSyncer;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -992,7 +993,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             if (isChannelOwner) {
                 // System topic config might fail due to the race condition
                 // with topic policy init(Topic policies cache have not init).
-                if (!configuredSystemTopics) {
+                if (isPersistentSystemTopicUsed() && !configuredSystemTopics) {
                     configuredSystemTopics = configureSystemTopics(pulsar, COMPACTION_THRESHOLD);
                 }
                 if (role != Leader) {
@@ -1080,4 +1081,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     private boolean disabled() {
         return state.get() == State.DISABLED;
     }
+
+    private boolean isPersistentSystemTopicUsed() {
+        return ServiceUnitStateTableViewImpl.class.getName()
+                .equals(pulsar.getConfiguration().getLoadManagerServiceUnitStateTableViewClassName());
+    }
+
+
 }
