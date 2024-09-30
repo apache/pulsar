@@ -37,9 +37,6 @@ BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"${PULSAR_LOG_DIR}"}
 # Memory size options
 BOOKIE_MEM=${BOOKIE_MEM:-${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g"}}
 
-# Garbage collection options
-BOOKIE_GC=${BOOKIE_GC:-${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}}
-
 if [ -z "$JAVA_HOME" ]; then
   JAVA_BIN=java
 else
@@ -59,6 +56,17 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
         break
     fi
 done
+
+# Garbage collection options
+BOOKIE_GC="${BOOKIE_GC:-${PULSAR_GC}}"
+if [ -z "$BOOKIE_GC" ]; then
+  BOOKIE_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
+  if [[ $JAVA_MAJOR_VERSION -ge 21 ]]; then
+    BOOKIE_GC="-XX:+UseZGC -XX:+ZGenerational ${BOOKIE_GC}"
+  else
+    BOOKIE_GC="-XX:+UseZGC ${BOOKIE_GC}"
+  fi
+fi
 
 if [[ -z "$BOOKIE_GC_LOG" ]]; then
   # fallback to PULSAR_GC_LOG if it is set
