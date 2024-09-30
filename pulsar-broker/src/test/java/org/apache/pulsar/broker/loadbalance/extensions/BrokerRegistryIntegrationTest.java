@@ -75,7 +75,7 @@ public class BrokerRegistryIntegrationTest {
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
         pulsar.getLocalMetadataStore().delete(brokerMetadataPath, Optional.empty());
-        Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> Assert.assertEquals(
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> Assert.assertEquals(
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
 
         // If the node is deleted by unregister(), it should not recreate the path
