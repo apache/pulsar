@@ -89,7 +89,6 @@ RUN apk add --no-cache \
             py3-pip \
             py3-grpcio \
             py3-yaml \
-            gcompat \
             ca-certificates \
             procps \
             curl \
