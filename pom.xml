@@ -84,7 +84,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <pulsar.client.python.version>3.4.0</pulsar.client.python.version>
 
-    <IMAGE_JDK_MAJOR_VERSION>21</IMAGE_JDK_MAJOR_VERSION>
+    <PULSAR_BASE_IMAGE>bellsoft/liberica-runtime-container:jdk-17-cds-stream-glibc</PULSAR_BASE_IMAGE>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
@@ -2747,15 +2747,15 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
-      <id>jdk-major-version-set</id>
+      <id>pulsar-base-image-set</id>
       <activation>
         <property>
-          <name>env.IMAGE_JDK_MAJOR_VERSION</name>
+          <name>env.PULSAR_BASE_IMAGE</name>
         </property>
       </activation>
       <properties>
         <!-- Override the default value with the environment variable -->
-        <IMAGE_JDK_MAJOR_VERSION>${env.IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
+        <PULSAR_BASE_IMAGE>${env.PULSAR_BASE_IMAGE}</PULSAR_BASE_IMAGE>
       </properties>
     </profile>
 

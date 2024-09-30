@@ -17,8 +17,11 @@
 # under the License.
 #
 
+# Final image uses the Liberica JDK image running on Alpaquita Linux as the base image
+# maven build passes PULSAR_BASE_IMAGE environment variable to the build as PULSAR_BASE_IMAGE argument
+ARG PULSAR_BASE_IMAGE=bellsoft/liberica-runtime-container:jdk-17-cds-stream-glibc
+# Alpine is used for intermediate stages
 ARG ALPINE_VERSION=3.20
-ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -51,56 +54,29 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage;
 RUN chmod -R g+rx /pulsar/bin
 RUN chmod -R o+rx /pulsar
 
-# Enable snappy-java to use system lib
-RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
-
-###  Create one stage to include JVM distribution
-FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine AS jvm
-
-RUN apk add --no-cache binutils
-
-# Use JLink to create a slimmer JDK distribution (see: https://adoptium.net/blog/2021/10/jlink-to-produce-own-runtime/)
-# This still includes all JDK modules, though in the future we could compile a list of required modules
-RUN /usr/lib/jvm/default-jvm/bin/jlink --add-modules ALL-MODULE-PATH --compress zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
-RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
-RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
-
-## Create one stage to include snappy-java native lib
-# Fix the issue when using snappy-java in x86 arch alpine
-# See https://github.com/xerial/snappy-java/issues/181 https://github.com/xerial/snappy-java/issues/579
-# We need to ensure that the version of the native library matches the version of snappy-java imported via Maven
-FROM alpine:$ALPINE_VERSION AS snappy-java
-
-ARG SNAPPY_VERSION
-RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
-ENV JAVA_HOME=/usr
-RUN curl -Ls https://github.com/xerial/snappy-java/archive/refs/tags/v$SNAPPY_VERSION.tar.gz | tar zxf - && cd snappy-java-$SNAPPY_VERSION && make clean-native native
-FROM apachepulsar/glibc-base:2.38 as glibc
-
-## Create final stage from Alpine image
-## and add OpenJDK and Python dependencies (for Pulsar functions)
-FROM alpine:$ALPINE_VERSION
+## Create final stage from liberica-runtime-container image
+## and add Python dependencies (for Pulsar functions)
+FROM $PULSAR_BASE_IMAGE
 ENV LANG C.UTF-8
 
+# Upgrade all packages to get latest versions with security fixes
 # Install some utilities, some are required by Pulsar scripts
-RUN apk add --no-cache \
+RUN apk update && apk upgrade --no-cache && apk add --no-cache \
             bash \
             python3 \
             py3-pip \
             py3-grpcio \
             py3-yaml \
-            gcompat \
             ca-certificates \
             procps \
             curl \
             bind-tools \
             openssl
 
-# Upgrade all packages to get latest versions with security fixes
-RUN apk upgrade --no-cache
+# adjust default DNS caching TTL to 1 second
+RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security && echo networkaddress.cache.negative.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 # Python dependencies
-
 # The grpcio@1.59.3 is installed by apk, and Pulsar-client@3.4.0 requires grpcio>=1.60.0, which causes the grocio to be reinstalled by pip.
 # If pip cannot find the grpcio wheel that the doesn't match the OS, the grpcio will be compiled locally.
 # Once https://github.com/apache/pulsar-client-python/pull/211 is released, keep only the pulsar-client[all] and kazoo dependencies, and remove comments.
@@ -118,27 +94,12 @@ prometheus_client\n\
 ratelimit\n\
 # avro\n\
 fastavro>=1.9.2\n\
-" > /requirements.txt
-
-RUN pip3 install --break-system-packages --no-cache-dir --only-binary grpcio -r /requirements.txt
-RUN rm /requirements.txt
-
-# Install GLibc compatibility library
-COPY --from=glibc /root/packages /root/packages
-RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
-
-COPY --from=jvm /opt/jvm /opt/jvm
-ENV JAVA_HOME=/opt/jvm
-
-COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
+" > /tmp/requirements.txt && pip3 install --break-system-packages --no-cache-dir --only-binary grpcio -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
-
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
-
 COPY --from=pulsar /pulsar /pulsar
-
 WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 
