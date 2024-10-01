@@ -3222,7 +3222,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(10);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
 
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        final ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
 
         List<Position> addedPositions = new ArrayList<>();
         for (int i = 0; i < totalAddEntries; i++) {
@@ -3268,7 +3268,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
                         positionInfo = PositionInfo.parseFrom(entry.getEntry());
-                        individualDeletedMessagesCount.set(positionInfo.getIndividualDeletedMessagesCount());
+                        c1.recoverIndividualDeletedMessages(positionInfo);
+                        individualDeletedMessagesCount.set(c1.getIndividuallyDeletedMessagesSet().asRanges().size());
                     } catch (Exception e) {
                     }
                     latch.countDown();
@@ -3285,12 +3286,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = (ManagedLedgerImpl) factory2.open(ledgerName, managedLedgerConfig);
-        c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ManagedCursorImpl reopenCursor = (ManagedCursorImpl) ledger.openCursor("c1");
         // verify cursor has been recovered
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
+        assertEquals(reopenCursor.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
 
         // try to read entries which should only read non-deleted positions
-        List<Entry> entries = c1.readEntries(totalAddEntries);
+        List<Entry> entries = reopenCursor.readEntries(totalAddEntries);
         assertEquals(entries.size(), totalAddEntries / 2);
     }
 

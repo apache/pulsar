@@ -60,6 +60,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -92,12 +93,15 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongListMap;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo.Builder;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -601,9 +605,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
 
                 PositionImpl position = new PositionImpl(positionInfo);
-                if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
-                    recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
-                }
+                recoverIndividualDeletedMessages(positionInfo);
                 if (getConfig().isDeletionAtBatchIndexLevelEnabled()
                     && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
                     recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
@@ -620,6 +622,45 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ledger.getName(), ledgerId, name, t);
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
         }
+    }
+
+    public void recoverIndividualDeletedMessages(PositionInfo positionInfo) {
+        if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
+            recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
+        } else if (positionInfo.getIndividualDeletedMessageRangesCount() > 0) {
+            List<LongListMap> rangeList = positionInfo.getIndividualDeletedMessageRangesList();
+            try {
+                Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
+                        list -> list.getValuesList().stream().mapToLong(i -> i).toArray()));
+                individualDeletedMessages.build(rangeMap);
+            } catch (Exception e) {
+                log.warn("[{}]-{} Failed to recover individualDeletedMessages from serialized data", ledger.getName(),
+                        name, e);
+            }
+        }
+    }
+
+    private List<LongListMap> buildLongPropertiesMap(Map<Long, long[]> properties) {
+        if (properties.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<LongListMap> longListMap = new ArrayList<>();
+        MutableInt serializedSize = new MutableInt();
+        properties.forEach((id, ranges) -> {
+            if (ranges == null || ranges.length <= 0) {
+                return;
+            }
+            org.apache.bookkeeper.mledger.proto.MLDataFormats.LongListMap.Builder lmBuilder = LongListMap.newBuilder()
+                    .setKey(id);
+            for (long range : ranges) {
+                lmBuilder.addValues(range);
+            }
+            LongListMap lm = lmBuilder.build();
+            longListMap.add(lm);
+            serializedSize.add(lm.getSerializedSize());
+        });
+        individualDeletedMessagesSerializedSize = serializedSize.toInteger();
+        return longListMap;
     }
 
     private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
@@ -3091,12 +3132,23 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         PositionImpl position = mdEntry.newPosition;
-        PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
+        Builder piBuilder = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
-                .addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges())
                 .addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList())
-                .addAllProperties(buildPropertiesMap(mdEntry.properties)).build();
+                .addAllProperties(buildPropertiesMap(mdEntry.properties));
 
+        Map<Long, long[]> internalRanges = null;
+        try {
+            internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
+        } catch (Exception e) {
+            log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
+        }
+        if (internalRanges != null && !internalRanges.isEmpty()) {
+            piBuilder.addAllIndividualDeletedMessageRanges(buildLongPropertiesMap(internalRanges));
+        } else {
+            piBuilder.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+        }
+        PositionInfo pi = piBuilder.build();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={}", ledger.getName(), name, lh.getId(),
