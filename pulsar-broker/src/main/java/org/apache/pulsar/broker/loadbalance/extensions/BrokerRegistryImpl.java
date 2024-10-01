@@ -77,10 +77,11 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @VisibleForTesting
     final AtomicReference<State> state = new AtomicReference<>(State.Init);
 
-    public BrokerRegistryImpl(PulsarService pulsar) {
+    @VisibleForTesting
+    BrokerRegistryImpl(PulsarService pulsar, MetadataCache<BrokerLookupData> brokerLookupDataMetadataCache) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
-        this.brokerLookupDataMetadataCache = pulsar.getLocalMetadataStore().getMetadataCache(BrokerLookupData.class);
+        this.brokerLookupDataMetadataCache = brokerLookupDataMetadataCache;
         this.scheduler = pulsar.getLoadManagerExecutor();
         this.listeners = new ArrayList<>();
         this.brokerIdKeyPath = keyPath(pulsar.getBrokerId());
@@ -97,6 +98,10 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 System.currentTimeMillis(),
                 pulsar.getBrokerVersion(),
                 pulsar.getConfig().lookupProperties());
+    }
+
+    public BrokerRegistryImpl(PulsarService pulsar) {
+        this(pulsar, pulsar.getLocalMetadataStore().getMetadataCache(BrokerLookupData.class));
     }
 
     @Override
@@ -119,6 +124,12 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     @Override
+    public boolean isRegistered() {
+        final var state = this.state.get();
+        return state == State.Registered;
+    }
+
+    @Override
     public CompletableFuture<Void> registerAsync() {
         final var state = this.state.get();
         if (state != State.Started && state != State.Registered) {
@@ -127,9 +138,14 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         }
         log.info("[{}] Started registering self to {} (state: {})", getBrokerId(), brokerIdKeyPath, state);
         return brokerLookupDataMetadataCache.put(brokerIdKeyPath, brokerLookupData, EnumSet.of(CreateOption.Ephemeral))
-                .thenAccept(__ -> {
-                    this.state.set(State.Registered);
-                    log.info("[{}] Finished registering self", getBrokerId());
+                .orTimeout(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                .whenComplete((__, ex) -> {
+                    if (ex == null) {
+                        this.state.set(State.Registered);
+                        log.info("[{}] Finished registering self", getBrokerId());
+                    } else {
+                        log.error("[{}] Failed registering self", getBrokerId(), ex);
+                    }
                 });
     }
 

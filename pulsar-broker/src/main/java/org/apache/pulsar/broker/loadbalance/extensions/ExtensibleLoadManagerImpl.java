@@ -35,8 +35,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -987,8 +989,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 return;
             }
 
+            // Monitor broker registry
+            // Periodically check the broker registry in case metadata store fails.
+            validateBrokerRegistry();
+
             // Monitor role
-            // Periodically check the role in case ZK watcher fails.
+            // Periodically check the role in case metadata store fails.
             var isChannelOwner = serviceUnitStateChannel.isChannelOwner();
             if (isChannelOwner) {
                 // System topic config might fail due to the race condition
@@ -1087,5 +1093,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 .equals(pulsar.getConfiguration().getLoadManagerServiceUnitStateTableViewClassName());
     }
 
+    private void validateBrokerRegistry()
+            throws ExecutionException, InterruptedException, TimeoutException {
+        var timeout = pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds();
+        var lookup = brokerRegistry.lookupAsync(brokerRegistry.getBrokerId()).get(timeout, TimeUnit.SECONDS);
+        if (lookup.isEmpty()) {
+            log.warn("Found this broker:{} has not registered yet. Trying to register it",
+                    brokerRegistry.getBrokerId());
+            brokerRegistry.registerAsync().get(timeout, TimeUnit.SECONDS);
+        }
+    }
 
 }

@@ -49,6 +49,11 @@ public interface BrokerRegistry extends AutoCloseable {
     boolean isStarted();
 
     /**
+     * Return the broker has been registered.
+     */
+    boolean isRegistered();
+
+    /**
      * Register local broker to metadata store.
      */
     CompletableFuture<Void> registerAsync();
