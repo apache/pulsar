@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -338,11 +339,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
+    public void testNoKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
         String topicType,
         boolean enableBatch
     ) throws PulsarClientException {
-        String topic = topicType + "://public/default/key_shared_none_key-" + UUID.randomUUID();
+        String topic = topicType + "://public/default/key_shared_no_key-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = createConsumer(topic);
@@ -362,13 +363,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receive(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 100);
     }
 
     @Test(dataProvider = "batch")
-    public void testNonKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
+    public void testNoKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
             throws PulsarClientException {
-        String topic = "persistent://public/default/key_shared_none_key_exclusive-" + UUID.randomUUID();
+        String topic = "persistent://public/default/key_shared_no_key_exclusive-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
@@ -385,21 +386,32 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
+        int consumer1ExpectMessages = 0;
+        int consumer2ExpectMessages = 0;
+        int consumer3ExpectMessages = 0;
+
         for (int i = 0; i < 100; i++) {
             producer.newMessage()
                     .value(i)
                     .send();
+
+            String fallbackKey = producer.getProducerName() + "-" + producer.getLastSequenceId();
+            int slot = Murmur3_32Hash.getInstance().makeHash(fallbackKey.getBytes())
+                    % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+            if (slot <= 20000) {
+                consumer1ExpectMessages++;
+            } else if (slot <= 40000) {
+                consumer2ExpectMessages++;
+            } else {
+                consumer3ExpectMessages++;
+            }
         }
-        int slot = Murmur3_32Hash.getInstance().makeHash("NONE_KEY".getBytes())
-                % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+
         List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
-        if (slot <= 20000) {
-            checkList.add(new KeyValue<>(consumer1, 100));
-        } else if (slot <= 40000) {
-            checkList.add(new KeyValue<>(consumer2, 100));
-        } else {
-            checkList.add(new KeyValue<>(consumer3, 100));
-        }
+        checkList.add(new KeyValue<>(consumer1, consumer1ExpectMessages));
+        checkList.add(new KeyValue<>(consumer2, consumer2ExpectMessages));
+        checkList.add(new KeyValue<>(consumer3, consumer3ExpectMessages));
+
         receiveAndCheck(checkList);
     }
 
@@ -1740,19 +1752,17 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private void receiveAndCheck(List<KeyValue<Consumer<Integer>, Integer>> checkList) throws PulsarClientException {
         Map<Consumer, Set<String>> consumerKeys = new HashMap<>();
         for (KeyValue<Consumer<Integer>, Integer> check : checkList) {
-            if (check.getValue() % 2 != 0) {
-                throw new IllegalArgumentException();
-            }
+            Consumer<Integer> consumer = check.getKey();
             int received = 0;
             Map<String, Message<Integer>> lastMessageForKey = new HashMap<>();
             for (Integer i = 0; i < check.getValue(); i++) {
-                Message<Integer> message = check.getKey().receive();
+                Message<Integer> message = consumer.receive();
                 if (i % 2 == 0) {
-                    check.getKey().acknowledge(message);
+                    consumer.acknowledge(message);
                 }
                 String key = message.hasOrderingKey() ? new String(message.getOrderingKey()) : message.getKey();
                 log.info("[{}] Receive message key: {} value: {} messageId: {}",
-                    check.getKey().getConsumerName(), key, message.getValue(), message.getMessageId());
+                        consumer.getConsumerName(), key, message.getValue(), message.getMessageId());
                 // check messages is order by key
                 if (lastMessageForKey.get(key) == null) {
                     Assert.assertNotNull(message);
@@ -1761,8 +1771,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                         .compareTo(lastMessageForKey.get(key).getValue()) > 0);
                 }
                 lastMessageForKey.put(key, message);
-                consumerKeys.putIfAbsent(check.getKey(), new HashSet<>());
-                consumerKeys.get(check.getKey()).add(key);
+                consumerKeys.putIfAbsent(consumer, new HashSet<>());
+                consumerKeys.get(consumer).add(key);
                 received++;
             }
             Assert.assertEquals(check.getValue().intValue(), received);
@@ -1771,12 +1781,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             // messages not acked, test redelivery
             lastMessageForKey = new HashMap<>();
             for (int i = 0; i < redeliveryCount; i++) {
-                Message<Integer> message = check.getKey().receive();
+                Message<Integer> message = consumer.receive();
                 received++;
-                check.getKey().acknowledge(message);
+                consumer.acknowledge(message);
                 String key = message.hasOrderingKey() ? new String(message.getOrderingKey()) : message.getKey();
                 log.info("[{}] Receive redeliver message key: {} value: {} messageId: {}",
-                        check.getKey().getConsumerName(), key, message.getValue(), message.getMessageId());
+                        consumer.getConsumerName(), key, message.getValue(), message.getMessageId());
                 // check redelivery messages is order by key
                 if (lastMessageForKey.get(key) == null) {
                     Assert.assertNotNull(message);
@@ -1788,16 +1798,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             Message noMessages = null;
             try {
-                noMessages = check.getKey().receive(100, TimeUnit.MILLISECONDS);
+                noMessages = consumer.receive(100, TimeUnit.MILLISECONDS);
             } catch (PulsarClientException ignore) {
             }
             Assert.assertNull(noMessages, "redeliver too many messages.");
             Assert.assertEquals((check.getValue() + redeliveryCount), received);
         }
         Set<String> allKeys = new HashSet<>();
-        consumerKeys.forEach((k, v) -> v.forEach(key -> {
+        consumerKeys.forEach((k, v) -> v.stream().filter(Objects::nonNull).forEach(key -> {
             assertTrue(allKeys.add(key),
-                "Key "+ key +  "is distributed to multiple consumers." );
+                "Key " + key + " is distributed to multiple consumers." );
         }));
     }
 

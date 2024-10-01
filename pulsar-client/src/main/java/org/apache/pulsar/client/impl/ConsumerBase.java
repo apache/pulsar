@@ -1192,11 +1192,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
     protected byte[] peekMessageKey(Message<?> msg) {
         byte[] key = NONE_KEY;
-        if (msg.hasKey()) {
-            key = msg.getKeyBytes();
-        }
         if (msg.hasOrderingKey()) {
             key = msg.getOrderingKey();
+        } else if (msg.hasKey()) {
+            key = msg.getKeyBytes();
+        } else if (msg.getProducerName() != null) {
+            String fallbackKey = msg.getProducerName() + "-" + msg.getSequenceId();
+            key = fallbackKey.getBytes(StandardCharsets.UTF_8);
         }
         return key;
     }

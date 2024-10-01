@@ -1983,6 +1983,9 @@ public class Commands {
                     return Base64.getDecoder().decode(metadata.getPartitionKey());
                 }
                 return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+            } else if (metadata.hasProducerName() && metadata.hasSequenceId()) {
+                String fallbackKey = metadata.getProducerName() + "-" + metadata.getSequenceId();
+                return fallbackKey.getBytes(StandardCharsets.UTF_8);
             }
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
