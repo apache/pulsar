@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -34,7 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.Cleanup;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -53,7 +52,11 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.testng.annotations.Test;
+
+import io.netty.buffer.ByteBuf;
+import lombok.Cleanup;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
@@ -550,4 +553,44 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
 
 
+    /**
+     * This test validates that cursor serializes and deserializes individual-ack list from the bk-ledger.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testUnackmessagesAndRecovery() throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
+                .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
+                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1);
+        ManagedLedger ledger = factory.open("my_test_unack_messages", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        int totalEntries = 100;
+        for (int i = 0; i < totalEntries; i++) {
+            Position p = ledger.addEntry("entry".getBytes());
+            if (i % 2 == 0) {
+                cursor.delete(p);
+            }
+        }
+
+        LongPairRangeSet<PositionImpl> unackMessagesBefore = cursor.getIndividuallyDeletedMessagesSet();
+
+        ledger.close();
+
+        // open and recover cursor
+        ledger = factory.open("my_test_unack_messages", config);
+        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LongPairRangeSet<PositionImpl> unackMessagesAfter = cursor.getIndividuallyDeletedMessagesSet();
+        assertTrue(unackMessagesBefore.equals(unackMessagesAfter));
+
+        ledger.close();
+        factory.shutdown();
+    }
 }
