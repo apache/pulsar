@@ -43,8 +43,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     // Consistent-Hash ring
     private final NavigableMap<Integer, ConsumerIdentityWrapper> hashRing;
+    // Tracks the used consumer name indexes for each consumer name
     private final ConsumerNameIndexTracker consumerNameIndexTracker = new ConsumerNameIndexTracker();
-
 
     private final int numberOfPoints;
 
@@ -61,11 +61,15 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
             for (int i = 0; i < numberOfPoints; i++) {
-                int consumerNameIndex = consumerNameIndexTracker.addHashRingReference(consumerIdentityWrapper);
+                int consumerNameIndex =
+                        consumerNameIndexTracker.increaseConsumerRefCountAndReturnIndex(consumerIdentityWrapper);
                 int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
+                // When there's a collision, the new consumer will replace the old one.
+                // This is a rare case, and it is acceptable to replace the old consumer since there
+                // are multiple points for each consumer. This won't affect the overall distribution significantly.
                 ConsumerIdentityWrapper removed = hashRing.put(hash, consumerIdentityWrapper);
                 if (removed != null) {
-                    consumerNameIndexTracker.removeHashRingReference(removed);
+                    consumerNameIndexTracker.decreaseConsumerRefCount(removed);
                 }
             }
             return CompletableFuture.completedFuture(null);
@@ -74,8 +78,19 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
-    private static int calculateHashForConsumerAndIndex(Consumer consumer, int consumerNameIndex, int index) {
-        String key = consumer.consumerName() + KEY_SEPARATOR + consumerNameIndex + KEY_SEPARATOR + index;
+    /**
+     * Calculate the hash for a consumer and hash ring point.
+     * The hash is calculated based on the consumer name, consumer name index, and hash ring point index.
+     * The resulting hash is used as the key to insert the consumer into the hash ring.
+     *
+     * @param consumer the consumer
+     * @param consumerNameIndex the index of the consumer name
+     * @param hashRingPointIndex the index of the hash ring point
+     * @return the hash value
+     */
+    private static int calculateHashForConsumerAndIndex(Consumer consumer, int consumerNameIndex,
+                                                        int hashRingPointIndex) {
+        String key = consumer.consumerName() + KEY_SEPARATOR + consumerNameIndex + KEY_SEPARATOR + hashRingPointIndex;
         return Murmur3_32Hash.getInstance().makeHash(key.getBytes());
     }
 
@@ -84,13 +99,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         rwLock.writeLock().lock();
         try {
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
-            int consumerNameIndex = consumerNameIndexTracker.getTrackedConsumerNameIndex(consumerIdentityWrapper);
+            int consumerNameIndex = consumerNameIndexTracker.getTrackedIndex(consumerIdentityWrapper);
             if (consumerNameIndex > -1) {
                 // Remove all the points that were added for this consumer
                 for (int i = 0; i < numberOfPoints; i++) {
                     int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
                     if (hashRing.remove(hash, consumerIdentityWrapper)) {
-                        consumerNameIndexTracker.removeHashRingReference(consumerIdentityWrapper);
+                        consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
                     }
                 }
             }
@@ -106,11 +121,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             if (hashRing.isEmpty()) {
                 return null;
             }
-
             Map.Entry<Integer, ConsumerIdentityWrapper> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
                 return ceilingEntry.getValue().consumer;
             } else {
+                // Handle wrap-around in the hash ring, return the first consumer
                 return hashRing.firstEntry().getValue().consumer;
             }
         } finally {
@@ -132,10 +147,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 Consumer consumer = entry.getValue().consumer;
                 result.computeIfAbsent(consumer, key -> new ArrayList<>())
                         .add(Range.of(start, entry.getKey()));
-                lastKey = entry.getKey() + 1;
-                start = lastKey;
+                lastKey = entry.getKey();
+                start = lastKey + 1;
             }
-            // Handle wrap-around
+            // Handle wrap-around in the hash ring, the first consumer will also contain the range from the last key
+            // to the maximum value of the hash range
             Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
             List<Range> ranges = result.get(firstConsumer);
             if (lastKey != Integer.MAX_VALUE - 1) {

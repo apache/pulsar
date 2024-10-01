@@ -22,6 +22,10 @@ package org.apache.pulsar.broker.service;
  * A wrapper class for a Consumer instance that provides custom implementations
  * of equals and hashCode methods. The equals method returns true if and only if
  * the compared instance is the same instance.
+ *
+ * <p>The reason for this class is the custom implementation of {@link Consumer#equals(Object)}.
+ * Using this wrapper class will be useful in use cases where it's necessary to match a key
+ * in a map by instance or a value in a set by instance.</p>
  */
 class ConsumerIdentityWrapper {
     final Consumer consumer;
@@ -30,6 +34,15 @@ class ConsumerIdentityWrapper {
         this.consumer = consumer;
     }
 
+    /**
+     * Compares this wrapper to the specified object. The result is true if and only if
+     * the argument is not null and is a ConsumerIdentityWrapper object that wraps
+     * the same Consumer instance.
+     *
+     * @param obj the object to compare this ConsumerIdentityWrapper against
+     * @return true if the given object represents a ConsumerIdentityWrapper
+     *         equivalent to this wrapper, false otherwise
+     */
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ConsumerIdentityWrapper) {
@@ -39,6 +52,12 @@ class ConsumerIdentityWrapper {
         return false;
     }
 
+    /**
+     * Returns a hash code for this wrapper. The hash code is computed based on
+     * the wrapped Consumer instance.
+     *
+     * @return a hash code value for this object
+     */
     @Override
     public int hashCode() {
         return consumer.hashCode();

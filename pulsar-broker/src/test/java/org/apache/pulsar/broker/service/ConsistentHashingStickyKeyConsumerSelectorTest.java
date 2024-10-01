@@ -180,8 +180,21 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 Range.of(0, 95615212),
                 Range.of(455987437, 939655187),
                 Range.of(1264144432, 1314727624),
-                Range.of(2016237255, 2147483646)));
-        assertThat(selector.getConsumerKeyHashRanges()).containsExactlyInAnyOrderEntriesOf(expectedResult);
+                Range.of(2016237254, 2147483646)));
+        Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
+        assertThat(consumerKeyHashRanges).containsExactlyInAnyOrderEntriesOf(expectedResult);
+
+        // check that ranges are continuous and cover the whole range
+        List<Range> allRanges =
+                consumerKeyHashRanges.values().stream().flatMap(List::stream).sorted().collect(Collectors.toList());
+        Range previousRange = null;
+        for (Range range : allRanges) {
+            if (previousRange != null) {
+                assertThat(range.getStart()).isEqualTo(previousRange.getEnd() + 1);
+            }
+            previousRange = range;
+        }
+        assertThat(allRanges.stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test

@@ -27,7 +27,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public class Range {
+public class Range implements Comparable<Range> {
 
     private final int start;
     private final int end;
@@ -83,5 +83,14 @@ public class Range {
     @Override
     public String toString() {
         return "[" + start + ", " + end + "]";
+    }
+
+    @Override
+    public int compareTo(Range o) {
+        int result = Integer.compare(start, o.start);
+        if (result == 0) {
+            result = Integer.compare(end, o.end);
+        }
+        return result;
     }
 }
