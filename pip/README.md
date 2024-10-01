@@ -77,7 +77,7 @@ The process works in the following way:
    sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`. Make sure to include a link to the PIP PR in the body of the message.
    Make sure to update the PIP with a link to the vote. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org). 
    Everyone is welcome to vote on the proposal, though only the vote of the PMC members will be considered binding.
-   It is required to have a lazy majority of at least 3 binding +1s votes.
+   The requirement is to have at least one binding +1 vote from a lazy majority if no binding -1 votes have been cast on the PIP.
    The vote should stay open for at least 48 hours.
 9. When the vote is closed, if the outcome is positive, ask a PMC member (using voting thread on mailing list) to merge the PR.
 10. If the outcome is negative, please close the PR (with a small comment that the close is a result of a vote).
