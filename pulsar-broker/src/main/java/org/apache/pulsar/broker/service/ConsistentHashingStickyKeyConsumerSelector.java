@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,10 +27,8 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
-import org.roaringbitmap.RoaringBitmap;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -54,87 +51,6 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
-    }
-
-    private static class ConsumerIdentityWrapper {
-        final Consumer consumer;
-
-        public ConsumerIdentityWrapper(Consumer consumer) {
-            this.consumer = consumer;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof ConsumerIdentityWrapper) {
-                ConsumerIdentityWrapper other = (ConsumerIdentityWrapper) obj;
-                return consumer == other.consumer;
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            return consumer.hashCode();
-        }
-
-        @Override
-        public String toString() {
-            return consumer.toString();
-        }
-    }
-
-    private static class ConsumerNameIndexTracker {
-        private final Map<String, RoaringBitmap> consumerNameCounters = new HashMap<>();
-        private final Map<ConsumerIdentityWrapper, ConsumerEntry> consumerEntries = new HashMap<>();
-        record ConsumerEntry(String consumerName, int nameIndex, MutableInt refCount) {
-        }
-
-        private RoaringBitmap getConsumerNameIndexBitmap(String consumerName) {
-            return consumerNameCounters.computeIfAbsent(consumerName,
-                    k -> new RoaringBitmap());
-        }
-
-        private int allocateConsumerNameIndex(String consumerName) {
-            RoaringBitmap bitmap = getConsumerNameIndexBitmap(consumerName);
-            // find the first index that is not set, if there is no such index, add a new one
-            int index = (int) bitmap.nextAbsentValue(0);
-            if (index == -1) {
-                index = bitmap.getCardinality();
-            }
-            bitmap.add(index);
-            return index;
-        }
-
-        private void deallocateConsumerNameIndex(String consumerName, int index) {
-            RoaringBitmap bitmap = getConsumerNameIndexBitmap(consumerName);
-            bitmap.remove(index);
-            if (bitmap.isEmpty()) {
-                consumerNameCounters.remove(consumerName);
-            }
-        }
-
-        public void removeHashRingReference(ConsumerIdentityWrapper removed) {
-            ConsumerEntry consumerEntry = consumerEntries.get(removed);
-            int refCount = consumerEntry.refCount.decrementAndGet();
-            if (refCount == 0) {
-                deallocateConsumerNameIndex(consumerEntry.consumerName, consumerEntry.nameIndex);
-                consumerEntries.remove(removed, consumerEntry);
-            }
-        }
-
-        public int addHashRingReference(ConsumerIdentityWrapper wrapper) {
-            String consumerName = wrapper.consumer.consumerName();
-            ConsumerEntry entry = consumerEntries.computeIfAbsent(wrapper,
-                    k -> new ConsumerEntry(consumerName, allocateConsumerNameIndex(consumerName),
-                            new MutableInt(0)));
-            entry.refCount.increment();
-            return entry.nameIndex;
-        }
-
-        public int getTrackedConsumerNameIndex(ConsumerIdentityWrapper wrapper) {
-            ConsumerEntry consumerEntry = consumerEntries.get(wrapper);
-            return consumerEntry != null ? consumerEntry.nameIndex : -1;
-        }
     }
 
     @Override
