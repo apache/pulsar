@@ -446,6 +446,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String clusterName;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
+    )
+    private String authenticationRoleLoggingAnonymizer = "NONE";
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "The maximum number of tenants that each pulsar cluster can create."
