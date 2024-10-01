@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -326,7 +327,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
         final List<Entry> readEntries = new ArrayList<>();
         readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key22")));
+        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
 
         try {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
@@ -417,7 +418,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key22")));
+        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
         allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
         allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
         allEntries.forEach(entry -> ((EntryImpl) entry).retain());
@@ -518,8 +519,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             persistentDispatcher.readMoreEntries();
         }
 
-        assertEquals(actualEntriesToConsumer1, expectedEntriesToConsumer1);
-        assertEquals(actualEntriesToConsumer2, expectedEntriesToConsumer2);
+        assertThat(actualEntriesToConsumer1).containsExactlyElementsOf(expectedEntriesToConsumer1);
+        assertThat(actualEntriesToConsumer2).containsExactlyElementsOf(expectedEntriesToConsumer2);
 
         allEntries.forEach(entry -> entry.release());
     }

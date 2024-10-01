@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -492,5 +493,57 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
         assertThat(selector.getConsumerKeyHashRanges()).as("ranges shouldn't change").containsExactlyInAnyOrderEntriesOf(expected);
+    }
+
+    @Test
+    public void testConsumersReconnect() {
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final String consumerName = "consumer";
+        final int numOfInitialConsumers = 50;
+        final int validationPointCount = 200;
+        final List<Integer> pointsToTest = pointsToTest(validationPointCount);
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < numOfInitialConsumers; i++) {
+            final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+
+        // Mark original results.
+        List<Consumer> selectedConsumersBeforeRemove = new ArrayList<>();
+        for (int i = 0; i < validationPointCount; i++) {
+            int point = pointsToTest.get(i);
+            selectedConsumersBeforeRemove.add(selector.select(point));
+        }
+
+        // All consumers leave (in any order)
+        List<Consumer> randomOrderConsumers = new ArrayList<>(consumers);
+        Collections.shuffle(randomOrderConsumers);
+        for (Consumer c : randomOrderConsumers) {
+            selector.removeConsumer(c);
+        }
+
+        // All consumers reconnect in the same order as originally
+        for (Consumer c : consumers) {
+            selector.addConsumer(c);
+        }
+
+        // Check that the same consumers are selected as before
+        for (int j = 0; j < validationPointCount; j++) {
+            int point = pointsToTest.get(j);
+            Consumer selected = selector.select(point);
+            Consumer expected = selectedConsumersBeforeRemove.get(j);
+            assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, point).isEqualTo(expected.consumerId());
+        }
+    }
+
+    private List<Integer> pointsToTest(int validationPointCount) {
+        List<Integer> res = new ArrayList<>();
+        int hashRangeSize = Integer.MAX_VALUE;
+        final int increment = hashRangeSize / (validationPointCount + 1);
+        for (int i = 0; i < validationPointCount; i++) {
+            res.add(i * increment);
+        }
+        return res;
     }
 }
