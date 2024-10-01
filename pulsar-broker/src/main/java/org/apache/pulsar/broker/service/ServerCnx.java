@@ -174,6 +174,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RedactedRole;
 import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
@@ -217,6 +218,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private AuthData originalAuthDataCopy;
     private boolean pendingAuthChallengeResponse = false;
     private ScheduledFuture<?> authRefreshTask;
+    private boolean preventRoleLogging = false;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -351,6 +353,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
         this.brokerInterceptor = this.service != null ? this.service.getInterceptor() : null;
         this.throttleTracker = new ServerCnxThrottleTracker(this);
+        this.preventRoleLogging = conf.isPreventRoleLogging();
     }
 
     @Override
@@ -829,13 +832,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info("[{}] connected with clientVersion={}, clientProtocolVersion={}, proxyVersion={}", remoteAddress,
                     clientVersion, clientProtoVersion, proxyVersion);
         } else if (originalPrincipal != null) {
+            String maybeAnonymizedAuthRole = RedactedRole.anonymize(authRole, preventRoleLogging);
+            String maybeAnonymizedOriginalPrincipal = RedactedRole.anonymize(originalPrincipal, preventRoleLogging);
             log.info("[{}] connected role={} and originalAuthRole={} using authMethod={}, clientVersion={}, "
-                            + "clientProtocolVersion={}, proxyVersion={}", remoteAddress, authRole, originalPrincipal,
-                    authMethod, clientVersion, clientProtoVersion, proxyVersion);
+                            + "clientProtocolVersion={}, proxyVersion={}", remoteAddress, maybeAnonymizedAuthRole,
+                    maybeAnonymizedOriginalPrincipal, authMethod, clientVersion, clientProtoVersion, proxyVersion);
         } else {
+            String maybeAnonymizedAuthRole = RedactedRole.anonymize(authRole, preventRoleLogging);
             log.info("[{}] connected with role={} using authMethod={}, clientVersion={}, clientProtocolVersion={}, "
-                            + "proxyVersion={}", remoteAddress, authRole, authMethod, clientVersion, clientProtoVersion,
-                    proxyVersion);
+                            + "proxyVersion={}", remoteAddress, maybeAnonymizedAuthRole, authMethod, clientVersion,
+                    clientProtoVersion, proxyVersion);
         }
         if (brokerInterceptor != null) {
             brokerInterceptor.onConnectionCreated(this);

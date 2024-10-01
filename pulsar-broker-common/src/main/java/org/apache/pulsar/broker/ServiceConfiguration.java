@@ -445,6 +445,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String clusterName;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Prevent broker from logging role and originalAuthRole, default is false"
+    )
+    private Boolean preventRoleLogging = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "The maximum number of tenants that each pulsar cluster can create."

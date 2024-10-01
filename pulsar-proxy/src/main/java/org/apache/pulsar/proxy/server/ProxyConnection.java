@@ -74,6 +74,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.RedactedRole;
 import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
@@ -343,8 +344,10 @@ public class ProxyConnection extends PulsarHandler {
 
     private synchronized void completeConnect() throws PulsarClientException {
         checkArgument(state == State.Connecting);
+        Boolean preventRoleLogging = service.getConfiguration().getPreventRoleLogging();
+        String role = RedactedRole.anonymize(clientAuthRole, preventRoleLogging);
         LOG.info("[{}] complete connection, init proxy handler. authenticated with {} role {}, hasProxyToBrokerUrl: {}",
-                remoteAddress, authMethod, clientAuthRole, hasProxyToBrokerUrl);
+                remoteAddress, authMethod, role, hasProxyToBrokerUrl);
         if (hasProxyToBrokerUrl) {
             // Optimize proxy connection to fail-fast if the target broker isn't active
             // Pulsar client will retry connecting after a back off timeout
@@ -352,7 +355,7 @@ public class ProxyConnection extends PulsarHandler {
                     && !isBrokerActive(proxyToBrokerUrl)) {
                 state = State.Closing;
                 LOG.warn("[{}] Target broker '{}' isn't available. authenticated with {} role {}.",
-                        remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
+                        remoteAddress, proxyToBrokerUrl, authMethod, role);
                 final ByteBuf msg = Commands.newError(-1,
                         ServerError.ServiceNotReady, "Target broker isn't available.");
                 writeAndFlushAndClose(msg);
@@ -371,10 +374,10 @@ public class ProxyConnection extends PulsarHandler {
 
                             LOG.warn("[{}] Target broker '{}' cannot be validated. {}. authenticated with {} role {}.",
                                     remoteAddress, proxyToBrokerUrl, targetAddressDeniedException.getMessage(),
-                                    authMethod, clientAuthRole);
+                                    authMethod, role);
                         } else {
                             LOG.error("[{}] Error validating target broker '{}'. authenticated with {} role {}.",
-                                    remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole, throwable);
+                                    remoteAddress, proxyToBrokerUrl, authMethod, role, throwable);
                         }
                         final ByteBuf msg = Commands.newError(-1, ServerError.ServiceNotReady,
                                 "Target broker cannot be validated.");
@@ -401,7 +404,7 @@ public class ProxyConnection extends PulsarHandler {
                         Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
-                        remoteAddress, state, clientAuthRole);
+                        remoteAddress, state, role);
             }
 
             state = State.ProxyLookupRequests;

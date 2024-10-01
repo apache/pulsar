@@ -286,6 +286,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "is enabled.")
     private Boolean webServiceLogDetailedAddresses;
 
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Prevent broker from logging role and originalAuthRole, default is false.")
+    private Boolean preventRoleLogging = false;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
                     + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")
