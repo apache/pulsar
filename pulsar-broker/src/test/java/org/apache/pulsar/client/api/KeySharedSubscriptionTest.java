@@ -540,7 +540,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
-
+        String subscriptionName = "key_shared";
         String slowKey = "slowKey";
 
         List<PulsarClient> clients = new ArrayList<>();
@@ -556,16 +556,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
                 Consumer c = client.newConsumer(Schema.INT32)
                         .topic(topic)
-                        .subscriptionName("key_shared")
+                        .subscriptionName(subscriptionName)
                         .subscriptionType(SubscriptionType.Key_Shared)
-                        .receiverQueueSize(1)
+                        .receiverQueueSize(100)
                         .messageListener((consumer, msg) -> {
                             try {
                                 if (slowKey.equals(msg.getKey())) {
                                     // Block the thread to simulate a slow consumer
                                     Thread.sleep(10000);
                                 }
-
                                 receivedMessages.incrementAndGet();
                                 consumer.acknowledge(msg);
                             } catch (Exception e) {
@@ -575,6 +574,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                         .subscribe();
                 consumers.add(c);
             }
+
+            Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
+            // get the dispatcher reference
+            PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                    (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+            StickyKeyConsumerSelector selector = dispatcher.getSelector();
+
+            org.apache.pulsar.broker.service.Consumer slowConsumer =
+                    selector.select(selector.makeStickyKeyHash(slowKey.getBytes()));
 
             @Cleanup
             Producer<Integer> producer = createProducer(topic, enableBatch);
@@ -587,18 +596,24 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
             int N = 1000;
 
+            int nonSlowMessages = 0;
+
             // Then send all the other keys
             for (int i = 0; i < N; i++) {
+                String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+                if (selector.select(selector.makeStickyKeyHash(key.getBytes())) != slowConsumer) {
+                    // count messages that are not going to the slow consumer
+                    nonSlowMessages++;
+                }
                 producer.newMessage()
-                        .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                        .key(key)
                         .value(i)
                         .send();
             }
 
-            // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
-            // plus or minus for some skew in the key distribution.
+            int finalNonSlowMessages = nonSlowMessages;
             Awaitility.await().untilAsserted(() -> {
-                assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+                assertThat(receivedMessages.get()).isGreaterThanOrEqualTo(finalNonSlowMessages);
             });
 
             for (Consumer c : consumers) {
