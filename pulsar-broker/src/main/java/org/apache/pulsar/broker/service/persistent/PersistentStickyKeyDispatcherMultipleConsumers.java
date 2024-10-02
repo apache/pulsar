@@ -160,7 +160,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         return;
                     }
                     for (Range range : ranges) {
-                        if (stickyKeyHash >= range.getStart() && stickyKeyHash <= range.getEnd()) {
+                        if (range.contains(stickyKeyHash)) {
                             drainingHashesTracker.addEntry(c, stickyKeyHash);
                             break;
                         }
