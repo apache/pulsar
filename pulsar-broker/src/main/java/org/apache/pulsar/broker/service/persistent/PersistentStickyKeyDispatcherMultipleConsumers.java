@@ -177,16 +177,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
-        // In the superclass removeConsumer method, the pending acks that the consumer has are added to
-        // redeliveryMessages. If the consumer has not been removed from the selector at this point,
-        // the broker will try to redeliver the messages to the consumer that has already been closed.
-        // As a result, the messages are not redelivered to any consumer, and the mark-delete position does not move,
-        // eventually causing all consumers to get stuck.
         Map<Consumer, NavigableSet<Range>> impactedRanges = selector.removeConsumer(consumer);
+        super.removeConsumer(consumer);
         if (drainingHashesRequired) {
+            // register draining hashes for the impacted consumers and ranges, in case a hash switched from one
+            // consumer to another. This will handle the case where a hash gets switched from an existing
+            // consumer to another existing consumer during removal.
             registerDrainingHashes(consumer, impactedRanges);
         }
-        super.removeConsumer(consumer);
     }
 
     @Override
