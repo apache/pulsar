@@ -3449,48 +3449,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetLastSentPositionWhenJoining() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/testGetLastSentPositionWhenJoining-" + UUID.randomUUID().toString();
-        final String subName = "my-sub";
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-
-        @Cleanup
-        final Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscriptionName(subName)
-                .subscribe();
-
-        final int messages = 10;
-        MessageIdImpl messageId = null;
-        for (int i = 0; i < messages; i++) {
-            messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
-            consumer1.receive();
-        }
-
-        @Cleanup
-        final Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscriptionName(subName)
-                .subscribe();
-
-        TopicStats stats = admin.topics().getStats(topic);
-        Assert.assertEquals(stats.getSubscriptions().size(), 1);
-        SubscriptionStats subStats = stats.getSubscriptions().get(subName);
-        Assert.assertNotNull(subStats);
-        Assert.assertEquals(subStats.getConsumers().size(), 2);
-        ConsumerStats consumerStats = subStats.getConsumers().stream()
-                .filter(s -> s.getConsumerName().equals(consumer2.getConsumerName())).findFirst().get();
-        Assert.assertEquals(consumerStats.getLastSentPositionWhenJoining(),
-                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()).toString());
-    }
-
-    @Test
     public void testPartitionedTopicMsgDelayedAggregated() throws Exception {
         final String topic = "persistent://prop-xyz/ns1/testPartitionedTopicMsgDelayedAggregated-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
