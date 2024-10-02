@@ -914,7 +914,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>it.unimi.dsi</groupId>
-        <artifactId>fastutil-core</artifactId>
+        <artifactId>fastutil</artifactId>
         <version>${fastutil.version}</version>
       </dependency>
 

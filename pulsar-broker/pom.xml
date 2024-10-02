@@ -65,7 +65,7 @@
 
     <dependency>
       <groupId>it.unimi.dsi</groupId>
-      <artifactId>fastutil-core</artifactId>
+      <artifactId>fastutil</artifactId>
     </dependency>
 
     <dependency>
