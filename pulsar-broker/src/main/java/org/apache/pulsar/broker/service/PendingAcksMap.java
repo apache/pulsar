@@ -26,7 +26,6 @@ import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
@@ -107,19 +106,14 @@ public class PendingAcksMap {
     private boolean closed = false;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
-                   Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier, boolean useSingleLock) {
+                   Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
         this.consumer = consumer;
         this.pendingAcks = new Long2ObjectRBTreeMap<>();
         this.pendingAcksAddHandlerSupplier = pendingAcksAddHandlerSupplier;
         this.pendingAcksRemoveHandlerSupplier = pendingAcksRemoveHandlerSupplier;
-        if (useSingleLock) {
-            this.writeLock = new ReentrantLock();
-            this.readLock = this.writeLock;
-        } else {
-            ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-            this.writeLock = readWriteLock.writeLock();
-            this.readLock = readWriteLock.readLock();
-        }
+        ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+        this.writeLock = readWriteLock.writeLock();
+        this.readLock = readWriteLock.readLock();
     }
 
     /**
@@ -358,10 +352,8 @@ public class PendingAcksMap {
         boolean batchStarted = false;
         // track if the method should retry with a write lock
         boolean retryWithWriteLock = false;
-        // write lock is required if the read lock is not the same as the write lock
-        boolean requiresWriteLock = readLock != writeLock;
         try {
-            if (useWriteLock && requiresWriteLock) {
+            if (useWriteLock) {
                 writeLock.lock();
                 acquiredWriteLock = true;
             } else {
@@ -384,7 +376,7 @@ public class PendingAcksMap {
                 while (entryMapIterator.hasNext()) {
                     Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
                     long entryId = intIntPairEntry.getLongKey();
-                    if (!acquiredWriteLock && requiresWriteLock) {
+                    if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
                         return;
                     }
@@ -399,7 +391,7 @@ public class PendingAcksMap {
                     entryMapIterator.remove();
                 }
                 if (ledgerMap.isEmpty()) {
-                    if (!acquiredWriteLock && requiresWriteLock) {
+                    if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
                         return;
                     }
