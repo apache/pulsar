@@ -375,7 +375,7 @@ public class Consumer {
                         stickyKeyHash = stickyKeyHashes.get(i);
                     }
                     boolean sendingAllowed =
-                            pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize,
+                            pendingAcks.addPendingAckIfAllowed(entry.getLedgerId(), entry.getEntryId(), batchSize,
                                     stickyKeyHash);
                     if (!sendingAllowed) {
                         // sending isn't allowed when pending acks doesn't accept adding the entry
@@ -1065,23 +1065,9 @@ public class Consumer {
      */
     private boolean removePendingAcks(Consumer ackOwnedConsumer, Position position) {
         PendingAcksMap ownedConsumerPendingAcks = ackOwnedConsumer.getPendingAcks();
-        if (drainingHashesTracker != null) {
-            IntIntPair pendingAckEntry = ownedConsumerPendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (pendingAckEntry != null
-                    && ownedConsumerPendingAcks
-                    .remove(position.getLedgerId(), position.getEntryId(), pendingAckEntry.leftInt(),
-                            pendingAckEntry.rightInt())) {
-                int hash = pendingAckEntry.rightInt();
-                drainingHashesTracker.reduceRefCount(ackOwnedConsumer, hash);
-            } else {
-                // Message was already removed by the other consumer
-                return false;
-            }
-        } else {
-            if (!ownedConsumerPendingAcks.remove(position.getLedgerId(), position.getEntryId())) {
-                // Message was already removed by the other consumer
-                return false;
-            }
+        if (!ownedConsumerPendingAcks.remove(position.getLedgerId(), position.getEntryId())) {
+            // Message was already removed by the other consumer
+            return false;
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
