@@ -458,6 +458,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
+
+        // If this broker's registry does not exist(possibly suffering from connecting to the metadata store),
+        // we return the owner without its activeness check.
+        // This broker tries to serve lookups on a best efforts basis when metadata store connection is unstable.
+        if (!brokerRegistry.isRegistered()) {
+            return CompletableFuture.completedFuture(owner);
+        }
+
         return dedupeGetOwnerRequest(serviceUnit)
                 .thenCompose(newOwner -> {
                     if (newOwner == null) {

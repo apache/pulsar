@@ -182,6 +182,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         pulsar1 = pulsar;
         registry = spy(new BrokerRegistryImpl(pulsar1));
+        registry.start();
         pulsarAdmin = spy(pulsar.getAdminClient());
         loadManagerContext = mock(LoadManagerContext.class);
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
@@ -1790,6 +1791,18 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
+        try {
+            // verify getOwnerAsync returns immediately when not registered
+            registry.unregister();
+            start = System.currentTimeMillis();
+            assertEquals(broker, channel1.getOwnerAsync(bundle).get().get());
+            elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 1000);
+        } finally {
+            registry.registerAsync().join();
+        }
+
+
         // case 7: the ownership cleanup(no new owner) by the leader channel
         doReturn(CompletableFuture.completedFuture(Optional.empty()))
                 .when(loadManager).selectAsync(any(), any(), any());
@@ -1800,7 +1813,6 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         if (leader1.equals(brokerId2)) {
             leaderChannel = (ServiceUnitStateChannelImpl) channel2;
         }
-        System.out.println("$$$ running");
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);

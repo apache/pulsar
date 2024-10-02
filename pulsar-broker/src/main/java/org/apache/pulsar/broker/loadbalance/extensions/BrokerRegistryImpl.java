@@ -52,11 +52,9 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 @Slf4j
 public class BrokerRegistryImpl implements BrokerRegistry {
 
-    private final PulsarService pulsar;
-
-    private static final int MAX_REGISTER_RETRY = 10;
-
     private static final int MAX_REGISTER_RETRY_DELAY_IN_MILLIS = 1000;
+
+    private final PulsarService pulsar;
 
     private final ServiceConfiguration conf;
 
@@ -154,14 +152,10 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     private void doRegisterAsyncWithRetries(int retry, CompletableFuture<Void> future) {
-        this.scheduler.schedule(() -> {
+        pulsar.getExecutor().schedule(() -> {
             registerAsync().whenComplete((__, e) -> {
                 if (e != null) {
-                    if (retry == MAX_REGISTER_RETRY) {
-                        future.completeExceptionally(new PulsarServerException("Stopped registering self retries", e));
-                    } else {
-                        doRegisterAsyncWithRetries(retry + 1, future);
-                    }
+                    doRegisterAsyncWithRetries(retry + 1, future);
                 } else {
                     future.complete(null);
                 }
@@ -170,8 +164,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     private CompletableFuture<Void> registerAsyncWithRetries() {
-        var future = registerAsync();
-        return future.handle((__, e) -> {
+        return registerAsync().handle((__, e) -> {
             if (e != null) {
                 var retryFuture = new CompletableFuture<Void>();
                 doRegisterAsyncWithRetries(1, retryFuture);
@@ -271,6 +264,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
             CompletableFuture<Void> register;
             if (t.getType() == NotificationType.Deleted && getBrokerId().equals(brokerId)) {
+                this.state.set(State.Started);
                 register = registerAsyncWithRetries();
             } else {
                 register = CompletableFuture.completedFuture(null);
