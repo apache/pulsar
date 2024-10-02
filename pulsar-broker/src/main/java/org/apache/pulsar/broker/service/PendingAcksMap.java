@@ -162,7 +162,12 @@ public class PendingAcksMap {
      * @return the size of the pending acks map
      */
     public long size() {
-        return pendingAcks.size();
+        try {
+            readLock.lock();
+            return pendingAcks.values().stream().mapToInt(Long2ObjectSortedMap::size).sum();
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**
