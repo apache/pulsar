@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -884,6 +885,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     public void testContinueDispatchMessagesWhenMessageTTL() throws Exception {
         int defaultTTLSec = 3;
         int totalMessages = 1000;
+        int numberOfKeys = 50;
         this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         final String subName = "my-sub";
@@ -891,10 +893,18 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
+                .consumerName("consumer1")
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
+
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subName);
+        // get the dispatcher reference
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
@@ -903,20 +913,22 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < totalMessages; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(String.valueOf(i % numberOfKeys))
                     .value(i)
                     .send();
         }
 
-        // don't ack the first message
-        consumer1.receive();
-        consumer1.acknowledge(consumer1.receive());
+        // pull up to numberOfKeys messages and don't ack them
+        for (int i = 0; i < numberOfKeys + 1; i++) {
+            consumer1.receive();
+        }
 
-        // The consumer1 and consumer2 should be stuck because of the mark delete position did not move forward.
+        // The consumer1 and consumer2 should be stuck since all hashes are blocked
 
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
+                .consumerName("consumer2")
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
@@ -931,6 +943,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
+                .consumerName("consumer3")
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
@@ -949,14 +962,23 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // The mark delete position is move forward, so the consumers should receive new messages now.
         for (int i = 0; i < totalMessages; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(String.valueOf(i % numberOfKeys))
                     .value(i)
                     .send();
         }
 
-        // Wait broker dispatch messages.
-        Assert.assertNotNull(consumer2.receive(1, TimeUnit.SECONDS));
-        Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
+        Map<String, AtomicInteger> receivedMessagesCountByConsumer = new ConcurrentHashMap<>();
+        receiveMessages((consumer, message) -> {
+            consumer.acknowledgeAsync(message);
+            receivedMessagesCountByConsumer.computeIfAbsent(consumer.getConsumerName(), id -> new AtomicInteger(0))
+                    .incrementAndGet();
+            return true;
+        }, Duration.ofSeconds(2), consumer1, consumer2, consumer3);
+
+        assertThat(receivedMessagesCountByConsumer.values().stream().mapToInt(AtomicInteger::intValue).sum()).isEqualTo(
+                totalMessages);
+        assertThat(receivedMessagesCountByConsumer.values()).allSatisfy(
+                count -> assertThat(count.get()).isGreaterThan(0));
     }
 
     @Test(dataProvider = "partitioned")
