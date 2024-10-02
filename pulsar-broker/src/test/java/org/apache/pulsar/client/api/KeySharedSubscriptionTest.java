@@ -1287,7 +1287,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
         });
 
-        l.await();
+        l.await(10, TimeUnit.SECONDS);
     }
 
     @DataProvider(name = "preSend")
@@ -1705,8 +1705,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }});
 
         // wait for some messages to be received by both of the consumers
-        count1.await();
-        count2.await();
+        count1.await(5, TimeUnit.SECONDS);
+        count2.await(5, TimeUnit.SECONDS);
         consumer1.close();
         consumer2.close();
 
@@ -1752,7 +1752,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 })
                 .subscribe();
         // wait for all the messages to be delivered
-        count3.await();
+        count3.await(20, TimeUnit.SECONDS);
         assertTrue(sentMessages.isEmpty(), "didn't receive " + sentMessages);
 
         producerFuture.get();
