@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 
 /**
  * A thread-safe map to store pending acks in the consumer.
@@ -38,20 +43,32 @@ public class PendingAcksMap {
         boolean handleAdding(long consumerId, long ledgerId, long entryId, int stickyKeyHash);
     }
 
-    private final ConcurrentLongLongPairHashMap pendingAcks;
+    public interface PendingAcksConsumer {
+        void accept(long ledgerId, long entryId, int batchSize, int stickyKeyHash);
+    }
+
+    private final Long2ObjectSortedMap<Long2ObjectSortedMap<IntIntPair>> pendingAcks;
     private final Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier;
-    private final ReentrantLock lock = new ReentrantLock();
+    private final Lock readLock;
+    private final Lock writeLock;
     private boolean closed = false;
 
-    PendingAcksMap(ConcurrentLongLongPairHashMap pendingAcks,
-                   Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier) {
-        this.pendingAcks = pendingAcks;
+    PendingAcksMap(Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier, boolean useExclusiveReadLock) {
+        this.pendingAcks = new Long2ObjectRBTreeMap<>();
         this.pendingAcksAddHandlerSupplier = pendingAcksAddHandlerSupplier;
+        if (useExclusiveReadLock) {
+            this.writeLock = new ReentrantLock();
+            this.readLock = this.writeLock;
+        } else {
+            ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+            this.writeLock = readWriteLock.writeLock();
+            this.readLock = readWriteLock.readLock();
+        }
     }
 
     public boolean put(long consumerId, long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
         try {
-            lock.lock();
+            writeLock.lock();
             if (closed) {
                 return false;
             }
@@ -62,10 +79,12 @@ public class PendingAcksMap {
                     && !pendingAcksAddHandler.handleAdding(consumerId, ledgerId, entryId, stickyKeyHash)) {
                 return false;
             }
-            pendingAcks.put(ledgerId, entryId, batchSize, stickyKeyHash);
+            Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks =
+                    pendingAcks.computeIfAbsent(ledgerId, k -> new Long2ObjectRBTreeMap<>());
+            ledgerPendingAcks.put(entryId, IntIntPair.of(batchSize, stickyKeyHash));
             return true;
         } finally {
-            lock.unlock();
+            writeLock.unlock();
         }
     }
 
@@ -73,57 +92,96 @@ public class PendingAcksMap {
         return pendingAcks.size();
     }
 
-    public void forEach(ConcurrentLongLongPairHashMap.BiConsumerLongPair processor) {
-        pendingAcks.forEach(processor);
+    public void forEach(PendingAcksConsumer processor) {
+        try {
+            readLock.lock();
+            processPendingAcks(processor);
+        } finally {
+            readLock.unlock();
+        }
     }
 
-    public void forEachAndLock(ConcurrentLongLongPairHashMap.BiConsumerLongPair processor) {
-        try {
-            lock.lock();
-            pendingAcks.forEach(processor);
-        } finally {
-            lock.unlock();
-        }
+    private void processPendingAcks(PendingAcksConsumer processor) {
+        pendingAcks.forEach((ledgerId, ledgerPendingAcks) -> {
+            ledgerPendingAcks.forEach((entryId, batchSizeAndStickyKeyHash) -> {
+                processor.accept(ledgerId, entryId, batchSizeAndStickyKeyHash.leftInt(),
+                        batchSizeAndStickyKeyHash.rightInt());
+            });
+        });
     }
 
     /**
      * Iterate over all the pending acks and close the map so that no more entries can be added.
      * @param processor
      */
-    public void forEachAndClose(ConcurrentLongLongPairHashMap.BiConsumerLongPair processor) {
+    public void forEachAndClose(PendingAcksConsumer processor) {
         try {
-            lock.lock();
+            writeLock.lock();
             closed = true;
-            pendingAcks.forEach(processor);
+            processPendingAcks(processor);
             pendingAcks.clear();
         } finally {
-            lock.unlock();
+            writeLock.unlock();
         }
     }
 
     public boolean contains(long ledgerId, long entryId) {
-        return pendingAcks.get(ledgerId, entryId) != null;
-    }
-
-    public ConcurrentLongLongPairHashMap.LongPair get(long ledgerId, long entryId) {
-        return pendingAcks.get(ledgerId, entryId);
-    }
-
-    public boolean remove(long ledgerId, long entryId, long batchSize, long stickyKeyHash) {
         try {
-            lock.lock();
-            return pendingAcks.remove(ledgerId, entryId, batchSize, stickyKeyHash);
+            readLock.lock();
+            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return false;
+            }
+            return ledgerMap.containsKey(entryId);
         } finally {
-            lock.unlock();
+            readLock.unlock();
+        }
+    }
+
+    public IntIntPair get(long ledgerId, long entryId) {
+        try {
+            readLock.lock();
+            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return null;
+            }
+            return ledgerMap.get(entryId);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public boolean remove(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
+        try {
+            writeLock.lock();
+            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return false;
+            }
+            boolean removed = ledgerMap.remove(entryId, IntIntPair.of(batchSize, stickyKeyHash));
+            if (removed && ledgerMap.isEmpty()) {
+                pendingAcks.remove(ledgerId);
+            }
+            return removed;
+        } finally {
+            writeLock.unlock();
         }
     }
 
     public boolean remove(long ledgerId, long entryId) {
         try {
-            lock.lock();
-            return pendingAcks.remove(ledgerId, entryId);
+            writeLock.lock();
+            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return false;
+            }
+            boolean removed = ledgerMap.remove(entryId) != null;
+            if (removed && ledgerMap.isEmpty()) {
+                pendingAcks.remove(ledgerId);
+            }
+            return removed;
         } finally {
-            lock.unlock();
+            writeLock.unlock();
         }
     }
 }

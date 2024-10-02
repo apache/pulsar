@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
+import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -70,8 +71,6 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
@@ -229,12 +228,7 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = new PendingAcksMap(ConcurrentLongLongPairHashMap.newBuilder()
-                    .autoShrink(subscription.getTopic().getBrokerService()
-                            .getPulsar().getConfiguration().isAutoShrinkForConsumerPendingAcksMap())
-                    .expectedItems(256)
-                    .concurrencyLevel(1)
-                    .build(), () -> getPendingAcksAddHandler());
+            this.pendingAcks = new PendingAcksMap(() -> getPendingAcksAddHandler(), subType != SubType.Key_Shared);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -569,11 +563,11 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position;
-            Pair<Consumer, Long> ackOwnerConsumerAndBatchSize =
+            Pair<Consumer, Integer> ackOwnerConsumerAndBatchSize =
                     getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
             Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.getLeft();
             long ackedCount;
-            long batchSize = ackOwnerConsumerAndBatchSize.getRight();
+            int batchSize = ackOwnerConsumerAndBatchSize.getRight();
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
@@ -639,11 +633,17 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
-            Consumer ackOwnerConsumer = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
-                    msgId.getEntryId()).getLeft();
+            Pair<Consumer, Integer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
+                    msgId.getEntryId());
+            if (ackOwnerConsumerAndBatchSize == null) {
+                log.warn("[{}] [{}] Acknowledging message at {} that was already deleted", subscription,
+                        consumerId, position);
+                continue;
+            }
+            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.getLeft();
             // acked count at least one
             long ackedCount;
-            long batchSize;
+            int batchSize;
             if (msgId.hasBatchSize()) {
                 batchSize = msgId.getBatchSize();
                 // ack batch messages set ackeCount = batchSize
@@ -692,7 +692,7 @@ public class Consumer {
         return completableFuture.thenApply(__ -> totalAckCount.sum());
     }
 
-    private long getAckedCountForMsgIdNoAckSets(long batchSize, Position position, Consumer consumer) {
+    private long getAckedCountForMsgIdNoAckSets(int batchSize, Position position, Consumer consumer) {
         if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
@@ -702,7 +702,7 @@ public class Consumer {
         return batchSize;
     }
 
-    private long getAckedCountForBatchIndexLevelEnabled(Position position, long batchSize, long[] ackSets,
+    private long getAckedCountForBatchIndexLevelEnabled(Position position, int batchSize, long[] ackSets,
                                                         Consumer consumer) {
         long ackedCount = 0;
         if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
@@ -724,14 +724,14 @@ public class Consumer {
         return ackedCount;
     }
 
-    private long getAckedCountForTransactionAck(long batchSize, long[] ackSets) {
+    private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
         BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
         long ackedCount = batchSize - bitset.cardinality();
         bitset.recycle();
         return ackedCount;
     }
 
-    private long getUnAckedCountForBatchIndexLevelEnabled(Position position, long batchSize) {
+    private long getUnAckedCountForBatchIndexLevelEnabled(Position position, int batchSize) {
         long unAckedCount = batchSize;
         if (isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
@@ -766,24 +766,24 @@ public class Consumer {
      * @param entryId The ID of the entry.
      * @return Pair<Consumer, BatchSize>
      */
-    private Pair<Consumer, Long> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
+    private Pair<Consumer, Integer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
-            LongPair longPair = getPendingAcks().get(ledgerId, entryId);
-            if (longPair != null) {
-                return Pair.of(this, longPair.first);
+            IntIntPair intPair = getPendingAcks().get(ledgerId, entryId);
+            if (intPair != null) {
+                return Pair.of(this, intPair.leftInt());
             } else {
                 // If there are more consumers, this step will consume more CPU, and it should be optimized later.
                 for (Consumer consumer : subscription.getConsumers()) {
                     if (consumer != this) {
-                        longPair = consumer.getPendingAcks().get(ledgerId, entryId);
-                        if (longPair != null) {
-                            return Pair.of(consumer, longPair.first);
+                        intPair = consumer.getPendingAcks().get(ledgerId, entryId);
+                        if (intPair != null) {
+                            return Pair.of(consumer, intPair.leftInt());
                         }
                     }
                 }
             }
         }
-        return Pair.of(this, 1L);
+        return Pair.of(this, 1);
     }
 
     private long[] getCursorAckSet(Position position) {
@@ -1061,12 +1061,12 @@ public class Consumer {
     private boolean removePendingAcks(Consumer ackOwnedConsumer, Position position) {
         PendingAcksMap ownedConsumerPendingAcks = ackOwnedConsumer.getPendingAcks();
         if (drainingHashesTracker != null) {
-            LongPair pendingAckEntry = ownedConsumerPendingAcks.get(position.getLedgerId(), position.getEntryId());
+            IntIntPair pendingAckEntry = ownedConsumerPendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (pendingAckEntry != null
                     && ownedConsumerPendingAcks
-                    .remove(position.getLedgerId(), position.getEntryId(), pendingAckEntry.first,
-                            pendingAckEntry.second)) {
-                int hash = (int) pendingAckEntry.second;
+                    .remove(position.getLedgerId(), position.getEntryId(), pendingAckEntry.leftInt(),
+                            pendingAckEntry.rightInt())) {
+                int hash = pendingAckEntry.rightInt();
                 drainingHashesTracker.reduceRefCount(ackOwnedConsumer, hash);
             } else {
                 // Message was already removed by the other consumer
@@ -1140,9 +1140,9 @@ public class Consumer {
         List<Position> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
-            LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            IntIntPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (longPair != null) {
-                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, longPair.first);
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, longPair.leftInt());
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
                 totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);

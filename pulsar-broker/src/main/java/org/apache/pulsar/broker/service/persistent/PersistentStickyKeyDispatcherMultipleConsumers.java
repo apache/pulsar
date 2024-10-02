@@ -154,7 +154,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             NavigableSet<Range> ranges = entry.getValue();
             if (c != skipConsumer) {
                 // add all pending acks in the impacted hash ranges to the draining hashes tracker
-                c.getPendingAcks().forEachAndLock((ledgerId, entryId, batchSize, stickyKeyHashLong) -> {
+                c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHashLong) -> {
                     int stickyKeyHash = (int) stickyKeyHashLong;
                     if (stickyKeyHash == 0) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
