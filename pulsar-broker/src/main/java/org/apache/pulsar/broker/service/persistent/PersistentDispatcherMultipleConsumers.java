@@ -130,7 +130,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
-    private final AtomicBoolean readMoreEntriesAsync = new AtomicBoolean(false);
+    private final AtomicBoolean readMoreEntriesAsyncInProgress = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     // tracks how many entries were processed by consumers in the last trySendMessagesToConsumers call
@@ -312,9 +312,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      */
     public void readMoreEntriesAsync() {
         // deduplication for readMoreEntriesAsync calls
-        if (readMoreEntriesAsync.compareAndSet(false, true)) {
+        if (readMoreEntriesAsyncInProgress.compareAndSet(false, true)) {
             topic.getBrokerService().executor().execute(() -> {
-                readMoreEntriesAsync.set(false);
+                readMoreEntriesAsyncInProgress.set(false);
                 readMoreEntries();
             });
         }
