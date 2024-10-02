@@ -355,8 +355,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
             return false;
         }
-        log.info("[{}] Adding {}:{} to pending acks for consumer id {} with sticky key hash {}",
-                getName(), ledgerId, entryId, consumerId, stickyKeyHash);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Adding {}:{} to pending acks for consumer id {} with sticky key hash {}",
+                    getName(), ledgerId, entryId, consumerId, stickyKeyHash);
+        }
         return true;
     }
 
