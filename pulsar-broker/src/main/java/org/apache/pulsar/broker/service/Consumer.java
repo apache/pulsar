@@ -168,9 +168,6 @@ public class Consumer {
 
     @Getter
     @Setter
-    private volatile DrainingHashesTracker drainingHashesTracker;
-    @Getter
-    @Setter
     private volatile PendingAcksMap.PendingAcksAddHandler pendingAcksAddHandler;
     @Getter
     @Setter

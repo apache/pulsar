@@ -137,7 +137,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // time the draining hashes are applied. It might be fine for ConsistentHashingStickyKeyConsumerSelector
             // since it's not really asynchronous, although it returns a CompletableFuture
             if (drainingHashesRequired) {
-                consumer.setDrainingHashesTracker(drainingHashesTracker);
                 consumer.setPendingAcksAddHandler(this::handleAddingPendingAck);
                 consumer.setPendingAcksRemoveHandler(this::handleRemovingPendingAck);
                 registerDrainingHashes(consumer, impactedRanges);
