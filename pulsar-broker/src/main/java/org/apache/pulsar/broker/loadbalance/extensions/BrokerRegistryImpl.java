@@ -220,11 +220,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             // is expired. In this case, we should register again.
             final var brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
             if (t.getType() == NotificationType.Deleted && getBrokerId().equals(brokerId)) {
-                registerAsync().exceptionally(e -> {
-                    log.error("[{}] Failed to register self to {} (state: {})", getBrokerId(), brokerIdKeyPath,
-                            state.get(), e);
-                    return null;
-                });
+                registerWithRetry();
             }
             if (listeners.isEmpty()) {
                 return;
@@ -237,6 +233,18 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         } catch (RejectedExecutionException e) {
             // Executor is shutting down
         }
+    }
+
+    private void registerWithRetry() {
+        registerAsync().exceptionallyAsync(e -> {
+            log.error("[{}] Failed to register self to {} (state: {}), retry registering", getBrokerId(),
+                    brokerIdKeyPath, state.get(), e);
+            // Keep retrying registering itself with a fixed delay time because all lookup operations rely on the
+            // successful registering.
+            // Don't use the load manager executor because that thread might be blocked by some lookup operations.
+            pulsar.getExecutor().schedule(this::registerWithRetry, 100, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     @VisibleForTesting
