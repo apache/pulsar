@@ -554,7 +554,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 return false;
             }
 
-            if (drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
+            if (drainingHashesRequired
+                    && drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
                 // the hash is draining and the consumer is not the draining consumer
                 return false;
             }
