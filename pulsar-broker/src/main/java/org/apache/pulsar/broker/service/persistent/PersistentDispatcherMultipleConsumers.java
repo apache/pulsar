@@ -248,7 +248,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                     + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
                             totalAvailablePermits);
                 }
-                readMoreEntries();
             }
         } else {
             /**
@@ -262,6 +261,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 clearComponentsAfterRemovedAllConsumers();
             }
         }
+        readMoreEntriesAsync();
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {

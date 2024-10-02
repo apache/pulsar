@@ -69,8 +69,18 @@ public class PendingAcksMap {
          * @param ledgerId      the ledger ID
          * @param entryId       the entry ID
          * @param stickyKeyHash the sticky key hash
+         * @param closing       true if the pending ack is being removed because the map is being closed, false
+         *                      otherwise
          */
-        void handleRemoving(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash);
+        void handleRemoving(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash, boolean closing);
+        /**
+         * Start a batch of pending acknowledgment removals.
+         */
+        void startBatch();
+        /**
+         * End a batch of pending acknowledgment removals.
+         */
+        void endBatch();
     }
 
     /**
@@ -198,10 +208,15 @@ public class PendingAcksMap {
             closed = true;
             PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
             if (pendingAcksRemoveHandler != null) {
-                processPendingAcks((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    processor.accept(ledgerId, entryId, batchSize, stickyKeyHash);
-                    pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash);
-                });
+                try {
+                    pendingAcksRemoveHandler.startBatch();
+                    processPendingAcks((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                        processor.accept(ledgerId, entryId, batchSize, stickyKeyHash);
+                        pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
+                    });
+                } finally {
+                    pendingAcksRemoveHandler.endBatch();
+                }
             } else {
                 processPendingAcks(processor);
             }
@@ -316,10 +331,11 @@ public class PendingAcksMap {
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      */
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+        PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
         boolean acquiredWriteLock = false;
+        boolean batchStarted = false;
         try {
             readLock.lock();
-            PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
             ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>>> ledgerMapIterator =
                     pendingAcks.headMap(markDeleteLedgerId + 1).long2ObjectEntrySet().iterator();
             while (ledgerMapIterator.hasNext()) {
@@ -343,8 +359,12 @@ public class PendingAcksMap {
                         acquiredWriteLock = true;
                     }
                     if (pendingAcksRemoveHandler != null) {
+                        if (!batchStarted) {
+                            pendingAcksRemoveHandler.startBatch();
+                            batchStarted = true;
+                        }
                         int stickyKeyHash = intIntPairEntry.getValue().rightInt();
-                        pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash);
+                        pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
                     }
                     entryMapIterator.remove();
                 }
@@ -358,6 +378,9 @@ public class PendingAcksMap {
                 }
             }
         } finally {
+            if (batchStarted) {
+                pendingAcksRemoveHandler.endBatch();
+            }
             if (acquiredWriteLock) {
                 writeLock.unlock();
             } else {
@@ -369,7 +392,7 @@ public class PendingAcksMap {
     private void handleRemovePendingAck(long ledgerId, long entryId, int stickyKeyHash) {
         PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
         if (pendingAcksRemoveHandler != null) {
-            pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash);
+            pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
         }
     }
 }

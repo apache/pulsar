@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
@@ -110,7 +111,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private void stickyKeyHashUnblocked(int stickyKeyHash) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Sticky key hash {} is unblocked", getName(), stickyKeyHash);
+            if (stickyKeyHash > -1) {
+                log.debug("[{}] Sticky key hash {} is unblocked", getName(), stickyKeyHash);
+            } else {
+                log.debug("[{}] Some sticky key hashes are unblocked", getName());
+            }
         }
         reScheduleReadWithKeySharedUnblockingInterval();
     }
@@ -138,7 +143,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // since it's not really asynchronous, although it returns a CompletableFuture
             if (drainingHashesRequired) {
                 consumer.setPendingAcksAddHandler(this::handleAddingPendingAck);
-                consumer.setPendingAcksRemoveHandler(this::handleRemovingPendingAck);
+                consumer.setPendingAcksRemoveHandler(new PendingAcksMap.PendingAcksRemoveHandler() {
+                    @Override
+                    public void handleRemoving(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash,
+                                               boolean closing) {
+                        handleRemovingPendingAck(consumer, ledgerId, entryId, stickyKeyHash, closing);
+                    }
+
+                    @Override
+                    public void startBatch() {
+                        drainingHashesTracker.startBatch();
+                    }
+
+                    @Override
+                    public void endBatch() {
+                        drainingHashesTracker.endBatch();
+                    }
+                });
                 registerDrainingHashes(consumer, impactedRanges);
             }
         }).exceptionally(ex -> {
@@ -358,10 +379,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return true;
     }
 
-    private void handleRemovingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
-        if (drainingHashesRequired) {
-            drainingHashesTracker.reduceRefCount(consumer, stickyKeyHash);
-        }
+    private void handleRemovingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash,
+                                          boolean closing) {
+        drainingHashesTracker.reduceRefCount(consumer, stickyKeyHash, closing);
     }
 
     private boolean isReplayQueueSizeBelowLimit() {
