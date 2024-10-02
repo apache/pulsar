@@ -133,8 +133,7 @@ public class DrainingHashesTracker {
         if (entry == null) {
             entry = new DrainingHashEntry(consumer.consumerId());
             drainingHashes.put(stickyHash, entry);
-        }
-        if (entry.getConsumerId() != consumer.consumerId()) {
+        } else if (entry.getConsumerId() != consumer.consumerId()) {
             log.error("[{}] Consumer id {} is already draining hash {}. Same hash being used for consumer {}. "
                             + "This call is ignored since there's a problem in consistency.",
                     dispatcherName,
