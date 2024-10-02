@@ -129,18 +129,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
-        return super.addConsumer(consumer).thenCompose(__ ->
-                selector.addConsumer(consumer).handle((result, ex) -> {
-                    if (ex != null) {
-                        synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                            consumerSet.removeAll(consumer);
-                            consumerList.remove(consumer);
-                        }
-                        throw FutureUtil.wrapToCompletionException(ex);
-                    }
-                    return result;
-                })
-        ).thenAccept(impactedRanges -> {
+        return super.addConsumer(consumer).thenCompose(__ -> selector.addConsumer(consumer))
+                .thenAccept(impactedRanges -> {
             // TODO: Add some way to prevent changes in between the time the consumer is added and the
             // time the draining hashes are applied. It might be fine for ConsistentHashingStickyKeyConsumerSelector
             // since it's not really asynchronous, although it returns a CompletableFuture
@@ -149,6 +139,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 consumer.setPendingAcksAddHandler(this::handleAddingPendingAck);
                 registerDrainingHashes(consumer, impactedRanges);
             }
+        }).exceptionally(ex -> {
+            internalRemoveConsumer(consumer);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 

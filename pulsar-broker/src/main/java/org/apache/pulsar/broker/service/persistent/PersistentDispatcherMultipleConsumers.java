@@ -269,6 +269,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
+    protected synchronized void internalRemoveConsumer(Consumer consumer) {
+        consumerSet.removeAll(consumer);
+        consumerList.remove(consumer);
+    }
+
     protected synchronized void clearComponentsAfterRemovedAllConsumers() {
         cancelPendingRead();
 
