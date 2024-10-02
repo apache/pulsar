@@ -1274,23 +1274,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleBrokerCreationEvent(String broker) {
 
-        healthCheckBrokerAsync(broker)
-                .thenAccept(__ -> {
-                    CompletableFuture<Void> future = cleanupJobs.remove(broker);
-                    if (future != null) {
-                        future.cancel(false);
-                        totalInactiveBrokerCleanupCancelledCnt++;
-                        log.info("Successfully cancelled the ownership cleanup for broker:{}."
-                                        + " Active cleanup job count:{}",
-                                broker, cleanupJobs.size());
-                    } else {
-                        if (debug()) {
-                            log.info("No needs to cancel the ownership cleanup for broker:{}."
-                                            + " There was no scheduled cleanup job. Active cleanup job count:{}",
+        if (!cleanupJobs.isEmpty() && cleanupJobs.containsKey(broker)) {
+            healthCheckBrokerAsync(broker)
+                    .thenAccept(__ -> {
+                        CompletableFuture<Void> future = cleanupJobs.remove(broker);
+                        if (future != null) {
+                            future.cancel(false);
+                            totalInactiveBrokerCleanupCancelledCnt++;
+                            log.info("Successfully cancelled the ownership cleanup for broker:{}."
+                                            + " Active cleanup job count:{}",
                                     broker, cleanupJobs.size());
+                        } else {
+                            if (debug()) {
+                                log.info("No needs to cancel the ownership cleanup for broker:{}."
+                                                + " There was no scheduled cleanup job. Active cleanup job count:{}",
+                                        broker, cleanupJobs.size());
+                            }
                         }
-                    }
-                });
+                    });
+        }
     }
 
     private void handleBrokerDeletionEvent(String broker) {
