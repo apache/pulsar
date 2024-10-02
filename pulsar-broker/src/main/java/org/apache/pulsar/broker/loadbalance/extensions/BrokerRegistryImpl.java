@@ -164,15 +164,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     }
 
     private CompletableFuture<Void> registerAsyncWithRetries() {
-        return registerAsync().handle((__, e) -> {
-            if (e != null) {
-                var retryFuture = new CompletableFuture<Void>();
-                doRegisterAsyncWithRetries(1, retryFuture);
-                return retryFuture.join();
-            } else {
-                return null;
-            }
-        });
+        var retryFuture = new CompletableFuture<Void>();
+        doRegisterAsyncWithRetries(1, retryFuture);
+        return retryFuture;
     }
 
     @Override
