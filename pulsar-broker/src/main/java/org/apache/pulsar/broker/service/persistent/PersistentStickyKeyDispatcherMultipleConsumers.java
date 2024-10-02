@@ -171,8 +171,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                                                      Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
         for (Map.Entry<Consumer, NavigableSet<Range>> entry : impactedRangesByConsumer.entrySet()) {
             Consumer c = entry.getKey();
-            NavigableSet<Range> ranges = entry.getValue();
             if (c != skipConsumer) {
+                // perf optimization: convert the set to an array to avoid iterator allocation in the pending acks loop
+                Range[] ranges = entry.getValue().toArray(new Range[0]);
                 // add all pending acks in the impacted hash ranges to the draining hashes tracker
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == 0) {
