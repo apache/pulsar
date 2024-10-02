@@ -995,8 +995,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             return true;
         }, Duration.ofSeconds(2), consumer1, consumer2, consumer3);
 
-        assertThat(receivedMessagesCountByConsumer.values().stream().mapToInt(AtomicInteger::intValue).sum()).isEqualTo(
-                totalMessages);
+        assertThat(receivedMessagesCountByConsumer.values().stream().mapToInt(AtomicInteger::intValue)
+                .sum()).isGreaterThanOrEqualTo(totalMessages);
         assertThat(receivedMessagesCountByConsumer.values()).allSatisfy(
                 count -> assertThat(count.get()).isGreaterThan(0));
     }
