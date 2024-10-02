@@ -169,7 +169,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
     }
 
-    private static final Random random = new Random(System.nanoTime());
+    private static final Random random = new Random(1);
     private static final int NUMBER_OF_KEYS = 300;
 
     @Test(dataProvider = "data")
@@ -1863,6 +1863,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testNoRepeatedReadAndDiscard() throws Exception {
         int delayedMessages = 100;
+        int numberOfKeys = delayedMessages;
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
         admin.topics().createNonPartitionedTopic(topic);
@@ -1873,7 +1874,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(topic).enableBatching(false).create();
         for (int i = 0; i < delayedMessages; i++) {
             MessageId messageId = producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(String.valueOf(random.nextInt(numberOfKeys)))
                     .value(100 + i)
                     .send();
             log.info("Published message :{}", messageId);
