@@ -330,7 +330,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // therefore would be most likely only increase the distance between read-position and mark-delete position.
             skipNextReplayToTriggerLookAhead = true;
             // skip backoff delay before reading ahead in the "look ahead" mode to prevent any additional latency
-            skipNextBackoff = true;
+            // only skip the delay if there are more entries to read
+            skipNextBackoff = cursor.hasMoreEntries();
             return true;
         }
 

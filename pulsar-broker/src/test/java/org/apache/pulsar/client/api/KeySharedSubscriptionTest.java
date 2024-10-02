@@ -1879,12 +1879,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.close();
 
         // Make ack holes.
+        @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(10)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
+        @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
@@ -1912,7 +1914,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             redeliverConsumer = consumer1;
         }
 
-        // consumer3 will be added to the "recentJoinedConsumers".
+        @Cleanup
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
@@ -1921,17 +1923,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe();
         redeliverConsumer.close();
 
+        Thread.sleep(5000);
         // Verify: no repeated Read-and-discard.
-        Thread.sleep(5 * 1000);
         int maxReplayCount = delayedMessages * 2;
-        log.info("Reply read count: {}", replyReadCounter.get());
-        assertTrue(replyReadCounter.get() < maxReplayCount);
-
-        // cleanup.
-        consumer1.close();
-        consumer2.close();
-        consumer3.close();
-        admin.topics().delete(topic, false);
+        assertThat(replyReadCounter.get()).isLessThanOrEqualTo(maxReplayCount);
     }
 
     @DataProvider(name = "allowKeySharedOutOfOrder")
