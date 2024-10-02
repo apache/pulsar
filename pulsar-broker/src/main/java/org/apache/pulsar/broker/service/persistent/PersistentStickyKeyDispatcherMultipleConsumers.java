@@ -166,7 +166,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             break;
                         }
                         // stop looking for more since the ranges cannot overlap
-                        if (stickyKeyHash > range.getEnd()) {
+                        if (range.getStart() > stickyKeyHash) {
                             break;
                         }
                     }
