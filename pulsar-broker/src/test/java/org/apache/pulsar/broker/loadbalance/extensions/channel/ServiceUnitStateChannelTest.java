@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -89,6 +90,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -136,9 +139,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private BrokerRegistryImpl registry;
 
+    private PulsarAdmin pulsarAdmin;
+
     private ExtensibleLoadManagerImpl loadManager;
 
     private final String serviceUnitStateTableViewClassName;
+
+    private Brokers brokers;
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
@@ -174,7 +181,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespaceName2);
 
         pulsar1 = pulsar;
-        registry = new BrokerRegistryImpl(pulsar);
+        registry = spy(new BrokerRegistryImpl(pulsar1));
+        pulsarAdmin = spy(pulsar.getAdminClient());
         loadManagerContext = mock(LoadManagerContext.class);
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
@@ -207,6 +215,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         childBundle31 = namespaceName2 + "/" + childBundle1Range;
         childBundle32 = namespaceName2 + "/" + childBundle2Range;
+
+        brokers = mock(Brokers.class);
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
+                .healthcheckAsync(any(), any());
     }
 
     @BeforeMethod
@@ -220,6 +232,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         cleanMetadataState(channel1);
         cleanMetadataState(channel2);
         enableChannels();
+        reset(pulsarAdmin);
     }
 
 
@@ -719,17 +732,19 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @Test(priority = 8)
     public void handleBrokerCreationEventTest() throws IllegalAccessException {
         var cleanupJobs = getCleanupJobs(channel1);
-        String broker = "broker-1";
+        String broker = brokerId2;
         var future = new CompletableFuture();
         cleanupJobs.put(broker, future);
         ((ServiceUnitStateChannelImpl) channel1).handleBrokerRegistrationEvent(broker, NotificationType.Created);
-        assertEquals(0, cleanupJobs.size());
-        assertTrue(future.isCancelled());
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(0, cleanupJobs.size());
+            assertTrue(future.isCancelled());
+        });
+
     }
 
     @Test(priority = 9)
-    public void handleBrokerDeletionEventTest()
-            throws IllegalAccessException, ExecutionException, InterruptedException, TimeoutException {
+    public void handleBrokerDeletionEventTest() throws Exception {
 
         var cleanupJobs1 = getCleanupJobs(channel1);
         var cleanupJobs2 = getCleanupJobs(channel2);
@@ -782,8 +797,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
         FieldUtils.writeDeclaredField(followerChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
+
+        doReturn(brokers).when(pulsarAdmin).brokers();
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
+
+
         leaderChannel.handleBrokerRegistrationEvent(brokerId2,
                 NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(brokerId2,
@@ -841,6 +860,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 3,
                 0,
                 0);
+        reset(pulsarAdmin);
 
         // broker is back online
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
@@ -865,6 +885,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         // broker is offline again
+        doReturn(brokers).when(pulsarAdmin).brokers();
         FieldUtils.writeDeclaredField(leaderChannel, "maxCleanupDelayTimeInSecs", 3, true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
@@ -906,6 +927,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 4,
                 0,
                 1);
+        reset(pulsarAdmin);
 
         // test unstable state
         channel1.publishUnloadEventAsync(new Unload(brokerId2, bundle1, Optional.of(broker)));
@@ -1585,8 +1607,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
         FieldUtils.writeDeclaredField(followerChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
+
+        doReturn(brokers).when(pulsarAdmin).brokers();
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
+
 
         waitUntilNewOwner(channel2, releasingBundle, brokerId2);
         waitUntilNewOwner(channel2, childBundle11, brokerId2);
@@ -1600,7 +1625,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // clean-up
         FieldUtils.writeDeclaredField(leaderChannel, "maxCleanupDelayTimeInSecs", 3 * 60, true);
         cleanTableViews();
-
+        reset(pulsarAdmin);
     }
 
     @Test(priority = 19)
@@ -1736,13 +1761,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
 
         // case 5: the owner lookup gets delayed
-        var spyRegistry = spy(new BrokerRegistryImpl(pulsar));
-        FieldUtils.writeDeclaredField(channel1,
-                "brokerRegistry", spyRegistry, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1000, true);
         var delayedFuture = new CompletableFuture();
-        doReturn(delayedFuture).when(spyRegistry).lookupAsync(eq(broker));
+        doReturn(delayedFuture).when(registry).lookupAsync(eq(broker));
         CompletableFuture.runAsync(() -> {
             try {
                 Thread.sleep(500);
@@ -1760,7 +1782,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         // case 6: the owner is inactive
         doReturn(CompletableFuture.completedFuture(Optional.empty()))
-                .when(spyRegistry).lookupAsync(eq(broker));
+                .when(registry).lookupAsync(eq(broker));
 
         // verify getOwnerAsync times out
         start = System.currentTimeMillis();
@@ -1778,9 +1800,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         if (leader1.equals(brokerId2)) {
             leaderChannel = (ServiceUnitStateChannelImpl) channel2;
         }
+        System.out.println("$$$ running");
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
+        doReturn(brokers).when(pulsarAdmin).brokers();
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
         // verify the ownership cleanup, and channel's getOwnerAsync returns empty result without timeout
@@ -1792,7 +1816,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilState(channel2, bundle, Init);
 
         assertTrue(System.currentTimeMillis() - start < 20_000);
-
+        reset(pulsarAdmin);
         // case 8: simulate ownership cleanup(brokerId1 as the new owner) by the leader channel
         try {
             disableChannels();
@@ -1807,6 +1831,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
         getCleanupJobs(leaderChannel).clear();
+        doReturn(brokers).when(pulsarAdmin).brokers();
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
         // verify the ownership cleanup, and channel's getOwnerAsync returns brokerId1 without timeout
@@ -1817,10 +1842,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // test clean-up
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-        FieldUtils.writeDeclaredField(channel1,
-                "brokerRegistry", registry, true);
         cleanTableViews();
-
+        reset(pulsarAdmin);
     }
 
     @Test(priority = 21)
@@ -2253,7 +2276,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     ServiceUnitStateChannelImpl createChannel(PulsarService pulsar)
-            throws IllegalAccessException {
+            throws IllegalAccessException, PulsarServerException {
         var tmpChannel = new ServiceUnitStateChannelImpl(pulsar);
         FieldUtils.writeDeclaredField(tmpChannel, "ownershipMonitorDelayTimeInSecs", 5, true);
         var channel = spy(tmpChannel);
@@ -2261,6 +2284,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         doReturn(loadManagerContext).when(channel).getContext();
         doReturn(registry).when(channel).getBrokerRegistry();
         doReturn(loadManager).when(channel).getLoadManager();
+        doReturn(pulsarAdmin).when(channel).getPulsarAdmin();
 
 
         var leaderElectionService = new LeaderElectionService(

@@ -86,11 +86,13 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
@@ -108,6 +110,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
+    private static final long MAX_BROKER_HEALTH_CHECK_RETRY = 3;
+    private static final long MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS = 1000;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
@@ -115,6 +119,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final String brokerId;
     private final Map<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
+
     private BrokerRegistry brokerRegistry;
     private LeaderElectionService leaderElectionService;
 
@@ -348,6 +353,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     protected LeaderElectionService getLeaderElectionService() {
         return ((ExtensibleLoadManagerWrapper) pulsar.getLoadManager().get())
                 .get().getLeaderElectionService();
+    }
+
+    @VisibleForTesting
+    protected PulsarAdmin getPulsarAdmin() throws PulsarServerException {
+        return pulsar.getAdminClient();
     }
 
     @Override
@@ -1255,20 +1265,24 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleBrokerCreationEvent(String broker) {
-        CompletableFuture<Void> future = cleanupJobs.remove(broker);
-        if (future != null) {
-            future.cancel(false);
-            totalInactiveBrokerCleanupCancelledCnt++;
-            log.info("Successfully cancelled the ownership cleanup for broker:{}."
-                            + " Active cleanup job count:{}",
-                    broker, cleanupJobs.size());
-        } else {
-            if (debug()) {
-                log.info("No needs to cancel the ownership cleanup for broker:{}."
-                                + " There was no scheduled cleanup job. Active cleanup job count:{}",
-                        broker, cleanupJobs.size());
-            }
-        }
+
+        healthCheckBrokerAsync(broker)
+                .thenAccept(__ -> {
+                    CompletableFuture<Void> future = cleanupJobs.remove(broker);
+                    if (future != null) {
+                        future.cancel(false);
+                        totalInactiveBrokerCleanupCancelledCnt++;
+                        log.info("Successfully cancelled the ownership cleanup for broker:{}."
+                                        + " Active cleanup job count:{}",
+                                broker, cleanupJobs.size());
+                    } else {
+                        if (debug()) {
+                            log.info("No needs to cancel the ownership cleanup for broker:{}."
+                                            + " There was no scheduled cleanup job. Active cleanup job count:{}",
+                                    broker, cleanupJobs.size());
+                        }
+                    }
+                });
     }
 
     private void handleBrokerDeletionEvent(String broker) {
@@ -1431,6 +1445,37 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 System.currentTimeMillis() - started);
     }
 
+    private CompletableFuture<Void> healthCheckBrokerAsync(String brokerId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        doHealthCheckBrokerAsyncWithRetries(brokerId, 0, future);
+        return future;
+    }
+
+    private void doHealthCheckBrokerAsyncWithRetries(String brokerId, int retry, CompletableFuture<Void> future) {
+        try {
+            var admin = getPulsarAdmin();
+            admin.brokers().healthcheckAsync(TopicVersion.V2, Optional.of(brokerId))
+                    .whenComplete((__, e) -> {
+                        if (e == null) {
+                            log.info("Completed health-check broker :{}", brokerId, e);
+                            future.complete(null);
+                            return;
+                        }
+                        if (retry == MAX_BROKER_HEALTH_CHECK_RETRY) {
+                            log.error("Failed health-check broker :{}", brokerId, e);
+                            future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                        } else {
+                            pulsar.getExecutor()
+                                    .schedule(() -> doHealthCheckBrokerAsyncWithRetries(brokerId, retry + 1, future),
+                                            Math.min(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS, retry * retry * 50),
+                                            MILLISECONDS);
+                        }
+                    });
+        } catch (PulsarServerException e) {
+            future.completeExceptionally(e);
+        }
+    }
+
     private synchronized void doCleanup(String broker, boolean gracefully) {
         try {
             if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
@@ -1443,6 +1488,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to find the channel owner. Skip the inactive broker:{}'s orphan bundle cleanup", broker);
             return;
         }
+
+        // if not gracefully, verify the broker is inactive by health-check.
+        if (!gracefully) {
+            try {
+                healthCheckBrokerAsync(broker).get(
+                        pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+                log.warn("Found that the broker to clean is healthy. Skip the broker:{}'s orphan bundle cleanup",
+                        broker);
+                return;
+            } catch (Exception e) {
+                if (debug()) {
+                    log.info("Failed to check broker:{} health", broker, e);
+                }
+                log.info("Checked the broker:{} health. Continue the orphan bundle cleanup", broker);
+            }
+        }
+
 
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);

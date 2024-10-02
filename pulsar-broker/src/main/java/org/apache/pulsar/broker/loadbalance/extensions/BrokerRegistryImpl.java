@@ -54,6 +54,10 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private final PulsarService pulsar;
 
+    private static final int MAX_REGISTER_RETRY = 10;
+
+    private static final int MAX_REGISTER_RETRY_DELAY_IN_MILLIS = 1000;
+
     private final ServiceConfiguration conf;
 
     private final BrokerLookupData brokerLookupData;
@@ -149,6 +153,35 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 });
     }
 
+    private void doRegisterAsyncWithRetries(int retry, CompletableFuture<Void> future) {
+        this.scheduler.schedule(() -> {
+            registerAsync().whenComplete((__, e) -> {
+                if (e != null) {
+                    if (retry == MAX_REGISTER_RETRY) {
+                        future.completeExceptionally(new PulsarServerException("Stopped registering self retries", e));
+                    } else {
+                        doRegisterAsyncWithRetries(retry + 1, future);
+                    }
+                } else {
+                    future.complete(null);
+                }
+            });
+        }, Math.min(MAX_REGISTER_RETRY_DELAY_IN_MILLIS, retry * retry * 50), TimeUnit.MILLISECONDS);
+    }
+
+    private CompletableFuture<Void> registerAsyncWithRetries() {
+        var future = registerAsync();
+        return future.handle((__, e) -> {
+            if (e != null) {
+                var retryFuture = new CompletableFuture<Void>();
+                doRegisterAsyncWithRetries(1, retryFuture);
+                return retryFuture.join();
+            } else {
+                return null;
+            }
+        });
+    }
+
     @Override
     public synchronized void unregister() throws MetadataStoreException {
         if (state.compareAndSet(State.Registered, State.Unregistering)) {
@@ -235,17 +268,25 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             // The registered node is an ephemeral node that could be deleted when the metadata store client's session
             // is expired. In this case, we should register again.
             final var brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
+
+            CompletableFuture<Void> register;
             if (t.getType() == NotificationType.Deleted && getBrokerId().equals(brokerId)) {
-                registerAsync();
+                register = registerAsyncWithRetries();
+            } else {
+                register = CompletableFuture.completedFuture(null);
             }
-            if (listeners.isEmpty()) {
-                return;
-            }
-            this.scheduler.submit(() -> {
-                for (BiConsumer<String, NotificationType> listener : listeners) {
-                    listener.accept(brokerId, t.getType());
+            // Make sure to run the listeners after re-registered.
+            register.thenAccept(__ -> {
+                if (listeners.isEmpty()) {
+                    return;
                 }
+                this.scheduler.submit(() -> {
+                    for (BiConsumer<String, NotificationType> listener : listeners) {
+                        listener.accept(brokerId, t.getType());
+                    }
+                });
             });
+
         } catch (RejectedExecutionException e) {
             // Executor is shutting down
         }
