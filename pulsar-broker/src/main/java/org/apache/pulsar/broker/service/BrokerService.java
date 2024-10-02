@@ -3351,7 +3351,7 @@ public class BrokerService implements Closeable {
         try {
             dispatcherList.forEach(dispatcher -> {
                 dispatcher.unBlockDispatcherOnUnackedMsgs();
-                executor().execute(() -> dispatcher.readMoreEntries());
+                dispatcher.readMoreEntriesAsync();
                 log.info("[{}] Dispatcher is unblocked", dispatcher.getName());
                 blockedDispatchers.remove(dispatcher);
             });

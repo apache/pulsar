@@ -303,7 +303,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             + "after adding {} permits", name, consumer,
                     totalAvailablePermits, additionalNumberOfMessages);
         }
-        readMoreEntries();
+        readMoreEntriesAsync();
     }
 
     /**
@@ -718,7 +718,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             entries.forEach(Entry::release);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
-            readMoreEntries();
+            readMoreEntriesAsync();
             return;
         }
 
@@ -984,7 +984,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
             ).addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
-                    readMoreEntries();
+                    readMoreEntriesAsync();
                 }
             });
 
@@ -1139,7 +1139,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
                     redeliveryMessages);
         }
-        readMoreEntries();
+        readMoreEntriesAsync();
     }
 
     @Override
@@ -1154,7 +1154,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
         }
-        readMoreEntries();
+        readMoreEntriesAsync();
     }
 
     @Override
@@ -1423,7 +1423,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead
                 && cursor.getNumberOfEntriesInBacklog(false) > 0) {
             log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
-            readMoreEntries();
+            readMoreEntriesAsync();
             return true;
         }
         return false;

@@ -146,7 +146,7 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
             lastTickRun = clock.millis();
             currentTimeoutTarget = -1;
             this.timeout = null;
-            dispatcher.readMoreEntries();
+            dispatcher.readMoreEntriesAsync();
         }
     }
 

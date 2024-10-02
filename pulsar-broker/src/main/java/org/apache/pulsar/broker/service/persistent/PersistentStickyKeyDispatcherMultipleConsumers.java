@@ -270,7 +270,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                     getRedeliveryTracker()).addListener(future -> {
                 if (future.isDone() && remainingConsumersToFinishSending.decrementAndGet() == 0) {
-                    readMoreEntries();
+                    readMoreEntriesAsync();
                 }
             });
 
