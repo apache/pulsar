@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -44,7 +42,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     // Consistent-Hash ring
-    private final NavigableMap<Integer, List<Consumer>> hashRing;
+    private final NavigableMap<Integer, ConsumerIdentityWrapper> hashRing;
+    // Tracks the used consumer name indexes for each consumer name
+    private final ConsumerNameIndexTracker consumerNameIndexTracker = new ConsumerNameIndexTracker();
 
     private final int numberOfPoints;
 
@@ -57,21 +57,20 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
+            ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
             for (int i = 0; i < numberOfPoints; i++) {
-                int hash = calculateHashForConsumerAndIndex(consumer, i);
-                hashRing.compute(hash, (k, v) -> {
-                    if (v == null) {
-                        return Lists.newArrayList(consumer);
-                    } else {
-                        if (!v.contains(consumer)) {
-                            v.add(consumer);
-                            v.sort(Comparator.comparing(Consumer::consumerName, String::compareTo));
-                        }
-                        return v;
-                    }
-                });
+                int consumerNameIndex =
+                        consumerNameIndexTracker.increaseConsumerRefCountAndReturnIndex(consumerIdentityWrapper);
+                int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
+                // When there's a collision, the new consumer will replace the old one.
+                // This is a rare case, and it is acceptable to replace the old consumer since there
+                // are multiple points for each consumer. This won't affect the overall distribution significantly.
+                ConsumerIdentityWrapper removed = hashRing.put(hash, consumerIdentityWrapper);
+                if (removed != null) {
+                    consumerNameIndexTracker.decreaseConsumerRefCount(removed);
+                }
             }
             return CompletableFuture.completedFuture(null);
         } finally {
@@ -79,8 +78,19 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
-    private static int calculateHashForConsumerAndIndex(Consumer consumer, int index) {
-        String key = consumer.consumerName() + KEY_SEPARATOR + index;
+    /**
+     * Calculate the hash for a consumer and hash ring point.
+     * The hash is calculated based on the consumer name, consumer name index, and hash ring point index.
+     * The resulting hash is used as the key to insert the consumer into the hash ring.
+     *
+     * @param consumer the consumer
+     * @param consumerNameIndex the index of the consumer name
+     * @param hashRingPointIndex the index of the hash ring point
+     * @return the hash value
+     */
+    private static int calculateHashForConsumerAndIndex(Consumer consumer, int consumerNameIndex,
+                                                        int hashRingPointIndex) {
+        String key = consumer.consumerName() + KEY_SEPARATOR + consumerNameIndex + KEY_SEPARATOR + hashRingPointIndex;
         return Murmur3_32Hash.getInstance().makeHash(key.getBytes());
     }
 
@@ -88,20 +98,16 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public void removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
-            // Remove all the points that were added for this consumer
-            for (int i = 0; i < numberOfPoints; i++) {
-                int hash = calculateHashForConsumerAndIndex(consumer, i);
-                hashRing.compute(hash, (k, v) -> {
-                    if (v == null) {
-                        return null;
-                    } else {
-                        v.removeIf(c -> c.equals(consumer));
-                        if (v.isEmpty()) {
-                            v = null;
-                        }
-                        return v;
+            ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
+            int consumerNameIndex = consumerNameIndexTracker.getTrackedIndex(consumerIdentityWrapper);
+            if (consumerNameIndex > -1) {
+                // Remove all the points that were added for this consumer
+                for (int i = 0; i < numberOfPoints; i++) {
+                    int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
+                    if (hashRing.remove(hash, consumerIdentityWrapper)) {
+                        consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
                     }
-                });
+                }
             }
         } finally {
             rwLock.writeLock().unlock();
@@ -115,16 +121,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             if (hashRing.isEmpty()) {
                 return null;
             }
-
-            List<Consumer> consumerList;
-            Map.Entry<Integer, List<Consumer>> ceilingEntry = hashRing.ceilingEntry(hash);
+            Map.Entry<Integer, ConsumerIdentityWrapper> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
-                consumerList =  ceilingEntry.getValue();
+                return ceilingEntry.getValue().consumer;
             } else {
-                consumerList = hashRing.firstEntry().getValue();
+                // Handle wrap-around in the hash ring, return the first consumer
+                return hashRing.firstEntry().getValue().consumer;
             }
-
-            return consumerList.get(hash % consumerList.size());
         } finally {
             rwLock.readLock().unlock();
         }
@@ -132,16 +135,27 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     @Override
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        Map<Consumer, List<Range>> result = new LinkedHashMap<>();
+        Map<Consumer, List<Range>> result = new IdentityHashMap<>();
         rwLock.readLock().lock();
         try {
+            if (hashRing.isEmpty()) {
+                return result;
+            }
             int start = 0;
-            for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
-                for (Consumer consumer: entry.getValue()) {
-                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
-                            .add(Range.of(start, entry.getKey()));
-                }
-                start = entry.getKey() + 1;
+            int lastKey = 0;
+            for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
+                Consumer consumer = entry.getValue().consumer;
+                result.computeIfAbsent(consumer, key -> new ArrayList<>())
+                        .add(Range.of(start, entry.getKey()));
+                lastKey = entry.getKey();
+                start = lastKey + 1;
+            }
+            // Handle wrap-around in the hash ring, the first consumer will also contain the range from the last key
+            // to the maximum value of the hash range
+            Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
+            List<Range> ranges = result.get(firstConsumer);
+            if (lastKey != Integer.MAX_VALUE - 1) {
+                ranges.add(Range.of(lastKey + 1, Integer.MAX_VALUE - 1));
             }
         } finally {
             rwLock.readLock().unlock();
