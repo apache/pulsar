@@ -43,14 +43,48 @@ class HashRanges {
         Map<Range, Pair<Consumer, Consumer>> changedRanges = diffRanges(mappingBefore, mappingAfter);
         Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer = changedRanges.entrySet().stream()
                 .collect(HashMap::new, (map, entry) -> {
-                    // consider only the consumers before the change
-                    Consumer c = entry.getValue().getLeft();
-                    if (c != null) {
-                        Range range = entry.getKey();
-                        map.computeIfAbsent(c, k -> new TreeSet<>()).add(range);
-                    }
+                    Range range = entry.getKey();
+                    Consumer consumerBefore = entry.getValue().getLeft();
+                    addRange(map, consumerBefore, range);
+                    Consumer consumerAfter = entry.getValue().getRight();
+                    addRange(map, consumerAfter, range);
                 }, HashMap::putAll);
-        return impactedRangesByConsumer;
+        return mergeContinuousRanges(impactedRangesByConsumer);
+    }
+
+    private static void addRange(Map<Consumer, NavigableSet<Range>> map,
+                                 Consumer c, Range range) {
+        if (c != null) {
+            map.computeIfAbsent(c, k -> new TreeSet<>()).add(range);
+        }
+    }
+
+    private static Map<Consumer, NavigableSet<Range>> mergeContinuousRanges(
+            Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
+        Map<Consumer, NavigableSet<Range>> mergedRangesByConsumer = new HashMap<>();
+        impactedRangesByConsumer.forEach((consumer, ranges) -> {
+            mergedRangesByConsumer.put(consumer, mergeContinuousRanges(ranges));
+        });
+        return mergedRangesByConsumer;
+    }
+
+    private static NavigableSet<Range> mergeContinuousRanges(NavigableSet<Range> ranges) {
+        NavigableSet<Range> mergedRanges = new TreeSet<>();
+        Iterator<Range> rangeIterator = ranges.iterator();
+        Range currentRange = rangeIterator.hasNext() ? rangeIterator.next() : null;
+        while (rangeIterator.hasNext()) {
+            Range nextRange = rangeIterator.next();
+            if (currentRange.getEnd() + 1 == nextRange.getStart()) {
+                currentRange = Range.of(currentRange.getStart(), nextRange.getEnd());
+            } else {
+                mergedRanges.add(currentRange);
+                currentRange = nextRange;
+            }
+        }
+        if (currentRange != null) {
+            mergedRanges.add(currentRange);
+        }
+        return mergedRanges;
     }
 
     /**
