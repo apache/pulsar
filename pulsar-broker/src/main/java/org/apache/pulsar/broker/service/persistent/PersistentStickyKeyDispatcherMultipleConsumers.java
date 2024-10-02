@@ -182,10 +182,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     }
                     for (Range range : ranges) {
                         if (range.contains(stickyKeyHash)) {
+                            // add the pending ack to the draining hashes tracker if the hash is in the range
                             drainingHashesTracker.addEntry(c, stickyKeyHash);
                             break;
                         }
-                        // stop looking for more since the ranges cannot overlap
+                        // Since ranges are sorted, stop checking further ranges if the start of the current range is
+                        // greater than the stickyKeyHash.
                         if (range.getStart() > stickyKeyHash) {
                             break;
                         }
