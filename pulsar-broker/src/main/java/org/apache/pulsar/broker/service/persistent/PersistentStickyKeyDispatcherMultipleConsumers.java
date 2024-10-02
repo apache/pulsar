@@ -147,7 +147,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     @Override
                     public void handleRemoving(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash,
                                                boolean closing) {
-                        handleRemovingPendingAck(consumer, ledgerId, entryId, stickyKeyHash, closing);
+                        drainingHashesTracker.reduceRefCount(consumer, stickyKeyHash, closing);
                     }
 
                     @Override
@@ -377,11 +377,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     getName(), ledgerId, entryId, consumerId, stickyKeyHash);
         }
         return true;
-    }
-
-    private void handleRemovingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash,
-                                          boolean closing) {
-        drainingHashesTracker.reduceRefCount(consumer, stickyKeyHash, closing);
     }
 
     private boolean isReplayQueueSizeBelowLimit() {
