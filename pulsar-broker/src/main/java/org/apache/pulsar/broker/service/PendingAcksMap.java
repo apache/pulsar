@@ -336,11 +336,37 @@ public class PendingAcksMap {
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      */
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false);
+    }
+
+    /**
+     * Removes all pending acknowledgments up to the specified ledger ID and entry ID.
+     *
+     * ReadWriteLock doesn't support upgrading from read lock to write lock.
+     * This method first checks if there's anything to remove using a read lock and if there is, exits
+     * and retries with a write lock to make the removals.
+     *
+     * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
+     * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     * @param useWriteLock true if the method should use a write lock, false otherwise
+     */
+    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock) {
         PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
+        // track if the write lock was acquired
         boolean acquiredWriteLock = false;
+        // track if a batch was started
         boolean batchStarted = false;
+        // track if the method should retry with a write lock
+        boolean retryWithWriteLock = false;
+        // write lock is required if the read lock is not the same as the write lock
+        boolean requiresWriteLock = readLock != writeLock;
         try {
-            readLock.lock();
+            if (useWriteLock && requiresWriteLock) {
+                writeLock.lock();
+                acquiredWriteLock = true;
+            } else {
+                readLock.lock();
+            }
             ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>>> ledgerMapIterator =
                     pendingAcks.headMap(markDeleteLedgerId + 1).long2ObjectEntrySet().iterator();
             while (ledgerMapIterator.hasNext()) {
@@ -358,10 +384,9 @@ public class PendingAcksMap {
                 while (entryMapIterator.hasNext()) {
                     Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
                     long entryId = intIntPairEntry.getLongKey();
-                    if (!acquiredWriteLock && writeLock != readLock) {
-                        readLock.unlock();
-                        writeLock.lock();
-                        acquiredWriteLock = true;
+                    if (!acquiredWriteLock && requiresWriteLock) {
+                        retryWithWriteLock = true;
+                        return;
                     }
                     if (pendingAcksRemoveHandler != null) {
                         if (!batchStarted) {
@@ -374,10 +399,9 @@ public class PendingAcksMap {
                     entryMapIterator.remove();
                 }
                 if (ledgerMap.isEmpty()) {
-                    if (!acquiredWriteLock && writeLock != readLock) {
-                        readLock.unlock();
-                        writeLock.lock();
-                        acquiredWriteLock = true;
+                    if (!acquiredWriteLock && requiresWriteLock) {
+                        retryWithWriteLock = true;
+                        return;
                     }
                     ledgerMapIterator.remove();
                 }
@@ -390,6 +414,9 @@ public class PendingAcksMap {
                 writeLock.unlock();
             } else {
                 readLock.unlock();
+                if (retryWithWriteLock) {
+                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true);
+                }
             }
         }
     }
