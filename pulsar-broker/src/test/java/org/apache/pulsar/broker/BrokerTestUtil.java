@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
@@ -233,5 +235,22 @@ public class BrokerTestUtil {
                 thread.start();
             });
         }).toList()).join();
+    }
+
+    private static long mockConsumerIdGenerator = 0;
+
+    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName) {
+        long consumerId = mockConsumerIdGenerator++;
+        return createMockConsumer(consumerName, consumerName + " consumerId:" + consumerId, consumerId);
+    }
+
+    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName, String toString, long consumerId) {
+        // without stubOnly, the mock will record method invocations and could run into OOME
+        org.apache.pulsar.broker.service.Consumer
+                consumer = mock(org.apache.pulsar.broker.service.Consumer.class, Mockito.withSettings().stubOnly());
+        when(consumer.consumerName()).thenReturn(consumerName);
+        when(consumer.toString()).thenReturn(consumerName + " consumerId:" + consumerId);
+        when(consumer.consumerId()).thenReturn(consumerId);
+        return consumer;
     }
 }
