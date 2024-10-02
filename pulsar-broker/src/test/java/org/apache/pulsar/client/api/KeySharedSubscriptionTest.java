@@ -57,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -75,7 +76,6 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -251,6 +251,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
+        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
@@ -260,11 +262,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
-                int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-                if (slot <= 20000) {
+                int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes());
+                if (stickyKeyHash <= 20000) {
                     consumer1ExpectMessages++;
-                } else if (slot <= 40000) {
+                } else if (stickyKeyHash <= 40000) {
                     consumer2ExpectMessages++;
                 } else {
                     consumer3ExpectMessages++;
@@ -374,6 +375,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
+        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
@@ -387,11 +390,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
 
             String fallbackKey = producer.getProducerName() + "-" + producer.getLastSequenceId();
-            int slot = Murmur3_32Hash.getInstance().makeHash(fallbackKey.getBytes())
-                    % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-            if (slot <= 20000) {
+            int stickyKeyHash = selector.makeStickyKeyHash(fallbackKey.getBytes());
+            if (stickyKeyHash <= 20000) {
                 consumer1ExpectMessages++;
-            } else if (slot <= 40000) {
+            } else if (stickyKeyHash <= 40000) {
                 consumer2ExpectMessages++;
             } else {
                 consumer3ExpectMessages++;
@@ -451,6 +453,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
+        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
@@ -460,11 +464,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
-                int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-                if (slot <= 20000) {
+                int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes());
+                if (stickyKeyHash <= 20000) {
                     consumer1ExpectMessages++;
-                } else if (slot <= 40000) {
+                } else if (stickyKeyHash <= 40000) {
                     consumer2ExpectMessages++;
                 } else {
                     consumer3ExpectMessages++;
@@ -2143,5 +2146,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
         }, Duration.ofSeconds(2), c1, c2, c3);
         assertEquals(remainingMessageValues, Collections.emptySet());
+    }
+
+    @SneakyThrows
+    private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        return dispatcher.getSelector();
     }
 }

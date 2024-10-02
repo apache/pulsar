@@ -29,7 +29,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -40,7 +45,6 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -75,6 +79,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             throws PulsarClientException {
         final int totalMsg = 1000;
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
+        String subscriptionName = "sub-1";
         Map<Consumer<?>, List<MessageId>> nameToId = new ConcurrentHashMap<>();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
         Set<MessageId> recMessages = Sets.newConcurrentHashSet();
@@ -86,7 +91,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 3; i++) {
             ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer()
                     .topic(topic)
-                    .subscriptionName("sub-1")
+                    .subscriptionName(subscriptionName)
                     .subscriptionType(subscriptionType)
                     .messageListener((consumer, msg) -> {
                         lastActiveTime.set(System.currentTimeMillis());
@@ -104,9 +109,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
             if (subscriptionType == SubscriptionType.Key_Shared) {
                 // ensure every consumer can be distributed messages
-                int hash = Murmur3_32Hash.getInstance().makeHash(("key-" + i).getBytes())
-                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-                builder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(hash, hash)));
+                int stickyKeyHash = getSelector(topic, subscriptionName).makeStickyKeyHash(("key-" + i).getBytes());
+                builder.keySharedPolicy(KeySharedPolicy.stickyHashRange()
+                        .ranges(Range.of(stickyKeyHash, stickyKeyHash)));
             }
 
             consumerList.add(builder.subscribe());
@@ -164,5 +169,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
         }
+    }
+
+    @SneakyThrows
+    private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        return dispatcher.getSelector();
     }
 }
