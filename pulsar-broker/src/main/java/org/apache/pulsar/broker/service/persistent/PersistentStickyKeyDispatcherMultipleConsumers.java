@@ -139,6 +139,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (drainingHashesRequired) {
                 consumer.setDrainingHashesTracker(drainingHashesTracker);
                 consumer.setPendingAcksAddHandler(this::handleAddingPendingAck);
+                consumer.setPendingAcksRemoveHandler(this::handleRemovingPendingAck);
                 registerDrainingHashes(consumer, impactedRanges);
             }
         }).exceptionally(ex -> {
@@ -333,11 +334,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * @param stickyKeyHash the sticky hash of the message
      * @return true if the message should be added to pending acks, false otherwise
      */
-    private boolean handleAddingPendingAck(long consumerId, long ledgerId, long entryId, int stickyKeyHash) {
+    private boolean handleAddingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
         if (stickyKeyHash == 0) {
             log.warn("[{}] Sticky key hash is missing for {}:{}", getName(), ledgerId, entryId);
             throw new IllegalArgumentException("Sticky key hash is missing for " + ledgerId + ":" + entryId);
         }
+        long consumerId = consumer.consumerId();
         DrainingHashesTracker.DrainingHashEntry drainingHashEntry = drainingHashesTracker.getEntry(stickyKeyHash);
         if (drainingHashEntry != null && drainingHashEntry.getConsumerId() != consumerId) {
             log.warn("[{}] Another consumer id {} is already draining hash {}. Skipping adding {}:{} to pending acks "
@@ -356,6 +358,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         log.info("[{}] Adding {}:{} to pending acks for consumer id {} with sticky key hash {}",
                 getName(), ledgerId, entryId, consumerId, stickyKeyHash);
         return true;
+    }
+
+    private void handleRemovingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
+        if (drainingHashesRequired) {
+            drainingHashesTracker.reduceRefCount(consumer, stickyKeyHash);
+        }
     }
 
     private boolean isReplayQueueSizeBelowLimit() {

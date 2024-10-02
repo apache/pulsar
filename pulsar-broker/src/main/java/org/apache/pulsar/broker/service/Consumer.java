@@ -172,6 +172,9 @@ public class Consumer {
     @Getter
     @Setter
     private volatile PendingAcksMap.PendingAcksAddHandler pendingAcksAddHandler;
+    @Getter
+    @Setter
+    private volatile PendingAcksMap.PendingAcksRemoveHandler pendingAcksRemoveHandler;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -229,7 +232,8 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = new PendingAcksMap(() -> getPendingAcksAddHandler(), subType != SubType.Key_Shared);
+            this.pendingAcks = new PendingAcksMap(this, this::getPendingAcksAddHandler,
+                    this::getPendingAcksRemoveHandler, subType != SubType.Key_Shared);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
@@ -371,7 +375,7 @@ public class Consumer {
                         stickyKeyHash = stickyKeyHashes.get(i);
                     }
                     boolean sendingAllowed =
-                            pendingAcks.put(consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                            pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize,
                                     stickyKeyHash);
                     if (!sendingAllowed) {
                         // sending isn't allowed when pending acks doesn't accept adding the entry

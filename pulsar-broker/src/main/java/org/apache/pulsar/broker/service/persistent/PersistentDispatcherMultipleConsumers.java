@@ -347,10 +347,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
-        // remove possible expired messages from redelivery tracker
+        // remove possible expired messages from redelivery tracker and pending acks
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (lastMarkDeletePositionBeforeReadMoreEntries != cursor.getMarkDeletedPosition()) {
             redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            for (Consumer consumer : consumerList) {
+                consumer.getPendingAcks()
+                        .removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
             lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
         }
 

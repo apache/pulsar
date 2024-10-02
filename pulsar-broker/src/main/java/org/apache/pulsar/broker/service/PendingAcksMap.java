@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -40,22 +42,31 @@ import java.util.function.Supplier;
  */
 public class PendingAcksMap {
     public interface PendingAcksAddHandler {
-        boolean handleAdding(long consumerId, long ledgerId, long entryId, int stickyKeyHash);
+        boolean handleAdding(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash);
+    }
+
+    public interface PendingAcksRemoveHandler {
+        void handleRemoving(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash);
     }
 
     public interface PendingAcksConsumer {
         void accept(long ledgerId, long entryId, int batchSize, int stickyKeyHash);
     }
 
+    private final Consumer consumer;
     private final Long2ObjectSortedMap<Long2ObjectSortedMap<IntIntPair>> pendingAcks;
     private final Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier;
+    private final Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier;
     private final Lock readLock;
     private final Lock writeLock;
     private boolean closed = false;
 
-    PendingAcksMap(Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier, boolean useExclusiveReadLock) {
+    PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
+                   Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier, boolean useExclusiveReadLock) {
+        this.consumer = consumer;
         this.pendingAcks = new Long2ObjectRBTreeMap<>();
         this.pendingAcksAddHandlerSupplier = pendingAcksAddHandlerSupplier;
+        this.pendingAcksRemoveHandlerSupplier = pendingAcksRemoveHandlerSupplier;
         if (useExclusiveReadLock) {
             this.writeLock = new ReentrantLock();
             this.readLock = this.writeLock;
@@ -66,7 +77,7 @@ public class PendingAcksMap {
         }
     }
 
-    public boolean put(long consumerId, long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
+    public boolean put(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
         try {
             writeLock.lock();
             if (closed) {
@@ -76,7 +87,7 @@ public class PendingAcksMap {
             // to avoid any race conditions that would break consistency
             PendingAcksAddHandler pendingAcksAddHandler = pendingAcksAddHandlerSupplier.get();
             if (pendingAcksAddHandler != null
-                    && !pendingAcksAddHandler.handleAdding(consumerId, ledgerId, entryId, stickyKeyHash)) {
+                    && !pendingAcksAddHandler.handleAdding(consumer, ledgerId, entryId, stickyKeyHash)) {
                 return false;
             }
             Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks =
@@ -182,6 +193,61 @@ public class PendingAcksMap {
             return removed;
         } finally {
             writeLock.unlock();
+        }
+    }
+
+    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+        boolean acquiredWriteLock = false;
+        try {
+            readLock.lock();
+            ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>>> ledgerMapIterator =
+                    pendingAcks.headMap(markDeleteLedgerId + 1).long2ObjectEntrySet().iterator();
+            while (ledgerMapIterator.hasNext()) {
+                Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>> entry = ledgerMapIterator.next();
+                long ledgerId = entry.getLongKey();
+                Long2ObjectSortedMap<IntIntPair> ledgerMap = entry.getValue();
+                Long2ObjectSortedMap<IntIntPair> ledgerMapHead;
+                if (ledgerId == markDeleteLedgerId) {
+                    ledgerMapHead = ledgerMap.headMap(markDeleteEntryId + 1);
+                } else {
+                    ledgerMapHead = ledgerMap;
+                }
+                ObjectBidirectionalIterator<Long2ObjectMap.Entry<IntIntPair>> entryMapIterator =
+                        ledgerMapHead.long2ObjectEntrySet().iterator();
+                while (entryMapIterator.hasNext()) {
+                    Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
+                    long entryId = intIntPairEntry.getLongKey();
+                    if (!acquiredWriteLock && writeLock != readLock) {
+                        readLock.unlock();
+                        writeLock.lock();
+                        acquiredWriteLock = true;
+                    }
+                    IntIntPair batchSizeAndStickyKeyHash = intIntPairEntry.getValue();
+                    handleRemovePendingAck(ledgerId, entryId, batchSizeAndStickyKeyHash.rightInt());
+                    entryMapIterator.remove();
+                }
+                if (ledgerMap.isEmpty()) {
+                    if (!acquiredWriteLock && writeLock != readLock) {
+                        readLock.unlock();
+                        writeLock.lock();
+                        acquiredWriteLock = true;
+                    }
+                    ledgerMapIterator.remove();
+                }
+            }
+        } finally {
+            if (acquiredWriteLock) {
+                writeLock.unlock();
+            } else {
+                readLock.unlock();
+            }
+        }
+    }
+
+    private void handleRemovePendingAck(long ledgerId, long entryId, int stickyKeyHash) {
+        PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
+        if (pendingAcksRemoveHandler != null) {
+            pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash);
         }
     }
 }
