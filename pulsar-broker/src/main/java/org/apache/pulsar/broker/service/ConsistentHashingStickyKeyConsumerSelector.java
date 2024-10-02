@@ -242,7 +242,15 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         // Handle wrap-around
         Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
         if (lastKey != rangeSize - 1) {
-            result.put(Range.of(lastKey + 1, rangeSize - 1), firstConsumer);
+            Range range;
+            if (firstConsumer == previousConsumer && previousRange.getEnd() == lastKey) {
+                // join ranges
+                result.remove(previousRange);
+                range = Range.of(previousRange.getStart(), rangeSize - 1);
+            } else {
+                range = Range.of(lastKey + 1, rangeSize - 1);
+            }
+            result.put(range, firstConsumer);
         }
         return result;
     }
