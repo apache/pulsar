@@ -538,6 +538,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
                 return true;
             }
+
             // find the consumer for the sticky key hash
             Consumer consumer = selector.select(stickyKeyHash.intValue());
             // skip replaying the message position if there's no assigned consumer
@@ -552,6 +553,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (availablePermits.intValue() <= 0) {
                 return false;
             }
+
+            if (drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
+                // the hash is draining and the consumer is not the draining consumer
+                return false;
+            }
+
             availablePermits.decrement();
             return true;
         }
