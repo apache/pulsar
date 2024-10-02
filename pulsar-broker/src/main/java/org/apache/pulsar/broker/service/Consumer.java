@@ -27,6 +27,7 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
 import it.unimi.dsi.fastutil.ints.IntIntPair;
+import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -563,11 +564,11 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position;
-            Pair<Consumer, Integer> ackOwnerConsumerAndBatchSize =
+            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize =
                     getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.getLeft();
+            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
             long ackedCount;
-            int batchSize = ackOwnerConsumerAndBatchSize.getRight();
+            int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
@@ -633,14 +634,14 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
-            Pair<Consumer, Integer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
+            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
                     msgId.getEntryId());
             if (ackOwnerConsumerAndBatchSize == null) {
                 log.warn("[{}] [{}] Acknowledging message at {} that was already deleted", subscription,
                         consumerId, position);
                 continue;
             }
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.getLeft();
+            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
             // acked count at least one
             long ackedCount;
             int batchSize;
@@ -766,24 +767,24 @@ public class Consumer {
      * @param entryId The ID of the entry.
      * @return Pair<Consumer, BatchSize>
      */
-    private Pair<Consumer, Integer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
+    private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
             IntIntPair intPair = getPendingAcks().get(ledgerId, entryId);
             if (intPair != null) {
-                return Pair.of(this, intPair.leftInt());
+                return ObjectIntPair.of(this, intPair.leftInt());
             } else {
                 // If there are more consumers, this step will consume more CPU, and it should be optimized later.
                 for (Consumer consumer : subscription.getConsumers()) {
                     if (consumer != this) {
                         intPair = consumer.getPendingAcks().get(ledgerId, entryId);
                         if (intPair != null) {
-                            return Pair.of(consumer, intPair.leftInt());
+                            return ObjectIntPair.of(consumer, intPair.leftInt());
                         }
                     }
                 }
             }
         }
-        return Pair.of(this, 1);
+        return ObjectIntPair.of(this, 1);
     }
 
     private long[] getCursorAckSet(Position position) {
