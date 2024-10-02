@@ -712,6 +712,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testRemoveFirstConsumer() throws Exception {
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+        int numberOfKeys = 10;
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, false);
@@ -727,7 +728,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(String.valueOf(i % numberOfKeys))
                     .value(i)
                     .send();
         }
@@ -748,13 +749,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(String.valueOf(i % numberOfKeys))
                     .value(i)
                     .send();
         }
 
         // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
-        assertNull(c2.receive(100, TimeUnit.MILLISECONDS));
+        assertNull(c2.receive(1, TimeUnit.SECONDS));
 
         c1.close();
 
