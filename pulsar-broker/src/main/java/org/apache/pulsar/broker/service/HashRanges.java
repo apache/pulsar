@@ -49,7 +49,7 @@ class HashRanges {
                     Consumer consumerAfter = entry.getValue().getRight();
                     addRange(map, consumerAfter, range);
                 }, HashMap::putAll);
-        return mergeContinuousRanges(impactedRangesByConsumer);
+        return mergeOverlappingRanges(impactedRangesByConsumer);
     }
 
     private static void addRange(Map<Consumer, NavigableSet<Range>> map,
@@ -59,23 +59,23 @@ class HashRanges {
         }
     }
 
-    private static Map<Consumer, NavigableSet<Range>> mergeContinuousRanges(
+    static Map<Consumer, NavigableSet<Range>> mergeOverlappingRanges(
             Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
         Map<Consumer, NavigableSet<Range>> mergedRangesByConsumer = new HashMap<>();
         impactedRangesByConsumer.forEach((consumer, ranges) -> {
-            mergedRangesByConsumer.put(consumer, mergeContinuousRanges(ranges));
+            mergedRangesByConsumer.put(consumer, mergeOverlappingRanges(ranges));
         });
         return mergedRangesByConsumer;
     }
 
-    private static NavigableSet<Range> mergeContinuousRanges(NavigableSet<Range> ranges) {
+    static NavigableSet<Range> mergeOverlappingRanges(NavigableSet<Range> ranges) {
         NavigableSet<Range> mergedRanges = new TreeSet<>();
         Iterator<Range> rangeIterator = ranges.iterator();
         Range currentRange = rangeIterator.hasNext() ? rangeIterator.next() : null;
         while (rangeIterator.hasNext()) {
             Range nextRange = rangeIterator.next();
-            if (currentRange.getEnd() + 1 == nextRange.getStart()) {
-                currentRange = Range.of(currentRange.getStart(), nextRange.getEnd());
+            if (currentRange.getEnd() >= nextRange.getStart() - 1) {
+                currentRange = Range.of(currentRange.getStart(), Math.max(currentRange.getEnd(), nextRange.getEnd()));
             } else {
                 mergedRanges.add(currentRange);
                 currentRange = nextRange;
@@ -86,7 +86,6 @@ class HashRanges {
         }
         return mergedRanges;
     }
-
     /**
      * Calculate the diff of two range mappings.
      * @param mappingBefore the range mapping before
