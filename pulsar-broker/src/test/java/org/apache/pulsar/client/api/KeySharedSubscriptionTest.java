@@ -69,6 +69,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -918,9 +920,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
+        Set<Integer> blockedHashes = new HashSet<>();
         // pull up to numberOfKeys messages and don't ack them
         for (int i = 0; i < numberOfKeys + 1; i++) {
-            consumer1.receive();
+            Message<Integer> received = consumer1.receive();
+            int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
+            log.info("Received message {} with sticky key hash: {}", received.getMessageId(), stickyKeyHash);
+            blockedHashes.add(stickyKeyHash);
         }
 
         // The consumer1 and consumer2 should be stuck since all hashes are blocked
@@ -938,7 +944,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             received = consumer2.receive(1, TimeUnit.SECONDS);
         } catch (PulsarClientException ignore) {
         }
-        Assert.assertNull(received);
+        if (received != null) {
+            int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
+            DrainingHashesTracker.DrainingHashEntry entry =
+                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+            Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
+                            + "included in blockedHashes=%s",
+                    received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
+        }
 
         @Cleanup
         Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
@@ -952,7 +965,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             received = consumer3.receive(1, TimeUnit.SECONDS);
         } catch (PulsarClientException ignore) {
         }
-        Assert.assertNull(received);
+        if (received != null) {
+            int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
+            DrainingHashesTracker.DrainingHashEntry entry =
+                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+            Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
+                            + "included in blockedHashes=%s",
+                    received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
+        }
 
         Optional<Topic> topicRef = pulsar.getBrokerService().getTopic(topic, false).get();
         assertTrue(topicRef.isPresent());

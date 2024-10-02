@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -69,6 +70,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private boolean skipNextReplayToTriggerLookAhead = false;
     private final KeySharedMode keySharedMode;
+    @Getter
     private final DrainingHashesTracker drainingHashesTracker;
 
     private static final LongPairRangeSet.LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
@@ -351,6 +353,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
             return false;
         }
+        log.info("[{}] Adding {}:{} to pending acks for consumer id {} with sticky key hash {}",
+                getName(), ledgerId, entryId, consumerId, stickyKeyHash);
         return true;
     }
 
