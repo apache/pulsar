@@ -107,12 +107,12 @@ public class PendingAcksMap {
     private boolean closed = false;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
-                   Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier, boolean useExclusiveReadLock) {
+                   Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier, boolean useSingleLock) {
         this.consumer = consumer;
         this.pendingAcks = new Long2ObjectRBTreeMap<>();
         this.pendingAcksAddHandlerSupplier = pendingAcksAddHandlerSupplier;
         this.pendingAcksRemoveHandlerSupplier = pendingAcksRemoveHandlerSupplier;
-        if (useExclusiveReadLock) {
+        if (useSingleLock) {
             this.writeLock = new ReentrantLock();
             this.readLock = this.writeLock;
         } else {

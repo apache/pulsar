@@ -230,7 +230,7 @@ public class Consumer {
 
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = new PendingAcksMap(this, this::getPendingAcksAddHandler,
-                    this::getPendingAcksRemoveHandler, subType != SubType.Key_Shared);
+                    this::getPendingAcksRemoveHandler, subType == SubType.Key_Shared);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
