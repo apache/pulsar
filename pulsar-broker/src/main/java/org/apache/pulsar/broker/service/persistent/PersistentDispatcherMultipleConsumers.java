@@ -144,6 +144,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected enum ReadType {
         Normal, Replay
     }
+    private Position lastMarkDeletePositionBeforeReadMoreEntries;
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription) {
@@ -339,6 +340,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (topic.isTransferring()) {
             // Do not deliver messages for topics that are undergoing transfer, as the acknowledgments would be ignored.
             return;
+        }
+
+        // remove possible expired messages from redelivery tracker
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        if (lastMarkDeletePositionBeforeReadMoreEntries != cursor.getMarkDeletedPosition()) {
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
         }
 
         // totalAvailablePermits may be updated by other threads

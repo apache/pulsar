@@ -110,6 +110,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         if (log.isDebugEnabled()) {
             log.debug("[{}] Sticky key hash {} is unblocked", getName(), stickyKeyHash);
         }
+        reScheduleReadWithKeySharedUnblockingInterval();
+    }
+
+    private void reScheduleReadWithKeySharedUnblockingInterval() {
         reScheduleReadInMs(keySharedUnblockingIntervalMsSupplier.getAsLong());
     }
 
@@ -578,13 +582,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public void markDeletePositionMoveForward() {
-        // Execute the notification in different thread to avoid a mutex chain here
-        // from the delete operation that was completed
-//        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
-//            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-//
-//            }
-//        });
+        // reschedule a read with a backoff after moving the mark-delete position forward since there might have
+        // been consumers that were blocked by hash and couldn't make progress
+        reScheduleReadWithKeySharedUnblockingInterval();
     }
 
     /**

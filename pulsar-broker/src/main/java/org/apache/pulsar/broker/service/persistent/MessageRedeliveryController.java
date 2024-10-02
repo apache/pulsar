@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import com.google.common.collect.ComparisonChain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
@@ -111,18 +110,20 @@ public class MessageRedeliveryController {
     }
 
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        if (!allowOutOfOrderDelivery) {
+        boolean bitsCleared = messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
+        // only if bits have been clear, and we are not allowing out of order delivery, we need to remove the hashes
+        // removing hashes is a relatively expensive operation, so we should only do it when necessary
+        if (bitsCleared && !allowOutOfOrderDelivery) {
             List<LongPair> keysToRemove = new ArrayList<>();
             hashesToBeBlocked.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
-                if (ComparisonChain.start().compare(ledgerId, markDeleteLedgerId).compare(entryId, markDeleteEntryId)
-                        .result() <= 0) {
+                if (ledgerId < markDeleteLedgerId || (ledgerId == markDeleteLedgerId && entryId <= markDeleteEntryId)) {
                     keysToRemove.add(new LongPair(ledgerId, entryId));
                 }
             });
-            keysToRemove.forEach(longPair -> removeFromHashBlocker(longPair.first, longPair.second));
-            keysToRemove.clear();
+            for (LongPair longPair : keysToRemove) {
+                removeFromHashBlocker(longPair.first, longPair.second);
+            }
         }
-        messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
     }
 
     public boolean isEmpty() {
