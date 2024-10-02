@@ -220,7 +220,11 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             // is expired. In this case, we should register again.
             final var brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
             if (t.getType() == NotificationType.Deleted && getBrokerId().equals(brokerId)) {
-                registerAsync();
+                registerAsync().exceptionally(e -> {
+                    log.error("[{}] Failed to register self to {} (state: {})", getBrokerId(), brokerIdKeyPath,
+                            state.get(), e);
+                    return null;
+                });
             }
             if (listeners.isEmpty()) {
                 return;
