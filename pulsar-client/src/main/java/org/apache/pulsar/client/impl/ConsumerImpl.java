@@ -1842,6 +1842,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Sending permit-cmd to broker with available permits = {}", topic, available);
+                }
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
             } else {
