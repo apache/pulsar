@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -235,39 +234,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             entries.forEach(Entry::release);
             cursor.rewind();
             return false;
-        }
-
-        if (!allowOutOfOrderDelivery) {
-            // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
-            // This may happen when consumer closed. See issue #12885 for details.
-            Optional<Position> firstReplayPosition = getFirstPositionInReplay();
-            if (firstReplayPosition.isPresent()) {
-                Position replayPosition = firstReplayPosition.get();
-                if (this.minReplayedPosition != null) {
-                    // If relayPosition is a new entry wither smaller position is inserted for redelivery during this
-                    // async read, it is possible that this relayPosition should dispatch to consumer first. So in
-                    // order to preserver order delivery, we need to discard this read result, and try to trigger a
-                    // replay read, that containing "relayPosition", by calling readMoreEntries.
-                    if (replayPosition.compareTo(minReplayedPosition) < 0) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
-                                            + "discard this read and retry with readMoreEntries.",
-                                    name, replayPosition, minReplayedPosition, readType);
-                        }
-                        if (readType == ReadType.Normal) {
-                            entries.forEach(entry -> {
-                                long stickyKeyHash = getStickyKeyHash(entry);
-                                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
-                                entry.release();
-                            });
-                        } else if (readType == ReadType.Replay) {
-                            entries.forEach(Entry::release);
-                        }
-                        skipNextBackoff = true;
-                        return true;
-                    }
-                }
-            }
         }
 
         // returns a boolean indicating whether look-ahead could be useful, when there's a consumer
