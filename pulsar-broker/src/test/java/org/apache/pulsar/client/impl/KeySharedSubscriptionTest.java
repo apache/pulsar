@@ -86,6 +86,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         AtomicLong lastActiveTime = new AtomicLong();
         AtomicBoolean canAcknowledgement = new AtomicBoolean(false);
 
+        if (subscriptionType == SubscriptionType.Key_Shared) {
+            // create and close consumer to create the dispatcher so that the selector can be used
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(subscriptionType)
+                    .subscribe()
+                    .close();
+        }
+
         List<Consumer<?>> consumerList = new ArrayList<>();
         // create 3 consumers
         for (int i = 0; i < 3; i++) {
