@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.receiveMessages;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
@@ -55,6 +56,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
@@ -62,7 +64,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -1772,7 +1774,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     public void testNoRepeatedReadAndDiscard() throws Exception {
         int delayedMessages = 100;
         int numberOfKeys = delayedMessages;
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
         admin.topics().createNonPartitionedTopic(topic);
         AtomicInteger replyReadCounter = injectReplayReadCounter(topic, subName);
@@ -1866,7 +1868,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     public void testRecentJoinedPosWillNotStuckOtherConsumer(boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
         admin.topics().createNonPartitionedTopic(topic);
         AtomicInteger replyReadCounter = injectReplayReadCounter(topic, subName);
@@ -2155,5 +2157,168 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
                 (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
         return dispatcher.getSelector();
+    }
+
+    // This test case simulates a rolling restart scenario with behaviors that can trigger out-of-order issues.
+    // In earlier versions of Pulsar, this issue occurred in about 25% of cases.
+    // To increase the probability of reproducing the issue, use the invocationCount parameter.
+    @Test//(invocationCount = 50)
+    public void testOrderingAfterReconnects() throws Exception {
+        String topic = newUniqueName("testOrderingAfterReconnects");
+        int numberOfKeys = 1000;
+        long pauseTime = 100L;
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        // create a consumer and close it to create a subscription
+        String subscriptionName = "key_shared";
+        pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe()
+                .close();
+
+        Set<Integer> remainingMessageValues = new HashSet<>();
+        Map<String, Pair<Position, String>> keyPositions = new HashMap<>();
+        BiFunction<Consumer<Integer>, Message<Integer>, Boolean> messageHandler = (consumer, msg) -> {
+            synchronized (this) {
+                consumer.acknowledgeAsync(msg);
+                String key = msg.getKey();
+                MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
+                Position currentPosition = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
+                Pair<Position, String> prevPair = keyPositions.get(key);
+                if (prevPair != null && prevPair.getLeft().compareTo(currentPosition) > 0) {
+                    log.error("key: {} value: {} prev: {}/{} current: {}/{}", key, msg.getValue(), prevPair.getLeft(),
+                            prevPair.getRight(), currentPosition, consumer.getConsumerName());
+                    fail("out of order");
+                }
+                keyPositions.put(key, Pair.of(currentPosition, consumer.getConsumerName()));
+                boolean removed = remainingMessageValues.remove(msg.getValue());
+                if (!removed) {
+                    // duplicates are possible during reconnects, this is not an error
+                    log.warn("Duplicate message: {} value: {}", msg.getMessageId(), msg.getValue());
+                }
+                return true;
+            }
+        };
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c1")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .startPaused(true) // start paused
+                .subscribe();
+
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c2")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(500) // use large receiver queue size
+                .subscribe();
+
+        @Cleanup
+        Consumer<Integer> c3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c3")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .startPaused(true) // start paused
+                .subscribe();
+
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyConsumerSelector selector = dispatcher.getSelector();
+
+        // find keys that will be assigned to c2
+        List<String> keysForC2 = new ArrayList<>();
+        for (int i = 0; i < numberOfKeys; i++) {
+            String key = String.valueOf(i);
+            byte[] keyBytes = key.getBytes(UTF_8);
+            int hash = selector.makeStickyKeyHash(keyBytes);
+            if (selector.select(hash).consumerName().equals("c2")) {
+                keysForC2.add(key);
+            }
+        }
+
+        // produce messages with keys that all get assigned to c2
+        for (int i = 0; i < 1000; i++) {
+            String key = keysForC2.get(random.nextInt(keysForC2.size()));
+            //log.info("Producing message with key: {} value: {}", key, i);
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .send();
+            remainingMessageValues.add(i);
+        }
+
+        Thread.sleep(2 * pauseTime);
+        // close c2
+        c2.close();
+        Thread.sleep(pauseTime);
+        // resume c1 and c3
+        c1.resume();
+        c3.resume();
+        Thread.sleep(pauseTime);
+        // reconnect c2
+        c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c2")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+        // close and reconnect c1
+        c1.close();
+        Thread.sleep(pauseTime);
+        c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c1")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+        // close and reconnect c3
+        c3.close();
+        Thread.sleep(pauseTime);
+        c3 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c3")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        logTopicStats(topic);
+
+        // produce more messages
+        for (int i = 1000; i < 2000; i++) {
+            String key = String.valueOf(random.nextInt(numberOfKeys));
+            //log.info("Producing message with key: {} value: {}", key, i);
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .send();
+            remainingMessageValues.add(i);
+        }
+
+        // consume the messages
+        receiveMessages(messageHandler, Duration.ofSeconds(2), c1, c2, c3);
+
+        try {
+            assertEquals(remainingMessageValues, Collections.emptySet());
+        } finally {
+            logTopicStats(topic);
+        }
     }
 }
