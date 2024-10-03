@@ -37,17 +37,17 @@ public class DrainingHashesTracker {
      * Represents an entry in the draining hashes tracker.
      */
     public static class DrainingHashEntry {
-        private final long consumerId;
+        private final Consumer consumer;
         private int refCount;
         private int blockedCount;
 
         /**
          * Constructs a new DrainingHashEntry with the specified consumer ID.
          *
-         * @param consumerId the ID of the consumer
+         * @param consumer the ID of the consumer
          */
-        DrainingHashEntry(long consumerId) {
-            this.consumerId = consumerId;
+        DrainingHashEntry(Consumer consumer) {
+            this.consumer = consumer;
         }
 
         /**
@@ -55,8 +55,8 @@ public class DrainingHashesTracker {
          *
          * @return the consumer ID
          */
-        public long getConsumerId() {
-            return consumerId;
+        public Consumer getConsumer() {
+            return consumer;
         }
 
         /**
@@ -97,7 +97,7 @@ public class DrainingHashesTracker {
          * @return a string representation of the DrainingHashEntry
          */
         public String toString() {
-            return "DrainingHashEntry(consumerId=" + this.consumerId + ", refCount=" + this.refCount + ", blockedCount="
+            return "DrainingHashEntry(consumer=" + this.consumer + ", refCount=" + this.refCount + ", blockedCount="
                     + this.blockedCount + ")";
         }
     }
@@ -131,13 +131,13 @@ public class DrainingHashesTracker {
         }
         DrainingHashEntry entry = drainingHashes.get(stickyHash);
         if (entry == null) {
-            entry = new DrainingHashEntry(consumer.consumerId());
+            entry = new DrainingHashEntry(consumer);
             drainingHashes.put(stickyHash, entry);
-        } else if (entry.getConsumerId() != consumer.consumerId()) {
-            log.error("[{}] Consumer id {} is already draining hash {}. Same hash being used for consumer {}. "
+        } else if (entry.getConsumer() != consumer) {
+            log.error("[{}] Consumer {} is already draining hash {}. Same hash being used for consumer {}. "
                             + "This call is ignored since there's a problem in consistency.",
                     dispatcherName,
-                    entry.getConsumerId(), stickyHash, consumer.consumerId());
+                    entry.getConsumer(), stickyHash, consumer);
             return;
         }
         entry.incrementRefCount();
@@ -176,11 +176,11 @@ public class DrainingHashesTracker {
         if (entry == null) {
             return;
         }
-        if (entry.getConsumerId() != consumer.consumerId()) {
-            log.error("[{}] Consumer id {} is already draining hash {}. Same hash is being acknowledged by consumer {}."
+        if (entry.getConsumer() != consumer) {
+            log.error("[{}] Consumer {} is already draining hash {}. Same hash is being acknowledged by consumer {}."
                             + " This call is ignored since there's a problem in consistency.",
                     dispatcherName,
-                    entry.getConsumerId(), stickyHash, consumer.consumerId());
+                    entry.getConsumer(), stickyHash, consumer);
             return;
         }
         if (entry.decrementRefCount()) {
@@ -212,10 +212,10 @@ public class DrainingHashesTracker {
             return false;
         }
         // hash has been reassigned to the original consumer, remove the entry
-        if (entry.getConsumerId() == consumer.consumerId()) {
+        if (entry.getConsumer() == consumer) {
             log.info("[{}] Hash {} has been reassigned consumer {}. "
                             + "The draining hash entry with refCount={} will be removed.",
-                    dispatcherName, stickyKeyHash, entry.getConsumerId(), entry.refCount);
+                    dispatcherName, stickyKeyHash, entry.getConsumer(), entry.refCount);
             drainingHashes.remove(stickyKeyHash, entry);
             return false;
         }

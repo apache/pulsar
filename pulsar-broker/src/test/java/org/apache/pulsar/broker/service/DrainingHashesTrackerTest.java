@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.broker.service.DrainingHashesTracker.UnblockingHandler;
@@ -41,7 +42,7 @@ public class DrainingHashesTrackerTest {
         tracker.addEntry(consumer, 1);
 
         assertNotNull(tracker.getEntry(1));
-        assertEquals(tracker.getEntry(1).getConsumerId(), consumer.consumerId());
+        assertSame(tracker.getEntry(1).getConsumer(), consumer);
     }
 
     @Test
@@ -73,7 +74,7 @@ public class DrainingHashesTrackerTest {
         tracker.reduceRefCount(consumer2, 1, false);
 
         assertNotNull(tracker.getEntry(1));
-        assertEquals(tracker.getEntry(1).getConsumerId(), consumer1.consumerId());
+        assertSame(tracker.getEntry(1).getConsumer(), consumer1);
     }
 
     @Test

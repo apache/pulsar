@@ -360,12 +360,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             log.warn("[{}] Sticky key hash is missing for {}:{}", getName(), ledgerId, entryId);
             throw new IllegalArgumentException("Sticky key hash is missing for " + ledgerId + ":" + entryId);
         }
-        long consumerId = consumer.consumerId();
         DrainingHashesTracker.DrainingHashEntry drainingHashEntry = drainingHashesTracker.getEntry(stickyKeyHash);
-        if (drainingHashEntry != null && drainingHashEntry.getConsumerId() != consumerId) {
+        if (drainingHashEntry != null && drainingHashEntry.getConsumer() != consumer) {
             log.warn("[{}] Another consumer id {} is already draining hash {}. Skipping adding {}:{} to pending acks "
-                            + "for consumer id {}. Adding the message to replay.",
-                    getName(), drainingHashEntry.getConsumerId(), stickyKeyHash, ledgerId, entryId, consumerId);
+                            + "for consumer {}. Adding the message to replay.",
+                    getName(), drainingHashEntry.getConsumer(), stickyKeyHash, ledgerId, entryId, consumer);
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
             return false;
         }
@@ -377,8 +376,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return false;
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Adding {}:{} to pending acks for consumer id {} with sticky key hash {}",
-                    getName(), ledgerId, entryId, consumerId, stickyKeyHash);
+            log.debug("[{}] Adding {}:{} to pending acks for consumer {} with sticky key hash {}",
+                    getName(), ledgerId, entryId, consumer, stickyKeyHash);
         }
         return true;
     }
