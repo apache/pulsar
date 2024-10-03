@@ -48,6 +48,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -368,20 +369,26 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Run a healthCheck against the broker")
     @ApiResponses(value = {
         @ApiResponse(code = 200, message = "Everything is OK"),
+        @ApiResponse(code = 307, message = "Current broker is not the target broker"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
                             @ApiParam(value = "Topic Version")
-                            @QueryParam("topicVersion") TopicVersion topicVersion) {
+                            @QueryParam("topicVersion") TopicVersion topicVersion,
+                            @QueryParam("brokerId") String brokerId) {
         validateSuperUserAccessAsync()
                 .thenAccept(__ -> checkDeadlockedThreads())
+                .thenCompose(__ -> maybeRedirectToBroker(
+                        StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
                 .thenCompose(__ -> internalRunHealthCheck(topicVersion))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
                     asyncResponse.resume(Response.ok("ok").build());
                 }).exceptionally(ex -> {
-                    LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
