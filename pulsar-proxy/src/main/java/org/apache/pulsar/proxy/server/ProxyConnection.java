@@ -74,8 +74,8 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.util.RoleObfuscator;
 import org.apache.pulsar.common.util.Runnables;
+import org.apache.pulsar.common.util.anonymizer.DefaultAuthenticationRoleLoggingAnonymizer;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
@@ -121,7 +121,7 @@ public class ProxyConnection extends PulsarHandler {
     private int protocolVersionToAdvertise;
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
-    private RoleObfuscator roleObfuscator;
+    private final DefaultAuthenticationRoleLoggingAnonymizer authenticationRoleLoggingAnonymizer;
 
     protected static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
@@ -163,9 +163,8 @@ public class ProxyConnection extends PulsarHandler {
         this.state = State.Init;
         this.brokerProxyValidator = service.getBrokerProxyValidator();
         this.connectionController = proxyService.getConnectionController();
-        this.roleObfuscator = new RoleObfuscator(
-                proxyService.getConfiguration().isAuthenticationRoleAnonymizedInLogging(),
-                proxyService.getConfiguration().isAuthenticationRoleRedactedInLogging());
+        this.authenticationRoleLoggingAnonymizer = new DefaultAuthenticationRoleLoggingAnonymizer(
+                proxyService.getConfiguration().getAuthenticationRoleLoggingAnonymizer());
     }
 
     @Override
@@ -348,8 +347,9 @@ public class ProxyConnection extends PulsarHandler {
 
     private synchronized void completeConnect() throws PulsarClientException {
         checkArgument(state == State.Connecting);
+        String maybeAnonymizedClientAuthRole = authenticationRoleLoggingAnonymizer.anonymize(clientAuthRole);
         LOG.info("[{}] complete connection, init proxy handler. authenticated with {} role {}, hasProxyToBrokerUrl: {}",
-                remoteAddress, authMethod, roleObfuscator.obfuscateRole(clientAuthRole), hasProxyToBrokerUrl);
+                remoteAddress, authMethod, maybeAnonymizedClientAuthRole, hasProxyToBrokerUrl);
         if (hasProxyToBrokerUrl) {
             // Optimize proxy connection to fail-fast if the target broker isn't active
             // Pulsar client will retry connecting after a back off timeout
@@ -357,7 +357,7 @@ public class ProxyConnection extends PulsarHandler {
                     && !isBrokerActive(proxyToBrokerUrl)) {
                 state = State.Closing;
                 LOG.warn("[{}] Target broker '{}' isn't available. authenticated with {} role {}.",
-                        remoteAddress, proxyToBrokerUrl, authMethod, role);
+                        remoteAddress, proxyToBrokerUrl, authMethod, maybeAnonymizedClientAuthRole);
                 final ByteBuf msg = Commands.newError(-1,
                         ServerError.ServiceNotReady, "Target broker isn't available.");
                 writeAndFlushAndClose(msg);
@@ -376,10 +376,11 @@ public class ProxyConnection extends PulsarHandler {
 
                             LOG.warn("[{}] Target broker '{}' cannot be validated. {}. authenticated with {} role {}.",
                                     remoteAddress, proxyToBrokerUrl, targetAddressDeniedException.getMessage(),
-                                    authMethod, role);
+                                    authMethod, maybeAnonymizedClientAuthRole);
                         } else {
                             LOG.error("[{}] Error validating target broker '{}'. authenticated with {} role {}.",
-                                    remoteAddress, proxyToBrokerUrl, authMethod, role, throwable);
+                                    remoteAddress, proxyToBrokerUrl, authMethod, maybeAnonymizedClientAuthRole,
+                                    throwable);
                         }
                         final ByteBuf msg = Commands.newError(-1, ServerError.ServiceNotReady,
                                 "Target broker cannot be validated.");
@@ -406,7 +407,7 @@ public class ProxyConnection extends PulsarHandler {
                         Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
-                        remoteAddress, state, role);
+                        remoteAddress, state, maybeAnonymizedClientAuthRole);
             }
 
             state = State.ProxyLookupRequests;
@@ -493,7 +494,7 @@ public class ProxyConnection extends PulsarHandler {
                 clientAuthRole = authState.getAuthRole();
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Client successfully authenticated with {} role {}",
-                            remoteAddress, authMethod, clientAuthRole);
+                            remoteAddress, authMethod, authenticationRoleLoggingAnonymizer.anonymize(clientAuthRole));
                 }
 
                 // First connection

@@ -287,14 +287,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Boolean webServiceLogDetailedAddresses;
 
     @FieldContext(category = CATEGORY_SERVER, doc =
-            "When set to true, the broker will hash the role and originalAuthRole before logging. Default is false."
+            "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "SHA256 (hashes using SHA-256), and MD5 (hashes using MD5). Default is NONE."
     )
-    private boolean authenticationRoleAnonymizedInLogging = false;
-
-    @FieldContext(category = CATEGORY_SERVER, doc = "When set to true, the broker will redact the role and "
-             + "originalAuthRole in logs by replacing them with [REDACTED]. Default is false."
-    )
-    private boolean authenticationRoleRedactedInLogging = false;
+    private String authenticationRoleLoggingAnonymizer = "NONE";
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "

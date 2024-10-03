@@ -53,6 +53,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.util.anonymizer.DefaultRoleAnonymizerType;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
@@ -446,17 +447,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "When set to true, the broker will hash the role and originalAuthRole before logging. "
-                    + "Default is false."
+            doc = "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "SHA256 (hashes using SHA-256), and MD5 (hashes using MD5). Default is NONE."
     )
-    private boolean authenticationRoleAnonymizedInLogging = false;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "When set to true, the broker will redact the role and originalAuthRole in logs by replacing them "
-                    + "with [REDACTED]. Default is false."
-    )
-    private boolean authenticationRoleRedactedInLogging = false;
+    private String authenticationRoleLoggingAnonymizer = "NONE";
 
     @FieldContext(
         category = CATEGORY_SERVER,

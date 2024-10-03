@@ -174,8 +174,8 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RoleObfuscator;
 import org.apache.pulsar.common.util.StringInterner;
+import org.apache.pulsar.common.util.anonymizer.DefaultAuthenticationRoleLoggingAnonymizer;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -218,7 +218,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private AuthData originalAuthDataCopy;
     private boolean pendingAuthChallengeResponse = false;
     private ScheduledFuture<?> authRefreshTask;
-    private RoleObfuscator roleObfuscator;
+    private final DefaultAuthenticationRoleLoggingAnonymizer authenticationRoleLoggingAnonymizer;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -353,8 +353,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
         this.brokerInterceptor = this.service != null ? this.service.getInterceptor() : null;
         this.throttleTracker = new ServerCnxThrottleTracker(this);
-        this.roleObfuscator = new RoleObfuscator(conf.isAuthenticationRoleAnonymizedInLogging(),
-                conf.isAuthenticationRoleRedactedInLogging());
+        this.authenticationRoleLoggingAnonymizer = new DefaultAuthenticationRoleLoggingAnonymizer(
+                conf.getAuthenticationRoleLoggingAnonymizer());
     }
 
     @Override
@@ -835,12 +835,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (originalPrincipal != null) {
             log.info("[{}] connected role={} and originalAuthRole={} using authMethod={}, clientVersion={}, "
                             + "clientProtocolVersion={}, proxyVersion={}", remoteAddress,
-                    roleObfuscator.obfuscateRole(authRole), roleObfuscator.obfuscateRole(originalPrincipal),
-                    authMethod, clientVersion, clientProtoVersion, proxyVersion);
+                    authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal), authMethod, clientVersion,
+                    clientProtoVersion, proxyVersion);
         } else {
             log.info("[{}] connected with role={} using authMethod={}, clientVersion={}, clientProtocolVersion={}, "
-                           + "proxyVersion={}", remoteAddress, roleObfuscator.obfuscateRole(authRole), authMethod,
-                    clientVersion, clientProtoVersion, proxyVersion);
+                           + "proxyVersion={}", remoteAddress, authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authMethod, clientVersion, clientProtoVersion, proxyVersion);
         }
         if (brokerInterceptor != null) {
             brokerInterceptor.onConnectionCreated(this);
@@ -1227,7 +1228,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Handle subscribe command: auth role = {}, original auth role = {}",
-                remoteAddress, authRole, originalPrincipal);
+                remoteAddress, authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                    authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal));
         }
 
         final String subscriptionName = subscribe.getSubscription();
@@ -2478,11 +2480,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on namespace {}",
-                        originalPrincipal, operation, namespaceName);
+                        authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal), operation, namespaceName);
             }
             if (!isAuthorized) {
                 log.warn("Role {} is not authorized to perform operation {} on namespace {}",
-                        authRole, operation, namespaceName);
+                        authenticationRoleLoggingAnonymizer.anonymize(authRole), operation, namespaceName);
             }
             return isProxyAuthorized && isAuthorized;
         });
