@@ -97,6 +97,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
+    protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
@@ -380,6 +381,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             messagesToReplayNow.size(), consumerList.size());
                 }
                 havePendingReplayRead = true;
+                updateMinReplayedPosition();
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
                         ? asyncReplayEntriesInOrder(messagesToReplayNow)
                         : asyncReplayEntries(messagesToReplayNow);
@@ -414,6 +416,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
+                updateMinReplayedPosition();
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
 
@@ -474,6 +477,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      */
     protected boolean canReplayMessages() {
         return true;
+    }
+
+    private void updateMinReplayedPosition() {
+        minReplayedPosition = getFirstPositionInReplay().orElse(null);
     }
 
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
