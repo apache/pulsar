@@ -287,8 +287,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Boolean webServiceLogDetailedAddresses;
 
     @FieldContext(category = CATEGORY_SERVER, doc =
-            "Prevent broker from logging role and originalAuthRole, default is false.")
-    private Boolean preventRoleLogging = false;
+            "When set to true, the broker will hash the role and originalAuthRole before logging. Default is false."
+    )
+    private boolean authenticationRoleAnonymizedInLogging = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "When set to true, the broker will redact the role and "
+             + "originalAuthRole in logs by replacing them with [REDACTED]. Default is false."
+    )
+    private boolean authenticationRoleRedactedInLogging = false;
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "

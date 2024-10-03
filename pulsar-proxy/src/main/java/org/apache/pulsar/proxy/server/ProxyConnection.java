@@ -74,7 +74,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.common.util.RedactedRole;
+import org.apache.pulsar.common.util.RoleObfuscator;
 import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
@@ -121,6 +121,7 @@ public class ProxyConnection extends PulsarHandler {
     private int protocolVersionToAdvertise;
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
+    private RoleObfuscator roleObfuscator;
 
     protected static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
@@ -162,6 +163,9 @@ public class ProxyConnection extends PulsarHandler {
         this.state = State.Init;
         this.brokerProxyValidator = service.getBrokerProxyValidator();
         this.connectionController = proxyService.getConnectionController();
+        this.roleObfuscator = new RoleObfuscator(
+                proxyService.getConfiguration().isAuthenticationRoleAnonymizedInLogging(),
+                proxyService.getConfiguration().isAuthenticationRoleRedactedInLogging());
     }
 
     @Override
@@ -344,10 +348,8 @@ public class ProxyConnection extends PulsarHandler {
 
     private synchronized void completeConnect() throws PulsarClientException {
         checkArgument(state == State.Connecting);
-        Boolean preventRoleLogging = service.getConfiguration().getPreventRoleLogging();
-        String role = RedactedRole.anonymize(clientAuthRole, preventRoleLogging);
         LOG.info("[{}] complete connection, init proxy handler. authenticated with {} role {}, hasProxyToBrokerUrl: {}",
-                remoteAddress, authMethod, role, hasProxyToBrokerUrl);
+                remoteAddress, authMethod, roleObfuscator.obfuscateRole(clientAuthRole), hasProxyToBrokerUrl);
         if (hasProxyToBrokerUrl) {
             // Optimize proxy connection to fail-fast if the target broker isn't active
             // Pulsar client will retry connecting after a back off timeout

@@ -446,9 +446,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Prevent broker from logging role and originalAuthRole, default is false"
+            doc = "When set to true, the broker will hash the role and originalAuthRole before logging. "
+                    + "Default is false."
     )
-    private Boolean preventRoleLogging = false;
+    private boolean authenticationRoleAnonymizedInLogging = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When set to true, the broker will redact the role and originalAuthRole in logs by replacing them "
+                    + "with [REDACTED]. Default is false."
+    )
+    private boolean authenticationRoleRedactedInLogging = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
