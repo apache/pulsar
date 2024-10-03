@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import java.util.Map;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -38,6 +39,7 @@ import org.testng.annotations.Test;
 public class PositionInfoUtilsTest {
     private static final Logger log = LoggerFactory.getLogger(PositionInfoUtilsTest.class);
 
+    final AtomicInteger counter = new AtomicInteger(0);
     @Test
     public void testSerializeDeserialize() throws Exception {
         Position position = PositionFactory.create(1, 2);
@@ -45,8 +47,8 @@ public class PositionInfoUtilsTest {
                 Map.of("foo", 1L), null, null);
 
         ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position, (scanner) -> {
-            scanner.acceptRange(1, 2, 3, 4);
-            scanner.acceptRange(5, 6, 7, 8);
+            scanner.acceptRange(1, 2, 3, 4, counter);
+            scanner.acceptRange(5, 6, 7, 8, counter);
         }, (scanner) -> {
             long[] array = {7L, 8L};
             scanner.acceptRange(1, 2, array);
@@ -76,6 +78,7 @@ public class PositionInfoUtilsTest {
         assertEquals(1, positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getPosition().getLedgerId());
         assertEquals(2, positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getPosition().getEntryId());
         assertEquals(List.of(7L, 8L), positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getDeleteSetList());
+
         result.release();
     }
 
@@ -111,7 +114,7 @@ public class PositionInfoUtilsTest {
         final int numRanges = 10000;
         ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position, (scanner) -> {
             for (int i = 0; i < numRanges; i++) {
-                scanner.acceptRange(i*4 + 1, i*4 + 2, i*4 + 3, i*4 + 4);
+                scanner.acceptRange(i*4 + 1, i*4 + 2, i*4 + 3, i*4 + 4, counter);
             }
         }, (scanner) -> {
             long[] array = {7L, 8L};

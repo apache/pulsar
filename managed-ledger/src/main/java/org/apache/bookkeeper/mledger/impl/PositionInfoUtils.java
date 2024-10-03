@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -29,7 +30,8 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 final class PositionInfoUtils {
 
     interface IndividuallyDeletedMessagesRangeConsumer {
-        void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId);
+        void acceptRange(long lowerLegerId, long lowerEntryId,
+						 long upperLedgerId, long upperEntryId, AtomicInteger acksSerializedSize);
     }
 
 	interface IndividuallyDeletedRangesConsumer {
@@ -56,7 +58,8 @@ final class PositionInfoUtils {
 		MessageRange _item = new MessageRange();
 		rangeScanner.accept(new IndividuallyDeletedMessagesRangeConsumer() {
 			@Override
-			public void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
+			public void acceptRange(long lowerLegerId, long lowerEntryId,
+									long upperLedgerId, long upperEntryId, AtomicInteger acksSerializedSize) {
 				_item.clear();
 				NestedPositionInfo lower = _item.setLowerEndpoint();
 				NestedPositionInfo upper = _item.setUpperEndpoint();
@@ -65,6 +68,7 @@ final class PositionInfoUtils {
 				upper.setLedgerId(upperLedgerId);
 				upper.setEntryId(upperEntryId);
 				LightProtoCodec.writeVarInt(_b, PositionInfo._INDIVIDUAL_DELETED_MESSAGES_TAG);
+				acksSerializedSize.addAndGet(_item.getSerializedSize());
 				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
 				_item.writeTo(_b);
 			}

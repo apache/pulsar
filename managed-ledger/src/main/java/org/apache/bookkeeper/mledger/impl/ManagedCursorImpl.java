@@ -639,31 +639,37 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             LedgerEntry entry = seq.nextElement();
-            ByteBuf data = entry.getEntryBuffer();
-            try {
-                ChunkSequenceFooter chunkSequenceFooter = parseChunkSequenceFooter(data);
-                if (chunkSequenceFooter.numParts > 0) {
-                    readChunkSequence(callback, lh, entryId, chunkSequenceFooter);
-                } else {
-                    Throwable res = tryCompleteCursorRecovery(lh, data);
-                    if (res == null) {
-                        callback.operationComplete();
-                    } else {
-                        log.warn("[{}] Error recovering from metadata ledger {} entry {} for cursor {}. "
-                                        + "Will try recovery from previous entry.",
-                                ledger.getName(), ledgerId, entryId, name, res);
-                        //try recovery from previous entry
-                        recoverFromLedgerByEntryId(info, callback, lh, entryId - 1);
-                    }
-                }
-            } catch (IOException error) {
-                log.error("Cannot parse footer", error);
-                log.warn("[{}] Error recovering from metadata ledger {} entry {} for cursor {}, cannot parse footer. "
-                                + "Will try recovery from previous entry.",
-                        ledger.getName(), ledgerId, entryId, name, error);
-                recoverFromLedgerByEntryId(info, callback, lh, entryId - 1);
-            }
+            recoverFromEntry(info, callback, lh, entryId, entry);
         }, null);
+    }
+
+    private void recoverFromEntry(ManagedCursorInfo info, VoidCallback callback, LedgerHandle lh,
+                                  long entryId, LedgerEntry entry) {
+        ByteBuf data = entry.getEntryBuffer();
+        try {
+            ChunkSequenceFooter chunkSequenceFooter = parseChunkSequenceFooter(data);
+            if (chunkSequenceFooter.numParts > 0) {
+                data.release();
+                readChunkSequence(callback, lh, entryId, chunkSequenceFooter);
+            } else {
+                // data is released in tryCompleteCursorRecovery
+                Throwable res = tryCompleteCursorRecovery(lh, data);
+                if (res == null) {
+                    callback.operationComplete();
+                } else {
+                    log.warn("[{}] Error recovering from metadata ledger {} entry {} for cursor {}. "
+                                    + "Will try recovery from previous entry.",
+                            ledger.getName(), lh.getId(), entryId, name, res);
+                    //try recovery from previous entry
+                    recoverFromLedgerByEntryId(info, callback, lh, entryId - 1);
+                }
+            }
+        } catch (IOException error) {
+            log.error("[{}] Error recovering from metadata ledger {} entry {} for cursor {}, cannot parse footer. "
+                            + "Will try recovery from previous entry.",
+                    ledger.getName(), lh.getId(), entryId, name, error);
+            recoverFromLedgerByEntryId(info, callback, lh, entryId - 1);
+        }
     }
 
     private void readChunkSequence(VoidCallback callback, LedgerHandle lh,
@@ -702,6 +708,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (res == null) {
                     callback.operationComplete();
                 } else {
+                    log.error("[{}] Error recovering from metadata ledger {} entry {} for cursor {}",
+                            ledger.getName(), lh.getId(), footerPosition, name, res);
                     callback.operationFailed(new ManagedLedgerException(res));
                 }
             }
@@ -3313,8 +3321,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
-                acksSerializedSize.addAndGet(16 * 4);
-                consumer.acceptRange(lowerKey, lowerValue, upperKey, upperValue);
+                consumer.acceptRange(lowerKey, lowerValue, upperKey, upperValue, acksSerializedSize);
                 return rangeCount.incrementAndGet() <= maxUnackedRangesToPersist;
             });
 
