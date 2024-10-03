@@ -208,10 +208,12 @@ public class DrainingHashesTracker {
             return false;
         }
         DrainingHashEntry entry = drainingHashes.get(stickyKeyHash);
+        // if the entry is not found, the hash is not draining. Don't block the hash.
         if (entry == null) {
             return false;
         }
         // hash has been reassigned to the original consumer, remove the entry
+        // and don't block the hash
         if (entry.getConsumer() == consumer) {
             log.info("[{}] Hash {} has been reassigned consumer {}. "
                             + "The draining hash entry with refCount={} will be removed.",
@@ -219,7 +221,10 @@ public class DrainingHashesTracker {
             drainingHashes.remove(stickyKeyHash, entry);
             return false;
         }
+        // increment the blocked count which is used to determine if the hash is blocking
+        // dispatching to other consumers
         entry.incrementBlockedCount();
+        // block the hash
         return true;
     }
 

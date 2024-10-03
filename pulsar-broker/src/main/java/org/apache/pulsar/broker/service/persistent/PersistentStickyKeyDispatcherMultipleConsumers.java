@@ -353,7 +353,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * @param ledgerId the ledger id of the message
      * @param entryId the entry id of the message
      * @param stickyKeyHash the sticky hash of the message
-     * @return true if the message should be added to pending acks, false otherwise
+     * @return true if the message should be added to pending acks and allow sending, false otherwise
      */
     private boolean handleAddingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
         if (stickyKeyHash == 0) {
@@ -366,6 +366,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             + "for consumer {}. Adding the message to replay.",
                     getName(), drainingHashEntry.getConsumer(), stickyKeyHash, ledgerId, entryId, consumer);
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            // block message from sending
             return false;
         }
         if (recentReadTypeInSending == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
@@ -373,12 +374,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             + "Skipping adding {}:{} to pending acks. Adding the message to replay.",
                     getName(), stickyKeyHash, ledgerId, entryId);
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            // block message from sending
             return false;
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}] Adding {}:{} to pending acks for consumer {} with sticky key hash {}",
                     getName(), ledgerId, entryId, consumer, stickyKeyHash);
         }
+        // allow adding the message to pending acks and sending the message to the consumer
         return true;
     }
 

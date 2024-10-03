@@ -131,6 +131,8 @@ public class PendingAcksMap {
     public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
         try {
             writeLock.lock();
+            // prevent adding sticky hash to pending acks if the PendingAcksMap has already been closed
+            // and there's a race condition between closing the consumer and sending new messages
             if (closed) {
                 return false;
             }
