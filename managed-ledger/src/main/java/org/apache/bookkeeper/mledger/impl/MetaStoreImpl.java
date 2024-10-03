@@ -249,6 +249,10 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
         String path = PREFIX + ledgerName + "/" + cursorName;
         byte[] content = compressCursorInfo(info);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Persisting cursor={} info with content size {} bytes to metastore",
+                    ledgerName, cursorName, content.length);
+        }
 
         long expectedVersion;
 
@@ -267,6 +271,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor
                         .chooseThread(ledgerName))
                 .exceptionally(ex -> {
+                    log.error("[{}] [{}] Failed to update cursor info", ledgerName, cursorName, ex);
                     executor.executeOrdered(ledgerName,
                             () -> callback.operationFailed(getException(ex)));
                     return null;
@@ -453,8 +458,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedLedgerInfoMetadata metadata =
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
-                return ManagedLedgerInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf decode = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedLedgerInfo.parseFrom(decode.nioBuffer());
+                } finally {
+                    decode.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
@@ -475,8 +485,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedCursorInfoMetadata metadata =
                         MLDataFormats.ManagedCursorInfoMetadata.parseFrom(metadataBytes);
-                return ManagedCursorInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf decode = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedCursorInfo.parseFrom(decode.nioBuffer());
+                } finally {
+                    decode.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse ManagedCursorInfo metadata, "
                         + "fall back to parse ManagedCursorInfo directly", e);
@@ -515,6 +530,10 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             compositeByteBuf.addComponent(true, encodeByteBuf);
             byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
             compositeByteBuf.readBytes(dataBytes);
+            if (log.isDebugEnabled()) {
+                log.debug("Compressed cursor info, info size {}, metadata size {}, compressed size: {}",
+                        info.length, metadata.length, dataBytes.length);
+            }
             return dataBytes;
         } finally {
             if (metadataByteBuf != null) {

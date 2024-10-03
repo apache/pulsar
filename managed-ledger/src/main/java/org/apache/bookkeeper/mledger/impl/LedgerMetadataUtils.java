@@ -44,6 +44,7 @@ public final class LedgerMetadataUtils {
 
     private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
     private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
+    public static final String METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE = "pulsar/cursor-compressionType";
     private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
     private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
     private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
@@ -72,8 +73,13 @@ public final class LedgerMetadataUtils {
      * @return an immutable map which describes the cursor
      * @see #buildBaseManagedLedgerMetadata(java.lang.String)
      */
-    static Map<String, byte[]> buildAdditionalMetadataForCursor(String name) {
-        return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
+    static Map<String, byte[]> buildAdditionalMetadataForCursor(String name, String compressionType) {
+        if (compressionType != null) {
+            return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8),
+                    METADATA_PROPERTY_CURSOR_COMPRESSION_TYPE, compressionType.getBytes(StandardCharsets.UTF_8));
+        } else {
+            return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     /**
