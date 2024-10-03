@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -116,7 +117,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(configMock).isSubscriptionRedeliveryTrackerEnabled();
         doReturn(100).when(configMock).getDispatcherMaxReadBatchSize();
         doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
-        doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
+        doReturn(20).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
         doReturn(false).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
         doReturn(false).when(configMock).isAllowOverrideEntryFilters();
         doAnswer(invocation -> retryBackoffInitialTimeInMs).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
@@ -216,6 +217,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         TransportCnx transportCnx = mock(TransportCnx.class);
         doReturn(transportCnx).when(consumerMock).cnx();
         doReturn(true).when(transportCnx).isActive();
+        doReturn(100).when(consumerMock).getMaxUnackedMessages();
+        doReturn(1).when(consumerMock).getAvgMessagesPerEntry();
         return consumerMock;
     }
 
@@ -314,13 +317,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     @Test
     public void testSkipRedeliverTemporally() {
         final Consumer slowConsumerMock = createMockConsumer();
+        AtomicInteger slowConsumerPermits = new AtomicInteger(0);
+        doAnswer(invocation -> slowConsumerPermits.get()).when(slowConsumerMock).getAvailablePermits();
+
         final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
-        redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
+        redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key123")));
         final List<Entry> readEntries = new ArrayList<>();
-        readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
+        readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key123")));
+        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key222")));
 
         try {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
@@ -341,9 +347,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Create 2Consumers
         try {
             doReturn("consumer2").when(slowConsumerMock).consumerName();
-            when(slowConsumerMock.getAvailablePermits())
-                    .thenReturn(0)
-                    .thenReturn(1);
             doReturn(true).when(slowConsumerMock).isWritable();
             doReturn(slowChannelMock).when(slowConsumerMock).sendMessages(
                     anyList(),
@@ -368,13 +371,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // and then stop to dispatch to slowConsumer
         persistentDispatcher.readEntriesComplete(redeliverEntries,
                 PersistentDispatcherMultipleConsumers.ReadType.Replay);
-
         verify(consumerMock, times(1)).sendMessages(
                 argThat(arg -> {
                     assertEquals(arg.size(), 1);
                     Entry entry = arg.get(0);
                     assertEquals(entry.getLedgerId(), 1);
-                    assertEquals(entry.getEntryId(), 3);
+                    assertEquals(entry.getEntryId(), 1);
                     return true;
                 }),
                 any(EntryBatchSizes.class),
@@ -401,19 +403,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         final Queue<Position> actualEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
 
         final Queue<Position> expectedEntriesToConsumer1 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer1.add(PositionFactory.create(1, 1));
         final Queue<Position> expectedEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer2.add(PositionFactory.create(1, 2));
-        expectedEntriesToConsumer2.add(PositionFactory.create(1, 3));
 
-        final AtomicInteger remainingEntriesNum = new AtomicInteger(
-                expectedEntriesToConsumer1.size() + expectedEntriesToConsumer2.size());
+        final AtomicInteger remainingEntriesNum = new AtomicInteger(0);
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
-        allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
+        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
+        allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key2")));
+        allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key3")));
         allEntries.forEach(entry -> ((EntryImpl) entry).retain());
 
         final List<Entry> redeliverEntries = new ArrayList<>();
@@ -459,6 +457,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 .getDeclaredField("totalAvailablePermits");
         totalAvailablePermitsField.setAccessible(true);
         totalAvailablePermitsField.set(persistentDispatcher, 1000);
+
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        for (Entry entry : allEntries) {
+            remainingEntriesNum.incrementAndGet();
+            Consumer selected = selector.select(persistentDispatcher.getStickyKeyHash(entry));
+            if (selected.consumerName().equals("consumer1")) {
+                expectedEntriesToConsumer1.add(entry.getPosition());
+            } else {
+                expectedEntriesToConsumer2.add(entry.getPosition());
+            }
+        }
 
         final Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
                 .getDeclaredField("redeliveryMessages");
@@ -556,7 +566,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // call "readEntriesComplete" directly to test the retry behavior
         List<Entry> entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 1);
                     assertEquals(retryDelays.get(0), 10, "Initial retry delay should be 10ms");
@@ -564,7 +574,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // test the second retry delay
         entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 2);
                     double delay = retryDelays.get(1);
@@ -574,7 +584,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // verify the max retry delay
         for (int i = 0; i < 100; i++) {
             entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-            dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         }
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 102);
@@ -585,14 +595,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // unblock to check that the retry delay is reset
         consumerMockAvailablePermits.set(1000);
         entries = List.of(EntryImpl.create(1, 2, createMessage("message2", 1, "key2")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         // wait that the possibly async handling has completed
         Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
 
         // now block again to check the next retry delay so verify it was reset
         consumerMockAvailablePermits.set(0);
         entries = List.of(EntryImpl.create(1, 3, createMessage("message3", 1, "key3")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 103);
                     assertEquals(retryDelays.get(0), 10, "Resetted retry delay should be 10ms");
@@ -639,7 +649,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // call "readEntriesComplete" directly to test the retry behavior
         List<Entry> entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 1);
                     assertEquals(retryDelays.get(0), 0, "Initial retry delay should be 0ms");
@@ -647,7 +657,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // test the second retry delay
         entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 2);
                     double delay = retryDelays.get(1);
@@ -657,7 +667,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // verify the max retry delay
         for (int i = 0; i < 100; i++) {
             entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-            dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         }
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 102);
@@ -668,14 +678,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // unblock to check that the retry delay is reset
         consumerMockAvailablePermits.set(1000);
         entries = List.of(EntryImpl.create(1, 2, createMessage("message2", 1, "key2")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         // wait that the possibly async handling has completed
         Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
 
         // now block again to check the next retry delay so verify it was reset
         consumerMockAvailablePermits.set(0);
         entries = List.of(EntryImpl.create(1, 3, createMessage("message3", 1, "key3")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 103);
                     assertEquals(retryDelays.get(0), 0, "Resetted retry delay should be 0ms");
