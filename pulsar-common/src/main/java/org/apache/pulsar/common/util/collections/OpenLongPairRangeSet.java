@@ -18,16 +18,21 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import static java.util.BitSet.valueOf;
 import static java.util.Objects.requireNonNull;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -248,6 +253,47 @@ public class OpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRa
         int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
         return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
+    public Map<Long, long[]> toRanges(int maxRanges) {
+        Map<Long, long[]> internalBitSetMap = new HashMap<>();
+        AtomicInteger rangeCount = new AtomicInteger();
+        rangeBitSetMap.forEach((id, bmap) -> {
+            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
+                return;
+            }
+            internalBitSetMap.put(id, bmap.toLongArray());
+        });
+        return internalBitSetMap;
+    }
+
+    @Override
+    public void build(Map<Long, long[]> internalRange) {
+        internalRange.forEach((id, ranges) -> {
+            BitSet bitset = createNewBitSet();
+            bitset.or(valueOf(ranges));
+            rangeBitSetMap.put(id, bitset);
+        });
+    }
+
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(rangeBitSetMap);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof OpenLongPairRangeSet)) {
+            return false;
+        }
+        if (this == obj) {
+            return true;
+        }
+        @SuppressWarnings("rawtypes")
+        OpenLongPairRangeSet set = (OpenLongPairRangeSet) obj;
+        return this.rangeBitSetMap.equals(set.rangeBitSetMap);
     }
 
     @Override

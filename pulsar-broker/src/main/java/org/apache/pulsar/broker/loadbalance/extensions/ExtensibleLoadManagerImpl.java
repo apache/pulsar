@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewSyncer;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -181,7 +182,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private SplitManager splitManager;
 
-    volatile boolean started = false;
+    enum State {
+        INIT,
+        RUNNING,
+        // It's removing visibility of the current broker from other brokers. In this state, it cannot play as a leader
+        // or follower.
+        DISABLED,
+    }
+    private final AtomicReference<State> state = new AtomicReference<>(State.INIT);
 
     private boolean configuredSystemTopics = false;
 
@@ -214,7 +222,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     public Set<NamespaceBundle> getOwnedServiceUnits() {
-        if (!started) {
+        if (state.get() == State.INIT) {
             log.warn("Failed to get owned service units, load manager is not started.");
             return Collections.emptySet();
         }
@@ -344,7 +352,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     @Override
     public void start() throws PulsarServerException {
-        if (this.started) {
+        if (state.get() != State.INIT) {
             return;
         }
         try {
@@ -443,7 +451,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
                     this.splitScheduler.start();
                     this.initWaiter.complete(true);
-                    this.started = true;
+                    if (!state.compareAndSet(State.INIT, State.RUNNING)) {
+                        failForUnexpectedState("start");
+                    }
                     log.info("Started load manager.");
                 } catch (Throwable e) {
                     failStarting(e);
@@ -615,21 +625,17 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                 filter.filterAsync(availableBrokerCandidates, bundle, context);
                         futures.add(future);
                     }
-                    CompletableFuture<Optional<String>> result = new CompletableFuture<>();
-                    FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            // TODO: We may need to revisit this error case.
-                            log.error("Failed to filter out brokers when select bundle: {}", bundle, ex);
-                        }
+                    return FutureUtil.waitForAll(futures).exceptionally(e -> {
+                        // TODO: We may need to revisit this error case.
+                        log.error("Failed to filter out brokers when select bundle: {}", bundle, e);
+                        return null;
+                    }).thenApply(__ -> {
                         if (availableBrokerCandidates.isEmpty()) {
-                            result.complete(Optional.empty());
-                            return;
+                            return Optional.empty();
                         }
                         Set<String> candidateBrokers = availableBrokerCandidates.keySet();
-
-                        result.complete(getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
+                        return getBrokerSelectionStrategy().select(candidateBrokers, bundle, context);
                     });
-                    return result;
                 });
     }
 
@@ -667,6 +673,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                               boolean force,
                                                               long timeout,
                                                               TimeUnit timeoutUnit) {
+        if (state.get() == State.INIT) {
+            return CompletableFuture.completedFuture(null);
+        }
         if (NamespaceService.isSLAOrHeartbeatNamespace(bundle.getNamespaceObject().toString())) {
             log.info("Skip unloading namespace bundle: {}.", bundle);
             return CompletableFuture.completedFuture(null);
@@ -755,24 +764,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     @Override
     public void close() throws PulsarServerException {
-        if (!this.started) {
+        if (state.get() == State.INIT) {
             return;
         }
         try {
-            if (brokerLoadDataReportTask != null) {
-                brokerLoadDataReportTask.cancel(true);
-            }
-
-            if (topBundlesLoadDataReportTask != null) {
-                topBundlesLoadDataReportTask.cancel(true);
-            }
-
-            if (monitorTask != null) {
-                monitorTask.cancel(true);
-            }
-
-            this.brokerLoadDataStore.shutdown();
-            this.topBundlesLoadDataStore.shutdown();
+            stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();
             this.serviceUnitStateTableViewSyncer.close();
@@ -791,11 +787,33 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     } catch (Exception e) {
                         throw new PulsarServerException(e);
                     } finally {
-                        this.started = false;
+                        state.set(State.INIT);
                     }
                 }
 
             }
+        }
+    }
+
+    private void stopLoadDataReportTasks() {
+        if (brokerLoadDataReportTask != null) {
+            brokerLoadDataReportTask.cancel(true);
+        }
+        if (topBundlesLoadDataReportTask != null) {
+            topBundlesLoadDataReportTask.cancel(true);
+        }
+        if (monitorTask != null) {
+            monitorTask.cancel(true);
+        }
+        try {
+            brokerLoadDataStore.shutdown();
+        } catch (IOException e) {
+            log.warn("Failed to shutdown brokerLoadDataStore", e);
+        }
+        try {
+            topBundlesLoadDataStore.shutdown();
+        } catch (IOException e) {
+            log.warn("Failed to shutdown topBundlesLoadDataStore", e);
         }
     }
 
@@ -814,12 +832,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get()) {
+                if (!initWaiter.get() || disabled()) {
                     return;
                 }
                 if (!serviceUnitStateChannel.isChannelOwner()) {
                     becameFollower = true;
                     break;
+                }
+                if (disabled()) {
+                    return;
                 }
                 // Confirm the system topics have been created or create them if they do not exist.
                 // If the leader has changed, the new leader need to reset
@@ -835,6 +856,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
                 break;
             } catch (Throwable e) {
+                if (disabled()) {
+                    log.warn("The broker:{} failed to set the role but exit because it's disabled",
+                            pulsar.getBrokerId(), e);
+                    return;
+                }
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
                 try {
@@ -845,6 +871,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     Thread.currentThread().interrupt();
                 }
             }
+        }
+        if (disabled()) {
+            return;
         }
 
         if (becameFollower) {
@@ -869,12 +898,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get()) {
+                if (!initWaiter.get() || disabled()) {
                     return;
                 }
                 if (serviceUnitStateChannel.isChannelOwner()) {
                     becameLeader = true;
                     break;
+                }
+                if (disabled()) {
+                    return;
                 }
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
@@ -885,6 +917,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 serviceUnitStateTableViewSyncer.close();
                 break;
             } catch (Throwable e) {
+                if (disabled()) {
+                    log.warn("The broker:{} failed to set the role but exit because it's disabled",
+                            pulsar.getBrokerId(), e);
+                    return;
+                }
                 log.warn("The broker:{} failed to set the role. Retrying {} th ...",
                         pulsar.getBrokerId(), ++retry, e);
                 try {
@@ -895,6 +932,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     Thread.currentThread().interrupt();
                 }
             }
+        }
+        if (disabled()) {
+            return;
         }
 
         if (becameLeader) {
@@ -953,7 +993,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             if (isChannelOwner) {
                 // System topic config might fail due to the race condition
                 // with topic policy init(Topic policies cache have not init).
-                if (!configuredSystemTopics) {
+                if (isPersistentSystemTopicUsed() && !configuredSystemTopics) {
                     configuredSystemTopics = configureSystemTopics(pulsar, COMPACTION_THRESHOLD);
                 }
                 if (role != Leader) {
@@ -982,9 +1022,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     public void disableBroker() throws Exception {
+        // TopicDoesNotExistException might be thrown and it's not recoverable. Enable this flag to exit playFollower()
+        // or playLeader() quickly.
+        if (!state.compareAndSet(State.RUNNING, State.DISABLED)) {
+            failForUnexpectedState("disableBroker");
+        }
+        stopLoadDataReportTasks();
         serviceUnitStateChannel.cleanOwnerships();
-        leaderElectionService.close();
         brokerRegistry.unregister();
+        leaderElectionService.close();
+        final var availableBrokers = brokerRegistry.getAvailableBrokersAsync()
+                .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        if (availableBrokers.isEmpty()) {
+            close();
+        }
         // Close the internal topics (if owned any) after giving up the possible leader role,
         // so that the subsequent lookups could hit the next leader.
         closeInternalTopics();
@@ -1018,4 +1069,23 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
         return new ServiceUnitStateChannelImpl(pulsar);
     }
+
+    private void failForUnexpectedState(String msg) {
+        throw new IllegalStateException("Failed to " + msg + ", state: " + state.get());
+    }
+
+    boolean running() {
+        return state.get() == State.RUNNING;
+    }
+
+    private boolean disabled() {
+        return state.get() == State.DISABLED;
+    }
+
+    private boolean isPersistentSystemTopicUsed() {
+        return ServiceUnitStateTableViewImpl.class.getName()
+                .equals(pulsar.getConfiguration().getLoadManagerServiceUnitStateTableViewClassName());
+    }
+
+
 }

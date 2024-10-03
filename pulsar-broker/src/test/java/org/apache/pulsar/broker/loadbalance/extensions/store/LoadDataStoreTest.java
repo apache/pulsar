@@ -198,7 +198,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(loadDataStore.pushAsync("2", 2).isCompletedExceptionally());
         Assert.assertTrue(loadDataStore.removeAsync("2").isCompletedExceptionally());
-        assertThrows(IllegalStateException.class, () -> loadDataStore.get("2"));
+        assertTrue(loadDataStore.get("2").isEmpty());
         assertThrows(IllegalStateException.class, loadDataStore::size);
         assertThrows(IllegalStateException.class, loadDataStore::entrySet);
         assertThrows(IllegalStateException.class, () -> loadDataStore.forEach((k, v) -> {}));
@@ -206,7 +206,6 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         assertThrows(IllegalStateException.class, loadDataStore::start);
         assertThrows(IllegalStateException.class, loadDataStore::startProducer);
         assertThrows(IllegalStateException.class, loadDataStore::startTableView);
-        assertThrows(IllegalStateException.class, loadDataStore::close);
         assertThrows(IllegalStateException.class, loadDataStore::closeTableView);
     }
 

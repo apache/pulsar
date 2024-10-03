@@ -50,7 +50,7 @@ public class PositionInfoUtilsTest {
         }, (scanner) -> {
             long[] array = {7L, 8L};
             scanner.acceptRange(1, 2, array);
-        }, 1024);
+        }, scanner -> {}, 1024);
 
         byte[] data = ByteBufUtil.getBytes(result);
         MLDataFormats.PositionInfo positionInfoParsed = MLDataFormats.PositionInfo.parseFrom(data);
@@ -85,9 +85,11 @@ public class PositionInfoUtilsTest {
         ManagedCursorImpl.MarkDeleteEntry entry = new ManagedCursorImpl.MarkDeleteEntry(position,
                null, null, null);
 
-        ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position, (scanner) -> {
-        }, (scanner) -> {
-        }, 1024);
+        ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position,
+                scanner -> {},
+                scanner -> {},
+                scanner -> {},
+                1024);
 
         byte[] data = ByteBufUtil.getBytes(result);
         MLDataFormats.PositionInfo positionInfoParsed = MLDataFormats.PositionInfo.parseFrom(data);
@@ -115,6 +117,11 @@ public class PositionInfoUtilsTest {
             long[] array = {7L, 8L};
             for (int i = 0; i < numRanges; i++) {
                 scanner.acceptRange(i*2 + 1, i*2 + 2, array);
+            }
+        }, scanner -> {
+            long[] array = {7L, 8L};
+            for (int i = 0; i < numRanges; i++) {
+                scanner.acceptRange(i, array);
             }
         }, 1024);
 
@@ -154,31 +161,84 @@ public class PositionInfoUtilsTest {
         lightResult.release();
     }
 
-    private static void validateLightproto(LightMLDataFormats.PositionInfo lighPositionInfoParsed, int numRanges) {
-        assertEquals(1, lighPositionInfoParsed.getLedgerId());
-        assertEquals(2, lighPositionInfoParsed.getEntryId());
+    @Test
+    public void testSerializeDeserialize3() throws Exception {
+        Position position = PositionFactory.create(1, 2);
+        ManagedCursorImpl.MarkDeleteEntry entry = new ManagedCursorImpl.MarkDeleteEntry(position,
+                Map.of("foo", 1L), null, null);
 
-        assertEquals(1, lighPositionInfoParsed.getPropertiesCount());
-        assertEquals("foo", lighPositionInfoParsed.getPropertyAt(0).getName());
-        assertEquals(1, lighPositionInfoParsed.getPropertyAt(0).getValue());
+        ByteBuf result = PositionInfoUtils.serializePositionInfo(entry, position, (scanner) -> {},
+                (scanner) -> {
+                    long[] array = {7L, 8L};
+                    scanner.acceptRange(1, 2, array);
+                }, scanner -> {
+                    scanner.acceptRange(1L, new long[]{0, 1});
+                    scanner.acceptRange(2L, new long[]{7, 8});
+                }, 1024);
 
-        assertEquals(numRanges, lighPositionInfoParsed.getIndividualDeletedMessagesCount());
+        byte[] data = ByteBufUtil.getBytes(result);
+        MLDataFormats.PositionInfo positionInfoParsed = MLDataFormats.PositionInfo.parseFrom(data);
+        assertEquals(1, positionInfoParsed.getLedgerId());
+        assertEquals(2, positionInfoParsed.getEntryId());
+
+        assertEquals(1, positionInfoParsed.getPropertiesCount());
+        assertEquals("foo", positionInfoParsed.getProperties(0).getName());
+        assertEquals(1, positionInfoParsed.getProperties(0).getValue());
+
+        assertEquals(0, positionInfoParsed.getIndividualDeletedMessagesCount());
+
+        assertEquals(1, positionInfoParsed.getBatchedEntryDeletionIndexInfoCount());
+        assertEquals(1, positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getPosition().getLedgerId());
+        assertEquals(2, positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getPosition().getEntryId());
+        assertEquals(List.of(7L, 8L), positionInfoParsed.getBatchedEntryDeletionIndexInfo(0).getDeleteSetList());
+
+        assertEquals(2, positionInfoParsed.getIndividualDeletedMessageRangesCount());
+        assertEquals(1L, positionInfoParsed.getIndividualDeletedMessageRanges(0).getKey());
+        assertEquals(2, positionInfoParsed.getIndividualDeletedMessageRanges(0).getValuesCount());
+        assertEquals(0L, positionInfoParsed.getIndividualDeletedMessageRanges(0).getValues(0));
+        assertEquals(1L, positionInfoParsed.getIndividualDeletedMessageRanges(0).getValues(1));
+
+        assertEquals(2L, positionInfoParsed.getIndividualDeletedMessageRanges(1).getKey());
+        assertEquals(7L, positionInfoParsed.getIndividualDeletedMessageRanges(1).getValues(0));
+        assertEquals(8L, positionInfoParsed.getIndividualDeletedMessageRanges(1).getValues(1));
+
+        result.release();
+    }
+
+    private static void validateLightproto(LightMLDataFormats.PositionInfo lightPositionInfoParsed, int numRanges) {
+        assertEquals(1, lightPositionInfoParsed.getLedgerId());
+        assertEquals(2, lightPositionInfoParsed.getEntryId());
+
+        assertEquals(1, lightPositionInfoParsed.getPropertiesCount());
+        assertEquals("foo", lightPositionInfoParsed.getPropertyAt(0).getName());
+        assertEquals(1, lightPositionInfoParsed.getPropertyAt(0).getValue());
+
+        assertEquals(numRanges, lightPositionInfoParsed.getIndividualDeletedMessagesCount());
         int curr = 0;
         for (int i = 0; i < numRanges; i++) {
-            assertEquals(i*4 + 1, lighPositionInfoParsed.getIndividualDeletedMessageAt(curr).getLowerEndpoint().getLedgerId());
-            assertEquals(i*4 + 2, lighPositionInfoParsed.getIndividualDeletedMessageAt(curr).getLowerEndpoint().getEntryId());
-            assertEquals(i*4 + 3, lighPositionInfoParsed.getIndividualDeletedMessageAt(curr).getUpperEndpoint().getLedgerId());
-            assertEquals(i*4 + 4, lighPositionInfoParsed.getIndividualDeletedMessageAt(curr).getUpperEndpoint().getEntryId());
+            assertEquals(i * 4 + 1, lightPositionInfoParsed.getIndividualDeletedMessageAt(curr).getLowerEndpoint().getLedgerId());
+            assertEquals(i * 4 + 2, lightPositionInfoParsed.getIndividualDeletedMessageAt(curr).getLowerEndpoint().getEntryId());
+            assertEquals(i * 4 + 3, lightPositionInfoParsed.getIndividualDeletedMessageAt(curr).getUpperEndpoint().getLedgerId());
+            assertEquals(i * 4 + 4, lightPositionInfoParsed.getIndividualDeletedMessageAt(curr).getUpperEndpoint().getEntryId());
             curr++;
         }
 
-        assertEquals(numRanges, lighPositionInfoParsed.getBatchedEntryDeletionIndexInfosCount());
+        assertEquals(numRanges, lightPositionInfoParsed.getBatchedEntryDeletionIndexInfosCount());
         curr = 0;
         for (int i = 0; i < numRanges; i++) {
-            assertEquals(i*2 + 1, lighPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getPosition().getLedgerId());
-            assertEquals(i*2 + 2, lighPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getPosition().getEntryId());
-            assertEquals(7L, lighPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getDeleteSetAt(0));
-            assertEquals(8L, lighPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getDeleteSetAt(1));
+            assertEquals(i * 2 + 1, lightPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getPosition().getLedgerId());
+            assertEquals(i * 2 + 2, lightPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getPosition().getEntryId());
+            assertEquals(7L, lightPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getDeleteSetAt(0));
+            assertEquals(8L, lightPositionInfoParsed.getBatchedEntryDeletionIndexInfoAt(curr).getDeleteSetAt(1));
+            curr++;
+        }
+
+        assertEquals(numRanges, lightPositionInfoParsed.getIndividualDeletedMessageRangesCount());
+        curr = 0;
+        for (LightMLDataFormats.LongListMap llmap : lightPositionInfoParsed.getIndividualDeletedMessageRangesList()) {
+            assertEquals(curr, llmap.getKey());
+            assertEquals(7L, llmap.getValueAt(0));
+            assertEquals(8L, llmap.getValueAt(1));
             curr++;
         }
     }
@@ -209,6 +269,15 @@ public class PositionInfoUtilsTest {
             assertEquals(i*2 + 1, positionInfoParsed.getBatchedEntryDeletionIndexInfo(curr).getPosition().getLedgerId());
             assertEquals(i*2 + 2, positionInfoParsed.getBatchedEntryDeletionIndexInfo(curr).getPosition().getEntryId());
             assertEquals(List.of(7L, 8L), positionInfoParsed.getBatchedEntryDeletionIndexInfo(curr).getDeleteSetList());
+            curr++;
+        }
+
+        assertEquals(numRanges, positionInfoParsed.getIndividualDeletedMessageRangesCount());
+        curr = 0;
+        for (MLDataFormats.LongListMap llmap: positionInfoParsed.getIndividualDeletedMessageRangesList()) {
+            assertEquals(curr, llmap.getKey());
+            assertEquals(7L, llmap.getValues(0));
+            assertEquals(8L, llmap.getValues(1));
             curr++;
         }
     }

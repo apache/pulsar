@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBufUtil;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
@@ -33,13 +32,18 @@ final class PositionInfoUtils {
         void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId);
     }
 
-    interface BatchedEntryDeletionIndexInfoConsumer {
+	interface IndividuallyDeletedRangesConsumer {
+		void acceptRange(long id, long[] ranges);
+	}
+
+	interface BatchedEntryDeletionIndexInfoConsumer {
         void acceptRange(long ledgerId, long entryId, long[] array);
     }
 
     static ByteBuf serializePositionInfo(ManagedCursorImpl.MarkDeleteEntry mdEntry, Position position,
                                          Consumer<IndividuallyDeletedMessagesRangeConsumer> rangeScanner,
                                          Consumer<BatchedEntryDeletionIndexInfoConsumer> batchDeletedIndexesScanner,
+										 Consumer<IndividuallyDeletedRangesConsumer> compactRangesScanner,
                                          int lastSerializedSize) {
         int size = Math.max(lastSerializedSize, 64 * 1024);
         ByteBuf _b = PulsarByteBufAllocator.DEFAULT.buffer(size);
@@ -49,27 +53,28 @@ final class PositionInfoUtils {
         LightProtoCodec.writeVarInt(_b, PositionInfo._ENTRY_ID_TAG);
         LightProtoCodec.writeVarInt64(_b, position.getEntryId());
 
-        MessageRange _item = new MessageRange();
-        rangeScanner.accept(new IndividuallyDeletedMessagesRangeConsumer() {
-            @Override
-            public void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
-                _item.clear();
-                NestedPositionInfo lower = _item.setLowerEndpoint();
-                NestedPositionInfo upper = _item.setUpperEndpoint();
-                lower.setLedgerId(lowerLegerId);
-                lower.setEntryId(lowerEntryId);
-                upper.setLedgerId(upperLedgerId);
-                upper.setEntryId(upperEntryId);
-                LightProtoCodec.writeVarInt(_b, PositionInfo._INDIVIDUAL_DELETED_MESSAGES_TAG);
-                LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
-                _item.writeTo(_b);
-            }
-        });
+		MessageRange _item = new MessageRange();
+		rangeScanner.accept(new IndividuallyDeletedMessagesRangeConsumer() {
+			@Override
+			public void acceptRange(long lowerLegerId, long lowerEntryId, long upperLedgerId, long upperEntryId) {
+				_item.clear();
+				NestedPositionInfo lower = _item.setLowerEndpoint();
+				NestedPositionInfo upper = _item.setUpperEndpoint();
+				lower.setLedgerId(lowerLegerId);
+				lower.setEntryId(lowerEntryId);
+				upper.setLedgerId(upperLedgerId);
+				upper.setEntryId(upperEntryId);
+				LightProtoCodec.writeVarInt(_b, PositionInfo._INDIVIDUAL_DELETED_MESSAGES_TAG);
+				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
+				_item.writeTo(_b);
+			}
+		});
 
-        final LongProperty longProperty = new LongProperty();
+		final LongProperty longProperty = new LongProperty();
         Map<String, Long> properties = mdEntry.properties;
         if (properties != null) {
             properties.forEach((k, v) -> {
+				longProperty.clear();
                 longProperty.setName(k);
                 longProperty.setValue(v);
                 LightProtoCodec.writeVarInt(_b, PositionInfo._PROPERTIES_TAG);
@@ -96,358 +101,450 @@ final class PositionInfoUtils {
             }
         });
 
-        return _b;
+		LongListMap llMap = new LongListMap();
+		compactRangesScanner.accept(new IndividuallyDeletedRangesConsumer() {
+			@Override
+			public void acceptRange(long id, long[] ranges) {
+				if (ranges == null || ranges.length == 0) {
+					return;
+				}
+
+				llMap.clear();
+				llMap.setKey(id);
+				for (long l : ranges) {
+					llMap.addValue(l);
+				}
+
+				LightProtoCodec.writeVarInt(_b, PositionInfo._INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG);
+				LightProtoCodec.writeVarInt(_b, llMap.getSerializedSize());
+				llMap.writeTo(_b);
+			}
+		});
+
+		return _b;
     }
 
-    public static final class PositionInfo {
-        private long ledgerId;
-        private static final int _LEDGER_ID_FIELD_NUMBER = 1;
-        private static final int _LEDGER_ID_TAG = (_LEDGER_ID_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
-                | LightProtoCodec.WIRETYPE_VARINT;
-        private static final int _LEDGER_ID_TAG_SIZE = LightProtoCodec.computeVarIntSize(_LEDGER_ID_TAG);
-        private static final int _LEDGER_ID_MASK = 1 << (0 % 32);
-        public boolean hasLedgerId() {
-            return (_bitField0 & _LEDGER_ID_MASK) != 0;
-        }
-        public long getLedgerId() {
-            if (!hasLedgerId()) {
-                throw new IllegalStateException("Field 'ledgerId' is not set");
-            }
-            return ledgerId;
-        }
-        public PositionInfo setLedgerId(long ledgerId) {
-            this.ledgerId = ledgerId;
-            _bitField0 |= _LEDGER_ID_MASK;
-            _cachedSize = -1;
-            return this;
-        }
-        public PositionInfo clearLedgerId() {
-            _bitField0 &= ~_LEDGER_ID_MASK;
-            return this;
-        }
+	public static final class PositionInfo {
+		private long ledgerId;
+		private static final int _LEDGER_ID_FIELD_NUMBER = 1;
+		private static final int _LEDGER_ID_TAG = (_LEDGER_ID_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_VARINT;
+		private static final int _LEDGER_ID_TAG_SIZE = LightProtoCodec.computeVarIntSize(_LEDGER_ID_TAG);
+		private static final int _LEDGER_ID_MASK = 1 << (0 % 32);
+		public boolean hasLedgerId() {
+			return (_bitField0 & _LEDGER_ID_MASK) != 0;
+		}
+		public long getLedgerId() {
+			if (!hasLedgerId()) {
+				throw new IllegalStateException("Field 'ledgerId' is not set");
+			}
+			return ledgerId;
+		}
+		public PositionInfo setLedgerId(long ledgerId) {
+			this.ledgerId = ledgerId;
+			_bitField0 |= _LEDGER_ID_MASK;
+			_cachedSize = -1;
+			return this;
+		}
+		public PositionInfo clearLedgerId() {
+			_bitField0 &= ~_LEDGER_ID_MASK;
+			return this;
+		}
 
-        private long entryId;
-        private static final int _ENTRY_ID_FIELD_NUMBER = 2;
-        private static final int _ENTRY_ID_TAG = (_ENTRY_ID_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
-                | LightProtoCodec.WIRETYPE_VARINT;
-        private static final int _ENTRY_ID_TAG_SIZE = LightProtoCodec.computeVarIntSize(_ENTRY_ID_TAG);
-        private static final int _ENTRY_ID_MASK = 1 << (1 % 32);
-        public boolean hasEntryId() {
-            return (_bitField0 & _ENTRY_ID_MASK) != 0;
-        }
-        public long getEntryId() {
-            if (!hasEntryId()) {
-                throw new IllegalStateException("Field 'entryId' is not set");
-            }
-            return entryId;
-        }
-        public PositionInfo setEntryId(long entryId) {
-            this.entryId = entryId;
-            _bitField0 |= _ENTRY_ID_MASK;
-            _cachedSize = -1;
-            return this;
-        }
-        public PositionInfo clearEntryId() {
-            _bitField0 &= ~_ENTRY_ID_MASK;
-            return this;
-        }
+		private long entryId;
+		private static final int _ENTRY_ID_FIELD_NUMBER = 2;
+		private static final int _ENTRY_ID_TAG = (_ENTRY_ID_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_VARINT;
+		private static final int _ENTRY_ID_TAG_SIZE = LightProtoCodec.computeVarIntSize(_ENTRY_ID_TAG);
+		private static final int _ENTRY_ID_MASK = 1 << (1 % 32);
+		public boolean hasEntryId() {
+			return (_bitField0 & _ENTRY_ID_MASK) != 0;
+		}
+		public long getEntryId() {
+			if (!hasEntryId()) {
+				throw new IllegalStateException("Field 'entryId' is not set");
+			}
+			return entryId;
+		}
+		public PositionInfo setEntryId(long entryId) {
+			this.entryId = entryId;
+			_bitField0 |= _ENTRY_ID_MASK;
+			_cachedSize = -1;
+			return this;
+		}
+		public PositionInfo clearEntryId() {
+			_bitField0 &= ~_ENTRY_ID_MASK;
+			return this;
+		}
 
-        private java.util.List<MessageRange> individualDeletedMessages = null;
-        private int _individualDeletedMessagesCount = 0;
-        private static final int _INDIVIDUAL_DELETED_MESSAGES_FIELD_NUMBER = 3;
-        private static final int _INDIVIDUAL_DELETED_MESSAGES_TAG = (_INDIVIDUAL_DELETED_MESSAGES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
-                | LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
-        private static final int _INDIVIDUAL_DELETED_MESSAGES_TAG_SIZE = LightProtoCodec
-                .computeVarIntSize(_INDIVIDUAL_DELETED_MESSAGES_TAG);
-        public int getIndividualDeletedMessagesCount() {
-            return _individualDeletedMessagesCount;
-        }
-        public MessageRange getIndividualDeletedMessageAt(int idx) {
-            if (idx < 0 || idx >= _individualDeletedMessagesCount) {
-                throw new IndexOutOfBoundsException("Index " + idx + " is out of the list size ("
-                        + _individualDeletedMessagesCount + ") for field 'individualDeletedMessages'");
-            }
-            return individualDeletedMessages.get(idx);
-        }
-        public java.util.List<MessageRange> getIndividualDeletedMessagesList() {
-            if (_individualDeletedMessagesCount == 0) {
-                return java.util.Collections.emptyList();
-            } else {
-                return individualDeletedMessages.subList(0, _individualDeletedMessagesCount);
-            }
-        }
-        public MessageRange addIndividualDeletedMessage() {
-            if (individualDeletedMessages == null) {
-                individualDeletedMessages = new java.util.ArrayList<MessageRange>();
-            }
-            if (individualDeletedMessages.size() == _individualDeletedMessagesCount) {
-                individualDeletedMessages.add(new MessageRange());
-            }
-            _cachedSize = -1;
-            return individualDeletedMessages.get(_individualDeletedMessagesCount++);
-        }
-        public PositionInfo addAllIndividualDeletedMessages(Iterable<MessageRange> individualDeletedMessages) {
-            for (MessageRange _o : individualDeletedMessages) {
-                addIndividualDeletedMessage().copyFrom(_o);
-            }
-            return this;
-        }
-        public PositionInfo clearIndividualDeletedMessages() {
-            for (int i = 0; i < _individualDeletedMessagesCount; i++) {
-                individualDeletedMessages.get(i).clear();
-            }
-            _individualDeletedMessagesCount = 0;
-            return this;
-        }
+		private java.util.List<MessageRange> individualDeletedMessages = null;
+		private int _individualDeletedMessagesCount = 0;
+		private static final int _INDIVIDUAL_DELETED_MESSAGES_FIELD_NUMBER = 3;
+		private static final int _INDIVIDUAL_DELETED_MESSAGES_TAG = (_INDIVIDUAL_DELETED_MESSAGES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
+		private static final int _INDIVIDUAL_DELETED_MESSAGES_TAG_SIZE = LightProtoCodec
+				.computeVarIntSize(_INDIVIDUAL_DELETED_MESSAGES_TAG);
+		public int getIndividualDeletedMessagesCount() {
+			return _individualDeletedMessagesCount;
+		}
+		public MessageRange getIndividualDeletedMessageAt(int idx) {
+			if (idx < 0 || idx >= _individualDeletedMessagesCount) {
+				throw new IndexOutOfBoundsException("Index " + idx + " is out of the list size ("
+						+ _individualDeletedMessagesCount + ") for field 'individualDeletedMessages'");
+			}
+			return individualDeletedMessages.get(idx);
+		}
+		public java.util.List<MessageRange> getIndividualDeletedMessagesList() {
+			if (_individualDeletedMessagesCount == 0) {
+				return java.util.Collections.emptyList();
+			} else {
+				return individualDeletedMessages.subList(0, _individualDeletedMessagesCount);
+			}
+		}
+		public MessageRange addIndividualDeletedMessage() {
+			if (individualDeletedMessages == null) {
+				individualDeletedMessages = new java.util.ArrayList<MessageRange>();
+			}
+			if (individualDeletedMessages.size() == _individualDeletedMessagesCount) {
+				individualDeletedMessages.add(new MessageRange());
+			}
+			_cachedSize = -1;
+			return individualDeletedMessages.get(_individualDeletedMessagesCount++);
+		}
+		public PositionInfo addAllIndividualDeletedMessages(Iterable<MessageRange> individualDeletedMessages) {
+			for (MessageRange _o : individualDeletedMessages) {
+				addIndividualDeletedMessage().copyFrom(_o);
+			}
+			return this;
+		}
+		public PositionInfo clearIndividualDeletedMessages() {
+			for (int i = 0; i < _individualDeletedMessagesCount; i++) {
+				individualDeletedMessages.get(i).clear();
+			}
+			_individualDeletedMessagesCount = 0;
+			return this;
+		}
 
-        private java.util.List<LongProperty> properties = null;
-        private int _propertiesCount = 0;
-        private static final int _PROPERTIES_FIELD_NUMBER = 4;
-        private static final int _PROPERTIES_TAG = (_PROPERTIES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
-                | LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
-        private static final int _PROPERTIES_TAG_SIZE = LightProtoCodec.computeVarIntSize(_PROPERTIES_TAG);
-        public int getPropertiesCount() {
-            return _propertiesCount;
-        }
-        public LongProperty getPropertyAt(int idx) {
-            if (idx < 0 || idx >= _propertiesCount) {
-                throw new IndexOutOfBoundsException(
-                        "Index " + idx + " is out of the list size (" + _propertiesCount + ") for field 'properties'");
-            }
-            return properties.get(idx);
-        }
-        public java.util.List<LongProperty> getPropertiesList() {
-            if (_propertiesCount == 0) {
-                return java.util.Collections.emptyList();
-            } else {
-                return properties.subList(0, _propertiesCount);
-            }
-        }
-        public LongProperty addProperty() {
-            if (properties == null) {
-                properties = new java.util.ArrayList<LongProperty>();
-            }
-            if (properties.size() == _propertiesCount) {
-                properties.add(new LongProperty());
-            }
-            _cachedSize = -1;
-            return properties.get(_propertiesCount++);
-        }
-        public PositionInfo addAllProperties(Iterable<LongProperty> properties) {
-            for (LongProperty _o : properties) {
-                addProperty().copyFrom(_o);
-            }
-            return this;
-        }
-        public PositionInfo clearProperties() {
-            for (int i = 0; i < _propertiesCount; i++) {
-                properties.get(i).clear();
-            }
-            _propertiesCount = 0;
-            return this;
-        }
+		private java.util.List<LongProperty> properties = null;
+		private int _propertiesCount = 0;
+		private static final int _PROPERTIES_FIELD_NUMBER = 4;
+		private static final int _PROPERTIES_TAG = (_PROPERTIES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
+		private static final int _PROPERTIES_TAG_SIZE = LightProtoCodec.computeVarIntSize(_PROPERTIES_TAG);
+		public int getPropertiesCount() {
+			return _propertiesCount;
+		}
+		public LongProperty getPropertyAt(int idx) {
+			if (idx < 0 || idx >= _propertiesCount) {
+				throw new IndexOutOfBoundsException(
+						"Index " + idx + " is out of the list size (" + _propertiesCount + ") for field 'properties'");
+			}
+			return properties.get(idx);
+		}
+		public java.util.List<LongProperty> getPropertiesList() {
+			if (_propertiesCount == 0) {
+				return java.util.Collections.emptyList();
+			} else {
+				return properties.subList(0, _propertiesCount);
+			}
+		}
+		public LongProperty addProperty() {
+			if (properties == null) {
+				properties = new java.util.ArrayList<LongProperty>();
+			}
+			if (properties.size() == _propertiesCount) {
+				properties.add(new LongProperty());
+			}
+			_cachedSize = -1;
+			return properties.get(_propertiesCount++);
+		}
+		public PositionInfo addAllProperties(Iterable<LongProperty> properties) {
+			for (LongProperty _o : properties) {
+				addProperty().copyFrom(_o);
+			}
+			return this;
+		}
+		public PositionInfo clearProperties() {
+			for (int i = 0; i < _propertiesCount; i++) {
+				properties.get(i).clear();
+			}
+			_propertiesCount = 0;
+			return this;
+		}
 
-        private java.util.List<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = null;
-        private int _batchedEntryDeletionIndexInfosCount = 0;
-        private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_FIELD_NUMBER = 5;
-        private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG = (_BATCHED_ENTRY_DELETION_INDEX_INFO_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
-                | LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
-        private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG_SIZE = LightProtoCodec
-                .computeVarIntSize(_BATCHED_ENTRY_DELETION_INDEX_INFO_TAG);
-        public int getBatchedEntryDeletionIndexInfosCount() {
-            return _batchedEntryDeletionIndexInfosCount;
-        }
-        public BatchedEntryDeletionIndexInfo getBatchedEntryDeletionIndexInfoAt(int idx) {
-            if (idx < 0 || idx >= _batchedEntryDeletionIndexInfosCount) {
-                throw new IndexOutOfBoundsException("Index " + idx + " is out of the list size ("
-                        + _batchedEntryDeletionIndexInfosCount + ") for field 'batchedEntryDeletionIndexInfo'");
-            }
-            return batchedEntryDeletionIndexInfos.get(idx);
-        }
-        public java.util.List<BatchedEntryDeletionIndexInfo> getBatchedEntryDeletionIndexInfosList() {
-            if (_batchedEntryDeletionIndexInfosCount == 0) {
-                return java.util.Collections.emptyList();
-            } else {
-                return batchedEntryDeletionIndexInfos.subList(0, _batchedEntryDeletionIndexInfosCount);
-            }
-        }
-        public BatchedEntryDeletionIndexInfo addBatchedEntryDeletionIndexInfo() {
-            if (batchedEntryDeletionIndexInfos == null) {
-                batchedEntryDeletionIndexInfos = new java.util.ArrayList<BatchedEntryDeletionIndexInfo>();
-            }
-            if (batchedEntryDeletionIndexInfos.size() == _batchedEntryDeletionIndexInfosCount) {
-                batchedEntryDeletionIndexInfos.add(new BatchedEntryDeletionIndexInfo());
-            }
-            _cachedSize = -1;
-            return batchedEntryDeletionIndexInfos.get(_batchedEntryDeletionIndexInfosCount++);
-        }
-        public PositionInfo addAllBatchedEntryDeletionIndexInfos(
-                Iterable<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos) {
-            for (BatchedEntryDeletionIndexInfo _o : batchedEntryDeletionIndexInfos) {
-                addBatchedEntryDeletionIndexInfo().copyFrom(_o);
-            }
-            return this;
-        }
-        public PositionInfo clearBatchedEntryDeletionIndexInfo() {
-            for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
-                batchedEntryDeletionIndexInfos.get(i).clear();
-            }
-            _batchedEntryDeletionIndexInfosCount = 0;
-            return this;
-        }
+		private java.util.List<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = null;
+		private int _batchedEntryDeletionIndexInfosCount = 0;
+		private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_FIELD_NUMBER = 5;
+		private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG = (_BATCHED_ENTRY_DELETION_INDEX_INFO_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
+		private static final int _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG_SIZE = LightProtoCodec
+				.computeVarIntSize(_BATCHED_ENTRY_DELETION_INDEX_INFO_TAG);
+		public int getBatchedEntryDeletionIndexInfosCount() {
+			return _batchedEntryDeletionIndexInfosCount;
+		}
+		public BatchedEntryDeletionIndexInfo getBatchedEntryDeletionIndexInfoAt(int idx) {
+			if (idx < 0 || idx >= _batchedEntryDeletionIndexInfosCount) {
+				throw new IndexOutOfBoundsException("Index " + idx + " is out of the list size ("
+						+ _batchedEntryDeletionIndexInfosCount + ") for field 'batchedEntryDeletionIndexInfo'");
+			}
+			return batchedEntryDeletionIndexInfos.get(idx);
+		}
+		public java.util.List<BatchedEntryDeletionIndexInfo> getBatchedEntryDeletionIndexInfosList() {
+			if (_batchedEntryDeletionIndexInfosCount == 0) {
+				return java.util.Collections.emptyList();
+			} else {
+				return batchedEntryDeletionIndexInfos.subList(0, _batchedEntryDeletionIndexInfosCount);
+			}
+		}
+		public BatchedEntryDeletionIndexInfo addBatchedEntryDeletionIndexInfo() {
+			if (batchedEntryDeletionIndexInfos == null) {
+				batchedEntryDeletionIndexInfos = new java.util.ArrayList<BatchedEntryDeletionIndexInfo>();
+			}
+			if (batchedEntryDeletionIndexInfos.size() == _batchedEntryDeletionIndexInfosCount) {
+				batchedEntryDeletionIndexInfos.add(new BatchedEntryDeletionIndexInfo());
+			}
+			_cachedSize = -1;
+			return batchedEntryDeletionIndexInfos.get(_batchedEntryDeletionIndexInfosCount++);
+		}
+		public PositionInfo addAllBatchedEntryDeletionIndexInfos(
+				Iterable<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos) {
+			for (BatchedEntryDeletionIndexInfo _o : batchedEntryDeletionIndexInfos) {
+				addBatchedEntryDeletionIndexInfo().copyFrom(_o);
+			}
+			return this;
+		}
+		public PositionInfo clearBatchedEntryDeletionIndexInfo() {
+			for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
+				batchedEntryDeletionIndexInfos.get(i).clear();
+			}
+			_batchedEntryDeletionIndexInfosCount = 0;
+			return this;
+		}
 
-        private int _bitField0;
-        private static final int _REQUIRED_FIELDS_MASK0 = 0 | _LEDGER_ID_MASK | _ENTRY_ID_MASK;
-        public int writeTo(io.netty.buffer.ByteBuf _b) {
-            checkRequiredFields();
-            int _writeIdx = _b.writerIndex();
-            LightProtoCodec.writeVarInt(_b, _LEDGER_ID_TAG);
-            LightProtoCodec.writeVarInt64(_b, ledgerId);
-            LightProtoCodec.writeVarInt(_b, _ENTRY_ID_TAG);
-            LightProtoCodec.writeVarInt64(_b, entryId);
-            for (int i = 0; i < _individualDeletedMessagesCount; i++) {
-                MessageRange _item = individualDeletedMessages.get(i);
-                LightProtoCodec.writeVarInt(_b, _INDIVIDUAL_DELETED_MESSAGES_TAG);
-                LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
-                _item.writeTo(_b);
-            }
-            for (int i = 0; i < _propertiesCount; i++) {
-                LongProperty _item = properties.get(i);
-                LightProtoCodec.writeVarInt(_b, _PROPERTIES_TAG);
-                LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
-                _item.writeTo(_b);
-            }
-            for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
-                BatchedEntryDeletionIndexInfo _item = batchedEntryDeletionIndexInfos.get(i);
-                LightProtoCodec.writeVarInt(_b, _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG);
-                LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
-                _item.writeTo(_b);
-            }
-            return (_b.writerIndex() - _writeIdx);
-        }
-        public int getSerializedSize() {
-            if (_cachedSize > -1) {
-                return _cachedSize;
-            }
+		private java.util.List<LongListMap> individualDeletedMessageRanges = null;
+		private int _individualDeletedMessageRangesCount = 0;
+		private static final int _INDIVIDUAL_DELETED_MESSAGE_RANGES_FIELD_NUMBER = 6;
+		private static final int _INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG = (_INDIVIDUAL_DELETED_MESSAGE_RANGES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+				| LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
+		private static final int _INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG_SIZE = LightProtoCodec
+				.computeVarIntSize(_INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG);
+		public int getIndividualDeletedMessageRangesCount() {
+			return _individualDeletedMessageRangesCount;
+		}
+		public LongListMap getIndividualDeletedMessageRangeAt(int idx) {
+			if (idx < 0 || idx >= _individualDeletedMessageRangesCount) {
+				throw new IndexOutOfBoundsException("Index " + idx + " is out of the list size ("
+						+ _individualDeletedMessageRangesCount + ") for field 'individualDeletedMessageRanges'");
+			}
+			return individualDeletedMessageRanges.get(idx);
+		}
+		public java.util.List<LongListMap> getIndividualDeletedMessageRangesList() {
+			if (_individualDeletedMessageRangesCount == 0) {
+				return java.util.Collections.emptyList();
+			} else {
+				return individualDeletedMessageRanges.subList(0, _individualDeletedMessageRangesCount);
+			}
+		}
+		public LongListMap addIndividualDeletedMessageRange() {
+			if (individualDeletedMessageRanges == null) {
+				individualDeletedMessageRanges = new java.util.ArrayList<LongListMap>();
+			}
+			if (individualDeletedMessageRanges.size() == _individualDeletedMessageRangesCount) {
+				individualDeletedMessageRanges.add(new LongListMap());
+			}
+			_cachedSize = -1;
+			return individualDeletedMessageRanges.get(_individualDeletedMessageRangesCount++);
+		}
+		public PositionInfo addAllIndividualDeletedMessageRanges(Iterable<LongListMap> individualDeletedMessageRanges) {
+			for (LongListMap _o : individualDeletedMessageRanges) {
+				addIndividualDeletedMessageRange().copyFrom(_o);
+			}
+			return this;
+		}
+		public PositionInfo clearIndividualDeletedMessageRanges() {
+			for (int i = 0; i < _individualDeletedMessageRangesCount; i++) {
+				individualDeletedMessageRanges.get(i).clear();
+			}
+			_individualDeletedMessageRangesCount = 0;
+			return this;
+		}
 
-            int _size = 0;
-            _size += _LEDGER_ID_TAG_SIZE;
-            _size += LightProtoCodec.computeVarInt64Size(ledgerId);
-            _size += _ENTRY_ID_TAG_SIZE;
-            _size += LightProtoCodec.computeVarInt64Size(entryId);
-            for (int i = 0; i < _individualDeletedMessagesCount; i++) {
-                MessageRange _item = individualDeletedMessages.get(i);
-                _size += _INDIVIDUAL_DELETED_MESSAGES_TAG_SIZE;
-                int MsgsizeIndividualDeletedMessages = _item.getSerializedSize();
-                _size += LightProtoCodec.computeVarIntSize(MsgsizeIndividualDeletedMessages)
-                        + MsgsizeIndividualDeletedMessages;
-            }
-            for (int i = 0; i < _propertiesCount; i++) {
-                LongProperty _item = properties.get(i);
-                _size += _PROPERTIES_TAG_SIZE;
-                int MsgsizeProperties = _item.getSerializedSize();
-                _size += LightProtoCodec.computeVarIntSize(MsgsizeProperties) + MsgsizeProperties;
-            }
-            for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
-                BatchedEntryDeletionIndexInfo _item = batchedEntryDeletionIndexInfos.get(i);
-                _size += _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG_SIZE;
-                int MsgsizeBatchedEntryDeletionIndexInfo = _item.getSerializedSize();
-                _size += LightProtoCodec.computeVarIntSize(MsgsizeBatchedEntryDeletionIndexInfo)
-                        + MsgsizeBatchedEntryDeletionIndexInfo;
-            }
-            _cachedSize = _size;
-            return _size;
-        }
-        public void parseFrom(io.netty.buffer.ByteBuf _buffer, int _size) {
-            clear();
-            int _endIdx = _buffer.readerIndex() + _size;
-            while (_buffer.readerIndex() < _endIdx) {
-                int _tag = LightProtoCodec.readVarInt(_buffer);
-                switch (_tag) {
-                    case _LEDGER_ID_TAG :
-                        _bitField0 |= _LEDGER_ID_MASK;
-                        ledgerId = LightProtoCodec.readVarInt64(_buffer);
-                        break;
-                    case _ENTRY_ID_TAG :
-                        _bitField0 |= _ENTRY_ID_MASK;
-                        entryId = LightProtoCodec.readVarInt64(_buffer);
-                        break;
-                    case _INDIVIDUAL_DELETED_MESSAGES_TAG :
-                        int _individualDeletedMessagesSize = LightProtoCodec.readVarInt(_buffer);
-                        addIndividualDeletedMessage().parseFrom(_buffer, _individualDeletedMessagesSize);
-                        break;
-                    case _PROPERTIES_TAG :
-                        int _propertiesSize = LightProtoCodec.readVarInt(_buffer);
-                        addProperty().parseFrom(_buffer, _propertiesSize);
-                        break;
-                    case _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG :
-                        int _batchedEntryDeletionIndexInfoSize = LightProtoCodec.readVarInt(_buffer);
-                        addBatchedEntryDeletionIndexInfo().parseFrom(_buffer, _batchedEntryDeletionIndexInfoSize);
-                        break;
-                    default :
-                        LightProtoCodec.skipUnknownField(_tag, _buffer);
-                }
-            }
-            checkRequiredFields();
-            _parsedBuffer = _buffer;
-        }
-        private void checkRequiredFields() {
-            if ((_bitField0 & _REQUIRED_FIELDS_MASK0) != _REQUIRED_FIELDS_MASK0) {
-                throw new IllegalStateException("Some required fields are missing");
-            }
-        }
-        public PositionInfo clear() {
-            for (int i = 0; i < _individualDeletedMessagesCount; i++) {
-                individualDeletedMessages.get(i).clear();
-            }
-            _individualDeletedMessagesCount = 0;
-            for (int i = 0; i < _propertiesCount; i++) {
-                properties.get(i).clear();
-            }
-            _propertiesCount = 0;
-            for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
-                batchedEntryDeletionIndexInfos.get(i).clear();
-            }
-            _batchedEntryDeletionIndexInfosCount = 0;
-            _parsedBuffer = null;
-            _cachedSize = -1;
-            _bitField0 = 0;
-            return this;
-        }
-        public PositionInfo copyFrom(PositionInfo _other) {
-            _cachedSize = -1;
-            if (_other.hasLedgerId()) {
-                setLedgerId(_other.ledgerId);
-            }
-            if (_other.hasEntryId()) {
-                setEntryId(_other.entryId);
-            }
-            for (int i = 0; i < _other.getIndividualDeletedMessagesCount(); i++) {
-                addIndividualDeletedMessage().copyFrom(_other.getIndividualDeletedMessageAt(i));
-            }
-            for (int i = 0; i < _other.getPropertiesCount(); i++) {
-                addProperty().copyFrom(_other.getPropertyAt(i));
-            }
-            for (int i = 0; i < _other.getBatchedEntryDeletionIndexInfosCount(); i++) {
-                addBatchedEntryDeletionIndexInfo().copyFrom(_other.getBatchedEntryDeletionIndexInfoAt(i));
-            }
-            return this;
-        }
-        public byte[] toByteArray() {
-            byte[] a = new byte[getSerializedSize()];
-            io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a).writerIndex(0);
-            this.writeTo(b);
-            return a;
-        }
-        public void parseFrom(byte[] a) {
-            io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a);
-            this.parseFrom(b, b.readableBytes());
-        }
-        private int _cachedSize;
+		private int _bitField0;
+		private static final int _REQUIRED_FIELDS_MASK0 = 0 | _LEDGER_ID_MASK | _ENTRY_ID_MASK;
+		public int writeTo(io.netty.buffer.ByteBuf _b) {
+			checkRequiredFields();
+			int _writeIdx = _b.writerIndex();
+			LightProtoCodec.writeVarInt(_b, _LEDGER_ID_TAG);
+			LightProtoCodec.writeVarInt64(_b, ledgerId);
+			LightProtoCodec.writeVarInt(_b, _ENTRY_ID_TAG);
+			LightProtoCodec.writeVarInt64(_b, entryId);
+			for (int i = 0; i < _individualDeletedMessagesCount; i++) {
+				MessageRange _item = individualDeletedMessages.get(i);
+				LightProtoCodec.writeVarInt(_b, _INDIVIDUAL_DELETED_MESSAGES_TAG);
+				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
+				_item.writeTo(_b);
+			}
+			for (int i = 0; i < _propertiesCount; i++) {
+				LongProperty _item = properties.get(i);
+				LightProtoCodec.writeVarInt(_b, _PROPERTIES_TAG);
+				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
+				_item.writeTo(_b);
+			}
+			for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
+				BatchedEntryDeletionIndexInfo _item = batchedEntryDeletionIndexInfos.get(i);
+				LightProtoCodec.writeVarInt(_b, _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG);
+				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
+				_item.writeTo(_b);
+			}
+			for (int i = 0; i < _individualDeletedMessageRangesCount; i++) {
+				LongListMap _item = individualDeletedMessageRanges.get(i);
+				LightProtoCodec.writeVarInt(_b, _INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG);
+				LightProtoCodec.writeVarInt(_b, _item.getSerializedSize());
+				_item.writeTo(_b);
+			}
+			return (_b.writerIndex() - _writeIdx);
+		}
+		public int getSerializedSize() {
+			if (_cachedSize > -1) {
+				return _cachedSize;
+			}
 
-        private io.netty.buffer.ByteBuf _parsedBuffer;
+			int _size = 0;
+			_size += _LEDGER_ID_TAG_SIZE;
+			_size += LightProtoCodec.computeVarInt64Size(ledgerId);
+			_size += _ENTRY_ID_TAG_SIZE;
+			_size += LightProtoCodec.computeVarInt64Size(entryId);
+			for (int i = 0; i < _individualDeletedMessagesCount; i++) {
+				MessageRange _item = individualDeletedMessages.get(i);
+				_size += _INDIVIDUAL_DELETED_MESSAGES_TAG_SIZE;
+				int MsgsizeIndividualDeletedMessages = _item.getSerializedSize();
+				_size += LightProtoCodec.computeVarIntSize(MsgsizeIndividualDeletedMessages)
+						+ MsgsizeIndividualDeletedMessages;
+			}
+			for (int i = 0; i < _propertiesCount; i++) {
+				LongProperty _item = properties.get(i);
+				_size += _PROPERTIES_TAG_SIZE;
+				int MsgsizeProperties = _item.getSerializedSize();
+				_size += LightProtoCodec.computeVarIntSize(MsgsizeProperties) + MsgsizeProperties;
+			}
+			for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
+				BatchedEntryDeletionIndexInfo _item = batchedEntryDeletionIndexInfos.get(i);
+				_size += _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG_SIZE;
+				int MsgsizeBatchedEntryDeletionIndexInfo = _item.getSerializedSize();
+				_size += LightProtoCodec.computeVarIntSize(MsgsizeBatchedEntryDeletionIndexInfo)
+						+ MsgsizeBatchedEntryDeletionIndexInfo;
+			}
+			for (int i = 0; i < _individualDeletedMessageRangesCount; i++) {
+				LongListMap _item = individualDeletedMessageRanges.get(i);
+				_size += _INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG_SIZE;
+				int MsgsizeIndividualDeletedMessageRanges = _item.getSerializedSize();
+				_size += LightProtoCodec.computeVarIntSize(MsgsizeIndividualDeletedMessageRanges)
+						+ MsgsizeIndividualDeletedMessageRanges;
+			}
+			_cachedSize = _size;
+			return _size;
+		}
+		public void parseFrom(io.netty.buffer.ByteBuf _buffer, int _size) {
+			clear();
+			int _endIdx = _buffer.readerIndex() + _size;
+			while (_buffer.readerIndex() < _endIdx) {
+				int _tag = LightProtoCodec.readVarInt(_buffer);
+				switch (_tag) {
+					case _LEDGER_ID_TAG :
+						_bitField0 |= _LEDGER_ID_MASK;
+						ledgerId = LightProtoCodec.readVarInt64(_buffer);
+						break;
+					case _ENTRY_ID_TAG :
+						_bitField0 |= _ENTRY_ID_MASK;
+						entryId = LightProtoCodec.readVarInt64(_buffer);
+						break;
+					case _INDIVIDUAL_DELETED_MESSAGES_TAG :
+						int _individualDeletedMessagesSize = LightProtoCodec.readVarInt(_buffer);
+						addIndividualDeletedMessage().parseFrom(_buffer, _individualDeletedMessagesSize);
+						break;
+					case _PROPERTIES_TAG :
+						int _propertiesSize = LightProtoCodec.readVarInt(_buffer);
+						addProperty().parseFrom(_buffer, _propertiesSize);
+						break;
+					case _BATCHED_ENTRY_DELETION_INDEX_INFO_TAG :
+						int _batchedEntryDeletionIndexInfoSize = LightProtoCodec.readVarInt(_buffer);
+						addBatchedEntryDeletionIndexInfo().parseFrom(_buffer, _batchedEntryDeletionIndexInfoSize);
+						break;
+					case _INDIVIDUAL_DELETED_MESSAGE_RANGES_TAG :
+						int _individualDeletedMessageRangesSize = LightProtoCodec.readVarInt(_buffer);
+						addIndividualDeletedMessageRange().parseFrom(_buffer, _individualDeletedMessageRangesSize);
+						break;
+					default :
+						LightProtoCodec.skipUnknownField(_tag, _buffer);
+				}
+			}
+			checkRequiredFields();
+			_parsedBuffer = _buffer;
+		}
+		private void checkRequiredFields() {
+			if ((_bitField0 & _REQUIRED_FIELDS_MASK0) != _REQUIRED_FIELDS_MASK0) {
+				throw new IllegalStateException("Some required fields are missing");
+			}
+		}
+		public PositionInfo clear() {
+			for (int i = 0; i < _individualDeletedMessagesCount; i++) {
+				individualDeletedMessages.get(i).clear();
+			}
+			_individualDeletedMessagesCount = 0;
+			for (int i = 0; i < _propertiesCount; i++) {
+				properties.get(i).clear();
+			}
+			_propertiesCount = 0;
+			for (int i = 0; i < _batchedEntryDeletionIndexInfosCount; i++) {
+				batchedEntryDeletionIndexInfos.get(i).clear();
+			}
+			_batchedEntryDeletionIndexInfosCount = 0;
+			for (int i = 0; i < _individualDeletedMessageRangesCount; i++) {
+				individualDeletedMessageRanges.get(i).clear();
+			}
+			_individualDeletedMessageRangesCount = 0;
+			_parsedBuffer = null;
+			_cachedSize = -1;
+			_bitField0 = 0;
+			return this;
+		}
+		public PositionInfo copyFrom(PositionInfo _other) {
+			_cachedSize = -1;
+			if (_other.hasLedgerId()) {
+				setLedgerId(_other.ledgerId);
+			}
+			if (_other.hasEntryId()) {
+				setEntryId(_other.entryId);
+			}
+			for (int i = 0; i < _other.getIndividualDeletedMessagesCount(); i++) {
+				addIndividualDeletedMessage().copyFrom(_other.getIndividualDeletedMessageAt(i));
+			}
+			for (int i = 0; i < _other.getPropertiesCount(); i++) {
+				addProperty().copyFrom(_other.getPropertyAt(i));
+			}
+			for (int i = 0; i < _other.getBatchedEntryDeletionIndexInfosCount(); i++) {
+				addBatchedEntryDeletionIndexInfo().copyFrom(_other.getBatchedEntryDeletionIndexInfoAt(i));
+			}
+			for (int i = 0; i < _other.getIndividualDeletedMessageRangesCount(); i++) {
+				addIndividualDeletedMessageRange().copyFrom(_other.getIndividualDeletedMessageRangeAt(i));
+			}
+			return this;
+		}
+		public byte[] toByteArray() {
+			byte[] a = new byte[getSerializedSize()];
+			io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a).writerIndex(0);
+			this.writeTo(b);
+			return a;
+		}
+		public void parseFrom(byte[] a) {
+			io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a);
+			this.parseFrom(b, b.readableBytes());
+		}
+		private int _cachedSize;
 
-    }
+		private io.netty.buffer.ByteBuf _parsedBuffer;
+
+	}
 
     public static final class NestedPositionInfo {
         private long ledgerId;
@@ -565,6 +662,161 @@ final class PositionInfoUtils {
             }
             if (_other.hasEntryId()) {
                 setEntryId(_other.entryId);
+            }
+            return this;
+        }
+        public byte[] toByteArray() {
+            byte[] a = new byte[getSerializedSize()];
+            io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a).writerIndex(0);
+            this.writeTo(b);
+            return a;
+        }
+        public void parseFrom(byte[] a) {
+            io.netty.buffer.ByteBuf b = io.netty.buffer.Unpooled.wrappedBuffer(a);
+            this.parseFrom(b, b.readableBytes());
+        }
+        private int _cachedSize;
+
+        private io.netty.buffer.ByteBuf _parsedBuffer;
+
+    }
+
+    public static final class LongListMap {
+        private long key;
+        private static final int _KEY_FIELD_NUMBER = 1;
+        private static final int _KEY_TAG = (_KEY_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+                | LightProtoCodec.WIRETYPE_VARINT;
+        private static final int _KEY_TAG_SIZE = LightProtoCodec.computeVarIntSize(_KEY_TAG);
+        private static final int _KEY_MASK = 1 << (0 % 32);
+        public boolean hasKey() {
+            return (_bitField0 & _KEY_MASK) != 0;
+        }
+        public long getKey() {
+            if (!hasKey()) {
+                throw new IllegalStateException("Field 'key' is not set");
+            }
+            return key;
+        }
+        public LongListMap setKey(long key) {
+            this.key = key;
+            _bitField0 |= _KEY_MASK;
+            _cachedSize = -1;
+            return this;
+        }
+        public LongListMap clearKey() {
+            _bitField0 &= ~_KEY_MASK;
+            return this;
+        }
+
+        private long[] values = null;
+        private int _valuesCount = 0;
+        private static final int _VALUES_FIELD_NUMBER = 2;
+        private static final int _VALUES_TAG = (_VALUES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+                | LightProtoCodec.WIRETYPE_VARINT;
+        private static final int _VALUES_TAG_SIZE = LightProtoCodec.computeVarIntSize(_VALUES_TAG);
+        private static final int _VALUES_TAG_PACKED = (_VALUES_FIELD_NUMBER << LightProtoCodec.TAG_TYPE_BITS)
+                | LightProtoCodec.WIRETYPE_LENGTH_DELIMITED;
+        public int getValuesCount() {
+            return _valuesCount;
+        }
+        public long getValueAt(int idx) {
+            if (idx < 0 || idx >= _valuesCount) {
+                throw new IndexOutOfBoundsException(
+                        "Index " + idx + " is out of the list size (" + _valuesCount + ") for field 'values'");
+            }
+            return values[idx];
+        }
+        public void addValue(long value) {
+            if (values == null) {
+                values = new long[4];
+            }
+            if (values.length == _valuesCount) {
+                values = java.util.Arrays.copyOf(values, _valuesCount * 2);
+            }
+            _cachedSize = -1;
+            values[_valuesCount++] = value;
+        }
+        public LongListMap clearValues() {
+            _valuesCount = 0;
+            return this;
+        }
+
+        private int _bitField0;
+        private static final int _REQUIRED_FIELDS_MASK0 = 0 | _KEY_MASK;
+        public int writeTo(io.netty.buffer.ByteBuf _b) {
+            checkRequiredFields();
+            int _writeIdx = _b.writerIndex();
+            LightProtoCodec.writeVarInt(_b, _KEY_TAG);
+            LightProtoCodec.writeVarInt64(_b, key);
+            for (int i = 0; i < _valuesCount; i++) {
+                long _item = values[i];
+                LightProtoCodec.writeVarInt(_b, _VALUES_TAG);
+                LightProtoCodec.writeVarInt64(_b, _item);
+            }
+            return (_b.writerIndex() - _writeIdx);
+        }
+        public int getSerializedSize() {
+            if (_cachedSize > -1) {
+                return _cachedSize;
+            }
+
+            int _size = 0;
+            _size += _KEY_TAG_SIZE;
+            _size += LightProtoCodec.computeVarInt64Size(key);
+            for (int i = 0; i < _valuesCount; i++) {
+                long _item = values[i];
+                _size += _VALUES_TAG_SIZE;
+                _size += LightProtoCodec.computeVarInt64Size(_item);
+            }
+            _cachedSize = _size;
+            return _size;
+        }
+        public void parseFrom(io.netty.buffer.ByteBuf _buffer, int _size) {
+            clear();
+            int _endIdx = _buffer.readerIndex() + _size;
+            while (_buffer.readerIndex() < _endIdx) {
+                int _tag = LightProtoCodec.readVarInt(_buffer);
+                switch (_tag) {
+                    case _KEY_TAG :
+                        _bitField0 |= _KEY_MASK;
+                        key = LightProtoCodec.readVarInt64(_buffer);
+                        break;
+                    case _VALUES_TAG :
+                        addValue(LightProtoCodec.readVarInt64(_buffer));
+                        break;
+                    case _VALUES_TAG_PACKED :
+                        int _valueSize = LightProtoCodec.readVarInt(_buffer);
+                        int _valueEndIdx = _buffer.readerIndex() + _valueSize;
+                        while (_buffer.readerIndex() < _valueEndIdx) {
+                            addValue(LightProtoCodec.readVarInt64(_buffer));
+                        }
+                        break;
+                    default :
+                        LightProtoCodec.skipUnknownField(_tag, _buffer);
+                }
+            }
+            checkRequiredFields();
+            _parsedBuffer = _buffer;
+        }
+        private void checkRequiredFields() {
+            if ((_bitField0 & _REQUIRED_FIELDS_MASK0) != _REQUIRED_FIELDS_MASK0) {
+                throw new IllegalStateException("Some required fields are missing");
+            }
+        }
+        public LongListMap clear() {
+            _valuesCount = 0;
+            _parsedBuffer = null;
+            _cachedSize = -1;
+            _bitField0 = 0;
+            return this;
+        }
+        public LongListMap copyFrom(LongListMap _other) {
+            _cachedSize = -1;
+            if (_other.hasKey()) {
+                setKey(_other.key);
+            }
+            for (int i = 0; i < _other.getValuesCount(); i++) {
+                addValue(_other.getValueAt(i));
             }
             return this;
         }

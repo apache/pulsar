@@ -69,6 +69,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -108,6 +109,7 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.LightMLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongListMap;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -726,6 +728,22 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    public void recoverIndividualDeletedMessages(PositionInfo positionInfo) {
+        if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
+            recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
+        } else if (positionInfo.getIndividualDeletedMessageRangesCount() > 0) {
+            List<LongListMap> rangeList = positionInfo.getIndividualDeletedMessageRangesList();
+            try {
+                Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
+                        list -> list.getValuesList().stream().mapToLong(i -> i).toArray()));
+                individualDeletedMessages.build(rangeMap);
+            } catch (Exception e) {
+                log.warn("[{}]-{} Failed to recover individualDeletedMessages from serialized data", ledger.getName(),
+                        name, e);
+            }
+        }
+    }
+
     private Throwable tryCompleteCursorRecovery(LedgerHandle lh,  ByteBuf data) {
         mbean.addReadCursorLedgerSize(data.readableBytes());
 
@@ -760,9 +778,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         Position position = PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
-        if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
-            recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
-        }
+        recoverIndividualDeletedMessages(positionInfo);
         if (getConfig().isDeletionAtBatchIndexLevelEnabled()
                 && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
             recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
@@ -3357,6 +3373,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void scanIndividuallyDeletedRanges(Map<Long, long[]> internalRanges,
+                                               PositionInfoUtils.IndividuallyDeletedRangesConsumer
+                                                       individuallyDeletedRangesConsumer) {
+        if (internalRanges == null || internalRanges.isEmpty()) {
+            return;
+        }
+
+        AtomicInteger serializedSize = new AtomicInteger(0);
+        internalRanges.forEach((ledgerId, ranges) -> {
+            serializedSize.addAndGet(16 * 4 + 8 * ranges.length);
+            individuallyDeletedRangesConsumer.acceptRange(ledgerId, ranges);
+        });
+        this.individualDeletedMessagesSerializedSize = serializedSize.get();
+    }
+
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         checkArgument(maxPositionChunkSize > 0, "maxPositionChunkSize mus be greater than zero");
         long now = System.nanoTime();
@@ -3368,9 +3399,34 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         requireNonNull(lh);
-        ByteBuf rawData = PositionInfoUtils.serializePositionInfo(mdEntry, position,
-                this::scanIndividualDeletedMessageRanges, this::buildBatchEntryDeletionIndexInfoList,
-                lastSerializedSize);
+
+        Map<Long, long[]> internalRanges = null;
+        try {
+            // to support downgrade this is hidden behind the feature flag
+            internalRanges = isChunkingEnabled
+                    ? individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist())
+                    : null;
+        } catch (Exception e) {
+            log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
+        }
+
+        final ByteBuf rawData;
+        if (internalRanges == null || internalRanges.isEmpty()) {
+            rawData = PositionInfoUtils.serializePositionInfo(mdEntry,
+                    position,
+                    this::scanIndividualDeletedMessageRanges,
+                    this::buildBatchEntryDeletionIndexInfoList,
+                    x -> {},
+                    lastSerializedSize);
+        } else {
+            final Map<Long, long[]> internalRangesConst = internalRanges;
+            rawData = PositionInfoUtils.serializePositionInfo(mdEntry,
+                    position,
+                    x -> {},
+                    this::buildBatchEntryDeletionIndexInfoList,
+                    x -> this.scanIndividuallyDeletedRanges(internalRangesConst, x),
+                    lastSerializedSize);
+        }
         long endSer = System.nanoTime();
         this.lastSerializedSize = rawData.readableBytes();
 
@@ -3381,6 +3437,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int offset = 0;
         final int len = data.readableBytes();
+        // to support downgrade this is hidden behind the feature flag
         int numParts = isChunkingEnabled ? 1 + (len / maxPositionChunkSize) : 1;
 
         if (log.isDebugEnabled()) {
@@ -3441,7 +3498,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
     }
-
 
     private void writeToBookKeeperLastChunk(LedgerHandle lh,
                                             MarkDeleteEntry mdEntry,

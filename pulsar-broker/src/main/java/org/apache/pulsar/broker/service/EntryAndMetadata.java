@@ -55,6 +55,9 @@ public class EntryAndMetadata implements Entry {
                 return metadata.getOrderingKey();
             } else if (metadata.hasPartitionKey()) {
                 return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+            } else if (metadata.hasProducerName() && metadata.hasSequenceId()) {
+                String fallbackKey = metadata.getProducerName() + "-" + metadata.getSequenceId();
+                return fallbackKey.getBytes(StandardCharsets.UTF_8);
             }
         }
         return "NONE_KEY".getBytes(StandardCharsets.UTF_8);

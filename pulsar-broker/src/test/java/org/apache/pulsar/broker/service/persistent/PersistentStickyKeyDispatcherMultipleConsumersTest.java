@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -46,6 +47,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -324,7 +327,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
         final List<Entry> readEntries = new ArrayList<>();
         readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key22")));
+        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
 
         try {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
@@ -415,7 +418,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key22")));
+        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
         allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
         allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
         allEntries.forEach(entry -> ((EntryImpl) entry).retain());
@@ -516,8 +519,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             persistentDispatcher.readMoreEntries();
         }
 
-        assertEquals(actualEntriesToConsumer1, expectedEntriesToConsumer1);
-        assertEquals(actualEntriesToConsumer2, expectedEntriesToConsumer2);
+        assertThat(actualEntriesToConsumer1).containsExactlyElementsOf(expectedEntriesToConsumer1);
+        assertThat(actualEntriesToConsumer2).containsExactlyElementsOf(expectedEntriesToConsumer2);
 
         allEntries.forEach(entry -> entry.release());
     }
@@ -994,6 +997,86 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     assertEquals(retryDelays.get(0), 0, "Resetted retry delay should be 0ms");
                 }
         );
+    }
+
+
+    @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
+    public void testNoBackoffDelayWhenDelayedMessages(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
+            throws Exception {
+        persistentDispatcher.close();
+
+        doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
+                .isDispatcherDispatchMessagesInSubscriptionThread();
+
+        AtomicInteger readMoreEntriesCalled = new AtomicInteger(0);
+        AtomicInteger reScheduleReadInMsCalled = new AtomicInteger(0);
+        AtomicBoolean delayAllMessages = new AtomicBoolean(true);
+
+        PersistentDispatcherMultipleConsumers dispatcher;
+        if (isKeyShared) {
+            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    reScheduleReadInMsCalled.incrementAndGet();
+                }
+
+                @Override
+                public synchronized void readMoreEntries() {
+                    readMoreEntriesCalled.incrementAndGet();
+                }
+
+                @Override
+                public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+                    if (delayAllMessages.get()) {
+                        // simulate delayed message
+                        return true;
+                    }
+                    return super.trackDelayedDelivery(ledgerId, entryId, msgMetadata);
+                }
+            };
+        } else {
+            dispatcher = new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    reScheduleReadInMsCalled.incrementAndGet();
+                }
+
+                @Override
+                public synchronized void readMoreEntries() {
+                    readMoreEntriesCalled.incrementAndGet();
+                }
+
+                @Override
+                public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+                    if (delayAllMessages.get()) {
+                        // simulate delayed message
+                        return true;
+                    }
+                    return super.trackDelayedDelivery(ledgerId, entryId, msgMetadata);
+                }
+            };
+        }
+
+        doAnswer(invocationOnMock -> {
+            GenericFutureListener<Future<Void>> listener = invocationOnMock.getArgument(0);
+            Future<Void> future = mock(Future.class);
+            when(future.isDone()).thenReturn(true);
+            listener.operationComplete(future);
+            return channelMock;
+        }).when(channelMock).addListener(any());
+
+        // add a consumer with permits
+        consumerMockAvailablePermits.set(1000);
+        dispatcher.addConsumer(consumerMock);
+
+        List<Entry> entries = new ArrayList<>(List.of(EntryImpl.create(1, 1, createMessage("message1", 1))));
+        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
+            assertTrue(readMoreEntriesCalled.get() >= 1);
+        });
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {
