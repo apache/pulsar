@@ -42,18 +42,21 @@ public class DrainingHashesTracker {
         private int blockedCount;
 
         /**
-         * Constructs a new DrainingHashEntry with the specified consumer ID.
+         * Constructs a new DrainingHashEntry with the specified Consumer.
          *
-         * @param consumer the ID of the consumer
+         * @param consumer the Consumer instance
          */
         DrainingHashEntry(Consumer consumer) {
             this.consumer = consumer;
         }
 
         /**
-         * Gets the consumer ID.
+         * Gets the consumer that contained the hash in pending acks at the time of creating this
+         * entry. Since a particular hash can be assigned to only one consumer at a time, this consumer
+         * cannot change. No new pending acks can be added in the {@link PendingAcksMap} when there's
+         * a draining hash entry for a hash in {@link DrainingHashesTracker}.
          *
-         * @return the consumer ID
+         * @return the consumer instance that contained the hash in pending acks at the time of creating this entry
          */
         public Consumer getConsumer() {
             return consumer;
