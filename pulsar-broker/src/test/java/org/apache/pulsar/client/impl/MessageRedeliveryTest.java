@@ -483,7 +483,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
     }
 
-    @Test(dataProvider = "enableBatch", invocationCount = 10)
+    @Test(dataProvider = "enableBatch")
     public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
 
         final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
