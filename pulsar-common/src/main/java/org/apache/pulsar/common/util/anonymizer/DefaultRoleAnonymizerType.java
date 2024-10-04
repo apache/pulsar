@@ -36,6 +36,7 @@ public enum DefaultRoleAnonymizerType {
       }
    },
    SHA256 {
+      private static final String PREFIX = "SHA-256:";
       private final MessageDigest digest;
 
       {
@@ -50,10 +51,11 @@ public enum DefaultRoleAnonymizerType {
       @Override
       public String anonymize(String role) {
          byte[] hash = digest.digest(role.getBytes());
-         return Base64.getEncoder().encodeToString(hash);
+         return PREFIX + Base64.getEncoder().encodeToString(hash);
       }
    },
    MD5 {
+      private static final String PREFIX = "MD5:";
       private final MessageDigest digest;
 
       {
@@ -68,7 +70,7 @@ public enum DefaultRoleAnonymizerType {
       @Override
       public String anonymize(String role) {
          byte[] hash = digest.digest(role.getBytes());
-         return Base64.getEncoder().encodeToString(hash);
+         return PREFIX + Base64.getEncoder().encodeToString(hash);
       }
    };
 

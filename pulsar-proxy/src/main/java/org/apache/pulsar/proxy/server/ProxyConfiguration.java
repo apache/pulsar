@@ -289,7 +289,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc =
             "Defines how the broker will anonymize the role and originalAuthRole before logging. "
                     + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
-                    + "SHA256 (hashes using SHA-256), and MD5 (hashes using MD5). Default is NONE."
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
     )
     private String authenticationRoleLoggingAnonymizer = "NONE";
 
