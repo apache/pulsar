@@ -890,8 +890,10 @@ jobs:
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
       - name: Run Trivy container scan
+        id: trivy_scan
         uses: aquasecurity/trivy-action@0.26.0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
         with:
           image-ref: "apachepulsar/pulsar:latest"
           scanners: vuln
@@ -902,7 +904,8 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results.sarif'
 
