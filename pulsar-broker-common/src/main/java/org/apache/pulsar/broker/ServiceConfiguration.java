@@ -3281,6 +3281,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int statsUpdateInitialDelayInSecs = 60;
     @FieldContext(
+            category = CATEGORY_METRICS,
+            minValue = -1,
+            doc = "HealthCheck update frequency in seconds. Disable health check with value -1 (Default value -1)"
+    )
+    private int healthCheckMetricsUpdateTimeInSeconds = -1;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
     )

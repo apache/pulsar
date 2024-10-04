@@ -1607,6 +1607,38 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertEquals((long) map.get("brk_connection_create_fail_count"), 1);
     }
 
+    /**
+     * There is detailed info about this test.
+     * see: https://github.com/apache/pulsar/issues/10150#issuecomment-1112380074
+     */
+    @Test
+    public void testBrokerHealthCheckStatus() throws Exception {
+
+        cleanup();
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setHealthCheckMetricsUpdateTimeInSeconds(60);
+        setup();
+        BrokerService brokerService = this.pulsar.getBrokerService();
+
+        Map<String, Object> map = null;
+
+        brokerService.checkHealth().get();
+        brokerService.updateRates();
+        Awaitility.await().until(() -> this.activeCount.get() == 1);
+        List<Metrics> metrics = brokerService.getTopicMetrics();
+        System.out.println(metrics);
+
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_health")) {
+                map = metrics.get(i).getMetrics();
+                break;
+            }
+        }
+        assertNotNull(map);
+        assertEquals(map.get("brk_health"), 1);
+    }
+
     @Test
     public void testPayloadCorruptionDetection() throws Exception {
         final String topicName = "persistent://prop/ns-abc/topic1";
