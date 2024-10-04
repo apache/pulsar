@@ -46,13 +46,8 @@ import static org.testng.Assert.assertEquals;
 public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
 
     @Test(timeOut=600_000)
-    public void upgradeFrom_2_10_6() throws Exception {
-        testUpgradeDowngrade("apachepulsar/pulsar:2.10.6", PulsarContainer.DEFAULT_IMAGE_NAME);
-    }
-
-    @Test(timeOut=600_000)
-    public void upgradeFrom_3_0_5() throws Exception {
-        testUpgradeDowngrade("apachepulsar/pulsar:3.0.5", PulsarContainer.DEFAULT_IMAGE_NAME);
+    public void upgradeTest() throws Exception {
+        testUpgradeDowngrade(PulsarContainer.LAST_RELEASE_IMAGE_NAME, PulsarContainer.UPGRADE_TEST_IMAGE_NAME);
     }
 
     private void testUpgradeDowngrade(String imageOld, String imageNew) throws Exception {
@@ -64,7 +59,7 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
         @Cleanup
         Network network = Network.newNetwork();
         @Cleanup
-        GenericContainer<?> alpine = new GenericContainer<>("alpine:3.20.1")
+        GenericContainer<?> alpine = new GenericContainer<>(PulsarContainer.ALPINE_IMAGE_NAME)
                 .withExposedPorts(80)
                 .withNetwork(network)
                 .withNetworkAliases("shared-storage")

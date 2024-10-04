@@ -651,18 +651,6 @@ jobs:
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-java-test-image
 
-      - name: Pull apachepulsar/pulsar:2.10.6
-        run: |
-          docker pull apachepulsar/pulsar:2.10.6
-
-      - name: Pull apachepulsar/pulsar:3.0.5
-        run: |
-          docker pull apachepulsar/pulsar:3.0.5
-
-      - name: Pull alpine:3.20.1
-        run: |
-          docker pull alpine:3.20.1
-
       - name: Run setup commands
         if: ${{ matrix.setup }}
         run: |
