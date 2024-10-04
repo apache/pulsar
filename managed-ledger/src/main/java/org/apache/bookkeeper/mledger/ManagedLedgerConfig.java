@@ -64,6 +64,7 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private boolean ledgerForceRecovery;
     private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
@@ -463,6 +464,17 @@ public class ManagedLedgerConfig {
 
     public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableData) {
         this.autoSkipNonRecoverableData = skipNonRecoverableData;
+    }
+
+    /**
+     * Skip managed ledger failure to recover managed ledger forcefully.
+     */
+    public boolean isLedgerForceRecovery() {
+        return ledgerForceRecovery;
+    }
+
+    public void setLedgerForceRecovery(boolean ledgerForceRecovery) {
+        this.ledgerForceRecovery = ledgerForceRecovery;
     }
 
     /**

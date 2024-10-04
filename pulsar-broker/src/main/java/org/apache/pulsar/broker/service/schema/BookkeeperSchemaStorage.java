@@ -528,7 +528,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         return openLedger(position.getLedgerId())
             .thenCompose((ledger) ->
-                Functions.getLedgerEntry(ledger, position.getEntryId())
+                Functions.getLedgerEntry(ledger, position.getEntryId(), config.isSchemaLedgerForceRecovery())
                     .thenCompose(entry -> closeLedger(ledger)
                         .thenApply(ignore -> entry)
                     )
@@ -560,7 +560,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         ledgerHandle.asyncAddEntry(entry.toByteArray(),
             (rc, handle, entryId, ctx) -> {
                 if (rc != BKException.Code.OK) {
-                    future.completeExceptionally(bkException("Failed to add entry", rc, ledgerHandle.getId(), -1));
+                    future.completeExceptionally(bkException("Failed to add entry", rc, ledgerHandle.getId(), -1,
+                            config.isSchemaLedgerForceRecovery()));
                 } else {
                     future.complete(entryId);
                 }
@@ -582,7 +583,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                     LedgerPassword,
                     (rc, handle, ctx) -> {
                         if (rc != BKException.Code.OK) {
-                            future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1));
+                            future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1,
+                                    config.isSchemaLedgerForceRecovery()));
                         } else {
                             future.complete(handle);
                         }
@@ -603,7 +605,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
-                    future.completeExceptionally(bkException("Failed to open ledger", rc, ledgerId, -1));
+                    future.completeExceptionally(bkException("Failed to open ledger", rc, ledgerId, -1,
+                            config.isSchemaLedgerForceRecovery()));
                 } else {
                     future.complete(handle);
                 }
@@ -617,7 +620,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerHandle.asyncClose((rc, handle, ctx) -> {
             if (rc != BKException.Code.OK) {
-                future.completeExceptionally(bkException("Failed to close ledger", rc, ledgerHandle.getId(), -1));
+                future.completeExceptionally(bkException("Failed to close ledger", rc, ledgerHandle.getId(), -1,
+                        config.isSchemaLedgerForceRecovery()));
             } else {
                 future.complete(null);
             }
@@ -648,12 +652,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     interface Functions {
-        static CompletableFuture<LedgerEntry> getLedgerEntry(LedgerHandle ledger, long entry) {
+        static CompletableFuture<LedgerEntry> getLedgerEntry(LedgerHandle ledger, long entry,
+                boolean forceRecovery) {
             final CompletableFuture<LedgerEntry> future = new CompletableFuture<>();
             ledger.asyncReadEntries(entry, entry,
                 (rc, handle, entries, ctx) -> {
                     if (rc != BKException.Code.OK) {
-                        future.completeExceptionally(bkException("Failed to read entry", rc, ledger.getId(), entry));
+                        future.completeExceptionally(bkException("Failed to read entry", rc, ledger.getId(), entry,
+                                forceRecovery));
                     } else {
                         future.complete(entries.nextElement());
                     }
@@ -700,7 +706,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         }
     }
 
-    public static Exception bkException(String operation, int rc, long ledgerId, long entryId) {
+    public static Exception bkException(String operation, int rc, long ledgerId, long entryId,
+            boolean forceRecovery) {
         String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc)
                 + " -  ledger=" + ledgerId + " - operation=" + operation;
 
@@ -709,7 +716,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         }
         boolean recoverable = rc != BKException.Code.NoSuchLedgerExistsException
                 && rc != BKException.Code.NoSuchEntryException
-                && rc != BKException.Code.NoSuchLedgerExistsOnMetadataServerException;
+                && rc != BKException.Code.NoSuchLedgerExistsOnMetadataServerException
+                // if force-recovery is enabled then made it non-recoverable exception
+                // and force schema to skip this exception and recover immediately
+                && !forceRecovery;
         return new SchemaException(recoverable, message);
     }
 
