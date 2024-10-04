@@ -37,6 +37,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -64,6 +65,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -666,9 +668,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
     @Override
     public CompletableFuture<Boolean> hasSchema() {
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .getSchema(getSchemaId()).thenApply(Objects::nonNull);
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(getSchemaId()).thenApply(Objects::nonNull)
+                .exceptionally(e -> {
+                    Throwable ex = e.getCause();
+                    if (ex instanceof SchemaException || !((SchemaException) ex).isRecoverable()) {
+                        return false;
+                    }
+                    throw ex instanceof CompletionException ? (CompletionException) ex : new CompletionException(ex);
+                });
     }
 
     @Override
