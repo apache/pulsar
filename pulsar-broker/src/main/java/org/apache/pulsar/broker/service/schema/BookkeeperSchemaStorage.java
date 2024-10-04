@@ -52,8 +52,11 @@ import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
@@ -552,6 +555,23 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return locatorEntryCache.getWithStats(schema)
                 .thenApply(o ->
                         o.map(r -> new LocatorEntry(r.getValue(), r.getStat().getVersion())));
+    }
+
+    public CompletableFuture<SchemaMetadata> getSchemaMetadata(String schema) {
+        return getLocator(schema).thenApply(locator -> {
+            if (!locator.isPresent()) {
+                return null;
+            }
+            SchemaLocator sl = locator.get().locator;
+            SchemaMetadata metadata = new SchemaMetadata();
+            IndexEntry info = sl.getInfo();
+            metadata.info = new SchemaMetadata.Entry(info.getPosition().getLedgerId(), info.getPosition().getEntryId(),
+                    info.getVersion());
+            metadata.index = sl.getIndexList() == null ? null
+                    : sl.getIndexList().stream().map(i -> new SchemaMetadata.Entry(i.getPosition().getLedgerId(),
+                            i.getPosition().getEntryId(), i.getVersion())).collect(Collectors.toList());
+            return metadata;
+        });
     }
 
     @NotNull
