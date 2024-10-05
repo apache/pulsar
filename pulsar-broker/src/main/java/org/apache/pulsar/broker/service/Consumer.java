@@ -770,16 +770,16 @@ public class Consumer {
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
-            IntIntPair intPair = getPendingAcks().get(ledgerId, entryId);
-            if (intPair != null) {
-                return ObjectIntPair.of(this, intPair.leftInt());
+            IntIntPair pendingAck = getPendingAcks().get(ledgerId, entryId);
+            if (pendingAck != null) {
+                return ObjectIntPair.of(this, pendingAck.leftInt());
             } else {
                 // If there are more consumers, this step will consume more CPU, and it should be optimized later.
                 for (Consumer consumer : subscription.getConsumers()) {
                     if (consumer != this) {
-                        intPair = consumer.getPendingAcks().get(ledgerId, entryId);
-                        if (intPair != null) {
-                            return ObjectIntPair.of(consumer, intPair.leftInt());
+                        pendingAck = consumer.getPendingAcks().get(ledgerId, entryId);
+                        if (pendingAck != null) {
+                            return ObjectIntPair.of(consumer, pendingAck.leftInt());
                         }
                     }
                 }
