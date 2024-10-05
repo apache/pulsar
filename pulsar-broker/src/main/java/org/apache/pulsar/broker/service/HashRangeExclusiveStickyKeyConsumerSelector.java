@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -56,7 +55,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
         return validateKeySharedMeta(consumer).thenApply(__ -> {
             try {
                 return internalAddConsumer(consumer);
@@ -66,7 +65,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         });
     }
 
-    private synchronized Map<Consumer, NavigableSet<Range>> internalAddConsumer(Consumer consumer)
+    private synchronized Map<Consumer, ImpactedHashRanges> internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
         Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
@@ -79,17 +78,17 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getEnd(), consumer);
         }
         Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
-        Map<Consumer, NavigableSet<Range>> impactedRanges =
+        Map<Consumer, ImpactedHashRanges> impactedRanges =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
         return impactedRanges;
     }
 
     @Override
-    public synchronized Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer) {
+    public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
         Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
         Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
-        Map<Consumer, NavigableSet<Range>> impactedRanges =
+        Map<Consumer, ImpactedHashRanges> impactedRanges =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
         return impactedRanges;
     }

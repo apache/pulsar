@@ -23,13 +23,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NavigableSet;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -81,7 +79,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
         Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
@@ -90,17 +88,17 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             try {
                 splitRange(findBiggestRange(), consumer);
             } catch (ConsumerAssignException e) {
-                return FutureUtil.failedFuture(e);
+                return CompletableFuture.failedFuture(e);
             }
         }
         Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
-        Map<Consumer, NavigableSet<Range>> impactedRanges =
+        Map<Consumer, ImpactedHashRanges> impactedRanges =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
         return CompletableFuture.completedFuture(impactedRanges);
     }
 
     @Override
-    public synchronized Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer) {
+    public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
         Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
@@ -114,7 +112,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             }
         }
         Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
-        Map<Consumer, NavigableSet<Range>> impactedRanges =
+        Map<Consumer, ImpactedHashRanges> impactedRanges =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
         return impactedRanges;
     }

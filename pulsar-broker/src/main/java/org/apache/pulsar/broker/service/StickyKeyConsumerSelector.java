@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
 
@@ -33,7 +32,7 @@ public interface StickyKeyConsumerSelector {
      *
      * @param consumer new consumer
      */
-    CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer);
+    CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer);
 
     /**
      * Remove the consumer.
@@ -41,7 +40,7 @@ public interface StickyKeyConsumerSelector {
      * @param consumer consumer to be removed
      * @return
      */
-    Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer);
+    Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer);
 
     /**
      * Select a consumer by sticky key.

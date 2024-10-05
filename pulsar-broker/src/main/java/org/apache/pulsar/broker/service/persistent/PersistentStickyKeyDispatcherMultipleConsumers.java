@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +48,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.ImpactedHashRanges;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -169,29 +169,20 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private synchronized void registerDrainingHashes(Consumer skipConsumer,
-                                                     Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
-        for (Map.Entry<Consumer, NavigableSet<Range>> entry : impactedRangesByConsumer.entrySet()) {
+                                                     Map<Consumer, ImpactedHashRanges> impactedRangesByConsumer) {
+        for (Map.Entry<Consumer, ImpactedHashRanges> entry : impactedRangesByConsumer.entrySet()) {
             Consumer c = entry.getKey();
             if (c != skipConsumer) {
-                // perf optimization: convert the set to an array to avoid iterator allocation in the pending acks loop
-                Range[] ranges = entry.getValue().toArray(new Range[0]);
+                ImpactedHashRanges impactedHashRanges = entry.getValue();
                 // add all pending acks in the impacted hash ranges to the draining hashes tracker
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == 0) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
                         return;
                     }
-                    for (Range range : ranges) {
-                        if (range.contains(stickyKeyHash)) {
-                            // add the pending ack to the draining hashes tracker if the hash is in the range
-                            drainingHashesTracker.addEntry(c, stickyKeyHash);
-                            break;
-                        }
-                        // Since ranges are sorted, stop checking further ranges if the start of the current range is
-                        // greater than the stickyKeyHash.
-                        if (range.getStart() > stickyKeyHash) {
-                            break;
-                        }
+                    if (impactedHashRanges.containsStickyKey(stickyKeyHash)) {
+                        // add the pending ack to the draining hashes tracker if the hash is in the range
+                        drainingHashesTracker.addEntry(c, stickyKeyHash);
                     }
                 });
             }
@@ -201,7 +192,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
-        Map<Consumer, NavigableSet<Range>> impactedRanges = selector.removeConsumer(consumer);
+        Map<Consumer, ImpactedHashRanges> impactedRanges = selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
         if (drainingHashesRequired) {
             // register draining hashes for the impacted consumers and ranges, in case a hash switched from one

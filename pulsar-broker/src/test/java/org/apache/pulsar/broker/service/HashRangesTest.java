@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
@@ -33,20 +33,20 @@ import org.testng.annotations.Test;
 public class HashRangesTest {
     @Test
     public void testMergeOverlappingRanges() {
-        NavigableSet<Range> ranges = new TreeSet<>();
+        SortedSet<Range> ranges = new TreeSet<>();
         ranges.add(Range.of(1, 5));
         ranges.add(Range.of(6, 10));
         ranges.add(Range.of(8, 12));
         ranges.add(Range.of(15, 20));
         ranges.add(Range.of(21, 25));
 
-        NavigableSet<Range> expectedMergedRanges = new TreeSet<>();
+        SortedSet<Range> expectedMergedRanges = new TreeSet<>();
         expectedMergedRanges.add(Range.of(1, 12));
         expectedMergedRanges.add(Range.of(15, 25));
 
-        NavigableSet<Range> mergedRanges = HashRanges.mergeOverlappingRanges(ranges);
+        ImpactedHashRanges mergedRanges = HashRanges.mergeOverlappingRanges(ranges);
 
-        assertThat(mergedRanges).containsExactlyElementsOf(expectedMergedRanges);
+        assertThat(mergedRanges.asRangeArray()).containsExactlyElementsOf(expectedMergedRanges);
     }
 
 
@@ -129,7 +129,7 @@ public class HashRangesTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, NavigableSet<Range>> impactedConsumers =
+        Map<Consumer, ImpactedHashRanges> impactedConsumers =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers).isEmpty();
@@ -145,12 +145,12 @@ public class HashRangesTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(1, 5), consumer2);
 
-        Map<Consumer, NavigableSet<Range>> impactedConsumers =
+        Map<Consumer, ImpactedHashRanges> impactedConsumers =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, new TreeSet<>(List.of(Range.of(1, 5))),
-                        consumer2, new TreeSet<>(List.of(Range.of(1, 5)))));
+                Map.of(consumer1, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5)))),
+                        consumer2, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
     }
 
     @Test
@@ -161,11 +161,11 @@ public class HashRangesTest {
         Consumer consumer1 = createMockConsumer("consumer1");
         mappingAfter.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, NavigableSet<Range>> impactedConsumers =
+        Map<Consumer, ImpactedHashRanges> impactedConsumers =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, new TreeSet<>(List.of(Range.of(1, 5)))));
+                Map.of(consumer1, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
     }
 
     @Test
@@ -176,11 +176,11 @@ public class HashRangesTest {
         Consumer consumer1 = createMockConsumer("consumer1");
         mappingBefore.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, NavigableSet<Range>> impactedConsumers =
+        Map<Consumer, ImpactedHashRanges> impactedConsumers =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, new TreeSet<>(List.of(Range.of(1, 5)))));
+                Map.of(consumer1, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
     }
 
     @Test
@@ -193,11 +193,11 @@ public class HashRangesTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(3, 7), consumer2);
 
-        Map<Consumer, NavigableSet<Range>> impactedConsumers =
+        Map<Consumer, ImpactedHashRanges> impactedConsumers =
                 HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, new TreeSet<>(List.of(Range.of(3, 5))),
-                        consumer2, new TreeSet<>(List.of(Range.of(3, 7)))));
+                Map.of(consumer1, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(3, 5)))),
+                        consumer2, ImpactedHashRanges.of(new TreeSet<>(List.of(Range.of(3, 7))))));
     }
 }

@@ -23,7 +23,6 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.NavigableSet;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -60,7 +59,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public CompletableFuture<Map<Consumer, NavigableSet<Range>>> addConsumer(Consumer consumer) {
+    public CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
@@ -80,7 +79,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
-            Map<Consumer, NavigableSet<Range>> impactedRanges =
+            Map<Consumer, ImpactedHashRanges> impactedRanges =
                     HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
             return CompletableFuture.completedFuture(impactedRanges);
         } finally {
@@ -110,7 +109,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<Consumer, NavigableSet<Range>> removeConsumer(Consumer consumer) {
+    public Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
@@ -126,7 +125,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
-            Map<Consumer, NavigableSet<Range>> impactedRanges =
+            Map<Consumer, ImpactedHashRanges> impactedRanges =
                     HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
             return impactedRanges;
         } finally {

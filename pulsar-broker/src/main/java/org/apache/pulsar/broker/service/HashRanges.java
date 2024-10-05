@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.NavigableSet;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
@@ -38,10 +38,10 @@ class HashRanges {
      * @param mappingAfter the range mapping after the change
      * @return consumers and ranges where the existing range changed
      */
-    static Map<Consumer, NavigableSet<Range>> resolveImpactedExistingConsumers(Map<Range, Consumer> mappingBefore,
-                                                                               Map<Range, Consumer> mappingAfter) {
+    static Map<Consumer, ImpactedHashRanges> resolveImpactedExistingConsumers(Map<Range, Consumer> mappingBefore,
+                                                                              Map<Range, Consumer> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> changedRanges = diffRanges(mappingBefore, mappingAfter);
-        Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer = changedRanges.entrySet().stream()
+        Map<Consumer, SortedSet<Range>> impactedRangesByConsumer = changedRanges.entrySet().stream()
                 .collect(HashMap::new, (map, entry) -> {
                     Range range = entry.getKey();
                     Consumer consumerBefore = entry.getValue().getLeft();
@@ -52,24 +52,24 @@ class HashRanges {
         return mergeOverlappingRanges(impactedRangesByConsumer);
     }
 
-    private static void addRange(Map<Consumer, NavigableSet<Range>> map,
+    private static void addRange(Map<Consumer, SortedSet<Range>> map,
                                  Consumer c, Range range) {
         if (c != null) {
             map.computeIfAbsent(c, k -> new TreeSet<>()).add(range);
         }
     }
 
-    static Map<Consumer, NavigableSet<Range>> mergeOverlappingRanges(
-            Map<Consumer, NavigableSet<Range>> impactedRangesByConsumer) {
-        Map<Consumer, NavigableSet<Range>> mergedRangesByConsumer = new HashMap<>();
+    static Map<Consumer, ImpactedHashRanges> mergeOverlappingRanges(
+            Map<Consumer, SortedSet<Range>> impactedRangesByConsumer) {
+        Map<Consumer, ImpactedHashRanges> mergedRangesByConsumer = new HashMap<>();
         impactedRangesByConsumer.forEach((consumer, ranges) -> {
             mergedRangesByConsumer.put(consumer, mergeOverlappingRanges(ranges));
         });
         return mergedRangesByConsumer;
     }
 
-    static NavigableSet<Range> mergeOverlappingRanges(NavigableSet<Range> ranges) {
-        NavigableSet<Range> mergedRanges = new TreeSet<>();
+    static ImpactedHashRanges mergeOverlappingRanges(SortedSet<Range> ranges) {
+        TreeSet<Range> mergedRanges = new TreeSet<>();
         Iterator<Range> rangeIterator = ranges.iterator();
         Range currentRange = rangeIterator.hasNext() ? rangeIterator.next() : null;
         while (rangeIterator.hasNext()) {
@@ -84,8 +84,9 @@ class HashRanges {
         if (currentRange != null) {
             mergedRanges.add(currentRange);
         }
-        return mergedRanges;
+        return ImpactedHashRanges.of(mergedRanges);
     }
+
     /**
      * Calculate the diff of two range mappings.
      * @param mappingBefore the range mapping before
