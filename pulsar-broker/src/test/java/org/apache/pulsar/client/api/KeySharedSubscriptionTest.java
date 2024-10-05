@@ -95,6 +95,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
+    private static final String SUBSCRIPTION_NAME = "key_shared";
 
     @DataProvider(name = "batch")
     public Object[] batchProvider() {
@@ -253,7 +254,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
-        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+        StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
@@ -377,7 +378,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
-        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+        StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
@@ -455,7 +456,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
                 .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE-1)));
 
-        StickyKeyConsumerSelector selector = getSelector(topic, "key_shared");
+        StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
@@ -498,7 +499,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             @Cleanup
             Consumer c = pulsarClient.newConsumer()
                     .topic(topic)
-                    .subscriptionName("key_shared")
+                    .subscriptionName(SUBSCRIPTION_NAME)
                     .subscriptionType(SubscriptionType.Key_Shared)
                     .ackTimeout(10, TimeUnit.SECONDS)
                     .subscribe();
@@ -536,7 +537,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
-        String subscriptionName = "key_shared";
         String slowKey = "slowKey";
 
         List<PulsarClient> clients = new ArrayList<>();
@@ -552,7 +552,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
                 Consumer c = client.newConsumer(Schema.INT32)
                         .topic(topic)
-                        .subscriptionName(subscriptionName)
+                        .subscriptionName(SUBSCRIPTION_NAME)
                         .subscriptionType(SubscriptionType.Key_Shared)
                         .receiverQueueSize(100)
                         .messageListener((consumer, msg) -> {
@@ -572,7 +572,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
 
             Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-            PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
+            PersistentSubscription sub = (PersistentSubscription) t.getSubscription(SUBSCRIPTION_NAME);
             // get the dispatcher reference
             PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
                     (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
@@ -664,6 +664,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
+    @SneakyThrows
+    private PersistentStickyKeyDispatcherMultipleConsumers getDispatcher(String topic, String subscription) {
+        return (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topic).get()
+                .get().getSubscription(subscription).getDispatcher();
+    }
+
     @Test
     public void testReadAheadWithConfiguredLookAheadLimit() throws Exception {
         String topic = "testReadAheadWithConfiguredLookAheadLimit-" + UUID.randomUUID();
@@ -677,7 +683,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
-                .subscriptionName("key_shared")
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .subscribe();
@@ -695,7 +701,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
-                .subscriptionName("key_shared")
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .subscribe();
@@ -713,7 +719,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Thread.sleep(1000);
 
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        PersistentSubscription sub = (PersistentSubscription) t.getSubscription("key_shared");
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(SUBSCRIPTION_NAME);
 
         // We need to ensure that dispatcher does not keep to look ahead in the topic,
         Position readPosition = sub.getCursor().getReadPosition();
@@ -732,7 +738,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
-                .subscriptionName("key_shared")
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .consumerName("c1")
@@ -753,7 +759,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
-                .subscriptionName("key_shared")
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .consumerName("c2")
@@ -790,8 +796,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
         Assert.assertTrue(consumer2.isConnected());
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) pulsar
-                .getBrokerService().getTopicReference(topic).get().getSubscription(sub).getDispatcher();
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, sub);
         Assert.assertEquals(dispatcher.getConsumers().size(), 2);
 
         try {
@@ -1353,7 +1358,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             throws PulsarClientException {
         ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
         builder.topic(topic)
-                .subscriptionName("key_shared")
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(3, TimeUnit.SECONDS);
         if (keySharedPolicy != null) {
@@ -2037,7 +2042,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<Integer> producer = createProducer(topic, false);
 
         // create a consumer and close it to create a subscription
-        String subscriptionName = "key_shared";
+        String subscriptionName = SUBSCRIPTION_NAME;
         pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subscriptionName)
@@ -2172,10 +2177,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<Integer> producer = createProducer(topic, false);
 
         // create a consumer and close it to create a subscription
-        String subscriptionName = "key_shared";
         pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe()
                 .close();
@@ -2209,7 +2213,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c1")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .startPaused(true) // start paused
@@ -2219,7 +2223,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c2")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(500) // use large receiver queue size
                 .subscribe();
@@ -2228,14 +2232,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> c3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c3")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .startPaused(true) // start paused
                 .subscribe();
 
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(SUBSCRIPTION_NAME);
         PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
                 (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
@@ -2274,7 +2278,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         c2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c2")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .subscribe();
@@ -2284,7 +2288,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         c1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c1")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .subscribe();
@@ -2294,7 +2298,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         c3 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .consumerName("c3")
-                .subscriptionName(subscriptionName)
+                .subscriptionName(SUBSCRIPTION_NAME)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .receiverQueueSize(10)
                 .subscribe();
