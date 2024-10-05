@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -36,6 +37,7 @@ public class DrainingHashesTracker {
     /**
      * Represents an entry in the draining hashes tracker.
      */
+    @ToString
     public static class DrainingHashEntry {
         private final Consumer consumer;
         private int refCount;
@@ -92,16 +94,6 @@ public class DrainingHashesTracker {
          */
         boolean isBlocking() {
             return blockedCount > 0;
-        }
-
-        /**
-         * Returns a string representation of the DrainingHashEntry.
-         *
-         * @return a string representation of the DrainingHashEntry
-         */
-        public String toString() {
-            return "DrainingHashEntry(consumer=" + this.consumer + ", refCount=" + this.refCount + ", blockedCount="
-                    + this.blockedCount + ")";
         }
     }
 
