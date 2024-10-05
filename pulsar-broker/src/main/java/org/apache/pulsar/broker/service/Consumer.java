@@ -1128,9 +1128,9 @@ public class Consumer {
         List<Position> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
-            IntIntPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (longPair != null) {
-                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, longPair.leftInt());
+            IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (pendingAck != null) {
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
                 totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);
