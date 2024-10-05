@@ -340,13 +340,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
             removedConsumers.add(removedConsumer);
+            Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
             for (int i = 0; i < validationPointCount; i++) {
                 int hash = i * increment;
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
                 if (!removedConsumers.contains(expected)) {
                     assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d ranges %s", i,
-                            removedConsumer.toString(), hash, selector.getConsumerKeyHashRanges()).isEqualTo(expected.consumerId());
+                            removedConsumer.toString(), hash, consumerKeyHashRanges).isEqualTo(expected.consumerId());
                 }
             }
         }
