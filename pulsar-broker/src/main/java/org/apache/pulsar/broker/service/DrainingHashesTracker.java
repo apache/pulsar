@@ -129,11 +129,10 @@ public class DrainingHashesTracker {
             entry = new DrainingHashEntry(consumer);
             drainingHashes.put(stickyHash, entry);
         } else if (entry.getConsumer() != consumer) {
-            log.error("[{}] Consumer {} is already draining hash {}. Same hash being used for consumer {}. "
-                            + "This call is ignored since there's a problem in consistency.",
-                    dispatcherName,
-                    entry.getConsumer(), stickyHash, consumer);
-            return;
+            throw new IllegalStateException(
+                    "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
+                            + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
+                            + ".");
         }
         entry.incrementRefCount();
     }
@@ -172,11 +171,10 @@ public class DrainingHashesTracker {
             return;
         }
         if (entry.getConsumer() != consumer) {
-            log.error("[{}] Consumer {} is already draining hash {}. Same hash is being acknowledged by consumer {}."
-                            + " This call is ignored since there's a problem in consistency.",
-                    dispatcherName,
-                    entry.getConsumer(), stickyHash, consumer);
-            return;
+            throw new IllegalStateException(
+                    "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
+                            + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
+                            + ".");
         }
         if (entry.decrementRefCount()) {
             DrainingHashEntry removed = drainingHashes.remove(stickyHash);
