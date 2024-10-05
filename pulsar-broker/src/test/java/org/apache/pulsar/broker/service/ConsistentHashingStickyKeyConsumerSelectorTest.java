@@ -494,14 +494,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
         ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
-        int impactedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
+        int removedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
                 .mapToInt(r -> r.getEnd() - r.getStart() + 1)
                 .sum();
-        double allowedImpactedRangesPercentage = 1; // 1%
+        double allowedremovedRangesPercentage = 1; // 1%
         int hashRangeSize = selector.getKeyHashRange().getEnd() + 1;
-        int allowedImpactedRanges = (int) (hashRangeSize * (allowedImpactedRangesPercentage / 100.0d));
-        assertThat(impactedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
-                allowedImpactedRangesPercentage).isLessThan(allowedImpactedRanges);
+        int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
+        assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
+                allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
     }
 
     @Test

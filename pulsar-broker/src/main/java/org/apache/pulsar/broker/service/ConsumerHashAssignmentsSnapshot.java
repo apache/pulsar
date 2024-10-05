@@ -56,8 +56,8 @@ public class ConsumerHashAssignmentsSnapshot {
         return new ConsumerHashAssignmentsSnapshot(Collections.emptySortedMap());
     }
 
-    public Map<Consumer, ImpactedHashRanges> resolveImpactedHashRanges(ConsumerHashAssignmentsSnapshot other) {
-        return resolveImpactedExistingConsumers(this.hashRangeAssignments, other.hashRangeAssignments);
+    public Map<Consumer, RemovedHashRanges> resolveRemovedHashRanges(ConsumerHashAssignmentsSnapshot other) {
+        return resolveConsumerRemovedHashRanges(this.hashRangeAssignments, other.hashRangeAssignments);
     }
 
     /**
@@ -89,23 +89,21 @@ public class ConsumerHashAssignmentsSnapshot {
     }
 
     /**
-     * Resolve the impacted consumers where the existing range changed compared to the range before the change.
+     * Resolve the consumers where the existing range was removed by a change.
      * @param mappingBefore the range mapping before the change
      * @param mappingAfter the range mapping after the change
      * @return consumers and ranges where the existing range changed
      */
-    static Map<Consumer, ImpactedHashRanges> resolveImpactedExistingConsumers(SortedMap<Range, Consumer> mappingBefore,
-                                                                              SortedMap<Range, Consumer> mappingAfter) {
+    static Map<Consumer, RemovedHashRanges> resolveConsumerRemovedHashRanges(SortedMap<Range, Consumer> mappingBefore,
+                                                                             SortedMap<Range, Consumer> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> changedRanges = diffRanges(mappingBefore, mappingAfter);
-        Map<Consumer, SortedSet<Range>> impactedRangesByConsumer = changedRanges.entrySet().stream()
+        Map<Consumer, SortedSet<Range>> removedRangesByConsumer = changedRanges.entrySet().stream()
                 .collect(IdentityHashMap::new, (map, entry) -> {
                     Range range = entry.getKey();
                     Consumer consumerBefore = entry.getValue().getLeft();
                     addRange(map, consumerBefore, range);
-                    Consumer consumerAfter = entry.getValue().getRight();
-                    addRange(map, consumerAfter, range);
                 }, IdentityHashMap::putAll);
-        return mergeOverlappingRanges(impactedRangesByConsumer);
+        return mergeOverlappingRanges(removedRangesByConsumer);
     }
 
     private static void addRange(Map<Consumer, SortedSet<Range>> map,
@@ -115,11 +113,11 @@ public class ConsumerHashAssignmentsSnapshot {
         }
     }
 
-    static Map<Consumer, ImpactedHashRanges> mergeOverlappingRanges(
-            Map<Consumer, SortedSet<Range>> impactedRangesByConsumer) {
-        Map<Consumer, ImpactedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
-        impactedRangesByConsumer.forEach((consumer, ranges) -> {
-            mergedRangesByConsumer.put(consumer, ImpactedHashRanges.of(mergeOverlappingRanges(ranges)));
+    static Map<Consumer, RemovedHashRanges> mergeOverlappingRanges(
+            Map<Consumer, SortedSet<Range>> removedRangesByConsumer) {
+        Map<Consumer, RemovedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
+        removedRangesByConsumer.forEach((consumer, ranges) -> {
+            mergedRangesByConsumer.put(consumer, RemovedHashRanges.of(mergeOverlappingRanges(ranges)));
         });
         return mergedRangesByConsumer;
     }
@@ -151,7 +149,7 @@ public class ConsumerHashAssignmentsSnapshot {
      */
     static Map<Range, Pair<Consumer, Consumer>> diffRanges(SortedMap<Range, Consumer> mappingBefore,
                                                            SortedMap<Range, Consumer> mappingAfter) {
-        Map<Range, Pair<Consumer, Consumer>> impactedRanges = new LinkedHashMap<>();
+        Map<Range, Pair<Consumer, Consumer>> removedRanges = new LinkedHashMap<>();
         Iterator<Map.Entry<Range, Consumer>> beforeIterator = mappingBefore.entrySet().iterator();
         Iterator<Map.Entry<Range, Consumer>> afterIterator = mappingAfter.entrySet().iterator();
 
@@ -166,15 +164,15 @@ public class ConsumerHashAssignmentsSnapshot {
 
             if (beforeRange.equals(afterRange)) {
                 if (!beforeConsumer.equals(afterConsumer)) {
-                    impactedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
+                    removedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
                 }
                 beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
                 afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
             } else if (beforeRange.getEnd() < afterRange.getStart()) {
-                impactedRanges.put(beforeRange, Pair.of(beforeConsumer, afterConsumer));
+                removedRanges.put(beforeRange, Pair.of(beforeConsumer, afterConsumer));
                 beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
             } else if (afterRange.getEnd() < beforeRange.getStart()) {
-                impactedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
+                removedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
                 afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
             } else {
                 Range overlapRange = Range.of(
@@ -182,7 +180,7 @@ public class ConsumerHashAssignmentsSnapshot {
                         Math.min(beforeRange.getEnd(), afterRange.getEnd())
                 );
                 if (!beforeConsumer.equals(afterConsumer)) {
-                    impactedRanges.put(overlapRange, Pair.of(beforeConsumer, afterConsumer));
+                    removedRanges.put(overlapRange, Pair.of(beforeConsumer, afterConsumer));
                 }
                 if (beforeRange.getEnd() <= overlapRange.getEnd()) {
                     beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
@@ -194,15 +192,15 @@ public class ConsumerHashAssignmentsSnapshot {
         }
 
         while (beforeEntry != null) {
-            impactedRanges.put(beforeEntry.getKey(), Pair.of(beforeEntry.getValue(), null));
+            removedRanges.put(beforeEntry.getKey(), Pair.of(beforeEntry.getValue(), null));
             beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
         }
 
         while (afterEntry != null) {
-            impactedRanges.put(afterEntry.getKey(), Pair.of(null, afterEntry.getValue()));
+            removedRanges.put(afterEntry.getKey(), Pair.of(null, afterEntry.getValue()));
             afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
         }
 
-        return impactedRanges;
+        return removedRanges;
     }
 }

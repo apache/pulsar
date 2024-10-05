@@ -48,7 +48,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.ImpactedHashRanges;
+import org.apache.pulsar.broker.service.RemovedHashRanges;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -137,7 +137,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return CompletableFuture.completedFuture(null);
         }
         return super.addConsumer(consumer).thenCompose(__ -> selector.addConsumer(consumer))
-                .thenAccept(impactedRanges -> {
+                .thenAccept(removedRanges -> {
             // TODO: Add some way to prevent changes in between the time the consumer is added and the
             // time the draining hashes are applied. It might be fine for ConsistentHashingStickyKeyConsumerSelector
             // since it's not really asynchronous, although it returns a CompletableFuture
@@ -160,7 +160,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         drainingHashesTracker.endBatch();
                     }
                 });
-                registerDrainingHashes(consumer, impactedRanges);
+                registerDrainingHashes(consumer, removedRanges);
             }
         }).exceptionally(ex -> {
             internalRemoveConsumer(consumer);
@@ -169,18 +169,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private synchronized void registerDrainingHashes(Consumer skipConsumer,
-                                                     Map<Consumer, ImpactedHashRanges> impactedRangesByConsumer) {
-        for (Map.Entry<Consumer, ImpactedHashRanges> entry : impactedRangesByConsumer.entrySet()) {
+                                                     Map<Consumer, RemovedHashRanges> removedRangesByConsumer) {
+        for (Map.Entry<Consumer, RemovedHashRanges> entry : removedRangesByConsumer.entrySet()) {
             Consumer c = entry.getKey();
             if (c != skipConsumer) {
-                ImpactedHashRanges impactedHashRanges = entry.getValue();
+                RemovedHashRanges removedHashRanges = entry.getValue();
                 // add all pending acks in the impacted hash ranges to the draining hashes tracker
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == 0) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
                         return;
                     }
-                    if (impactedHashRanges.containsStickyKey(stickyKeyHash)) {
+                    if (removedHashRanges.containsStickyKey(stickyKeyHash)) {
                         // add the pending ack to the draining hashes tracker if the hash is in the range
                         drainingHashesTracker.addEntry(c, stickyKeyHash);
                     }
@@ -192,13 +192,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
-        Map<Consumer, ImpactedHashRanges> impactedRanges = selector.removeConsumer(consumer);
+        Map<Consumer, RemovedHashRanges> removedRanges = selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
         if (drainingHashesRequired) {
             // register draining hashes for the impacted consumers and ranges, in case a hash switched from one
             // consumer to another. This will handle the case where a hash gets switched from an existing
             // consumer to another existing consumer during removal.
-            registerDrainingHashes(consumer, impactedRanges);
+            registerDrainingHashes(consumer, removedRanges);
         }
     }
 

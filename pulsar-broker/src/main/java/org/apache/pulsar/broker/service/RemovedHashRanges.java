@@ -24,21 +24,21 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.Range;
 
 /**
- * Represents the hash ranges impacted by a change in the hash range assignments.
+ * Represents the hash ranges which were removed from an existing consumer by a change in the hash range assignments.
  */
 @EqualsAndHashCode
 @ToString
-public class ImpactedHashRanges {
+public class RemovedHashRanges {
     private final Range[] sortedRanges;
 
-    private ImpactedHashRanges(SortedSet<Range> ranges) {
+    private RemovedHashRanges(SortedSet<Range> ranges) {
         // Converts the set of ranges to an array to avoid iterator allocation
         // when the ranges are iterator multiple times in the pending acknowledgments loop.
         this.sortedRanges = ranges.toArray(new Range[0]);
     }
 
-    public static ImpactedHashRanges of(SortedSet<Range> ranges) {
-        return new ImpactedHashRanges(ranges);
+    public static RemovedHashRanges of(SortedSet<Range> ranges) {
+        return new RemovedHashRanges(ranges);
     }
 
     /**

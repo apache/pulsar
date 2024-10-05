@@ -56,7 +56,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Map<Consumer, RemovedHashRanges>> addConsumer(Consumer consumer) {
         return validateKeySharedMeta(consumer).thenApply(__ -> {
             try {
                 return internalAddConsumer(consumer);
@@ -66,7 +66,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         });
     }
 
-    private synchronized Map<Consumer, ImpactedHashRanges> internalAddConsumer(Consumer consumer)
+    private synchronized Map<Consumer, RemovedHashRanges> internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
         Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
         if (conflictingConsumer != null) {
@@ -78,20 +78,20 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getEnd(), consumer);
         }
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        Map<Consumer, ImpactedHashRanges> impactedRanges =
-                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        Map<Consumer, RemovedHashRanges> removedRanges =
+                consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedRanges;
+        return removedRanges;
     }
 
     @Override
-    public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
+    public synchronized Map<Consumer, RemovedHashRanges> removeConsumer(Consumer consumer) {
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        Map<Consumer, ImpactedHashRanges> impactedRanges =
-                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        Map<Consumer, RemovedHashRanges> removedRanges =
+                consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedRanges;
+        return removedRanges;
     }
 
     @Override

@@ -80,7 +80,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Map<Consumer, RemovedHashRanges>> addConsumer(Consumer consumer) {
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
@@ -92,14 +92,14 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             }
         }
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        Map<Consumer, ImpactedHashRanges> impactedRanges =
-                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        Map<Consumer, RemovedHashRanges> removedRanges =
+                consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return CompletableFuture.completedFuture(impactedRanges);
+        return CompletableFuture.completedFuture(removedRanges);
     }
 
     @Override
-    public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
+    public synchronized Map<Consumer, RemovedHashRanges> removeConsumer(Consumer consumer) {
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
@@ -112,10 +112,10 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             }
         }
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        Map<Consumer, ImpactedHashRanges> impactedRanges =
-                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        Map<Consumer, RemovedHashRanges> removedRanges =
+                consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedRanges;
+        return removedRanges;
     }
 
     @Override

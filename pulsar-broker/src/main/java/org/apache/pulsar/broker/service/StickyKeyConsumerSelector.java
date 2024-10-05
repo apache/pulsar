@@ -32,7 +32,7 @@ public interface StickyKeyConsumerSelector {
      *
      * @param consumer new consumer
      */
-    CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer);
+    CompletableFuture<Map<Consumer, RemovedHashRanges>> addConsumer(Consumer consumer);
 
     /**
      * Remove the consumer.
@@ -40,7 +40,7 @@ public interface StickyKeyConsumerSelector {
      * @param consumer consumer to be removed
      * @return
      */
-    Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer);
+    Map<Consumer, RemovedHashRanges> removeConsumer(Consumer consumer);
 
     /**
      * Select a consumer by sticky key.
