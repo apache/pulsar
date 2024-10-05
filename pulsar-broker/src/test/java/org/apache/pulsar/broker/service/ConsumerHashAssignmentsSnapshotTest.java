@@ -135,10 +135,10 @@ public class ConsumerHashAssignmentsSnapshotTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, RemovedHashRanges> impactedConsumers =
+        ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
-        assertThat(impactedConsumers).isEmpty();
+        assertThat(impactedConsumers.getRemovedHashRanges()).isEmpty();
     }
 
     @Test
@@ -151,10 +151,10 @@ public class ConsumerHashAssignmentsSnapshotTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(1, 5), consumer2);
 
-        Map<Consumer, RemovedHashRanges> impactedConsumers =
+        ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
-        assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
+        assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
                 Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
     }
 
@@ -166,10 +166,10 @@ public class ConsumerHashAssignmentsSnapshotTest {
         Consumer consumer1 = createMockConsumer("consumer1");
         mappingAfter.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, RemovedHashRanges> impactedConsumers =
+        ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
-        assertThat(impactedConsumers).isEmpty();
+        assertThat(impactedConsumers.getRemovedHashRanges()).isEmpty();
     }
 
     @Test
@@ -180,10 +180,10 @@ public class ConsumerHashAssignmentsSnapshotTest {
         Consumer consumer1 = createMockConsumer("consumer1");
         mappingBefore.put(Range.of(1, 5), consumer1);
 
-        Map<Consumer, RemovedHashRanges> impactedConsumers =
+        ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
-        assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
+        assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
                 Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
     }
 
@@ -197,10 +197,10 @@ public class ConsumerHashAssignmentsSnapshotTest {
         mappingBefore.put(Range.of(1, 5), consumer1);
         mappingAfter.put(Range.of(3, 7), consumer2);
 
-        Map<Consumer, RemovedHashRanges> impactedConsumers =
+        ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
-        assertThat(impactedConsumers).containsExactlyInAnyOrderEntriesOf(
+        assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
                 Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(3, 5))))));
     }
 }

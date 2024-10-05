@@ -56,7 +56,7 @@ public class ConsumerHashAssignmentsSnapshot {
         return new ConsumerHashAssignmentsSnapshot(Collections.emptySortedMap());
     }
 
-    public Map<Consumer, RemovedHashRanges> resolveRemovedHashRanges(ConsumerHashAssignmentsSnapshot other) {
+    public ImpactedConsumersResult resolveImpactedConsumers(ConsumerHashAssignmentsSnapshot other) {
         return resolveConsumerRemovedHashRanges(this.hashRangeAssignments, other.hashRangeAssignments);
     }
 
@@ -94,8 +94,8 @@ public class ConsumerHashAssignmentsSnapshot {
      * @param mappingAfter the range mapping after the change
      * @return consumers and ranges where the existing range changed
      */
-    static Map<Consumer, RemovedHashRanges> resolveConsumerRemovedHashRanges(SortedMap<Range, Consumer> mappingBefore,
-                                                                             SortedMap<Range, Consumer> mappingAfter) {
+    static ImpactedConsumersResult resolveConsumerRemovedHashRanges(SortedMap<Range, Consumer> mappingBefore,
+                                                                    SortedMap<Range, Consumer> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> changedRanges = diffRanges(mappingBefore, mappingAfter);
         Map<Consumer, SortedSet<Range>> removedRangesByConsumer = changedRanges.entrySet().stream()
                 .collect(IdentityHashMap::new, (map, entry) -> {
@@ -113,13 +113,13 @@ public class ConsumerHashAssignmentsSnapshot {
         }
     }
 
-    static Map<Consumer, RemovedHashRanges> mergeOverlappingRanges(
+    static ImpactedConsumersResult mergeOverlappingRanges(
             Map<Consumer, SortedSet<Range>> removedRangesByConsumer) {
         Map<Consumer, RemovedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
         removedRangesByConsumer.forEach((consumer, ranges) -> {
             mergedRangesByConsumer.put(consumer, RemovedHashRanges.of(mergeOverlappingRanges(ranges)));
         });
-        return mergedRangesByConsumer;
+        return ImpactedConsumersResult.of(mergedRangesByConsumer);
     }
 
     static SortedSet<Range> mergeOverlappingRanges(SortedSet<Range> ranges) {

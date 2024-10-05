@@ -48,7 +48,7 @@ import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.RemovedHashRanges;
+import org.apache.pulsar.broker.service.ImpactedConsumersResult;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -169,12 +169,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private synchronized void registerDrainingHashes(Consumer skipConsumer,
-                                                     Map<Consumer, RemovedHashRanges> removedRangesByConsumer) {
-        for (Map.Entry<Consumer, RemovedHashRanges> entry : removedRangesByConsumer.entrySet()) {
-            Consumer c = entry.getKey();
+                                                     ImpactedConsumersResult impactedConsumers) {
+        impactedConsumers.processRemovedHashRanges((c, removedHashRanges) -> {
             if (c != skipConsumer) {
-                RemovedHashRanges removedHashRanges = entry.getValue();
-                // add all pending acks in the impacted hash ranges to the draining hashes tracker
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == 0) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
@@ -186,19 +183,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     }
                 });
             }
-        }
+        });
     }
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
-        Map<Consumer, RemovedHashRanges> removedRanges = selector.removeConsumer(consumer);
+        ImpactedConsumersResult impactedConsumers = selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
         if (drainingHashesRequired) {
             // register draining hashes for the impacted consumers and ranges, in case a hash switched from one
             // consumer to another. This will handle the case where a hash gets switched from an existing
             // consumer to another existing consumer during removal.
-            registerDrainingHashes(consumer, removedRanges);
+            registerDrainingHashes(consumer, impactedConsumers);
         }
     }
 

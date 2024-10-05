@@ -59,7 +59,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public CompletableFuture<Map<Consumer, RemovedHashRanges>> addConsumer(Consumer consumer) {
+    public CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
@@ -78,10 +78,10 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-            Map<Consumer, RemovedHashRanges> removedRanges =
-                    consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
+            ImpactedConsumersResult impactedConsumers =
+                    consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
             consumerHashAssignmentsSnapshot = assignmentsAfter;
-            return CompletableFuture.completedFuture(removedRanges);
+            return CompletableFuture.completedFuture(impactedConsumers);
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -109,7 +109,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<Consumer, RemovedHashRanges> removeConsumer(Consumer consumer) {
+    public ImpactedConsumersResult removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
@@ -124,10 +124,10 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-            Map<Consumer, RemovedHashRanges> removedRanges =
-                    consumerHashAssignmentsSnapshot.resolveRemovedHashRanges(assignmentsAfter);
+            ImpactedConsumersResult impactedConsumers =
+                    consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
             consumerHashAssignmentsSnapshot = assignmentsAfter;
-            return removedRanges;
+            return impactedConsumers;
         } finally {
             rwLock.writeLock().unlock();
         }
