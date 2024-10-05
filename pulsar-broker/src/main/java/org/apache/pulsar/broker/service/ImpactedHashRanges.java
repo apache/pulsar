@@ -29,12 +29,12 @@ import org.apache.pulsar.client.api.Range;
 @EqualsAndHashCode
 @ToString
 public class ImpactedHashRanges {
-    private final Range[] ranges;
+    private final Range[] sortedRanges;
 
     private ImpactedHashRanges(SortedSet<Range> ranges) {
         // Converts the set of ranges to an array to avoid iterator allocation
         // when the ranges are iterator multiple times in the pending acknowledgments loop.
-        this.ranges = ranges.toArray(new Range[0]);
+        this.sortedRanges = ranges.toArray(new Range[0]);
     }
 
     public static ImpactedHashRanges of(SortedSet<Range> ranges) {
@@ -45,7 +45,7 @@ public class ImpactedHashRanges {
      * Checks if the sticky key hash is contained in the impacted hash ranges.
      */
     public boolean containsStickyKey(int stickyKeyHash) {
-        for (Range range : ranges) {
+        for (Range range : sortedRanges) {
             if (range.contains(stickyKeyHash)) {
                 return true;
             }
