@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
+import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
@@ -640,7 +641,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        // All the already published messages will be pre-fetched by C1.
+        PendingAcksMap c1PendingAcks = getDispatcher(topic, SUBSCRIPTION_NAME).getConsumers().get(0).getPendingAcks();
+        // Wait until all the already published messages have been pre-fetched by C1.
+        Awaitility.await().ignoreExceptions().until(() -> c1PendingAcks.size() == 10);
 
         // Adding a new consumer.
         @Cleanup
@@ -652,6 +655,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(i)
                     .send();
         }
+
+        Message<Integer> message = c2.receive(100, TimeUnit.MILLISECONDS);
+        assertThat(message).describedAs("All keys should be blocked by ").isNull();
 
         // Closing c1, would trigger all messages to go to c2
         c1.close();
