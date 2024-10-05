@@ -45,6 +45,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     private final int numberOfPoints;
     private final int rangeSize;
+    private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this(numberOfPoints, DEFAULT_RANGE_SIZE);
@@ -54,13 +55,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
         this.rangeSize = rangeSize;
+        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
     @Override
     public CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
-            ConsumerHashAssignmentsSnapshot assignmentsBefore = internalGetConsumerHashAssignmentsSnapshot();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
@@ -78,7 +79,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             Map<Consumer, ImpactedHashRanges> impactedRanges =
-                    assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
+                    consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+            consumerHashAssignmentsSnapshot = assignmentsAfter;
             return CompletableFuture.completedFuture(impactedRanges);
         } finally {
             rwLock.writeLock().unlock();
@@ -110,7 +112,6 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
-            ConsumerHashAssignmentsSnapshot assignmentsBefore = internalGetConsumerHashAssignmentsSnapshot();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             int consumerNameIndex = consumerNameIndexTracker.getTrackedIndex(consumerIdentityWrapper);
             if (consumerNameIndex > -1) {
@@ -124,7 +125,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             Map<Consumer, ImpactedHashRanges> impactedRanges =
-                    assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
+                    consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+            consumerHashAssignmentsSnapshot = assignmentsAfter;
             return impactedRanges;
         } finally {
             rwLock.writeLock().unlock();
@@ -159,7 +161,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
         rwLock.readLock().lock();
         try {
-            return internalGetConsumerHashAssignmentsSnapshot();
+            return consumerHashAssignmentsSnapshot;
         } finally {
             rwLock.readLock().unlock();
         }

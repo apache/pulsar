@@ -33,14 +33,16 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Represents the hash ranges assigned to each consumer in a {@link StickyKeyConsumerSelector} at a point in time.
  */
-@EqualsAndHashCode
-@ToString
+@EqualsAndHashCode(exclude = "cachedRangesByConsumer")
+@ToString(exclude = "cachedRangesByConsumer")
 public class ConsumerHashAssignmentsSnapshot {
     private final SortedMap<Range, Consumer> hashRangeAssignments;
+    private Map<Consumer, List<Range>> cachedRangesByConsumer;
 
     private ConsumerHashAssignmentsSnapshot(SortedMap<Range, Consumer> hashRangeAssignments) {
         this.hashRangeAssignments = hashRangeAssignments;
@@ -62,7 +64,14 @@ public class ConsumerHashAssignmentsSnapshot {
      * Get the ranges assigned to each consumer. The ranges are merged if they are overlapping.
      * @return the ranges assigned to each consumer
      */
-    public Map<Consumer, List<Range>> getRangesByConsumer() {
+    public synchronized Map<Consumer, List<Range>> getRangesByConsumer() {
+        if (cachedRangesByConsumer == null) {
+            cachedRangesByConsumer = internalGetRangesByConsumer();
+        }
+        return cachedRangesByConsumer;
+    }
+
+    private @NotNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
         Map<Consumer, SortedSet<Range>> rangesByConsumer = new IdentityHashMap<>();
         hashRangeAssignments.forEach((range, consumer) -> {
             rangesByConsumer.computeIfAbsent(consumer, k -> new TreeSet<>()).add(range);

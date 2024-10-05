@@ -39,6 +39,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     private final int rangeSize;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
+    private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public HashRangeExclusiveStickyKeyConsumerSelector() {
         this(DEFAULT_RANGE_SIZE);
@@ -51,6 +52,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         }
         this.rangeSize = rangeSize;
         this.rangeMap = new ConcurrentSkipListMap<>();
+        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
     @Override
@@ -66,7 +68,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     private synchronized Map<Consumer, ImpactedHashRanges> internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
-        ConsumerHashAssignmentsSnapshot assignmentsBefore = getConsumerHashAssignmentsSnapshot();
         Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
         if (conflictingConsumer != null) {
             throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer "
@@ -76,24 +77,29 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
-        ConsumerHashAssignmentsSnapshot assignmentsAfter = getConsumerHashAssignmentsSnapshot();
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
         Map<Consumer, ImpactedHashRanges> impactedRanges =
-                assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
+                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        consumerHashAssignmentsSnapshot = assignmentsAfter;
         return impactedRanges;
     }
 
     @Override
     public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
-        ConsumerHashAssignmentsSnapshot assignmentsBefore = getConsumerHashAssignmentsSnapshot();
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
-        ConsumerHashAssignmentsSnapshot assignmentsAfter = getConsumerHashAssignmentsSnapshot();
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
         Map<Consumer, ImpactedHashRanges> impactedRanges =
-                assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
+                consumerHashAssignmentsSnapshot.resolveImpactedHashRanges(assignmentsAfter);
+        consumerHashAssignmentsSnapshot = assignmentsAfter;
         return impactedRanges;
     }
 
     @Override
-    public ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
+    public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
+        return consumerHashAssignmentsSnapshot;
+    }
+
+    private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {
         SortedMap<Range, Consumer> result = new TreeMap<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
