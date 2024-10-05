@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -80,7 +79,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public synchronized CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
-        Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = getConsumerHashAssignmentsSnapshot();
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
@@ -91,15 +90,15 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 return CompletableFuture.failedFuture(e);
             }
         }
-        Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = getConsumerHashAssignmentsSnapshot();
         Map<Consumer, ImpactedHashRanges> impactedRanges =
-                HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+                assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
         return CompletableFuture.completedFuture(impactedRanges);
     }
 
     @Override
     public synchronized Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
-        Map<Range, Consumer> mappingBefore = getKeyHashRangeToConsumerMapping();
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = getConsumerHashAssignmentsSnapshot();
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
@@ -111,9 +110,9 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 rangeMap.remove(removeRange);
             }
         }
-        Map<Range, Consumer> mappingAfter = getKeyHashRangeToConsumerMapping();
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = getConsumerHashAssignmentsSnapshot();
         Map<Consumer, ImpactedHashRanges> impactedRanges =
-                HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+                assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
         return impactedRanges;
     }
 
@@ -137,26 +136,14 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        Map<Consumer, List<Range>> result = new HashMap<>();
-        int start = 0;
-        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
-                    .add(Range.of(start, entry.getKey()));
-            start = entry.getKey() + 1;
-        }
-        return result;
-    }
-
-    @Override
-    public synchronized Map<Range, Consumer> getKeyHashRangeToConsumerMapping() {
-        Map<Range, Consumer> result = new TreeMap<>();
+    public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
+        SortedMap<Range, Consumer> result = new TreeMap<>();
         int start = 0;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             result.put(Range.of(start, entry.getKey()), entry.getValue());
             start = entry.getKey() + 1;
         }
-        return result;
+        return ConsumerHashAssignmentsSnapshot.of(result);
     }
 
     private int findBiggestRange() {

@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -62,7 +60,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public CompletableFuture<Map<Consumer, ImpactedHashRanges>> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
-            Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
+            ConsumerHashAssignmentsSnapshot assignmentsBefore = internalGetConsumerHashAssignmentsSnapshot();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
@@ -78,9 +76,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     consumerNameIndexTracker.decreaseConsumerRefCount(removed);
                 }
             }
-            Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
+            ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             Map<Consumer, ImpactedHashRanges> impactedRanges =
-                    HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+                    assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
             return CompletableFuture.completedFuture(impactedRanges);
         } finally {
             rwLock.writeLock().unlock();
@@ -112,7 +110,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public Map<Consumer, ImpactedHashRanges> removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
-            Map<Range, Consumer> mappingBefore = internalGetKeyHashRangeToConsumerMapping();
+            ConsumerHashAssignmentsSnapshot assignmentsBefore = internalGetConsumerHashAssignmentsSnapshot();
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             int consumerNameIndex = consumerNameIndexTracker.getTrackedIndex(consumerIdentityWrapper);
             if (consumerNameIndex > -1) {
@@ -124,9 +122,9 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 }
             }
-            Map<Range, Consumer> mappingAfter = internalGetKeyHashRangeToConsumerMapping();
+            ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             Map<Consumer, ImpactedHashRanges> impactedRanges =
-                    HashRanges.resolveImpactedExistingConsumers(mappingBefore, mappingAfter);
+                    assignmentsBefore.resolveImpactedHashRanges(assignmentsAfter);
             return impactedRanges;
         } finally {
             rwLock.writeLock().unlock();
@@ -158,66 +156,20 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        Map<Consumer, List<Range>> result = new IdentityHashMap<>();
+    public ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
         rwLock.readLock().lock();
         try {
-            if (hashRing.isEmpty()) {
-                return result;
-            }
-            int start = 0;
-            int lastKey = 0;
-            Consumer previousConsumer = null;
-            for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
-                Consumer consumer = entry.getValue().consumer;
-                if (consumer == previousConsumer) {
-                    List<Range> ranges = result.get(consumer);
-                    Range previousRange = ranges.remove(ranges.size() - 1);
-                    // join ranges
-                    ranges.add(Range.of(previousRange.getStart(), entry.getKey()));
-                } else {
-                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
-                            .add(Range.of(start, entry.getKey()));
-                }
-                lastKey = entry.getKey();
-                start = lastKey + 1;
-                previousConsumer = consumer;
-            }
-            // Handle wrap-around in the hash ring, the first consumer will also contain the range from the last key
-            // to the maximum value of the hash range
-            Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
-            List<Range> ranges = result.get(firstConsumer);
-            if (lastKey != rangeSize - 1) {
-                Range lastRange = ranges.get(ranges.size() - 1);
-                if (lastRange.getEnd() == lastKey) {
-                    // join ranges
-                    ranges.remove(ranges.size() - 1);
-                    ranges.add(Range.of(lastRange.getStart(), rangeSize - 1));
-                } else {
-                    ranges.add(Range.of(lastKey + 1, rangeSize - 1));
-                }
-            }
-        } finally {
-            rwLock.readLock().unlock();
-        }
-        return result;
-    }
-
-    @Override
-    public Map<Range, Consumer> getKeyHashRangeToConsumerMapping() {
-        rwLock.readLock().lock();
-        try {
-            return internalGetKeyHashRangeToConsumerMapping();
+            return internalGetConsumerHashAssignmentsSnapshot();
         } finally {
             rwLock.readLock().unlock();
         }
     }
 
-    private Map<Range, Consumer> internalGetKeyHashRangeToConsumerMapping() {
-        Map<Range, Consumer> result = new TreeMap<>();
+    private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {
         if (hashRing.isEmpty()) {
-            return result;
+            return ConsumerHashAssignmentsSnapshot.empty();
         }
+        SortedMap<Range, Consumer> result = new TreeMap<>();
         int start = 0;
         int lastKey = 0;
         Consumer previousConsumer = null;
@@ -251,6 +203,6 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             }
             result.put(range, firstConsumer);
         }
-        return result;
+        return ConsumerHashAssignmentsSnapshot.of(result);
     }
 }

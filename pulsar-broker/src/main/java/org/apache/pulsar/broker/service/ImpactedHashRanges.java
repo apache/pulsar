@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.annotations.VisibleForTesting;
-import java.util.Arrays;
 import java.util.SortedSet;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -58,13 +56,5 @@ public class ImpactedHashRanges {
             }
         }
         return false;
-    }
-
-    /**
-     * Returns the ranges as an array. This method is only used for testing.
-     */
-    @VisibleForTesting
-    public Range[] asRangeArray() {
-        return Arrays.copyOf(ranges, ranges.length);
     }
 }

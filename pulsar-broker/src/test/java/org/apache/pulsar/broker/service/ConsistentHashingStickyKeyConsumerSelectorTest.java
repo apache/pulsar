@@ -482,7 +482,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        Map<Range, Consumer> mappingBefore = selector.getKeyHashRangeToConsumerMapping();
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = selector.getConsumerHashAssignmentsSnapshot();
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
         assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
@@ -492,8 +492,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(0));
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
-        Map<Range, Consumer> mappingAfter = selector.getKeyHashRangeToConsumerMapping();
-        int impactedRangesSize = HashRanges.diffRanges(mappingBefore, mappingAfter).keySet().stream()
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+        int impactedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
                 .mapToInt(r -> r.getEnd() - r.getStart() + 1)
                 .sum();
         double allowedImpactedRangesPercentage = 1; // 1%

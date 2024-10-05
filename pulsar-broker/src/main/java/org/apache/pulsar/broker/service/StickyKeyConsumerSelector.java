@@ -78,11 +78,13 @@ public interface StickyKeyConsumerSelector {
      * Get key hash ranges handled by each consumer.
      * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
-    Map<Consumer, List<Range>> getConsumerKeyHashRanges();
+    default Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        return getConsumerHashAssignmentsSnapshot().getRangesByConsumer();
+    }
 
     /**
      * Get the mapping of hash range to consumer.
      * @return A map where key is a hash range and value is the consumer that is responsible for the range.
      */
-    Map<Range, Consumer> getKeyHashRangeToConsumerMapping();
+    ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot();
 }
