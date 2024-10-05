@@ -28,10 +28,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.client.api.Range;
 
 /**
- * This is a consumer selector based fixed hash range.
- *
- * The implementation uses consistent hashing to evenly split, the
- * number of keys assigned to each consumer.
+ * This is a consumer selector using consistent hashing to evenly split
+ * the number of keys assigned to each consumer.
  */
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
     // use NUL character as field separator for hash key calculation
