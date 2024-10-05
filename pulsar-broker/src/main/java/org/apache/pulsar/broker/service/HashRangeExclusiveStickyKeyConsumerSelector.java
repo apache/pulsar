@@ -117,7 +117,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public int makeStickyKeyHash(byte[] stickyKey) {
-        return HashRanges.makeStickyKeyHash(stickyKey, rangeSize);
+        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, rangeSize);
     }
 
     @Override

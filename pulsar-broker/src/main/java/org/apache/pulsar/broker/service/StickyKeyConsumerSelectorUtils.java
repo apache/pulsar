@@ -21,12 +21,24 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
- * Internal utility class for handling hash ranges.
+ * Internal utility class for {@link StickyKeyConsumerSelector} implementations.
  */
-class HashRanges {
-    public static int makeStickyKeyHash(byte[] stickyKey, int rangeSize) {
+class StickyKeyConsumerSelectorUtils {
+    /**
+     * Generates a sticky key hash from the given sticky key with the specified range size.
+     * This method shouldn't be used by other classes than {@link StickyKeyConsumerSelector} implementations.
+     * To create a sticky key hash, use {@link StickyKeyConsumerSelector#makeStickyKeyHash(byte[])} instead which
+     * is an instance method of a {@link StickyKeyConsumerSelector}.
+     *
+     * @param stickyKey the sticky key to hash
+     * @param rangeSize the size of the range to use for hashing
+     * @return the generated hash value, ensuring it is not zero (since zero is a special value in dispatchers)
+     */
+    static int makeStickyKeyHash(byte[] stickyKey, int rangeSize) {
         int hashValue = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
-        // avoid using 0 as hash value since it is used as a special value in dispatchers
+        // Avoid using 0 as hash value since it is used as a special value in dispatchers.
+        // Negative hash values cannot be stored in some data structures, and that's why 0 is used as a special value
+        // indicating that the hash value is not set.
         if (hashValue == 0) {
             hashValue = 1;
         }

@@ -89,7 +89,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     @Override
     public int makeStickyKeyHash(byte[] stickyKey) {
-        return HashRanges.makeStickyKeyHash(stickyKey, rangeSize);
+        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, rangeSize);
     }
 
     /**
