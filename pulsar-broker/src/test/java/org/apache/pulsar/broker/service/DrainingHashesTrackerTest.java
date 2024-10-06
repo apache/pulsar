@@ -71,7 +71,7 @@ public class DrainingHashesTrackerTest {
         DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", mock(UnblockingHandler.class));
         tracker.addEntry(consumer1, 1);
 
-        tracker.reduceRefCount(consumer2, 1, false);
+        assertThrows(IllegalStateException.class, () -> tracker.reduceRefCount(consumer2, 1, false));
 
         assertNotNull(tracker.getEntry(1));
         assertSame(tracker.getEntry(1).getConsumer(), consumer1);
