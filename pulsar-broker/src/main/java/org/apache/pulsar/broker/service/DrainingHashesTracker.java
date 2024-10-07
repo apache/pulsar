@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -196,8 +197,8 @@ public class DrainingHashesTracker {
      * @return true if the sticky key hash should be blocked, false otherwise
      */
     public synchronized boolean shouldBlockStickyKeyHash(Consumer consumer, int stickyKeyHash) {
-        if (stickyKeyHash == 0) {
-            log.warn("[{}] Sticky key hash is 0. Allowing dispatching", dispatcherName);
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            log.warn("[{}] Sticky key hash is not set. Allowing dispatching", dispatcherName);
             return false;
         }
         DrainingHashEntry entry = drainingHashes.get(stickyKeyHash);

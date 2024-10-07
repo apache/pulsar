@@ -24,8 +24,12 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
 
 public interface StickyKeyConsumerSelector {
-
     int DEFAULT_RANGE_SIZE =  2 << 15;
+    /**
+     * The value used to indicate that sticky key hash is not set.
+     * This value cannot be -1 since some of the data structures require non-negative values.
+      */
+    int STICKY_KEY_HASH_NOT_SET = 0;
 
     /**
      * Add a new consumer.

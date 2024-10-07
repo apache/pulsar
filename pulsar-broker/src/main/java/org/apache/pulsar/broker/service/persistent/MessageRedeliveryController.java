@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
@@ -64,8 +65,8 @@ public class MessageRedeliveryController {
 
     public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (!allowOutOfOrderDelivery) {
-            if (stickyKeyHash == 0) {
-                throw new IllegalArgumentException("Sticky key hash should be greater than 0");
+            if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+                throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
             }
             boolean inserted = hashesToBeBlocked.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
             if (!inserted) {

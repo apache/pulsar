@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
@@ -37,9 +38,10 @@ class StickyKeyConsumerSelectorUtils {
     static int makeStickyKeyHash(byte[] stickyKey, int rangeSize) {
         int hashValue = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
         // Avoid using 0 as hash value since it is used as a special value in dispatchers.
-        // Negative hash values cannot be stored in some data structures, and that's why 0 is used as a special value
-        // indicating that the hash value is not set.
-        if (hashValue == 0) {
+        // Negative hash values cannot be stored in some data structures, and that's why 0 instead of -1 is used
+        // as a special value indicating that the hash value is not set.
+        if (hashValue == STICKY_KEY_HASH_NOT_SET) {
+            // use 1 as hash value instead of 0 in this case.
             hashValue = 1;
         }
         return hashValue;

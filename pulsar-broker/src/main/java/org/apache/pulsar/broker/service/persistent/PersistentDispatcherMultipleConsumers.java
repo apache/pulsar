@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -1464,7 +1465,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected int getStickyKeyHash(Entry entry) {
         // There's no need to calculate the hash for Shared subscription
-        return 0;
+        return STICKY_KEY_HASH_NOT_SET;
     }
 
     public Subscription getSubscription() {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -173,7 +174,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         impactedConsumers.processRemovedHashRanges((c, removedHashRanges) -> {
             if (c != skipConsumer) {
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    if (stickyKeyHash == 0) {
+                    if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
                         return;
                     }
@@ -344,7 +345,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * @return true if the message should be added to pending acks and allow sending, false otherwise
      */
     private boolean handleAddingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
-        if (stickyKeyHash == 0) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
             log.warn("[{}] Sticky key hash is missing for {}:{}", getName(), ledgerId, entryId);
             throw new IllegalArgumentException("Sticky key hash is missing for " + ledgerId + ":" + entryId);
         }
