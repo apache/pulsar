@@ -574,12 +574,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 consumers.add(c);
             }
 
-            Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-            PersistentSubscription sub = (PersistentSubscription) t.getSubscription(SUBSCRIPTION_NAME);
-            // get the dispatcher reference
-            PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                    (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
-            StickyKeyConsumerSelector selector = dispatcher.getSelector();
+            StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
             org.apache.pulsar.broker.service.Consumer slowConsumer =
                     selector.select(selector.makeStickyKeyHash(slowKey.getBytes()));
@@ -927,11 +922,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subName);
-        // get the dispatcher reference
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subName);
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
         @Cleanup
@@ -1216,12 +1207,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         Awaitility.await().untilAsserted(() -> assertNotNull(consumer1.receive(100, TimeUnit.MILLISECONDS)));
 
-        CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopicIfExists(topicName);
-        assertTrue(future.isDone());
-        assertTrue(future.get().isPresent());
-        Topic topic = future.get().get();
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topicName, subName);
         assertTrue(dispatcher.isAllowOutOfOrderDelivery());
         consumer1.close();
 
@@ -1234,11 +1220,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         Awaitility.await().untilAsserted(() -> assertNotNull(consumer2.receive(100, TimeUnit.MILLISECONDS)));
 
-        future = pulsar.getBrokerService().getTopicIfExists(topicName);
-        assertTrue(future.isDone());
-        assertTrue(future.get().isPresent());
-        topic = future.get().get();
-        dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subName).getDispatcher();
+        dispatcher = getDispatcher(topicName, subName);
         assertFalse(dispatcher.isAllowOutOfOrderDelivery());
         consumer2.close();
     }
@@ -2058,11 +2040,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe()
                 .close();
 
-        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscriptionName);
-        // get the dispatcher reference
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subscriptionName);
 
         // create a function to use for checking the number of messages in replay
         Runnable checkLimit = () -> {
@@ -2246,11 +2224,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .startPaused(true) // start paused
                 .subscribe();
 
-        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(SUBSCRIPTION_NAME);
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
-        StickyKeyConsumerSelector selector = dispatcher.getSelector();
+        StickyKeyConsumerSelector selector = getSelector(topic, SUBSCRIPTION_NAME);
 
         // find keys that will be assigned to c2
         List<String> keysForC2 = new ArrayList<>();
