@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Sets;
@@ -70,14 +71,33 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider
-    public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+    enum KeySharedSelectorType {
+        AutoSplit_ConsistentHashing(true), AutoSplit_Classic(true), Sticky(false);
+        final boolean autoSplit;
+
+        KeySharedSelectorType(boolean autoSplit) {
+            this.autoSplit = autoSplit;
+        }
     }
 
-    @Test(dataProvider = "subType")
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType)
+    @DataProvider
+    public Object[][] subType() {
+        return new Object[][] {
+                { SubscriptionType.Shared, null },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
+        };
+    }
+
+    @Test(dataProvider = "subType", timeOut = 30000)
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType,
+                                                                               KeySharedSelectorType selectorType)
             throws PulsarClientException {
+        if (selectorType == KeySharedSelectorType.AutoSplit_Classic) {
+            conf.setSubscriptionKeySharedUseConsistentHashing(false);
+        }
+
         final int totalMsg = 1000;
         String topic = newUniqueName("broker-close-test");
         String subscriptionName = "sub-1";
@@ -89,17 +109,31 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         if (subscriptionType == SubscriptionType.Key_Shared) {
             // create and close consumer to create the dispatcher so that the selector can be used
-            pulsarClient.newConsumer()
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                     .topic(topic)
                     .subscriptionName(subscriptionName)
-                    .subscriptionType(subscriptionType)
+                    .subscriptionType(subscriptionType);
+            if (subscriptionType == SubscriptionType.Key_Shared) {
+                if (selectorType.autoSplit) {
+                    consumerBuilder.keySharedPolicy(KeySharedPolicy.autoSplitHashRange());
+                } else {
+                    consumerBuilder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535)));
+                }
+            }
+            consumerBuilder
                     .subscribe()
                     .close();
         }
 
         List<Consumer<?>> consumerList = new ArrayList<>();
-        // create 3 consumers
-        for (int i = 0; i < 3; i++) {
+        int consumerCount = 3;
+
+        Range[] ranges = null;
+        if (subscriptionType == SubscriptionType.Key_Shared && !selectorType.autoSplit) {
+            ranges = splitRange(getSelector(topic, subscriptionName).getKeyHashRange(), consumerCount);
+        }
+
+        for (int i = 0; i < consumerCount; i++) {
             ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer()
                     .topic(topic)
                     .consumerName("consumer-" + i)
@@ -122,13 +156,21 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     });
 
             if (subscriptionType == SubscriptionType.Key_Shared) {
-                // ensure every consumer can be distributed messages
-                int stickyKeyHash = getSelector(topic, subscriptionName).makeStickyKeyHash(("key-" + i).getBytes());
-                builder.keySharedPolicy(KeySharedPolicy.stickyHashRange()
-                        .ranges(Range.of(stickyKeyHash, stickyKeyHash)));
+                if (selectorType.autoSplit) {
+                    builder.keySharedPolicy(KeySharedPolicy.autoSplitHashRange());
+                } else {
+                    builder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges[i]));
+                }
             }
 
             consumerList.add(builder.subscribe());
+        }
+
+        String[] keys = new String[consumerCount];
+        for (int i = 0; i < consumerCount; i++) {
+            keys[i] = subscriptionType == SubscriptionType.Key_Shared ?
+                    generateKeyForConsumer(getSelector(topic, subscriptionName),
+                            consumerList.get(i).getConsumerName()) : "key-" + i;
         }
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -142,10 +184,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < totalMsg; i++) {
             producer.newMessage()
-                    .key("key-" + (i % 3))
+                    .key(keys[i % consumerCount])
                     .value(("message-" + i).getBytes(StandardCharsets.UTF_8))
                     .sendAsync().thenAccept(pubMessages::add);
         }
+
+        producer.flush();
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
         waitUntilLastActiveTimeNoLongerGetsUpdated(lastActiveTime);
@@ -178,6 +222,30 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
         }
+    }
+
+    private Range[] splitRange(Range keyHashRange, int consumerCount) {
+        Range[] ranges = new Range[consumerCount];
+        int start = keyHashRange.getStart();
+        for (int i = 0; i < consumerCount; i++) {
+            int end = Math.min(start + keyHashRange.size() / consumerCount, keyHashRange.getEnd());
+            ranges[i] = Range.of(start, end);
+            start = end + 1;
+        }
+        return ranges;
+    }
+
+    private String generateKeyForConsumer(StickyKeyConsumerSelector selector,
+                                         String consumerName) {
+        int i = 0;
+        while (!Thread.currentThread().isInterrupted()) {
+            String key = "key" + i++;
+            org.apache.pulsar.broker.service.Consumer selectedConsumer = selector.select(key.getBytes(UTF_8));
+            if (selectedConsumer != null && selectedConsumer.consumerName().equals(consumerName)) {
+                return key;
+            }
+        }
+        return null;
     }
 
     private static void waitUntilLastActiveTimeNoLongerGetsUpdated(AtomicLong lastActiveTime) {
