@@ -331,6 +331,12 @@ public interface ManagedCursor {
     }
 
     /**
+     * Returns whether there is a pending read operation in progress.
+     * @return true if there is a pending read operation in progress
+     */
+    boolean hasPendingReadRequest();
+
+    /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
      *
      * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, Position)

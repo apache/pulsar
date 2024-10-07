@@ -150,6 +150,11 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
+    public boolean hasPendingReadRequest() {
+        return false;
+    }
+
+    @Override
     public boolean cancelPendingReadRequest() {
         return false;
     }

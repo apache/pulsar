@@ -316,6 +316,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean hasPendingReadRequest() {
+            return false;
+        }
+
+        @Override
         public boolean cancelPendingReadRequest() {
             return true;
         }

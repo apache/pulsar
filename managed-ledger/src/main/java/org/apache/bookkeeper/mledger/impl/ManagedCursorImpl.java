@@ -1106,6 +1106,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return op != null;
     }
 
+    @Override
     public boolean hasPendingReadRequest() {
         return WAITING_READ_OP_UPDATER.get(this) != null;
     }
