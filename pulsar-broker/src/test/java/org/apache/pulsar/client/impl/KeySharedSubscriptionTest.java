@@ -18,19 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
@@ -78,9 +79,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType)
             throws PulsarClientException {
         final int totalMsg = 1000;
-        String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
+        String topic = newUniqueName("broker-close-test");
         String subscriptionName = "sub-1";
-        Map<Consumer<?>, List<MessageId>> nameToId = new ConcurrentHashMap<>();
+        Map<Consumer<?>, List<MessageId>> unackedMessages = new ConcurrentHashMap<>();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
         Set<MessageId> recMessages = Sets.newConcurrentHashSet();
         AtomicLong lastActiveTime = new AtomicLong();
@@ -101,12 +102,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 3; i++) {
             ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer()
                     .topic(topic)
+                    .consumerName("consumer-" + i)
                     .subscriptionName(subscriptionName)
                     .subscriptionType(subscriptionType)
                     .messageListener((consumer, msg) -> {
                         lastActiveTime.set(System.currentTimeMillis());
-                        nameToId.computeIfAbsent(consumer, (k) -> new ArrayList<>())
-                                .add(msg.getMessageId());
                         recMessages.add(msg.getMessageId());
                         if (canAcknowledgement.get()) {
                             try {
@@ -114,6 +114,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                             } catch (PulsarClientException e) {
                                 throw new RuntimeException(e);
                             }
+                        } else {
+                            unackedMessages.computeIfAbsent(consumer,
+                                            (k) -> Collections.synchronizedList(new ArrayList<>()))
+                                    .add(msg.getMessageId());
                         }
                     });
 
@@ -137,48 +141,49 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < totalMsg; i++) {
-            byte[] msg = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-            producer.newMessage().key("key-" + (i % 3)).value(msg)
+            producer.newMessage()
+                    .key("key-" + (i % 3))
+                    .value(("message-" + i).getBytes(StandardCharsets.UTF_8))
                     .sendAsync().thenAccept(pubMessages::add);
         }
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
-        Awaitility.await()
-                .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+        waitUntilLastActiveTimeNoLongerGetsUpdated(lastActiveTime);
 
         // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
 
         // Acknowledgment of currently received messages to get out of stuck state due to unack message
-        for (Map.Entry<Consumer<?>, List<MessageId>> entry : nameToId.entrySet()) {
+        for (Map.Entry<Consumer<?>, List<MessageId>> entry : unackedMessages.entrySet()) {
             Consumer<?> consumer = entry.getKey();
-            consumer.acknowledge(entry.getValue());
+            List<MessageId> messageIdList = entry.getValue();
+            consumer.acknowledge(messageIdList);
         }
+
         // refresh active time
         lastActiveTime.set(System.currentTimeMillis());
 
         // Wait for all consumers to continue receiving messages.
-        Awaitility.await()
-                .atMost(30, TimeUnit.SECONDS)
-                .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+        waitUntilLastActiveTimeNoLongerGetsUpdated(lastActiveTime);
 
         logTopicStats(topic);
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
         Assert.assertEquals(totalMsg, pubMessages.size());
-        Assert.assertEquals(recMessages.size(), pubMessages.size());
-        Assert.assertTrue(recMessages.containsAll(pubMessages));
+        assertThat(recMessages).containsExactlyInAnyOrderElementsOf(pubMessages);
 
         // cleanup
         producer.close();
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
         }
+    }
+
+    private static void waitUntilLastActiveTimeNoLongerGetsUpdated(AtomicLong lastActiveTime) {
+        Awaitility.await()
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> System.currentTimeMillis() - lastActiveTime.get() > TimeUnit.SECONDS.toMillis(1));
     }
 
     @SneakyThrows
