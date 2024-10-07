@@ -348,16 +348,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // block message from sending
             return false;
         }
-        if (recentReadTypeInSending == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
-            log.warn("[{}] Sticky hash {} is already in the replay queue. "
-                            + "Skipping adding {}:{} to pending acks. Adding the message to replay.",
-                    getName(), stickyKeyHash, ledgerId, entryId);
-            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                reScheduleReadWithKeySharedUnblockingInterval();
-            }
-            // block message from sending
-            return false;
-        }
         if (log.isDebugEnabled()) {
             log.debug("[{}] Adding {}:{} to pending acks for consumer {} with sticky key hash {}",
                     getName(), ledgerId, entryId, consumer, stickyKeyHash);
