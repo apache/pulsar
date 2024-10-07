@@ -168,16 +168,20 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
         assertThat(consumers.get(0).consumerName()).isEqualTo("consumer1");
         expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(9929, 20527),
-                Range.of(33506, 53484)));
+                Range.of(14359, 18366),
+                Range.of(29991, 39817),
+                Range.of(52980, 60442)));
         assertThat(consumers.get(1).consumerName()).isEqualTo("consumer2");
         expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(20528, 33505),
-                Range.of(53485, 54048)));
+                Range.of(1, 6668),
+                Range.of(39818, 52979),
+                Range.of(60443, 63679),
+                Range.of(65184, 65535)));
         assertThat(consumers.get(2).consumerName()).isEqualTo("consumer3");
         expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(0, 9928),
-                Range.of(54049, 65535)));
+                Range.of(6669, 14358),
+                Range.of(18367, 29990),
+                Range.of(63680, 65183)));
         Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
         assertThat(consumerKeyHashRanges).containsExactlyInAnyOrderEntriesOf(expectedResult);
 
