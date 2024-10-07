@@ -23,14 +23,15 @@ import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTes
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-
+import static org.testng.Assert.assertFalse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
-
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -41,13 +42,12 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 @Test(groups = "broker")
 public class ClientGetSchemaTest extends ProducerConsumerBase {
@@ -209,5 +209,52 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         Producer<byte[]> producerWihtoutSchema = pulsarClient.newProducer().topic(fqtnOne).create();
 
         assertNotNull(producerWihtoutSchema);
+    }
+
+    /**
+     * Test verifies that broker should be able to handle non-recoverable error while deleting topic if topic's schema
+     * ledger doesn't exist.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testDeletedSchemaLedgerTopic() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-schema-info";
+        String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
+
+        // (1) create topic with schema
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(fqtnOne).create();
+
+        Consumer<Schemas.PersonTwo> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName("test").topic(fqtnOne).subscribe();
+
+        consumer.close();
+
+        String key = TopicName.get(fqtnOne).getSchemaName();
+        BookkeeperSchemaStorage schemaStrogate = (BookkeeperSchemaStorage) pulsar.getSchemaStorage();
+        long schemaLedgerId = schemaStrogate.getSchemaLedgerList(key).get(0);
+
+        // (2) break schema locator by deleting schema-ledger
+        schemaStrogate.getBookKeeper().deleteLedger(schemaLedgerId);
+
+        pulsar.getBrokerService().unloadNamespaceBundlesGracefully();
+
+        // fetch internal info with schema
+        String info = admin.topics().getInternalInfo(fqtnOne);
+
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        TopicInternalInfo infoObj = objectMapper.readValue(info, TopicInternalInfo.class);
+        assertFalse(infoObj.schemaLedgers.isEmpty());
+
+        producer.close();
     }
 }
