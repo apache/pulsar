@@ -146,7 +146,7 @@ public class MessageRedeliveryController {
     public boolean containsStickyKeyHashes(Set<Integer> stickyKeyHashes) {
         if (!allowOutOfOrderDelivery) {
             for (Integer stickyKeyHash : stickyKeyHashes) {
-                if (stickyKeyHash > 0 && hashesRefCount.containsKey(stickyKeyHash)) {
+                if (stickyKeyHash != STICKY_KEY_HASH_NOT_SET && hashesRefCount.containsKey(stickyKeyHash)) {
                     return true;
                 }
             }
@@ -155,7 +155,8 @@ public class MessageRedeliveryController {
     }
 
     public boolean containsStickyKeyHash(int stickyKeyHash) {
-        return !allowOutOfOrderDelivery && stickyKeyHash > 0 && hashesRefCount.containsKey(stickyKeyHash);
+        return !allowOutOfOrderDelivery
+                && stickyKeyHash != STICKY_KEY_HASH_NOT_SET && hashesRefCount.containsKey(stickyKeyHash);
     }
 
     public Optional<Position> getFirstPositionInReplay() {
