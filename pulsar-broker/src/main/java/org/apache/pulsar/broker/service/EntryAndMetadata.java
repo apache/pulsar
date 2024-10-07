@@ -109,13 +109,24 @@ public class EntryAndMetadata implements Entry {
         return entry.release();
     }
 
-    public int getCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
+    /**
+     * Get cached sticky key hash or calculate it based on the sticky key if it's not cached.
+     *
+     * @param makeStickyKeyHash function to calculate the sticky key hash
+     * @return the sticky key hash
+     */
+    public int getOrUpdateCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
             stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
         }
         return stickyKeyHash;
     }
 
+    /**
+     * Get cached sticky key hash or return STICKY_KEY_HASH_NOT_SET if it's not cached.
+     *
+     * @return the cached sticky key hash or STICKY_KEY_HASH_NOT_SET if it's not cached
+     */
     public int getCachedStickyKeyHash() {
         return stickyKeyHash != STICKY_KEY_HASH_NOT_INITIALIZED ? stickyKeyHash
                 : StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;

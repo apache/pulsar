@@ -133,7 +133,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
-    private final AtomicBoolean readMoreEntriesAsyncInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean readMoreEntriesAsyncRequested = new AtomicBoolean(false);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     // tracks how many entries were processed by consumers in the last trySendMessagesToConsumers call
@@ -322,9 +322,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      */
     public void readMoreEntriesAsync() {
         // deduplication for readMoreEntriesAsync calls
-        if (readMoreEntriesAsyncInProgress.compareAndSet(false, true)) {
+        if (readMoreEntriesAsyncRequested.compareAndSet(false, true)) {
             topic.getBrokerService().executor().execute(() -> {
-                readMoreEntriesAsyncInProgress.set(false);
+                readMoreEntriesAsyncRequested.set(false);
                 readMoreEntries();
             });
         }
@@ -358,6 +358,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
+        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
         readMoreEntriesCallCount++;
 
         // remove possible expired messages from redelivery tracker and pending acks
@@ -842,7 +843,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 metadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
                 metadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
-                // cache the metadata in the entry with EntryAndMetadata for later use
+                // cache the metadata in the entry with EntryAndMetadata for later use to avoid re-parsing the metadata
+                // and to carry the metadata and calculated stickyKeyHash with the entry
                 entries.set(i, EntryAndMetadata.create(entry, metadata));
             }
             if (metadata != null) {
