@@ -55,9 +55,8 @@ import org.apache.pulsar.client.api.Range;
  *
  */
 public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
-
     private final int rangeSize;
-
+    private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private final Map<Consumer, Integer> consumerRange;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
@@ -76,6 +75,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         this.rangeMap = new ConcurrentSkipListMap<>();
         this.consumerRange = new HashMap<>();
         this.rangeSize = rangeSize;
+        this.keyHashRange = Range.of(0, rangeSize - 1);
         this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
@@ -134,7 +134,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Range getKeyHashRange() {
-        return Range.of(0, rangeSize - 1);
+        return keyHashRange;
     }
 
     @Override

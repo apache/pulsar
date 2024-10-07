@@ -43,6 +43,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     private final int numberOfPoints;
     private final int rangeSize;
+    private final Range keyHashRange;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
@@ -53,6 +54,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
         this.rangeSize = rangeSize;
+        this.keyHashRange = Range.of(0, rangeSize - 1);
         this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
@@ -152,7 +154,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     @Override
     public Range getKeyHashRange() {
-        return Range.of(0, rangeSize - 1);
+        return keyHashRange;
     }
 
     @Override

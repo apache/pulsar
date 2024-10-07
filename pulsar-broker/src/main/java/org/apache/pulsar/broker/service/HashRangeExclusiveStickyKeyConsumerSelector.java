@@ -36,8 +36,8 @@ import org.apache.pulsar.common.util.FutureUtil;
  * else there'll be chance that a key fall in a `whole` that not handled by any consumer.
  */
 public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
-
     private final int rangeSize;
+    private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
@@ -51,6 +51,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             throw new IllegalArgumentException("range size must greater than 0");
         }
         this.rangeSize = rangeSize;
+        this.keyHashRange = Range.of(0, rangeSize - 1);
         this.rangeMap = new ConcurrentSkipListMap<>();
         this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
@@ -194,6 +195,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Range getKeyHashRange() {
-        return Range.of(0, rangeSize - 1);
+        return keyHashRange;
     }
 }
