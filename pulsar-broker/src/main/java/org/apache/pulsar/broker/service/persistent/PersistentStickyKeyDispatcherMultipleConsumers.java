@@ -33,7 +33,6 @@ import java.util.function.Predicate;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -269,10 +268,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
                         name, consumer.consumerName(), entriesForConsumer.size(), readType);
             }
-            final ManagedLedger managedLedger = cursor.getManagedLedger();
-            for (Entry entry : entriesForConsumer) {
-                // remove positions first from replay list first : sendMessages recycles entries
-                if (readType == ReadType.Replay) {
+            // remove positions first from replay list first : sendMessages recycles entries
+            if (readType == ReadType.Replay) {
+                for (Entry entry : entriesForConsumer) {
                     redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
                 }
             }
