@@ -132,7 +132,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return CompletableFuture.completedFuture(null);
         }
         return super.addConsumer(consumer).thenCompose(__ -> selector.addConsumer(consumer))
-                .thenAccept(removedRanges -> {
+                .thenAccept(impactedConsumers -> {
             // TODO: Add some way to prevent changes in between the time the consumer is added and the
             // time the draining hashes are applied. It might be fine for ConsistentHashingStickyKeyConsumerSelector
             // since it's not really asynchronous, although it returns a CompletableFuture
@@ -155,7 +155,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         drainingHashesTracker.endBatch();
                     }
                 });
-                registerDrainingHashes(consumer, removedRanges);
+                registerDrainingHashes(consumer, impactedConsumers);
             }
         }).exceptionally(ex -> {
             internalRemoveConsumer(consumer);
