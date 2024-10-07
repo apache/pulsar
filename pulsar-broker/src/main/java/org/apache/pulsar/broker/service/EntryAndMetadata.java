@@ -29,12 +29,12 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 
 public class EntryAndMetadata implements Entry {
-
+    private static final int STICKY_KEY_HASH_NOT_INITIALIZED = -1;
     private final Entry entry;
     @Getter
     @Nullable
     private final MessageMetadata metadata;
-    int stickyKeyHash = -1;
+    int stickyKeyHash = STICKY_KEY_HASH_NOT_INITIALIZED;
 
     private EntryAndMetadata(final Entry entry, @Nullable final MessageMetadata metadata) {
         this.entry = entry;
@@ -110,13 +110,14 @@ public class EntryAndMetadata implements Entry {
     }
 
     public int getCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
-        if (stickyKeyHash == -1) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
             stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
         }
         return stickyKeyHash;
     }
 
     public int getCachedStickyKeyHash() {
-        return stickyKeyHash != -1 ? stickyKeyHash : 0;
+        return stickyKeyHash != STICKY_KEY_HASH_NOT_INITIALIZED ? stickyKeyHash
+                : StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
     }
 }

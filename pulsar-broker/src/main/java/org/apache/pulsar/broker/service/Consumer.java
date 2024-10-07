@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -366,7 +367,7 @@ public class Consumer {
                         if (entry instanceof EntryAndMetadata entryAndMetadata) {
                             stickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
                         } else {
-                            stickyKeyHash = 0;
+                            stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
                         }
                     } else {
                         stickyKeyHash = stickyKeyHashes.get(i);
