@@ -46,7 +46,7 @@ public class EntryAndMetadata implements Entry {
     }
 
     @VisibleForTesting
-    static EntryAndMetadata create(final Entry entry) {
+    public static EntryAndMetadata create(final Entry entry) {
         return create(entry, Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1));
     }
 
@@ -119,5 +119,10 @@ public class EntryAndMetadata implements Entry {
     public int getCachedStickyKeyHash() {
         return stickyKeyHash != STICKY_KEY_HASH_NOT_INITIALIZED ? stickyKeyHash
                 : StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+    }
+
+    @VisibleForTesting
+    public Entry unwrap() {
+        return entry;
     }
 }
