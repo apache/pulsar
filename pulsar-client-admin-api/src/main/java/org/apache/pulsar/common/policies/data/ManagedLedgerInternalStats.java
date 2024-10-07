@@ -92,6 +92,7 @@ public class ManagedLedgerInternalStats {
         public String readPosition;
         public boolean waitingReadOp;
         public int pendingReadOps;
+        public long readOpCount;
 
         public long messagesConsumedCounter;
         public long cursorLedger;

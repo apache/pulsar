@@ -900,4 +900,14 @@ public interface ManagedCursor {
     int applyMaxSizeCap(int maxEntries, long maxSizeBytes);
 
     void updateReadStats(int readEntriesCount, long readEntriesSize);
+
+    /**
+     * Get the number of read operations performed on this cursor.
+     * This is used in Pulsar's Key_Shared dispatcher to determine whether a pending read needs to be cancelled
+     * in order to process entries in the replay queue when a hash is unblocked.
+     * @return the number of read operations performed on this cursor
+     */
+    default long getReadOpCount() {
+        return 0;
+    }
 }

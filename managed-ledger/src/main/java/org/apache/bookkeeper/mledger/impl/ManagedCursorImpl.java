@@ -216,6 +216,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private int individualDeletedMessagesSerializedSize;
     private static final String COMPACTION_CURSOR_NAME = "__compaction";
     private volatile boolean cacheReadEntry = false;
+    private static final AtomicLongFieldUpdater<ManagedCursorImpl> READ_OP_COUNT_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ManagedCursorImpl.class, "readOpCount");
+    private volatile long readOpCount;
 
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
@@ -571,6 +574,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
 
+            READ_OP_COUNT_UPDATER.incrementAndGet(ManagedCursorImpl.this);
             lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
@@ -3805,12 +3809,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long getReadOpCount() {
+        return readOpCount;
+    }
+
+    @Override
     public ManagedLedgerInternalStats.CursorStats getCursorStats() {
         ManagedLedgerInternalStats.CursorStats cs = new ManagedLedgerInternalStats.CursorStats();
         cs.markDeletePosition = getMarkDeletedPosition().toString();
         cs.readPosition = getReadPosition().toString();
         cs.waitingReadOp = hasPendingReadRequest();
         cs.pendingReadOps = getPendingReadOpsCount();
+        cs.readOpCount = getReadOpCount();
         cs.messagesConsumedCounter = getMessagesConsumedCounter();
         cs.cursorLedger = getCursorLedger();
         cs.cursorLedgerLastEntry = getCursorLedgerLastEntry();
