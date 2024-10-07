@@ -158,8 +158,8 @@ public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerB
             dispatcher1.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
                     null);
             return null;
-        }).when(cursor).asyncReadEntriesOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
-                Mockito.any(), Mockito.any());
+        }).when(cursor).asyncReadEntriesWithSkipOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
+                Mockito.any(), Mockito.any(), Mockito.any());
 
         dispatcher.readMoreEntries();
 
