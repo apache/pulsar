@@ -97,4 +97,8 @@ public class Range implements Comparable<Range> {
     public boolean contains(int value) {
         return value >= start && value <= end;
     }
+
+    public int size() {
+        return end - start + 1;
+    }
 }

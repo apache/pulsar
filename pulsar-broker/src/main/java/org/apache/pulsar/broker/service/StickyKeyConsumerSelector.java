@@ -78,7 +78,9 @@ public interface StickyKeyConsumerSelector {
      * @param stickyKey the sticky key to hash
      * @return the generated hash value
      */
-    int makeStickyKeyHash(byte[] stickyKey);
+    default int makeStickyKeyHash(byte[] stickyKey) {
+        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, getKeyHashRange());
+    }
 
     /**
      * Select a consumer by hash.

@@ -42,19 +42,17 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final ConsumerNameIndexTracker consumerNameIndexTracker = new ConsumerNameIndexTracker();
 
     private final int numberOfPoints;
-    private final int rangeSize;
     private final Range keyHashRange;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
-        this(numberOfPoints, DEFAULT_RANGE_SIZE);
+        this(numberOfPoints, DEFAULT_RANGE_SIZE - 1);
     }
 
-    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints, int rangeSize) {
+    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints, int rangeMaxValue) {
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
-        this.rangeSize = rangeSize;
-        this.keyHashRange = Range.of(0, rangeSize - 1);
+        this.keyHashRange = Range.of(STICKY_KEY_HASH_NOT_SET + 1, rangeMaxValue);
         this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
@@ -85,11 +83,6 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         } finally {
             rwLock.writeLock().unlock();
         }
-    }
-
-    @Override
-    public int makeStickyKeyHash(byte[] stickyKey) {
-        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, rangeSize);
     }
 
     /**
@@ -172,8 +165,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             return ConsumerHashAssignmentsSnapshot.empty();
         }
         SortedMap<Range, Consumer> result = new TreeMap<>();
-        int start = 0;
-        int lastKey = 0;
+        int start = getKeyHashRange().getStart();
+        int lastKey = -1;
         Consumer previousConsumer = null;
         Range previousRange = null;
         for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
@@ -194,14 +187,14 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
         // Handle wrap-around
         Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
-        if (lastKey != rangeSize - 1) {
+        if (lastKey != getKeyHashRange().getEnd()) {
             Range range;
             if (firstConsumer == previousConsumer && previousRange.getEnd() == lastKey) {
                 // join ranges
                 result.remove(previousRange);
-                range = Range.of(previousRange.getStart(), rangeSize - 1);
+                range = Range.of(previousRange.getStart(), getKeyHashRange().getEnd());
             } else {
-                range = Range.of(lastKey + 1, rangeSize - 1);
+                range = Range.of(lastKey + 1, getKeyHashRange().getEnd());
             }
             result.put(range, firstConsumer);
         }

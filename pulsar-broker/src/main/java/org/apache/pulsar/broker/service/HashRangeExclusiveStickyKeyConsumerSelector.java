@@ -117,11 +117,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public int makeStickyKeyHash(byte[] stickyKey) {
-        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, rangeSize);
-    }
-
-    @Override
     public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(hash);

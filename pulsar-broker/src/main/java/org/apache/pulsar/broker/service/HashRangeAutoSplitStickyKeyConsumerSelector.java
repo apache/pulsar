@@ -119,11 +119,6 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public int makeStickyKeyHash(byte[] stickyKey) {
-        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, rangeSize);
-    }
-
-    @Override
     public Consumer select(int hash) {
         if (!rangeMap.isEmpty()) {
             return rangeMap.ceilingEntry(hash).getValue();

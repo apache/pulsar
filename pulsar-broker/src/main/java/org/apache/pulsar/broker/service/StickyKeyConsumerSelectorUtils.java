@@ -19,30 +19,32 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.common.util.Hash;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * Internal utility class for {@link StickyKeyConsumerSelector} implementations.
  */
 class StickyKeyConsumerSelectorUtils {
+    private static final Hash HASH_INSTANCE = Murmur3_32Hash.getInstance();
+
     /**
-     * Generates a sticky key hash from the given sticky key with the specified range size.
+     * Generates a sticky key hash from the given sticky key within the specified range.
      * This method shouldn't be used by other classes than {@link StickyKeyConsumerSelector} implementations.
      * To create a sticky key hash, use {@link StickyKeyConsumerSelector#makeStickyKeyHash(byte[])} instead which
      * is an instance method of a {@link StickyKeyConsumerSelector}.
      *
      * @param stickyKey the sticky key to hash
-     * @param rangeSize the size of the range to use for hashing
+     * @param fullHashRange hash range to generate the hash value within
      * @return the generated hash value, ensuring it is not zero (since zero is a special value in dispatchers)
      */
-    static int makeStickyKeyHash(byte[] stickyKey, int rangeSize) {
-        int hashValue = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
-        // Avoid using 0 as hash value since it is used as a special value in dispatchers.
-        // Negative hash values cannot be stored in some data structures, and that's why 0 instead of -1 is used
-        // as a special value indicating that the hash value is not set.
+    static int makeStickyKeyHash(byte[] stickyKey, Range fullHashRange) {
+        int hashValue = HASH_INSTANCE.makeHash(stickyKey) % fullHashRange.size() + fullHashRange.getStart();
+        // Avoid using STICKY_KEY_HASH_NOT_SET as hash value
         if (hashValue == STICKY_KEY_HASH_NOT_SET) {
-            // use 1 as hash value instead of 0 in this case.
-            hashValue = 1;
+            // use next value as hash value
+            hashValue = STICKY_KEY_HASH_NOT_SET + 1;
         }
         return hashValue;
     }

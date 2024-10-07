@@ -86,4 +86,19 @@ public class RangeTest {
         Assert.assertFalse(range.contains(-1));
         Assert.assertFalse(range.contains(6));
     }
+
+    @Test
+    public void testSize() {
+        Range range = Range.of(0, 0);
+        Assert.assertEquals(1, range.size());
+
+        range = Range.of(0, 1);
+        Assert.assertEquals(2, range.size());
+
+        range = Range.of(0, 5);
+        Assert.assertEquals(6, range.size());
+
+        range = Range.of(3, 3);
+        Assert.assertEquals(1, range.size());
+    }
 }
