@@ -71,7 +71,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Getter
     private final DrainingHashesTracker drainingHashesTracker;
 
-    private ReadType recentReadTypeInSending;
     private final RescheduleReadHandler rescheduleReadHandler;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
@@ -205,7 +204,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        recentReadTypeInSending = readType;
         lastNumberOfEntriesProcessed = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
