@@ -21,52 +21,60 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 
-class KeySharedUnblockingHandler {
+/**
+ * Reschedules reads so that the possible pending read is cancelled if it's waiting for more entries.
+ * This will prevent the dispatcher in getting blocked when there are entries in the replay queue.
+ */
+class RescheduleReadHandler {
     private static final int UNSET = -1;
     private static final int NO_PENDING_READ = 0;
-    private final AtomicLong keySharedUnblockingMaxReadOpCounter = new AtomicLong(UNSET);
+    private final AtomicLong maxReadOpCounter = new AtomicLong(UNSET);
     private final ManagedCursor cursor;
-    private final LongSupplier keySharedUnblockingIntervalMsSupplier;
+    private final LongSupplier readIntervalMsSupplier;
     private final ScheduledExecutorService executor;
     private final Runnable cancelPendingRead;
     private final Runnable rescheduleReadImmediately;
+    private final BooleanSupplier hasEntriesInReplayQueue;
 
-    KeySharedUnblockingHandler(ManagedCursor cursor, LongSupplier keySharedUnblockingIntervalMsSupplier,
-                               ScheduledExecutorService executor, Runnable cancelPendingRead,
-                               Runnable rescheduleReadImmediately) {
+    RescheduleReadHandler(ManagedCursor cursor, LongSupplier readIntervalMsSupplier,
+                          ScheduledExecutorService executor, Runnable cancelPendingRead,
+                          Runnable rescheduleReadImmediately, BooleanSupplier hasEntriesInReplayQueue) {
         this.cursor = cursor;
-        this.keySharedUnblockingIntervalMsSupplier = keySharedUnblockingIntervalMsSupplier;
+        this.readIntervalMsSupplier = readIntervalMsSupplier;
         this.executor = executor;
         this.cancelPendingRead = cancelPendingRead;
         this.rescheduleReadImmediately = rescheduleReadImmediately;
+        this.hasEntriesInReplayQueue = hasEntriesInReplayQueue;
     }
 
-    public void unblock() {
+    public void rescheduleRead() {
         long readOpCountWhenPendingRead = cursor.hasPendingReadRequest() ? cursor.getReadOpCount() : NO_PENDING_READ;
-        if (keySharedUnblockingMaxReadOpCounter.compareAndSet(UNSET, readOpCountWhenPendingRead)) {
+        if (maxReadOpCounter.compareAndSet(UNSET, readOpCountWhenPendingRead)) {
             Runnable runnable = () -> {
-                long maxReadOpCount = keySharedUnblockingMaxReadOpCounter.getAndSet(UNSET);
-                if (maxReadOpCount != NO_PENDING_READ && cursor.getReadOpCount() == maxReadOpCount) {
+                long maxReadOpCount = maxReadOpCounter.getAndSet(UNSET);
+                if (maxReadOpCount != NO_PENDING_READ && cursor.getReadOpCount() == maxReadOpCount
+                    && hasEntriesInReplayQueue.getAsBoolean()) {
                     cancelPendingRead.run();
                 }
                 // re-schedule read immediately, or join the next scheduled read
                 rescheduleReadImmediately.run();
             };
-            long unblockingDelay = keySharedUnblockingIntervalMsSupplier.getAsLong();
-            if (unblockingDelay > 0) {
-                executor.schedule(runnable, unblockingDelay, TimeUnit.MILLISECONDS);
+            long rescheduleDelay = readIntervalMsSupplier.getAsLong();
+            if (rescheduleDelay > 0) {
+                executor.schedule(runnable, rescheduleDelay, TimeUnit.MILLISECONDS);
             } else {
                 runnable.run();
             }
         } else {
-            long updatedValue = keySharedUnblockingMaxReadOpCounter.updateAndGet(
+            long updatedValue = maxReadOpCounter.updateAndGet(
                     current -> current != UNSET ? Math.max(current, readOpCountWhenPendingRead) : UNSET);
             if (updatedValue == UNSET) {
                 // retry
-                unblock();
+                rescheduleRead();
             }
         }
     }

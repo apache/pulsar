@@ -73,7 +73,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final DrainingHashesTracker drainingHashesTracker;
 
     private ReadType recentReadTypeInSending;
-    private final KeySharedUnblockingHandler keySharedUnblockingHandler;
+    private final RescheduleReadHandler rescheduleReadHandler;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -86,8 +86,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
         this.drainingHashesTracker =
                 drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked) : null;
-        this.keySharedUnblockingHandler = new KeySharedUnblockingHandler(cursor, conf::getKeySharedUnblockingIntervalMs,
-                topic.getBrokerService().executor(), this::cancelPendingRead, () -> reScheduleReadInMs(0));
+        this.rescheduleReadHandler = new RescheduleReadHandler(cursor, conf::getKeySharedUnblockingIntervalMs,
+                topic.getBrokerService().executor(), this::cancelPendingRead, () -> reScheduleReadInMs(0),
+                () -> !redeliveryMessages.isEmpty());
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -117,7 +118,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private void reScheduleReadWithKeySharedUnblockingInterval() {
-        keySharedUnblockingHandler.unblock();
+        rescheduleReadHandler.rescheduleRead();
     }
 
     @VisibleForTesting
