@@ -1394,11 +1394,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    private void addMessageToReplay(Entry entry) {
-        addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
-        entry.release();
-    }
-
     protected boolean addMessageToReplay(long ledgerId, long entryId, long stickyKeyHash) {
         if (checkIfMessageIsUnacked(ledgerId, entryId)) {
             redeliveryMessages.add(ledgerId, entryId, stickyKeyHash);
