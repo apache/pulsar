@@ -196,8 +196,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             previousRange = range;
         }
         Range totalRange = selector.getKeyHashRange();
-        int totalRangeSize = totalRange.getEnd() - totalRange.getStart() + 1;
-        assertThat(allRanges.stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()).isEqualTo(totalRangeSize);
+        assertThat(allRanges.stream().mapToInt(Range::size).sum()).isEqualTo(totalRange.size());
     }
 
     @Test
@@ -249,12 +248,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     private static void printConsumerRangesStats(ConsistentHashingStickyKeyConsumerSelector selector) {
         selector.getConsumerKeyHashRanges().entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(),
-                        entry.getValue().stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()))
+                        entry.getValue().stream().mapToInt(Range::size).sum()))
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Consumer::toString)))
                 .forEach(entry -> System.out.println(
                         String.format("consumer: %s total ranges size: %d ratio: %.2f%%", entry.getKey(),
                                 entry.getValue(),
-                                ((double) entry.getValue() / (selector.getKeyHashRange().getEnd() + 1)) * 100.0d)));
+                                ((double) entry.getValue() / selector.getKeyHashRange().size()) * 100.0d)));
     }
 
     private static Consumer createMockConsumer(String consumerName, String toString, long id) {
@@ -325,7 +324,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = selector.getKeyHashRange().getEnd() + 1;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -444,7 +443,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = selector.getKeyHashRange().getEnd() + 1;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -499,10 +498,10 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
         int removedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
-                .mapToInt(r -> r.getEnd() - r.getStart() + 1)
+                .mapToInt(Range::size)
                 .sum();
         double allowedremovedRangesPercentage = 1; // 1%
-        int hashRangeSize = selector.getKeyHashRange().getEnd() + 1;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
         assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
                 allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
@@ -514,7 +513,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         final String consumerName = "consumer";
         final int numOfInitialConsumers = 50;
         final int validationPointCount = 200;
-        final List<Integer> pointsToTest = pointsToTest(validationPointCount, selector.getKeyHashRange().getEnd() + 1);
+        final List<Integer> pointsToTest = pointsToTest(validationPointCount, selector.getKeyHashRange().size());
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
