@@ -420,21 +420,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 updateMinReplayedPosition();
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
-
-                // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
-                if (delayedDeliveryTracker.isPresent()) {
-                    Predicate<Position> skipCondition = null;
-                    final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
-                    if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
-                        skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
-                                .containsMessage(position.getLedgerId(), position.getEntryId());
-                    }
-                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition(), skipCondition);
-                } else {
-                    cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                            topic.getMaxReadPosition());
-                }
+                cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                        topic.getMaxReadPosition(), createReadEntriesSkipCondition());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -445,6 +432,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    protected Predicate<Position> createReadEntriesSkipCondition() {
+        Predicate<Position> skipCondition = null;
+        // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
+        if (delayedDeliveryTracker.isPresent()) {
+            final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
+            if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
+                skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
+                        .containsMessage(position.getLedgerId(), position.getEntryId());
+            }
+        }
+        return skipCondition;
     }
 
     /**
