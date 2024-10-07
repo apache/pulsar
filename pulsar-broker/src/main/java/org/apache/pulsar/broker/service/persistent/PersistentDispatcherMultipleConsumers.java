@@ -250,14 +250,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                if (notifyAddedToReplay.booleanValue()) {
-                    notifyRedeliveryMessageAdded();
-                }
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
                                     + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
                             totalAvailablePermits);
+                }
+                if (notifyAddedToReplay.booleanValue()) {
+                    notifyRedeliveryMessageAdded();
                 }
             }
         } else {
@@ -272,7 +272,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 clearComponentsAfterRemovedAllConsumers();
             }
         }
-        readMoreEntriesAsync();
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
