@@ -96,24 +96,20 @@ public class ConsumerHashAssignmentsSnapshot {
      */
     static ImpactedConsumersResult resolveConsumerRemovedHashRanges(SortedMap<Range, Consumer> mappingBefore,
                                                                     SortedMap<Range, Consumer> mappingAfter) {
-        Map<Range, Pair<Consumer, Consumer>> changedRanges = diffRanges(mappingBefore, mappingAfter);
-        Map<Consumer, SortedSet<Range>> removedRangesByConsumer = changedRanges.entrySet().stream()
-                .collect(IdentityHashMap::new, (map, entry) -> {
+        Map<Range, Pair<Consumer, Consumer>> impactedRanges = diffRanges(mappingBefore, mappingAfter);
+        Map<Consumer, SortedSet<Range>> removedRangesByConsumer = impactedRanges.entrySet().stream()
+                .collect(IdentityHashMap::new, (resultMap, entry) -> {
                     Range range = entry.getKey();
+                    // filter out only where the range was removed
                     Consumer consumerBefore = entry.getValue().getLeft();
-                    addRange(map, consumerBefore, range);
+                    if (consumerBefore != null) {
+                        resultMap.computeIfAbsent(consumerBefore, k -> new TreeSet<>()).add(range);
+                    }
                 }, IdentityHashMap::putAll);
-        return mergeOverlappingRanges(removedRangesByConsumer);
+        return mergedOverlappingRangesAndConvertToImpactedConsumersResult(removedRangesByConsumer);
     }
 
-    private static void addRange(Map<Consumer, SortedSet<Range>> map,
-                                 Consumer c, Range range) {
-        if (c != null) {
-            map.computeIfAbsent(c, k -> new TreeSet<>()).add(range);
-        }
-    }
-
-    static ImpactedConsumersResult mergeOverlappingRanges(
+    static ImpactedConsumersResult mergedOverlappingRangesAndConvertToImpactedConsumersResult(
             Map<Consumer, SortedSet<Range>> removedRangesByConsumer) {
         Map<Consumer, RemovedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
         removedRangesByConsumer.forEach((consumer, ranges) -> {
@@ -122,6 +118,11 @@ public class ConsumerHashAssignmentsSnapshot {
         return ImpactedConsumersResult.of(mergedRangesByConsumer);
     }
 
+    /**
+     * Merge overlapping ranges.
+     * @param ranges the ranges to merge
+     * @return the merged ranges
+     */
     static SortedSet<Range> mergeOverlappingRanges(SortedSet<Range> ranges) {
         TreeSet<Range> mergedRanges = new TreeSet<>();
         Iterator<Range> rangeIterator = ranges.iterator();
@@ -149,7 +150,7 @@ public class ConsumerHashAssignmentsSnapshot {
      */
     static Map<Range, Pair<Consumer, Consumer>> diffRanges(SortedMap<Range, Consumer> mappingBefore,
                                                            SortedMap<Range, Consumer> mappingAfter) {
-        Map<Range, Pair<Consumer, Consumer>> removedRanges = new LinkedHashMap<>();
+        Map<Range, Pair<Consumer, Consumer>> impactedRanges = new LinkedHashMap<>();
         Iterator<Map.Entry<Range, Consumer>> beforeIterator = mappingBefore.entrySet().iterator();
         Iterator<Map.Entry<Range, Consumer>> afterIterator = mappingAfter.entrySet().iterator();
 
@@ -164,15 +165,15 @@ public class ConsumerHashAssignmentsSnapshot {
 
             if (beforeRange.equals(afterRange)) {
                 if (!beforeConsumer.equals(afterConsumer)) {
-                    removedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
+                    impactedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
                 }
                 beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
                 afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
             } else if (beforeRange.getEnd() < afterRange.getStart()) {
-                removedRanges.put(beforeRange, Pair.of(beforeConsumer, afterConsumer));
+                impactedRanges.put(beforeRange, Pair.of(beforeConsumer, afterConsumer));
                 beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
             } else if (afterRange.getEnd() < beforeRange.getStart()) {
-                removedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
+                impactedRanges.put(afterRange, Pair.of(beforeConsumer, afterConsumer));
                 afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
             } else {
                 Range overlapRange = Range.of(
@@ -180,7 +181,7 @@ public class ConsumerHashAssignmentsSnapshot {
                         Math.min(beforeRange.getEnd(), afterRange.getEnd())
                 );
                 if (!beforeConsumer.equals(afterConsumer)) {
-                    removedRanges.put(overlapRange, Pair.of(beforeConsumer, afterConsumer));
+                    impactedRanges.put(overlapRange, Pair.of(beforeConsumer, afterConsumer));
                 }
                 if (beforeRange.getEnd() <= overlapRange.getEnd()) {
                     beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
@@ -192,15 +193,15 @@ public class ConsumerHashAssignmentsSnapshot {
         }
 
         while (beforeEntry != null) {
-            removedRanges.put(beforeEntry.getKey(), Pair.of(beforeEntry.getValue(), null));
+            impactedRanges.put(beforeEntry.getKey(), Pair.of(beforeEntry.getValue(), null));
             beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
         }
 
         while (afterEntry != null) {
-            removedRanges.put(afterEntry.getKey(), Pair.of(null, afterEntry.getValue()));
+            impactedRanges.put(afterEntry.getKey(), Pair.of(null, afterEntry.getValue()));
             afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
         }
 
-        return removedRanges;
+        return impactedRanges;
     }
 }
