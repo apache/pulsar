@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -241,9 +242,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
+                MutableBoolean notifyAddedToReplay = new MutableBoolean(false);
                 consumer.getPendingAcks().forEachAndClose((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+                    boolean addedToReplay = addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+                    if (addedToReplay) {
+                        notifyAddedToReplay.setTrue();
+                    }
                 });
+                if (notifyAddedToReplay.booleanValue()) {
+                    notifyRedeliveryMessageAdded();
+                }
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
@@ -937,10 +945,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return true;
     }
 
-    protected void addEntryToReplay(Entry entry) {
+    protected boolean addEntryToReplay(Entry entry) {
         long stickyKeyHash = getStickyKeyHash(entry);
-        addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+        boolean addedToReplay = addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
         entry.release();
+        return addedToReplay;
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
@@ -958,6 +967,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalEntries = 0;
         long totalEntriesProcessed = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
+        boolean notifyAddedToReplay = false;
         for (Map.Entry<Consumer, List<EntryAndMetadata>> current : assignResult.entrySet()) {
             final Consumer consumer = current.getKey();
             final List<EntryAndMetadata> entryAndMetadataList = current.getValue();
@@ -969,7 +979,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (messagesForC < entryAndMetadataList.size()) {
                 for (int i = messagesForC; i < entryAndMetadataList.size(); i++) {
                     final EntryAndMetadata entry = entryAndMetadataList.get(i);
-                    addEntryToReplay(entry);
+                    notifyAddedToReplay |= addEntryToReplay(entry);
                     entryAndMetadataList.set(i, null);
                 }
             }
@@ -1006,7 +1016,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
         acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
-        return numConsumers.get() == 0; // trigger a new readMoreEntries() call
+        // trigger a new readMoreEntries() call
+        return numConsumers.get() == 0 || notifyAddedToReplay;
     }
 
     @Override
@@ -1139,31 +1150,39 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-        consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                redeliveryTracker.incrementAndGetRedeliveryCount((PositionFactory.create(ledgerId, entryId)));
-            }
-        });
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
                     redeliveryMessages);
         }
-        readMoreEntriesAsync();
+        MutableBoolean addedToReplay = new MutableBoolean(false);
+        consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
+                redeliveryTracker.incrementAndGetRedeliveryCount((PositionFactory.create(ledgerId, entryId)));
+                addedToReplay.setTrue();
+            }
+        });
+        if (addedToReplay.booleanValue()) {
+            notifyRedeliveryMessageAdded();
+        }
     }
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
+        }
+        MutableBoolean addedToReplay = new MutableBoolean(false);
         positions.forEach(position -> {
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
             if (addMessageToReplay(position.getLedgerId(), position.getEntryId())) {
                 redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                addedToReplay.setTrue();
             }
         });
-        if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer, positions);
+        if (addedToReplay.booleanValue()) {
+            notifyRedeliveryMessageAdded();
         }
-        readMoreEntriesAsync();
     }
 
     @Override
@@ -1401,6 +1420,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             return false;
         }
+    }
+
+    /**
+     * Notify the dispatcher that a message has been added to the redelivery list.
+     */
+    private void notifyRedeliveryMessageAdded() {
+        readMoreEntriesAsync();
     }
 
     protected boolean addMessageToReplay(long ledgerId, long entryId) {

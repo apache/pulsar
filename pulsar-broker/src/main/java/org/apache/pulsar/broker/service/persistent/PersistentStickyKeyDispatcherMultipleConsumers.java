@@ -119,7 +119,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private void reScheduleReadWithKeySharedUnblockingInterval() {
         keySharedUnblockingHandler.unblock();
     }
-    }
 
     @VisibleForTesting
     public StickyKeyConsumerSelector getSelector() {
@@ -243,11 +242,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                                     name, replayPosition, minReplayedPosition, readType);
                         }
                         if (readType == ReadType.Normal) {
-                            entries.forEach(entry -> {
-                                long stickyKeyHash = getStickyKeyHash(entry);
-                                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
-                                entry.release();
-                            });
+                            entries.forEach(this::addEntryToReplay);
                         } else if (readType == ReadType.Replay) {
                             entries.forEach(Entry::release);
                         }
@@ -358,7 +353,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             log.warn("[{}] Sticky hash {} is already in the replay queue. "
                             + "Skipping adding {}:{} to pending acks. Adding the message to replay.",
                     getName(), stickyKeyHash, ledgerId, entryId);
-            addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
+                reScheduleReadWithKeySharedUnblockingInterval();
+            }
             // block message from sending
             return false;
         }
@@ -465,6 +462,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 entry.release();
             }
         }
+
         //
         // determine whether look-ahead could be useful for making more progress
         //
