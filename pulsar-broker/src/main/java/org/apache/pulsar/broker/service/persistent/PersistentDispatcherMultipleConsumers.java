@@ -429,7 +429,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
                 cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                        topic.getMaxReadPosition(), createReadEntriesSkipCondition());
+                        topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Cannot schedule next read until previous one is done", name);
@@ -442,7 +442,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected Predicate<Position> createReadEntriesSkipCondition() {
+    protected Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
         Predicate<Position> skipCondition = null;
         // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
         if (delayedDeliveryTracker.isPresent()) {
