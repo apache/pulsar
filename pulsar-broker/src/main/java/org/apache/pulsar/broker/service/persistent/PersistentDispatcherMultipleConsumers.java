@@ -827,6 +827,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 metadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
                 metadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+                // cache the metadata in the entry with EntryAndMetadata for later use
                 entries.set(i, EntryAndMetadata.create(entry, metadata));
             }
             if (metadata != null) {
