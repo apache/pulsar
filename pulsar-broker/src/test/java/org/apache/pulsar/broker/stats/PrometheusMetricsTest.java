@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateD
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -1789,6 +1790,20 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 2.0);
     }
 
+    @Test
+    public void testBrokerHealthCheckMetric() throws Exception {
+        conf.setHealthCheckMetricsUpdateTimeInSeconds(60);
+        BrokerService brokerService = pulsar.getBrokerService();
+        brokerService.checkHealth().get();
+        brokerService.updateRates();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_health");
+        compareBrokerConnectionStateCount(cm, 1);
+    }
+
     private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1894,7 +1909,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator prometheusMetricsGenerator =
                 new PrometheusMetricsGenerator(pulsar, true, false, false,
                         false, clock);
-
         String previousMetrics = null;
         for (int a = 0; a < 4; a++) {
             ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
@@ -1908,7 +1922,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(metricsStr1, metricsStr2);
             assertNotEquals(metricsStr1, previousMetrics);
             previousMetrics = metricsStr1;
-
             // move time forward
             currentTimeMillis.addAndGet(TimeUnit.SECONDS.toMillis(2));
         }
