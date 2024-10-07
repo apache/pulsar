@@ -27,7 +27,9 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 
 /**
  * Reschedules reads so that the possible pending read is cancelled if it's waiting for more entries.
- * This will prevent the dispatcher in getting blocked when there are entries in the replay queue.
+ * This will prevent the dispatcher in getting blocked when there are entries in the replay queue
+ * that should be handled. This will also batch multiple calls together to reduce the number of
+ * operations.
  */
 class RescheduleReadHandler {
     private static final int UNSET = -1;
@@ -38,29 +40,42 @@ class RescheduleReadHandler {
     private final ScheduledExecutorService executor;
     private final Runnable cancelPendingRead;
     private final Runnable rescheduleReadImmediately;
+    private final BooleanSupplier hasPendingReadRequestThatMightWait;
+    private final LongSupplier readOpCounterSupplier;
     private final BooleanSupplier hasEntriesInReplayQueue;
 
     RescheduleReadHandler(ManagedCursor cursor, LongSupplier readIntervalMsSupplier,
                           ScheduledExecutorService executor, Runnable cancelPendingRead,
-                          Runnable rescheduleReadImmediately, BooleanSupplier hasEntriesInReplayQueue) {
+                          Runnable rescheduleReadImmediately, BooleanSupplier hasPendingReadRequestThatMightWait,
+                          LongSupplier readOpCounterSupplier,
+                          BooleanSupplier hasEntriesInReplayQueue) {
         this.cursor = cursor;
         this.readIntervalMsSupplier = readIntervalMsSupplier;
         this.executor = executor;
         this.cancelPendingRead = cancelPendingRead;
         this.rescheduleReadImmediately = rescheduleReadImmediately;
+        this.hasPendingReadRequestThatMightWait = hasPendingReadRequestThatMightWait;
+        this.readOpCounterSupplier = readOpCounterSupplier;
         this.hasEntriesInReplayQueue = hasEntriesInReplayQueue;
     }
 
     public void rescheduleRead() {
-        long readOpCountWhenPendingRead = cursor.hasPendingReadRequest() ? cursor.getReadOpCount() : NO_PENDING_READ;
+        long readOpCountWhenPendingRead =
+                hasPendingReadRequestThatMightWait.getAsBoolean() ? readOpCounterSupplier.getAsLong() : NO_PENDING_READ;
         if (maxReadOpCounter.compareAndSet(UNSET, readOpCountWhenPendingRead)) {
             Runnable runnable = () -> {
+                // Read the current value of maxReadOpCounter and set it to UNSET, this will allow scheduling a next
+                // runnable
                 long maxReadOpCount = maxReadOpCounter.getAndSet(UNSET);
-                if (maxReadOpCount != NO_PENDING_READ && cursor.getReadOpCount() == maxReadOpCount
-                    && hasEntriesInReplayQueue.getAsBoolean()) {
+                // Cancel a possible pending read if it's been waiting for more entries since the runnable was
+                // scheduled. This is detected by checking that the value of the readOpCounter has not changed
+                // since the runnable was scheduled. Canceling the read request will only be needed if there
+                // are entries in the replay queue.
+                if (maxReadOpCount != NO_PENDING_READ && readOpCounterSupplier.getAsLong() == maxReadOpCount
+                        && hasEntriesInReplayQueue.getAsBoolean()) {
                     cancelPendingRead.run();
                 }
-                // re-schedule read immediately, or join the next scheduled read
+                // Re-schedule read immediately, or join the next scheduled read
                 rescheduleReadImmediately.run();
             };
             long rescheduleDelay = readIntervalMsSupplier.getAsLong();
@@ -70,10 +85,19 @@ class RescheduleReadHandler {
                 runnable.run();
             }
         } else {
+            // When there's a scheduled read, update the maxReadOpCounter to carry the state when the later scheduled
+            // read was done
             long updatedValue = maxReadOpCounter.updateAndGet(
-                    current -> current != UNSET ? Math.max(current, readOpCountWhenPendingRead) : UNSET);
+                    // Ignore updating if the value is UNSET
+                    current -> current == UNSET ? UNSET :
+                            // Prefer keeping NO_PENDING_READ if the latest value is NO_PENDING_READ
+                            (readOpCountWhenPendingRead == NO_PENDING_READ ? NO_PENDING_READ :
+                                    // Otherwise, keep the maximum value
+                                    Math.max(current, readOpCountWhenPendingRead)));
+            // If the value was unset, it means that the runnable was already run and retrying is needed
+            // so that we don't miss any entries
             if (updatedValue == UNSET) {
-                // retry
+                // Retry
                 rescheduleRead();
             }
         }

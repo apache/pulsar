@@ -86,7 +86,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked) : null;
         this.rescheduleReadHandler = new RescheduleReadHandler(cursor, conf::getKeySharedUnblockingIntervalMs,
                 topic.getBrokerService().executor(), this::cancelPendingRead, () -> reScheduleReadInMs(0),
-                () -> !redeliveryMessages.isEmpty());
+                () -> havePendingRead, this::getReadMoreEntriesCallCount, () -> !redeliveryMessages.isEmpty());
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {

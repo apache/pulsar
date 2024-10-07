@@ -147,6 +147,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         Normal, Replay
     }
     private Position lastMarkDeletePositionBeforeReadMoreEntries;
+    private volatile long readMoreEntriesCallCount;
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription) {
@@ -358,6 +359,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
+        readMoreEntriesCallCount++;
+
         // remove possible expired messages from redelivery tracker and pending acks
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
@@ -477,6 +480,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected void handleNormalReadNotAllowed() {
         // do nothing
+    }
+
+    protected long getReadMoreEntriesCallCount() {
+        return readMoreEntriesCallCount;
     }
 
     /**
