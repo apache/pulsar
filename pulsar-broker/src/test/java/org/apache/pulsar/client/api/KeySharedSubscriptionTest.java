@@ -164,6 +164,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
     }
 
+    // Use a fixed seed to make the tests using random values deterministic
+    // When a test fails, it's possible to re-run it to reproduce the issue
     private static final Random random = new Random(1);
     private static final int NUMBER_OF_KEYS = 300;
 
