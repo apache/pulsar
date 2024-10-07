@@ -352,7 +352,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         // remove possible expired messages from redelivery tracker and pending acks
         Position markDeletePosition = cursor.getMarkDeletedPosition();
-        if (lastMarkDeletePositionBeforeReadMoreEntries != cursor.getMarkDeletedPosition()) {
+        if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
             redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
             for (Consumer consumer : consumerList) {
                 consumer.getPendingAcks()
