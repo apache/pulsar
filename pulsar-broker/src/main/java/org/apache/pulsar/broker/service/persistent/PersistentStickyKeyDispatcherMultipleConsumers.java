@@ -29,14 +29,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -60,7 +58,6 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +72,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Getter
     private final DrainingHashesTracker drainingHashesTracker;
 
-    private static final LongPairRangeSet.LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
     private ReadType recentReadTypeInSending;
-    private final LongSupplier keySharedUnblockingIntervalMsSupplier;
+    private final KeySharedUnblockingHandler keySharedUnblockingHandler;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -90,7 +86,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
         this.drainingHashesTracker =
                 drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked) : null;
-        this.keySharedUnblockingIntervalMsSupplier = conf::getKeySharedUnblockingIntervalMs;
+        this.keySharedUnblockingHandler = new KeySharedUnblockingHandler(cursor, conf::getKeySharedUnblockingIntervalMs,
+                topic.getBrokerService().executor(), this::cancelPendingRead, () -> reScheduleReadInMs(0));
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -100,11 +97,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
             }
             break;
-
         case STICKY:
             this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
             break;
-
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
@@ -122,7 +117,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private void reScheduleReadWithKeySharedUnblockingInterval() {
-        reScheduleReadInMs(keySharedUnblockingIntervalMsSupplier.getAsLong());
+        keySharedUnblockingHandler.unblock();
+    }
     }
 
     @VisibleForTesting
