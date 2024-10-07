@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 
 /**
  * Reschedules reads so that the possible pending read is cancelled if it's waiting for more entries.
@@ -35,7 +34,6 @@ class RescheduleReadHandler {
     private static final int UNSET = -1;
     private static final int NO_PENDING_READ = 0;
     private final AtomicLong maxReadOpCounter = new AtomicLong(UNSET);
-    private final ManagedCursor cursor;
     private final LongSupplier readIntervalMsSupplier;
     private final ScheduledExecutorService executor;
     private final Runnable cancelPendingRead;
@@ -44,12 +42,11 @@ class RescheduleReadHandler {
     private final LongSupplier readOpCounterSupplier;
     private final BooleanSupplier hasEntriesInReplayQueue;
 
-    RescheduleReadHandler(ManagedCursor cursor, LongSupplier readIntervalMsSupplier,
+    RescheduleReadHandler(LongSupplier readIntervalMsSupplier,
                           ScheduledExecutorService executor, Runnable cancelPendingRead,
                           Runnable rescheduleReadImmediately, BooleanSupplier hasPendingReadRequestThatMightWait,
                           LongSupplier readOpCounterSupplier,
                           BooleanSupplier hasEntriesInReplayQueue) {
-        this.cursor = cursor;
         this.readIntervalMsSupplier = readIntervalMsSupplier;
         this.executor = executor;
         this.cancelPendingRead = cancelPendingRead;
