@@ -603,6 +603,9 @@ jobs:
           - name: Metrics
             group: METRICS
 
+          - name: Upgrade
+            group: UPGRADE
+
     steps:
       - name: checkout
         uses: actions/checkout@v4

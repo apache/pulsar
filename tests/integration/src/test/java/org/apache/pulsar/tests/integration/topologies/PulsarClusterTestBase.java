@@ -142,6 +142,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
+        setupCluster(spec, true);
+    }
+
+    protected void setupCluster(PulsarClusterSpec spec, boolean doInit) throws Exception {
         incrementSetupNumber();
         log.info("Setting up cluster {} with {} bookies, {} brokers",
                 spec.clusterName(), spec.numBookies(), spec.numBrokers());
@@ -150,7 +154,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
         beforeStartCluster();
 
-        pulsarCluster.start();
+        pulsarCluster.start(doInit);
 
         pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
 

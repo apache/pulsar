@@ -125,6 +125,12 @@ public class PulsarClusterSpec {
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
+     * Data container
+     */
+    @Builder.Default
+    GenericContainer<?> dataContainer = null;
+
+    /**
      * Pulsar Test Image Name
      *
      * @return the version of the pulsar test image to use
