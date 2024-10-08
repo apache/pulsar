@@ -69,6 +69,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
@@ -668,8 +669,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @SneakyThrows
-    private PersistentStickyKeyDispatcherMultipleConsumers getDispatcher(String topic, String subscription) {
-        return (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topic).get()
+    private StickyKeyDispatcher getDispatcher(String topic, String subscription) {
+        return (StickyKeyDispatcher) pulsar.getBrokerService().getTopicIfExists(topic).get()
                 .get().getSubscription(subscription).getDispatcher();
     }
 
@@ -799,7 +800,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
         Assert.assertTrue(consumer2.isConnected());
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, sub);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, sub);
         Assert.assertEquals(dispatcher.getConsumers().size(), 2);
 
         try {
@@ -922,7 +923,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subName);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) getDispatcher(topic, subName);
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
         @Cleanup
@@ -1207,7 +1209,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         Awaitility.await().untilAsserted(() -> assertNotNull(consumer1.receive(100, TimeUnit.MILLISECONDS)));
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topicName, subName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topicName, subName);
         assertTrue(dispatcher.isAllowOutOfOrderDelivery());
         consumer1.close();
 
@@ -2040,7 +2042,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe()
                 .close();
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subscriptionName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, subscriptionName);
 
         // create a function to use for checking the number of messages in replay
         Runnable checkLimit = () -> {
@@ -2145,8 +2147,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyDispatcher dispatcher = (StickyKeyDispatcher) sub.getDispatcher();
         return dispatcher.getSelector();
     }
 

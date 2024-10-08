@@ -69,6 +69,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
@@ -272,7 +273,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         case Key_Shared:
                             KeySharedMeta ksm = consumer.getKeySharedMeta();
                             if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                                    || !((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                    || !((StickyKeyDispatcher) dispatcher)
                                     .hasSameKeySharedPolicy(ksm)) {
                                 previousDispatcher = dispatcher;
                                 // TODO: PIP-379 feature-toggle
@@ -1223,7 +1224,7 @@ public class PersistentSubscription extends AbstractSubscription {
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
-                    ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
+                    ? ((StickyKeyDispatcher) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
                 if (!getStatsOptions.isExcludeConsumers()) {
@@ -1293,10 +1294,8 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.isReplicated = isReplicated();
         subStats.subscriptionProperties = subscriptionProperties;
         subStats.isDurable = cursor.isDurable();
-        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
-            PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
-                    (PersistentStickyKeyDispatcherMultipleConsumers) dispatcher;
-
+        if (getType() == SubType.Key_Shared && dispatcher instanceof StickyKeyDispatcher) {
+            StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
         }

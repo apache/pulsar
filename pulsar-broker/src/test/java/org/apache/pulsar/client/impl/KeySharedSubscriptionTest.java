@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -258,8 +258,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyDispatcher dispatcher = (StickyKeyDispatcher) sub.getDispatcher();
         return dispatcher.getSelector();
     }
 }
