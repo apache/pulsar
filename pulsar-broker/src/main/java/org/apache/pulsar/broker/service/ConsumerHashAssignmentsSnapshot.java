@@ -26,7 +26,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.EqualsAndHashCode;
@@ -41,19 +40,35 @@ import org.jetbrains.annotations.NotNull;
 @EqualsAndHashCode(exclude = "cachedRangesByConsumer")
 @ToString(exclude = "cachedRangesByConsumer")
 public class ConsumerHashAssignmentsSnapshot {
-    private final SortedMap<Range, Consumer> hashRangeAssignments;
+    private final List<HashRangeAssignment> hashRangeAssignments;
     private Map<Consumer, List<Range>> cachedRangesByConsumer;
 
-    private ConsumerHashAssignmentsSnapshot(SortedMap<Range, Consumer> hashRangeAssignments) {
+    private ConsumerHashAssignmentsSnapshot(List<HashRangeAssignment> hashRangeAssignments) {
+        validate(hashRangeAssignments);
         this.hashRangeAssignments = hashRangeAssignments;
     }
 
-    public static ConsumerHashAssignmentsSnapshot of(SortedMap<Range, Consumer> hashRangeAssignments) {
+    private void validate(List<HashRangeAssignment> hashRangeAssignments) {
+        Range previousRange = null;
+        for (HashRangeAssignment hashRangeAssignment : hashRangeAssignments) {
+            Range range = hashRangeAssignment.range();
+            Consumer consumer = hashRangeAssignment.consumer();
+            if (range == null || consumer == null) {
+                throw new IllegalArgumentException("Range and consumer must not be null");
+            }
+            if (previousRange != null && previousRange.compareTo(range) >= 0) {
+                throw new IllegalArgumentException("Ranges must be non-overlapping and sorted");
+            }
+            previousRange = range;
+        }
+    }
+
+    public static ConsumerHashAssignmentsSnapshot of(List<HashRangeAssignment> hashRangeAssignments) {
         return new ConsumerHashAssignmentsSnapshot(hashRangeAssignments);
     }
 
     public static ConsumerHashAssignmentsSnapshot empty() {
-        return new ConsumerHashAssignmentsSnapshot(Collections.emptySortedMap());
+        return new ConsumerHashAssignmentsSnapshot(Collections.emptyList());
     }
 
     public ImpactedConsumersResult resolveImpactedConsumers(ConsumerHashAssignmentsSnapshot other) {
@@ -73,7 +88,9 @@ public class ConsumerHashAssignmentsSnapshot {
 
     private @NotNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
         Map<Consumer, SortedSet<Range>> rangesByConsumer = new IdentityHashMap<>();
-        hashRangeAssignments.forEach((range, consumer) -> {
+        hashRangeAssignments.forEach(entry -> {
+            Range range = entry.range();
+            Consumer consumer = entry.consumer();
             rangesByConsumer.computeIfAbsent(consumer, k -> new TreeSet<>()).add(range);
         });
         Map<Consumer, List<Range>> mergedOverlappingRangesByConsumer = new IdentityHashMap<>();
@@ -94,8 +111,8 @@ public class ConsumerHashAssignmentsSnapshot {
      * @param mappingAfter the range mapping after the change
      * @return consumers and ranges where the existing range changed
      */
-    static ImpactedConsumersResult resolveConsumerRemovedHashRanges(SortedMap<Range, Consumer> mappingBefore,
-                                                                    SortedMap<Range, Consumer> mappingAfter) {
+    static ImpactedConsumersResult resolveConsumerRemovedHashRanges(List<HashRangeAssignment> mappingBefore,
+                                                                    List<HashRangeAssignment> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> impactedRanges = diffRanges(mappingBefore, mappingAfter);
         Map<Consumer, SortedSet<Range>> removedRangesByConsumer = impactedRanges.entrySet().stream()
                 .collect(IdentityHashMap::new, (resultMap, entry) -> {
@@ -148,20 +165,20 @@ public class ConsumerHashAssignmentsSnapshot {
      * @param mappingAfter the range mapping after
      * @return the impacted ranges where the consumer is changed from the before to the after
      */
-    static Map<Range, Pair<Consumer, Consumer>> diffRanges(SortedMap<Range, Consumer> mappingBefore,
-                                                           SortedMap<Range, Consumer> mappingAfter) {
+    static Map<Range, Pair<Consumer, Consumer>> diffRanges(List<HashRangeAssignment> mappingBefore,
+                                                           List<HashRangeAssignment> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> impactedRanges = new LinkedHashMap<>();
-        Iterator<Map.Entry<Range, Consumer>> beforeIterator = mappingBefore.entrySet().iterator();
-        Iterator<Map.Entry<Range, Consumer>> afterIterator = mappingAfter.entrySet().iterator();
+        Iterator<HashRangeAssignment> beforeIterator = mappingBefore.iterator();
+        Iterator<HashRangeAssignment> afterIterator = mappingAfter.iterator();
 
-        Map.Entry<Range, Consumer> beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
-        Map.Entry<Range, Consumer> afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
+        HashRangeAssignment beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
+        HashRangeAssignment afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
 
         while (beforeEntry != null && afterEntry != null) {
-            Range beforeRange = beforeEntry.getKey();
-            Range afterRange = afterEntry.getKey();
-            Consumer beforeConsumer = beforeEntry.getValue();
-            Consumer afterConsumer = afterEntry.getValue();
+            Range beforeRange = beforeEntry.range();
+            Range afterRange = afterEntry.range();
+            Consumer beforeConsumer = beforeEntry.consumer();
+            Consumer afterConsumer = afterEntry.consumer();
 
             if (beforeRange.equals(afterRange)) {
                 if (!beforeConsumer.equals(afterConsumer)) {
@@ -193,12 +210,12 @@ public class ConsumerHashAssignmentsSnapshot {
         }
 
         while (beforeEntry != null) {
-            impactedRanges.put(beforeEntry.getKey(), Pair.of(beforeEntry.getValue(), null));
+            impactedRanges.put(beforeEntry.range(), Pair.of(beforeEntry.consumer(), null));
             beforeEntry = beforeIterator.hasNext() ? beforeIterator.next() : null;
         }
 
         while (afterEntry != null) {
-            impactedRanges.put(afterEntry.getKey(), Pair.of(null, afterEntry.getValue()));
+            impactedRanges.put(afterEntry.range(), Pair.of(null, afterEntry.consumer()));
             afterEntry = afterIterator.hasNext() ? afterIterator.next() : null;
         }
 

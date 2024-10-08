@@ -20,11 +20,10 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.createMockConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.SortedSet;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
@@ -50,15 +49,14 @@ public class ConsumerHashAssignmentsSnapshotTest {
         assertThat(mergedRanges).containsExactlyElementsOf(expectedMergedRanges);
     }
 
-
     @Test
     public void testDiffRanges_NoChanges() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(1, 5), consumer1);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         Map<Range, Pair<Consumer, Consumer>> diff =
                 ConsumerHashAssignmentsSnapshot.diffRanges(mappingBefore, mappingAfter);
@@ -68,13 +66,13 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testDiffRanges_ConsumerChanged() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
         Consumer consumer2 = createMockConsumer("consumer2");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(1, 5), consumer2);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer2));
 
         Map<Range, Pair<Consumer, Consumer>> diff =
                 ConsumerHashAssignmentsSnapshot.diffRanges(mappingBefore, mappingAfter);
@@ -84,11 +82,11 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testDiffRanges_RangeAdded() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
-
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingAfter.put(Range.of(1, 5), consumer1);
+
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         Map<Range, Pair<Consumer, Consumer>> diff =
                 ConsumerHashAssignmentsSnapshot.diffRanges(mappingBefore, mappingAfter);
@@ -98,11 +96,11 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testDiffRanges_RangeRemoved() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.put(Range.of(1, 5), consumer1);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         Map<Range, Pair<Consumer, Consumer>> diff =
                 ConsumerHashAssignmentsSnapshot.diffRanges(mappingBefore, mappingAfter);
@@ -112,13 +110,13 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testDiffRanges_OverlappingRanges() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
         Consumer consumer2 = createMockConsumer("consumer2");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(3, 7), consumer2);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(3, 7), consumer2));
 
         Map<Range, Pair<Consumer, Consumer>> diff =
                 ConsumerHashAssignmentsSnapshot.diffRanges(mappingBefore, mappingAfter);
@@ -128,12 +126,12 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testResolveConsumerRemovedHashRanges_NoChanges() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(1, 5), consumer1);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
@@ -143,13 +141,13 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testResolveConsumerRemovedHashRanges_ConsumerChanged() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
         Consumer consumer2 = createMockConsumer("consumer2");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(1, 5), consumer2);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer2));
 
         ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
@@ -160,11 +158,11 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testResolveConsumerRemovedHashRanges_RangeAdded() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingAfter.put(Range.of(1, 5), consumer1);
+        mappingAfter.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
@@ -174,11 +172,11 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testResolveConsumerRemovedHashRanges_RangeRemoved() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
-        mappingBefore.put(Range.of(1, 5), consumer1);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
 
         ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
@@ -189,13 +187,13 @@ public class ConsumerHashAssignmentsSnapshotTest {
 
     @Test
     public void testResolveConsumerRemovedHashRanges_OverlappingRanges() {
-        SortedMap<Range, Consumer> mappingBefore = new TreeMap<>();
-        SortedMap<Range, Consumer> mappingAfter = new TreeMap<>();
+        List<HashRangeAssignment> mappingBefore = new ArrayList<>();
+        List<HashRangeAssignment> mappingAfter = new ArrayList<>();
 
         Consumer consumer1 = createMockConsumer("consumer1");
         Consumer consumer2 = createMockConsumer("consumer2");
-        mappingBefore.put(Range.of(1, 5), consumer1);
-        mappingAfter.put(Range.of(3, 7), consumer2);
+        mappingBefore.add(new HashRangeAssignment(Range.of(1, 5), consumer1));
+        mappingAfter.add(new HashRangeAssignment(Range.of(3, 7), consumer2));
 
         ImpactedConsumersResult impactedConsumers =
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);

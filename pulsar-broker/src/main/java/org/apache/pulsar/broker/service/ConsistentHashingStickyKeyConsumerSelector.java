@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -164,7 +165,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         if (hashRing.isEmpty()) {
             return ConsumerHashAssignmentsSnapshot.empty();
         }
-        SortedMap<Range, Consumer> result = new TreeMap<>();
+        List<HashRangeAssignment> result = new ArrayList<>();
         int start = getKeyHashRange().getStart();
         int lastKey = -1;
         Consumer previousConsumer = null;
@@ -174,12 +175,12 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             Range range;
             if (consumer == previousConsumer) {
                 // join ranges
-                result.remove(previousRange);
+                result.remove(result.size() - 1);
                 range = Range.of(previousRange.getStart(), entry.getKey());
             } else {
                 range = Range.of(start, entry.getKey());
             }
-            result.put(range, consumer);
+            result.add(new HashRangeAssignment(range, consumer));
             lastKey = entry.getKey();
             start = lastKey + 1;
             previousConsumer = consumer;
@@ -191,12 +192,12 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             Range range;
             if (firstConsumer == previousConsumer && previousRange.getEnd() == lastKey) {
                 // join ranges
-                result.remove(previousRange);
+                result.remove(result.size() - 1);
                 range = Range.of(previousRange.getStart(), getKeyHashRange().getEnd());
             } else {
                 range = Range.of(lastKey + 1, getKeyHashRange().getEnd());
             }
-            result.put(range, firstConsumer);
+            result.add(new HashRangeAssignment(range, firstConsumer));
         }
         return ConsumerHashAssignmentsSnapshot.of(result);
     }

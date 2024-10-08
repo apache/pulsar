@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
@@ -101,14 +100,14 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {
-        SortedMap<Range, Consumer> result = new TreeMap<>();
+        List<HashRangeAssignment> result = new ArrayList<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             if (prev == null) {
                 prev = entry;
             } else {
                 if (prev.getValue().equals(entry.getValue())) {
-                    result.put(Range.of(prev.getKey(), entry.getKey()), entry.getValue());
+                    result.add(new HashRangeAssignment(Range.of(prev.getKey(), entry.getKey()), entry.getValue()));
                 }
                 prev = null;
             }
