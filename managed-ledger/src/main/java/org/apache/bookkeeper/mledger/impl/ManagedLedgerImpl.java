@@ -2229,13 +2229,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
                 callback.readEntryComplete(entry, cbCtx);
-                return;
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] read entry already completed for {}-{}", name, ledgerId, entryId);
                 }
                 entry.release();
-                return;
             }
         }
 
@@ -2246,7 +2244,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
                 callback.readEntryFailed(exception, cbCtx);
-                return;
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] read entry already completed for {}-{}", name, ledgerId, entryId);
@@ -2261,13 +2258,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
                 callback.readEntriesComplete(returnedEntries, cbCtx);
-                return;
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] read entry already completed for {}-{}", name, ledgerId, entryId);
                 }
                 returnedEntries.forEach(Entry::release);
-                return;
             }
         }
 
@@ -2278,12 +2273,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
                 callback.readEntriesFailed(exception, cbCtx);
-                return;
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] read entry already completed for {}-{}", name, ledgerId, entryId);
                 }
-                return;
             }
         }
 
