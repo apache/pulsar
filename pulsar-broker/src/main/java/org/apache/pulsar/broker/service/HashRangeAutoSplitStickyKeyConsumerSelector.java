@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -56,11 +55,11 @@ import org.apache.pulsar.common.util.FutureUtil;
  *
  */
 public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
-
     private final int rangeSize;
-
+    private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private final Map<Consumer, Integer> consumerRange;
+    private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public HashRangeAutoSplitStickyKeyConsumerSelector() {
         this(DEFAULT_RANGE_SIZE);
@@ -76,10 +75,12 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         this.rangeMap = new ConcurrentSkipListMap<>();
         this.consumerRange = new HashMap<>();
         this.rangeSize = rangeSize;
+        this.keyHashRange = Range.of(0, rangeSize - 1);
+        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
     @Override
-    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer) {
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
@@ -87,14 +88,18 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             try {
                 splitRange(findBiggestRange(), consumer);
             } catch (ConsumerAssignException e) {
-                return FutureUtil.failedFuture(e);
+                return CompletableFuture.failedFuture(e);
             }
         }
-        return CompletableFuture.completedFuture(null);
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
+        ImpactedConsumersResult impactedConsumers =
+                consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
+        consumerHashAssignmentsSnapshot = assignmentsAfter;
+        return CompletableFuture.completedFuture(impactedConsumers);
     }
 
     @Override
-    public synchronized void removeConsumer(Consumer consumer) {
+    public synchronized ImpactedConsumersResult removeConsumer(Consumer consumer) {
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
@@ -106,28 +111,40 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 rangeMap.remove(removeRange);
             }
         }
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
+        ImpactedConsumersResult impactedConsumers =
+                consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
+        consumerHashAssignmentsSnapshot = assignmentsAfter;
+        return impactedConsumers;
     }
 
     @Override
     public Consumer select(int hash) {
         if (!rangeMap.isEmpty()) {
-            int slot = hash % rangeSize;
-            return rangeMap.ceilingEntry(slot).getValue();
+            return rangeMap.ceilingEntry(hash).getValue();
         } else {
             return null;
         }
     }
 
     @Override
-    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        Map<Consumer, List<Range>> result = new HashMap<>();
+    public Range getKeyHashRange() {
+        return keyHashRange;
+    }
+
+    @Override
+    public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
+        return consumerHashAssignmentsSnapshot;
+    }
+
+    private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {
+        List<HashRangeAssignment> result = new ArrayList<>();
         int start = 0;
-        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
-            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
-                    .add(Range.of(start, entry.getKey()));
+        for (Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            result.add(new HashRangeAssignment(Range.of(start, entry.getKey()), entry.getValue()));
             start = entry.getKey() + 1;
         }
-        return result;
+        return ConsumerHashAssignmentsSnapshot.of(result);
     }
 
     private int findBiggestRange() {

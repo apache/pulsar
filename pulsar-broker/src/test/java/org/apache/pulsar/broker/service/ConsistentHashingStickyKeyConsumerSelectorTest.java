@@ -168,20 +168,20 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
         assertThat(consumers.get(0).consumerName()).isEqualTo("consumer1");
         expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(95615213, 440020355),
-                Range.of(440020356, 455987436),
-                Range.of(1189794593, 1264144431)));
+                Range.of(14359, 18366),
+                Range.of(29991, 39817),
+                Range.of(52980, 60442)));
         assertThat(consumers.get(1).consumerName()).isEqualTo("consumer2");
         expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(939655188, 1189794592),
-                Range.of(1314727625, 1977451233),
-                Range.of(1977451234, 2016237253)));
+                Range.of(1, 6668),
+                Range.of(39818, 52979),
+                Range.of(60443, 63679),
+                Range.of(65184, 65535)));
         assertThat(consumers.get(2).consumerName()).isEqualTo("consumer3");
         expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(0, 95615212),
-                Range.of(455987437, 939655187),
-                Range.of(1264144432, 1314727624),
-                Range.of(2016237254, 2147483646)));
+                Range.of(6669, 14358),
+                Range.of(18367, 29990),
+                Range.of(63680, 65183)));
         Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
         assertThat(consumerKeyHashRanges).containsExactlyInAnyOrderEntriesOf(expectedResult);
 
@@ -195,7 +195,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             }
             previousRange = range;
         }
-        assertThat(allRanges.stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()).isEqualTo(Integer.MAX_VALUE);
+        Range totalRange = selector.getKeyHashRange();
+        assertThat(allRanges.stream().mapToInt(Range::size).sum()).isEqualTo(totalRange.size());
     }
 
     @Test
@@ -247,12 +248,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     private static void printConsumerRangesStats(ConsistentHashingStickyKeyConsumerSelector selector) {
         selector.getConsumerKeyHashRanges().entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(),
-                        entry.getValue().stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()))
+                        entry.getValue().stream().mapToInt(Range::size).sum()))
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Consumer::toString)))
                 .forEach(entry -> System.out.println(
                         String.format("consumer: %s total ranges size: %d ratio: %.2f%%", entry.getKey(),
                                 entry.getValue(),
-                                ((double) entry.getValue() / (Integer.MAX_VALUE - 1)) * 100.0d)));
+                                ((double) entry.getValue() / selector.getKeyHashRange().size()) * 100.0d)));
     }
 
     private static Consumer createMockConsumer(String consumerName, String toString, long id) {
@@ -323,7 +324,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = Integer.MAX_VALUE;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -342,13 +343,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
             removedConsumers.add(removedConsumer);
+            Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
             for (int i = 0; i < validationPointCount; i++) {
                 int hash = i * increment;
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
                 if (!removedConsumers.contains(expected)) {
                     assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d ranges %s", i,
-                            removedConsumer.toString(), hash, selector.getConsumerKeyHashRanges()).isEqualTo(expected.consumerId());
+                            removedConsumer.toString(), hash, consumerKeyHashRanges).isEqualTo(expected.consumerId());
                 }
             }
         }
@@ -441,7 +443,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = Integer.MAX_VALUE;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -473,16 +475,18 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testShouldNotChangeMappingWhenConsumerLeavesAndRejoins() {
+    public void testShouldContainMinimalMappingChangesWhenConsumerLeavesAndRejoins() {
         final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         final String consumerName = "consumer";
-        final int numOfInitialConsumers = 25;
+        final int numOfInitialConsumers = 10;
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
             consumers.add(consumer);
             selector.addConsumer(consumer);
         }
+
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = selector.getConsumerHashAssignmentsSnapshot();
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
         assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
@@ -492,7 +496,15 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(0));
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
-        assertThat(selector.getConsumerKeyHashRanges()).as("ranges shouldn't change").containsExactlyInAnyOrderEntriesOf(expected);
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+        int removedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
+                .mapToInt(Range::size)
+                .sum();
+        double allowedremovedRangesPercentage = 1; // 1%
+        int hashRangeSize = selector.getKeyHashRange().size();
+        int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
+        assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
+                allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
     }
 
     @Test
@@ -501,7 +513,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         final String consumerName = "consumer";
         final int numOfInitialConsumers = 50;
         final int validationPointCount = 200;
-        final List<Integer> pointsToTest = pointsToTest(validationPointCount);
+        final List<Integer> pointsToTest = pointsToTest(validationPointCount, selector.getKeyHashRange().size());
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
@@ -537,13 +549,38 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
     }
 
-    private List<Integer> pointsToTest(int validationPointCount) {
+    private List<Integer> pointsToTest(int validationPointCount, int hashRangeSize) {
         List<Integer> res = new ArrayList<>();
-        int hashRangeSize = Integer.MAX_VALUE;
         final int increment = hashRangeSize / (validationPointCount + 1);
         for (int i = 0; i < validationPointCount; i++) {
-            res.add(i * increment);
+            res.add(Math.max(i * increment, hashRangeSize - 1));
         }
         return res;
+    }
+
+    @Test(enabled = false)
+    public void testPerformanceOfAdding1000ConsumersWith100Points() {
+        // test that adding 1000 consumers with 100 points runs in a reasonable time.
+        // This takes about 1 second on Apple M3
+        // this unit test can be used for basic profiling
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        for (int i = 0; i < 1000; i++) {
+            // use real class to avoid Mockito over head
+            final Consumer consumer = new Consumer("consumer" + i, 0) {
+                @Override
+                public int hashCode() {
+                    return consumerName().hashCode();
+                }
+
+                @Override
+                public boolean equals(Object obj) {
+                    if (obj instanceof Consumer) {
+                        return consumerName().equals(((Consumer) obj).consumerName());
+                    }
+                    return false;
+                }
+            };
+            selector.addConsumer(consumer);
+        }
     }
 }

@@ -71,19 +71,30 @@ public class ConcurrentBitmapSortedLongPairSet {
         }
     }
 
-    public void removeUpTo(long item1, long item2) {
+    /**
+     * Remove all items up to (and including) the specified item.
+     *
+     * @param item1 the first part of the item key
+     * @param item2 the second part of the item key
+     * @return true if any bits were cleared
+     */
+    public boolean removeUpTo(long item1, long item2) {
+        boolean bitsCleared = false;
         lock.writeLock().lock();
         try {
             Map.Entry<Long, RoaringBitmap> firstEntry = map.firstEntry();
             while (firstEntry != null && firstEntry.getKey() <= item1) {
                 if (firstEntry.getKey() < item1) {
                     map.remove(firstEntry.getKey(), firstEntry.getValue());
+                    bitsCleared = true;
                 } else {
                     RoaringBitmap bitSet = firstEntry.getValue();
                     if (bitSet != null) {
+                        bitsCleared |= bitSet.contains(0, item2);
                         bitSet.remove(0, item2);
                         if (bitSet.isEmpty()) {
                             map.remove(firstEntry.getKey(), bitSet);
+                            bitsCleared = true;
                         }
                     }
                     break;
@@ -93,6 +104,7 @@ public class ConcurrentBitmapSortedLongPairSet {
         } finally {
             lock.writeLock().unlock();
         }
+        return bitsCleared;
     }
 
     public <T extends Comparable<T>> Optional<T> first(LongPairSet.LongPairFunction<T> longPairConverter) {

@@ -18,18 +18,25 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.lang3.RandomStringUtils;
+import lombok.SneakyThrows;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -40,7 +47,6 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -65,33 +71,76 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @DataProvider
-    public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+    enum KeySharedSelectorType {
+        AutoSplit_ConsistentHashing(true), AutoSplit_Classic(true), Sticky(false);
+        final boolean autoSplit;
+
+        KeySharedSelectorType(boolean autoSplit) {
+            this.autoSplit = autoSplit;
+        }
     }
 
-    @Test(dataProvider = "subType")
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType)
+    @DataProvider
+    public Object[][] subType() {
+        return new Object[][] {
+                { SubscriptionType.Shared, null },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
+                { SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
+        };
+    }
+
+    @Test(dataProvider = "subType", timeOut = 30000)
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType,
+                                                                               KeySharedSelectorType selectorType)
             throws PulsarClientException {
+        if (selectorType == KeySharedSelectorType.AutoSplit_Classic) {
+            conf.setSubscriptionKeySharedUseConsistentHashing(false);
+        }
+
         final int totalMsg = 1000;
-        String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
-        Map<Consumer<?>, List<MessageId>> nameToId = new ConcurrentHashMap<>();
+        String topic = newUniqueName("broker-close-test");
+        String subscriptionName = "sub-1";
+        Map<Consumer<?>, List<MessageId>> unackedMessages = new ConcurrentHashMap<>();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
         Set<MessageId> recMessages = Sets.newConcurrentHashSet();
         AtomicLong lastActiveTime = new AtomicLong();
         AtomicBoolean canAcknowledgement = new AtomicBoolean(false);
 
+        if (subscriptionType == SubscriptionType.Key_Shared) {
+            // create and close consumer to create the dispatcher so that the selector can be used
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(subscriptionType);
+            if (subscriptionType == SubscriptionType.Key_Shared) {
+                if (selectorType.autoSplit) {
+                    consumerBuilder.keySharedPolicy(KeySharedPolicy.autoSplitHashRange());
+                } else {
+                    consumerBuilder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535)));
+                }
+            }
+            consumerBuilder
+                    .subscribe()
+                    .close();
+        }
+
         List<Consumer<?>> consumerList = new ArrayList<>();
-        // create 3 consumers
-        for (int i = 0; i < 3; i++) {
+        int consumerCount = 3;
+
+        Range[] ranges = null;
+        if (subscriptionType == SubscriptionType.Key_Shared && !selectorType.autoSplit) {
+            ranges = splitRange(getSelector(topic, subscriptionName).getKeyHashRange(), consumerCount);
+        }
+
+        for (int i = 0; i < consumerCount; i++) {
             ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer()
                     .topic(topic)
-                    .subscriptionName("sub-1")
+                    .consumerName("consumer-" + i)
+                    .subscriptionName(subscriptionName)
                     .subscriptionType(subscriptionType)
                     .messageListener((consumer, msg) -> {
                         lastActiveTime.set(System.currentTimeMillis());
-                        nameToId.computeIfAbsent(consumer, (k) -> new ArrayList<>())
-                                .add(msg.getMessageId());
                         recMessages.add(msg.getMessageId());
                         if (canAcknowledgement.get()) {
                             try {
@@ -99,17 +148,29 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                             } catch (PulsarClientException e) {
                                 throw new RuntimeException(e);
                             }
+                        } else {
+                            unackedMessages.computeIfAbsent(consumer,
+                                            (k) -> Collections.synchronizedList(new ArrayList<>()))
+                                    .add(msg.getMessageId());
                         }
                     });
 
             if (subscriptionType == SubscriptionType.Key_Shared) {
-                // ensure every consumer can be distributed messages
-                int hash = Murmur3_32Hash.getInstance().makeHash(("key-" + i).getBytes())
-                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-                builder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(hash, hash)));
+                if (selectorType.autoSplit) {
+                    builder.keySharedPolicy(KeySharedPolicy.autoSplitHashRange());
+                } else {
+                    builder.keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges[i]));
+                }
             }
 
             consumerList.add(builder.subscribe());
+        }
+
+        String[] keys = new String[consumerCount];
+        for (int i = 0; i < consumerCount; i++) {
+            keys[i] = subscriptionType == SubscriptionType.Key_Shared ?
+                    generateKeyForConsumer(getSelector(topic, subscriptionName),
+                            consumerList.get(i).getConsumerName()) : "key-" + i;
         }
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -122,47 +183,83 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < totalMsg; i++) {
-            byte[] msg = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-            producer.newMessage().key("key-" + (i % 3)).value(msg)
+            producer.newMessage()
+                    .key(keys[i % consumerCount])
+                    .value(("message-" + i).getBytes(StandardCharsets.UTF_8))
                     .sendAsync().thenAccept(pubMessages::add);
         }
 
+        producer.flush();
+
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
-        Awaitility.await()
-                .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+        waitUntilLastActiveTimeNoLongerGetsUpdated(lastActiveTime);
 
         // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
 
         // Acknowledgment of currently received messages to get out of stuck state due to unack message
-        for (Map.Entry<Consumer<?>, List<MessageId>> entry : nameToId.entrySet()) {
+        for (Map.Entry<Consumer<?>, List<MessageId>> entry : unackedMessages.entrySet()) {
             Consumer<?> consumer = entry.getKey();
-            consumer.acknowledge(entry.getValue());
+            List<MessageId> messageIdList = entry.getValue();
+            consumer.acknowledge(messageIdList);
         }
+
         // refresh active time
         lastActiveTime.set(System.currentTimeMillis());
 
         // Wait for all consumers to continue receiving messages.
-        Awaitility.await()
-                .atMost(30, TimeUnit.SECONDS)
-                .pollDelay(5, TimeUnit.SECONDS)
-                .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
+        waitUntilLastActiveTimeNoLongerGetsUpdated(lastActiveTime);
 
         logTopicStats(topic);
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
         Assert.assertEquals(totalMsg, pubMessages.size());
-        Assert.assertEquals(recMessages.size(), pubMessages.size());
-        Assert.assertTrue(recMessages.containsAll(pubMessages));
+        assertThat(recMessages).containsExactlyInAnyOrderElementsOf(pubMessages);
 
         // cleanup
         producer.close();
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
         }
+    }
+
+    private Range[] splitRange(Range keyHashRange, int consumerCount) {
+        Range[] ranges = new Range[consumerCount];
+        int start = keyHashRange.getStart();
+        for (int i = 0; i < consumerCount; i++) {
+            int end = Math.min(start + keyHashRange.size() / consumerCount, keyHashRange.getEnd());
+            ranges[i] = Range.of(start, end);
+            start = end + 1;
+        }
+        return ranges;
+    }
+
+    private String generateKeyForConsumer(StickyKeyConsumerSelector selector,
+                                         String consumerName) {
+        int i = 0;
+        while (!Thread.currentThread().isInterrupted()) {
+            String key = "key" + i++;
+            org.apache.pulsar.broker.service.Consumer selectedConsumer = selector.select(key.getBytes(UTF_8));
+            if (selectedConsumer != null && selectedConsumer.consumerName().equals(consumerName)) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    private static void waitUntilLastActiveTimeNoLongerGetsUpdated(AtomicLong lastActiveTime) {
+        Awaitility.await()
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> System.currentTimeMillis() - lastActiveTime.get() > TimeUnit.SECONDS.toMillis(1));
+    }
+
+    @SneakyThrows
+    private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
+                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        return dispatcher.getSelector();
     }
 }

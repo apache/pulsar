@@ -25,7 +25,6 @@ import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1297,31 +1296,6 @@ public class PersistentSubscription extends AbstractSubscription {
 
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
-
-            LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
-                    .getRecentlyJoinedConsumers();
-            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
-                recentlyJoinedConsumers.forEach((k, v) -> {
-                    // The dispatcher allows same name consumers
-                    final StringBuilder stringBuilder = new StringBuilder();
-                    stringBuilder.append("consumerName=").append(k.consumerName())
-                            .append(", consumerId=").append(k.consumerId());
-                    if (k.cnx() != null) {
-                        stringBuilder.append(", address=").append(k.cnx().clientAddress());
-                    }
-                    subStats.consumersAfterMarkDeletePosition.put(stringBuilder.toString(), v.toString());
-                });
-            }
-            final String lastSentPosition = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
-                    .getLastSentPosition();
-            if (lastSentPosition != null) {
-                subStats.lastSentPosition = lastSentPosition;
-            }
-            final String individuallySentPositions = ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
-                    .getIndividuallySentPositions();
-            if (individuallySentPositions != null) {
-                subStats.individuallySentPositions = individuallySentPositions;
-            }
         }
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =
