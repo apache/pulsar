@@ -135,7 +135,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             }
         }
 
-        ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
+        ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(mlName);
         assertEquals(info.ledgers.size(), 2);
 
         assertEquals(admin.topics().offloadStatus(topicName).getStatus(), LongRunningProcessStatus.Status.NOT_RUN);

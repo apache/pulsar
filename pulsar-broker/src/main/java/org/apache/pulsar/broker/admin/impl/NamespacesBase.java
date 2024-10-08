@@ -2540,7 +2540,7 @@ public abstract class NamespacesBase extends AdminResource {
         String localClusterName = pulsar().getConfiguration().getClusterName();
 
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
-                localClusterName, pulsar().getManagedLedgerFactory(), sink);
+                localClusterName, pulsar().getDefaultManagedLedgerFactory(), sink);
 
     }
 

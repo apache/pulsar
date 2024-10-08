@@ -596,7 +596,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         pulsarClient.close();
 
         assertNotNull(pulsar.getBrokerService().getTopicReference(topic));
-        assertTrue(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
+        assertTrue(((ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory()).getManagedLedgers()
                 .containsKey(topicName.getPersistenceNamingEncoding()));
 
         admin.namespaces().unload("prop/ns-abc");
@@ -613,7 +613,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         // ML should have been closed as well
-        assertFalse(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
+        assertFalse(((ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory()).getManagedLedgers()
                 .containsKey(topicName.getPersistenceNamingEncoding()));
     }
 

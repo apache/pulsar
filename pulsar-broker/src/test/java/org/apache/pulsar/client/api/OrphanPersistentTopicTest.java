@@ -291,7 +291,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                     Thread.sleep(10 * 1000);
                 }
                 log.info("Race condition occurs {} times", mockRaceConditionCounter.get());
-                pulsar.getManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
+                pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
             }
             return invocation.callRealMethod();
         }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));

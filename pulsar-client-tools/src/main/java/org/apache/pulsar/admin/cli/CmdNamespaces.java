@@ -1379,6 +1379,11 @@ public class CmdNamespaces extends CmdBase {
                 description = "Throttling rate of mark-delete operation (0 means no throttle)")
         private double managedLedgerMaxMarkDeleteRate = 0;
 
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
@@ -1390,7 +1395,8 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getAdmin().namespaces().setPersistence(namespace, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 

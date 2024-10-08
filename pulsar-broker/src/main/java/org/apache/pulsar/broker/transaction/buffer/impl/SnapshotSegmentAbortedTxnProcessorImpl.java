@@ -311,8 +311,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
             }
         };
-        topic.getBrokerService().getPulsar().getManagedLedgerFactory().asyncOpenReadOnlyManagedLedger(
-                topicName.getPersistenceNamingEncoding(), callback, topic.getManagedLedger().getConfig(), null);
+        topic.getBrokerService().getManagedLedgerFactoryForTopic(topicName).thenAccept(managedLedgerFactory ->
+                        managedLedgerFactory.asyncOpenReadOnlyManagedLedger(topicName.getPersistenceNamingEncoding(),
+                                callback, topic.getManagedLedger().getConfig(), null))
+                .exceptionally(e -> {
+                    future.completeExceptionally(e);
+                    return null;
+                });
         return wait(future, "open read only ml for " + topicName);
     }
 

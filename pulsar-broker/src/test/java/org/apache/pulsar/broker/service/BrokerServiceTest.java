@@ -76,8 +76,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -1451,7 +1451,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ledgerField.setAccessible(true);
         @SuppressWarnings("unchecked")
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
-                .get(pulsar.getManagedLedgerFactory());
+                .get(pulsar.getDefaultManagedLedgerFactory());
         CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
         future.completeExceptionally(new ManagedLedgerException("ledger opening failed"));
         ledgers.put(namespace + "/persistent/deadLockTestTopic", future);
@@ -1517,8 +1517,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
-        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerClientFactory()
-                .getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
