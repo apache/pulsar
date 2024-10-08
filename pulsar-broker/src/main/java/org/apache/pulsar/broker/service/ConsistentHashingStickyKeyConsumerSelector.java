@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -44,21 +45,32 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     private final int numberOfPoints;
     private final Range keyHashRange;
+    private final boolean addOrRemoveReturnsImpactedConsumersResult;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
-        this(numberOfPoints, DEFAULT_RANGE_SIZE - 1);
+        this(numberOfPoints, false);
     }
 
-    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints, int rangeMaxValue) {
+    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints,
+                                                      boolean addOrRemoveReturnsImpactedConsumersResult) {
+        this(numberOfPoints, addOrRemoveReturnsImpactedConsumersResult, DEFAULT_RANGE_SIZE - 1);
+    }
+
+    public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints,
+                                                      boolean addOrRemoveReturnsImpactedConsumersResult,
+                                                      int rangeMaxValue) {
+        this.addOrRemoveReturnsImpactedConsumersResult = addOrRemoveReturnsImpactedConsumersResult;
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
         this.keyHashRange = Range.of(STICKY_KEY_HASH_NOT_SET + 1, rangeMaxValue);
-        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
+        this.consumerHashAssignmentsSnapshot = addOrRemoveReturnsImpactedConsumersResult
+                ? ConsumerHashAssignmentsSnapshot.empty()
+                : null;
     }
 
     @Override
-    public CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer) {
+    public CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
@@ -76,11 +88,14 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     consumerNameIndexTracker.decreaseConsumerRefCount(removed);
                 }
             }
+            if (!addOrRemoveReturnsImpactedConsumersResult) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             ImpactedConsumersResult impactedConsumers =
                     consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
             consumerHashAssignmentsSnapshot = assignmentsAfter;
-            return CompletableFuture.completedFuture(impactedConsumers);
+            return CompletableFuture.completedFuture(Optional.of(impactedConsumers));
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -103,7 +118,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public ImpactedConsumersResult removeConsumer(Consumer consumer) {
+    public Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer) {
         rwLock.writeLock().lock();
         try {
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
@@ -117,11 +132,14 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     }
                 }
             }
+            if (!addOrRemoveReturnsImpactedConsumersResult) {
+                return Optional.empty();
+            }
             ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
             ImpactedConsumersResult impactedConsumers =
                     consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
             consumerHashAssignmentsSnapshot = assignmentsAfter;
-            return impactedConsumers;
+            return Optional.of(impactedConsumers);
         } finally {
             rwLock.writeLock().unlock();
         }
@@ -155,7 +173,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     public ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
         rwLock.readLock().lock();
         try {
-            return consumerHashAssignmentsSnapshot;
+            return consumerHashAssignmentsSnapshot != null ? consumerHashAssignmentsSnapshot
+                    : internalGetConsumerHashAssignmentsSnapshot();
         } finally {
             rwLock.readLock().unlock();
         }

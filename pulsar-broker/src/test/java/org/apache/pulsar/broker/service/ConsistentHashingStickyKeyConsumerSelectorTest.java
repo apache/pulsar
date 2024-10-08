@@ -476,7 +476,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
     @Test
     public void testShouldContainMinimalMappingChangesWhenConsumerLeavesAndRejoins() {
-        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(100, true);
         final String consumerName = "consumer";
         final int numOfInitialConsumers = 10;
         List<Consumer> consumers = new ArrayList<>();
@@ -563,7 +564,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         // test that adding 1000 consumers with 100 points runs in a reasonable time.
         // This takes about 1 second on Apple M3
         // this unit test can be used for basic profiling
-        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(100, true);
         for (int i = 0; i < 1000; i++) {
             // use real class to avoid Mockito over head
             final Consumer consumer = new Consumer("consumer" + i, 0) {

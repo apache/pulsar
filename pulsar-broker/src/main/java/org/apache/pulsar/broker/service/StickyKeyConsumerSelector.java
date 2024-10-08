@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
 
@@ -50,7 +51,7 @@ public interface StickyKeyConsumerSelector {
      *         The result contains information about the existing consumers whose hash ranges were affected
      *         by the addition of the new consumer.
      */
-    CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer);
+    CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer);
 
     /**
      * Remove the consumer.
@@ -59,7 +60,7 @@ public interface StickyKeyConsumerSelector {
      * @return the result of impacted consumers. The result contains information about the existing consumers
      *         whose hash ranges were affected by the removal of the consumer.
      */
-    ImpactedConsumersResult removeConsumer(Consumer consumer);
+    Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer);
 
     /**
      * Select a consumer by sticky key.

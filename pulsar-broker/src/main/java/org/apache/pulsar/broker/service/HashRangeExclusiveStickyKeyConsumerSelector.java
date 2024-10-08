@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
@@ -38,7 +39,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     private final int rangeSize;
     private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
-    private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public HashRangeExclusiveStickyKeyConsumerSelector() {
         this(DEFAULT_RANGE_SIZE);
@@ -52,11 +52,10 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         this.rangeSize = rangeSize;
         this.keyHashRange = Range.of(0, rangeSize - 1);
         this.rangeMap = new ConcurrentSkipListMap<>();
-        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
     }
 
     @Override
-    public synchronized CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer) {
         return validateKeySharedMeta(consumer).thenApply(__ -> {
             try {
                 return internalAddConsumer(consumer);
@@ -66,7 +65,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         });
     }
 
-    private synchronized ImpactedConsumersResult internalAddConsumer(Consumer consumer)
+    private synchronized Optional<ImpactedConsumersResult> internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
         Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
         if (conflictingConsumer != null) {
@@ -77,29 +76,17 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
-        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        ImpactedConsumersResult impactedConsumers =
-                consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
-        consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedConsumers;
+        return Optional.empty();
     }
 
     @Override
-    public synchronized ImpactedConsumersResult removeConsumer(Consumer consumer) {
+    public synchronized Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer) {
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
-        ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
-        ImpactedConsumersResult impactedConsumers =
-                consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
-        consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedConsumers;
+        return Optional.empty();
     }
 
     @Override
     public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
-        return consumerHashAssignmentsSnapshot;
-    }
-
-    private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {
         List<HashRangeAssignment> result = new ArrayList<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
