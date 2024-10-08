@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.airlift.slice.SizeOf.SIZE_OF_LONG;
 import static io.trino.decoder.FieldValueProviders.bytesValueProvider;
 import static io.trino.decoder.FieldValueProviders.longValueProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,8 +35,10 @@ import io.netty.util.ReferenceCountUtil;
 import io.trino.decoder.DecoderColumnHandle;
 import io.trino.decoder.FieldValueProvider;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.RecordCursor;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.Type;
 import java.io.IOException;
 import java.util.HashMap;
@@ -720,9 +723,20 @@ public class PulsarRecordCursor implements RecordCursor {
         return currentRowValues[fieldIndex];
     }
 
+    private FieldValueProvider getFieldValueProvider(int fieldIndex) {
+        checkArgument(fieldIndex < columnHandles.size(), "Invalid field index");
+        return currentRowValues[fieldIndex];
+    }
+
     @Override
     public Object getObject(int field) {
-        return getFieldValueProvider(field, Block.class).getBlock();
+        Block block = getFieldValueProvider(field).getBlock();
+        if (block instanceof Int128ArrayBlock) {
+            return Int128.valueOf(
+                    block.getLong(0, 0),
+                    block.getLong(0, SIZE_OF_LONG));
+        }
+        return block;
     }
 
     @Override
