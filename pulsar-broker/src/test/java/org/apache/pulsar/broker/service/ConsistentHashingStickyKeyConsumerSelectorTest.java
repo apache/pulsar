@@ -557,4 +557,29 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         }
         return res;
     }
+
+    @Test
+    public void testPerformanceOfAdding1000ConsumersWith100Points() {
+        // test that adding 1000 consumers with 100 points runs in a reasonable time.
+        // this unit test can be used for basic profiling
+        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+        for (int i = 0; i < 1000; i++) {
+            // use real class to avoid Mockito over head
+            final Consumer consumer = new Consumer("consumer" + i, 0) {
+                @Override
+                public int hashCode() {
+                    return consumerName().hashCode();
+                }
+
+                @Override
+                public boolean equals(Object obj) {
+                    if (obj instanceof Consumer) {
+                        return consumerName().equals(((Consumer) obj).consumerName());
+                    }
+                    return false;
+                }
+            };
+            selector.addConsumer(consumer);
+        }
+    }
 }
