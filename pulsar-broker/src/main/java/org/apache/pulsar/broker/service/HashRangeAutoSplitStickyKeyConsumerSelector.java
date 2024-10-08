@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
@@ -59,13 +60,20 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private final Map<Consumer, Integer> consumerRange;
+    private final boolean addOrRemoveReturnsImpactedConsumersResult;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
     public HashRangeAutoSplitStickyKeyConsumerSelector() {
-        this(DEFAULT_RANGE_SIZE);
+        this(false);
     }
 
-    public HashRangeAutoSplitStickyKeyConsumerSelector(int rangeSize) {
+    public HashRangeAutoSplitStickyKeyConsumerSelector(boolean addOrRemoveReturnsImpactedConsumersResult) {
+        this(DEFAULT_RANGE_SIZE, addOrRemoveReturnsImpactedConsumersResult);
+    }
+
+    public HashRangeAutoSplitStickyKeyConsumerSelector(int rangeSize,
+                                                       boolean addOrRemoveReturnsImpactedConsumersResult) {
+        this.addOrRemoveReturnsImpactedConsumersResult = addOrRemoveReturnsImpactedConsumersResult;
         if (rangeSize < 2) {
             throw new IllegalArgumentException("range size must greater than 2");
         }
@@ -76,11 +84,12 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
         this.consumerRange = new HashMap<>();
         this.rangeSize = rangeSize;
         this.keyHashRange = Range.of(0, rangeSize - 1);
-        this.consumerHashAssignmentsSnapshot = ConsumerHashAssignmentsSnapshot.empty();
+        this.consumerHashAssignmentsSnapshot = addOrRemoveReturnsImpactedConsumersResult
+                ? ConsumerHashAssignmentsSnapshot.empty() : null;
     }
 
     @Override
-    public synchronized CompletableFuture<ImpactedConsumersResult> addConsumer(Consumer consumer) {
+    public synchronized CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer) {
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
@@ -91,15 +100,18 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 return CompletableFuture.failedFuture(e);
             }
         }
+        if (!addOrRemoveReturnsImpactedConsumersResult) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
         ImpactedConsumersResult impactedConsumers =
                 consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return CompletableFuture.completedFuture(impactedConsumers);
+        return CompletableFuture.completedFuture(Optional.of(impactedConsumers));
     }
 
     @Override
-    public synchronized ImpactedConsumersResult removeConsumer(Consumer consumer) {
+    public synchronized Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer) {
         Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
@@ -111,11 +123,14 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 rangeMap.remove(removeRange);
             }
         }
+        if (!addOrRemoveReturnsImpactedConsumersResult) {
+            return Optional.empty();
+        }
         ConsumerHashAssignmentsSnapshot assignmentsAfter = internalGetConsumerHashAssignmentsSnapshot();
         ImpactedConsumersResult impactedConsumers =
                 consumerHashAssignmentsSnapshot.resolveImpactedConsumers(assignmentsAfter);
         consumerHashAssignmentsSnapshot = assignmentsAfter;
-        return impactedConsumers;
+        return Optional.of(impactedConsumers);
     }
 
     @Override
@@ -134,7 +149,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
-        return consumerHashAssignmentsSnapshot;
+        return consumerHashAssignmentsSnapshot != null ? consumerHashAssignmentsSnapshot
+                : internalGetConsumerHashAssignmentsSnapshot();
     }
 
     private ConsumerHashAssignmentsSnapshot internalGetConsumerHashAssignmentsSnapshot() {

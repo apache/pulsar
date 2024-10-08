@@ -91,9 +91,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
                 selector = new ConsistentHashingStickyKeyConsumerSelector(
-                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints(), drainingHashesRequired);
             } else {
-                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+                selector = new HashRangeAutoSplitStickyKeyConsumerSelector(drainingHashesRequired);
             }
             break;
         case STICKY:
@@ -155,7 +155,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         drainingHashesTracker.endBatch();
                     }
                 });
-                registerDrainingHashes(consumer, impactedConsumers);
+                registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
             }
         }).exceptionally(ex -> {
             internalRemoveConsumer(consumer);
@@ -184,13 +184,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
-        ImpactedConsumersResult impactedConsumers = selector.removeConsumer(consumer);
+        Optional<ImpactedConsumersResult> impactedConsumers = selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
         if (drainingHashesRequired) {
             // register draining hashes for the impacted consumers and ranges, in case a hash switched from one
             // consumer to another. This will handle the case where a hash gets switched from an existing
             // consumer to another existing consumer during removal.
-            registerDrainingHashes(consumer, impactedConsumers);
+            registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
         }
     }
 
