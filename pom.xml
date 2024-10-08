@@ -206,6 +206,7 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>
+    <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.0-hadoop3</hbase.version>
     <guava.version>32.1.2-jre</guava.version>
@@ -1303,6 +1304,13 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-collections4</artifactId>
         <version>${commons.collections4.version}</version>
+      </dependency>
+
+      <!-- dnsjava is pulled in by hadoop-common -->
+      <dependency>
+        <groupId>dnsjava</groupId>
+        <artifactId>dnsjava</artifactId>
+        <version>${dnsjava3.version}</version>
       </dependency>
 
       <!-- test dependencies -->
