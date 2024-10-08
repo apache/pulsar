@@ -195,7 +195,6 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
@@ -206,8 +205,9 @@ flexible messaging model and an intuitive client API.</description>
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop3.version>3.3.5</hadoop3.version>
-    <hbase.version>2.4.16</hbase.version>
+    <hadoop3.version>3.4.0</hadoop3.version>
+    <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
+    <hbase.version>2.6.0-hadoop3</hbase.version>
     <guava.version>32.1.2-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
