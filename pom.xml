@@ -1306,6 +1306,22 @@ flexible messaging model and an intuitive client API.</description>
         <version>${commons.collections4.version}</version>
       </dependency>
 
+      <!-- support only hadoop 3 since hadoop 2 is EOL -->
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop3.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-auth</artifactId>
+        <version>${hadoop3.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>${hadoop3.version}</version>
+      </dependency>
       <!-- dnsjava is pulled in by hadoop-common -->
       <dependency>
         <groupId>dnsjava</groupId>
