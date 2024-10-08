@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Predicate;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -60,7 +59,6 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -85,8 +83,7 @@ import org.slf4j.LoggerFactory;
 /**
  *
  */
-public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
-        implements Dispatcher, ReadEntriesCallback {
+public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDispatcherMultipleConsumers {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Range<Position> lastIndividualDeletedRangeFromCursorRecovery;
@@ -320,6 +317,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * We should not call readMoreEntries() recursively in the same thread as there is a risk of StackOverflowError.
      *
      */
+    @Override
     public void readMoreEntriesAsync() {
         // deduplication for readMoreEntriesAsync calls
         if (readMoreEntriesAsyncRequested.compareAndSet(false, true)) {
@@ -1285,6 +1283,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         blockedDispatcherOnUnackedMsgs = TRUE;
     }
 
+    @Override
     public void unBlockDispatcherOnUnackedMsgs() {
         blockedDispatcherOnUnackedMsgs = FALSE;
     }
@@ -1293,6 +1292,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return totalUnackedMessages;
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -1503,6 +1503,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public long getNumberOfMessagesInReplay() {
         return redeliveryMessages.size();
+    }
+
+    @Override
+    public boolean isHavePendingRead() {
+        return havePendingRead;
+    }
+
+    @Override
+    public boolean isHavePendingReplayRead() {
+        return havePendingReplayRead;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);
