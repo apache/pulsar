@@ -95,7 +95,7 @@ public class ConsumerHashAssignmentsSnapshot {
         });
         Map<Consumer, List<Range>> mergedOverlappingRangesByConsumer = new IdentityHashMap<>();
         rangesByConsumer.forEach((consumer, ranges) -> {
-            mergedOverlappingRangesByConsumer.put(consumer, new ArrayList<>(mergeOverlappingRanges(ranges)));
+            mergedOverlappingRangesByConsumer.put(consumer, mergeOverlappingRanges(ranges));
         });
         return mergedOverlappingRangesByConsumer;
     }
@@ -140,8 +140,8 @@ public class ConsumerHashAssignmentsSnapshot {
      * @param ranges the ranges to merge
      * @return the merged ranges
      */
-    static SortedSet<Range> mergeOverlappingRanges(SortedSet<Range> ranges) {
-        TreeSet<Range> mergedRanges = new TreeSet<>();
+    static List<Range> mergeOverlappingRanges(SortedSet<Range> ranges) {
+        List<Range> mergedRanges = new ArrayList<>();
         Iterator<Range> rangeIterator = ranges.iterator();
         Range currentRange = rangeIterator.hasNext() ? rangeIterator.next() : null;
         while (rangeIterator.hasNext()) {

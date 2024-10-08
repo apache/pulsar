@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.SortedSet;
+import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.pulsar.client.api.Range;
@@ -31,13 +31,27 @@ import org.apache.pulsar.client.api.Range;
 public class RemovedHashRanges {
     private final Range[] sortedRanges;
 
-    private RemovedHashRanges(SortedSet<Range> ranges) {
+    private RemovedHashRanges(List<Range> ranges) {
         // Converts the set of ranges to an array to avoid iterator allocation
         // when the ranges are iterator multiple times in the pending acknowledgments loop.
         this.sortedRanges = ranges.toArray(new Range[0]);
+        validateSortedRanges();
     }
 
-    public static RemovedHashRanges of(SortedSet<Range> ranges) {
+    private void validateSortedRanges() {
+        for (int i = 0; i < sortedRanges.length - 1; i++) {
+            if (sortedRanges[i].getStart() >= sortedRanges[i + 1].getStart()) {
+                throw new IllegalArgumentException(
+                        "Ranges must be sorted: " + sortedRanges[i] + " and " + sortedRanges[i + 1]);
+            }
+            if (sortedRanges[i].getEnd() >= sortedRanges[i + 1].getStart()) {
+                throw new IllegalArgumentException(
+                        "Ranges must not overlap: " + sortedRanges[i] + " and " + sortedRanges[i + 1]);
+            }
+        }
+    }
+
+    public static RemovedHashRanges of(List<Range> ranges) {
         return new RemovedHashRanges(ranges);
     }
 

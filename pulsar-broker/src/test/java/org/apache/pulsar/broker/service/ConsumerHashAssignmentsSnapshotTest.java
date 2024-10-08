@@ -44,7 +44,7 @@ public class ConsumerHashAssignmentsSnapshotTest {
         expectedMergedRanges.add(Range.of(1, 12));
         expectedMergedRanges.add(Range.of(15, 25));
 
-        SortedSet<Range> mergedRanges = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(ranges);
+        List<Range> mergedRanges = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(ranges);
 
         assertThat(mergedRanges).containsExactlyElementsOf(expectedMergedRanges);
     }
@@ -153,7 +153,7 @@ public class ConsumerHashAssignmentsSnapshotTest {
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(1, 5)))));
     }
 
     @Test
@@ -182,7 +182,7 @@ public class ConsumerHashAssignmentsSnapshotTest {
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(1, 5))))));
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(1, 5)))));
     }
 
     @Test
@@ -199,6 +199,6 @@ public class ConsumerHashAssignmentsSnapshotTest {
                 ConsumerHashAssignmentsSnapshot.resolveConsumerRemovedHashRanges(mappingBefore, mappingAfter);
 
         assertThat(impactedConsumers.getRemovedHashRanges()).containsExactlyInAnyOrderEntriesOf(
-                Map.of(consumer1, RemovedHashRanges.of(new TreeSet<>(List.of(Range.of(3, 5))))));
+                Map.of(consumer1, RemovedHashRanges.of(List.of(Range.of(3, 5)))));
     }
 }
