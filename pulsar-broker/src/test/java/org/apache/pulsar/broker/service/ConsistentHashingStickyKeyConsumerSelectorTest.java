@@ -558,9 +558,10 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         return res;
     }
 
-    @Test
+    @Test(enabled = false)
     public void testPerformanceOfAdding1000ConsumersWith100Points() {
         // test that adding 1000 consumers with 100 points runs in a reasonable time.
+        // This takes about 1 second on Apple M3
         // this unit test can be used for basic profiling
         final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
         for (int i = 0; i < 1000; i++) {
