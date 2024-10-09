@@ -45,11 +45,11 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup
@@ -68,11 +68,11 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup

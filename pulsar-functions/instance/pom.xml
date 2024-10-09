@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-functions-instance</artifactId>
@@ -36,7 +36,7 @@
     <!-- logging -->
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -101,13 +101,18 @@
       <exclusions>
         <exclusion>
           <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
+          <artifactId>*</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.google.protobuf</groupId>
           <artifactId>protobuf-java</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
     </dependency>
 
     <dependency>
@@ -153,8 +158,13 @@
     </dependency>
 
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
     </dependency>
 
     <dependency>
@@ -215,7 +225,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <!-- this task is used for copy all python files together to provide a instance directory
            for running python instance -->
       <plugin>
@@ -268,6 +278,15 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <environmentVariables>
+            <TEST_JAVA_INSTANCE_PARSE_ENV_VAR>some-configuration</TEST_JAVA_INSTANCE_PARSE_ENV_VAR>
+          </environmentVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>

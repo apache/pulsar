@@ -44,4 +44,13 @@ public class TransactionBufferStats {
     public long recoverStartTime;
     //End timestamp of transaction buffer recovery. 0L means no startup.
     public long recoverEndTime;
+
+    // The total number of aborted transactions.
+    public long totalAbortedTransactions;
+
+    // The type of snapshot being used: either "Single" or "Segment"
+    public String snapshotType;
+
+    // If snapshotType is "Segment", this field will provide additional segment-related statistics
+    public SegmentsStats segmentsStats;
 }

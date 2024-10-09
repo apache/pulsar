@@ -27,7 +27,7 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * Pulsar Connect's Record interface. Record encapsulates the information about a record being read from a Source.
+ * Pulsar IO's Record interface. Record encapsulates the information about a record being read from a Source.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable

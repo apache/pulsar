@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.bookkeeper.bookie.BookieException;
@@ -30,7 +33,8 @@ import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-class PulsarLayoutManager implements LayoutManager {
+
+public class PulsarLayoutManager implements LayoutManager {
 
     @Getter(AccessLevel.PACKAGE)
     private final MetadataStoreExtended store;
@@ -40,7 +44,7 @@ class PulsarLayoutManager implements LayoutManager {
 
     private final String layoutPath;
 
-    PulsarLayoutManager(MetadataStoreExtended store, String ledgersRootPath) {
+    public PulsarLayoutManager(MetadataStoreExtended store, String ledgersRootPath) {
         this.ledgersRootPath = ledgersRootPath;
         this.store = store;
         this.layoutPath = ledgersRootPath + "/" + BookKeeperConstants.LAYOUT_ZNODE;
@@ -49,14 +53,14 @@ class PulsarLayoutManager implements LayoutManager {
     @Override
     public LedgerLayout readLedgerLayout() throws IOException {
         try {
-            byte[] layoutData = store.get(layoutPath).get()
+            byte[] layoutData = store.get(layoutPath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)
                     .orElseThrow(() -> new BookieException.MetadataStoreException("Layout node not found"))
                     .getValue();
             return LedgerLayout.parseLayout(layoutData);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
-        } catch (BookieException | ExecutionException e) {
+        } catch (BookieException | ExecutionException | TimeoutException e) {
             throw new IOException(e);
         }
     }
@@ -66,9 +70,12 @@ class PulsarLayoutManager implements LayoutManager {
         try {
             byte[] layoutData = ledgerLayout.serialize();
 
-            store.put(layoutPath, layoutData, Optional.of(-1L)).get();
+            store.put(layoutPath, layoutData, Optional.of(-1L))
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new IOException(e);
+        } catch (TimeoutException e) {
             throw new IOException(e);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof MetadataStoreException.BadVersionException) {
@@ -82,11 +89,12 @@ class PulsarLayoutManager implements LayoutManager {
     @Override
     public void deleteLedgerLayout() throws IOException {
         try {
-            store.delete(layoutPath, Optional.empty()).get();
+            store.delete(layoutPath, Optional.empty())
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
-        } catch (ExecutionException e) {
+        } catch (ExecutionException | TimeoutException e) {
             throw new IOException(e);
         }
     }

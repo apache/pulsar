@@ -35,6 +35,13 @@ public abstract class BaseKinesisConfig implements Serializable {
     )
     private String awsEndpoint = "";
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Cloudwatch end-point url. It can be found at "
+                    + "https://docs.aws.amazon.com/general/latest/gr/rande.html"
+    )
+    private String cloudwatchEndpoint = "";
 
     @FieldDoc(
         required = false,

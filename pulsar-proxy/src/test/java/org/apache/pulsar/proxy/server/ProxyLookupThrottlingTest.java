@@ -20,18 +20,28 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -45,6 +55,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     private final int NUM_CONCURRENT_INBOUND_CONNECTION = 5;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeMethod(alwaysRun = true)
@@ -57,12 +68,17 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
+        proxyConfig.setClusterName(configClusterName);
 
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         proxyService.start();
     }
@@ -73,6 +89,9 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
     }
 
@@ -111,5 +130,33 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         }
 
         Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get(), 5.0d);
+    }
+
+    @Test
+    public void testLookupThrottling() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl()).build();
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        LookupService lookupService = client.getLookup();
+        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        ClientCnx lookupConnection = client.getCnxPool().getConnection(lookupService.resolveHost()).join();
+
+        // Make no permits to lookup.
+        Semaphore lookupSemaphore = proxyService.getLookupRequestSemaphore();
+        int availablePermits = lookupSemaphore.availablePermits();
+        lookupSemaphore.acquire(availablePermits);
+
+        // Verify will receive too many request exception, and the socket will not be closed.
+        try {
+            lookupService.getBroker(TopicName.get(tpName)).get();
+            fail("Expected too many request error.");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Too many"));
+        }
+        assertTrue(lookupConnection.ctx().channel().isActive());
+
+        // cleanup.
+        lookupSemaphore.release(availablePermits);
+        client.close();
     }
 }

@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-auth-athenz</artifactId>
@@ -50,6 +49,11 @@
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
       <artifactId>athenz-cert-refresher</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
     <dependency>

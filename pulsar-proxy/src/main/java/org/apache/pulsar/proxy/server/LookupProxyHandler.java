@@ -116,7 +116,7 @@ public class LookupProxyHandler {
                 log.debug("Lookup Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
                         throttlingErrorMessage);
             }
-            writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+            writeAndFlush(Commands.newLookupErrorResponse(ServerError.TooManyRequests,
                     throttlingErrorMessage, clientRequestId));
         }
 
@@ -241,7 +241,8 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
+                    partitionMetadata.isMetadataAutoCreationEnabled());
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),

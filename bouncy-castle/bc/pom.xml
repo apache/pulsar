@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>bouncy-castle-parent</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>bouncy-castle-bc</artifactId>
@@ -42,13 +41,13 @@
 
     <dependency>
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
+      <artifactId>bcpkix-jdk18on</artifactId>
       <version>${bouncycastle.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-ext-jdk15on</artifactId>
+      <artifactId>bcprov-ext-jdk18on</artifactId>
       <version>${bouncycastle.version}</version>
     </dependency>
   </dependencies>

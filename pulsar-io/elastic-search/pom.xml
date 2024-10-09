@@ -23,16 +23,12 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-io-elastic-search</artifactId>
   <name>Pulsar IO :: ElasticSearch</name>
 
   <properties>
-    <!--
-     Work-around for "Container exited with code 137" (OOM)
-    -->
-    <testReuseFork>false</testReuseFork>
     <testForkCount>1</testForkCount>
   </properties>
 

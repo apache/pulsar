@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-docs</artifactId>
@@ -42,8 +42,8 @@
       <artifactId>reflections</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
     </dependency>
 
     <!-- include connectors -->
@@ -55,6 +55,11 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-alluxio</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-azuredataexplorer</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -253,7 +258,6 @@
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <executions>
               <execution>
                 <goals>

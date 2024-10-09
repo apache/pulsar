@@ -36,14 +36,14 @@ public interface Reader extends Closeable {
     /**
      * Read the next message in the topic.
      *
-     * @return the next messasge
+     * @return the next message
      * @throws PulsarClientException
      */
     Message<byte[]> readNext() throws PulsarClientException;
 
     /**
      * Read the next message in the topic waiting for a maximum of timeout
-     * time units. Returns null if no message is recieved in that time.
+     * time units. Returns null if no message is received in that time.
      *
      * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException

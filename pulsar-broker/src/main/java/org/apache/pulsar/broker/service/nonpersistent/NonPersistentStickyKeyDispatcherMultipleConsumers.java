@@ -101,10 +101,10 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                             consumerList.remove(consumer);
                         }
                         throw FutureUtil.wrapToCompletionException(ex);
-                    } else {
-                        return value;
                     }
-                }));
+                    return value;
+                })).thenAccept(__ -> {
+        });
     }
 
     @Override
@@ -126,6 +126,14 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 }
             };
 
+    private static final FastThreadLocal<Map<Consumer, List<Integer>>> localGroupedStickyKeyHashes =
+            new FastThreadLocal<Map<Consumer, List<Integer>>>() {
+                @Override
+                protected Map<Consumer, List<Integer>> initialValue() throws Exception {
+                    return new HashMap<>();
+                }
+            };
+
     @Override
     public void sendMessages(List<Entry> entries) {
         if (entries.isEmpty()) {
@@ -139,28 +147,38 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
 
         final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
         groupedEntries.clear();
+        final Map<Consumer, List<Integer>> consumerStickyKeyHashesMap = localGroupedStickyKeyHashes.get();
+        consumerStickyKeyHashesMap.clear();
 
         for (Entry entry : entries) {
-            Consumer consumer = selector.select(peekStickyKey(entry.getDataBuffer()));
+            byte[] stickyKey = peekStickyKey(entry.getDataBuffer());
+            int stickyKeyHash = selector.makeStickyKeyHash(stickyKey);
+
+            Consumer consumer = selector.select(stickyKeyHash);
             if (consumer != null) {
-                groupedEntries.computeIfAbsent(consumer, k -> new ArrayList<>()).add(entry);
+                int startingSize = Math.max(10, entries.size() / (2 * consumerSet.size()));
+                groupedEntries.computeIfAbsent(consumer, k -> new ArrayList<>(startingSize)).add(entry);
+                consumerStickyKeyHashesMap
+                        .computeIfAbsent(consumer, k -> new ArrayList<>(startingSize)).add(stickyKeyHash);
             } else {
                 entry.release();
             }
         }
 
         for (Map.Entry<Consumer, List<Entry>> entriesByConsumer : groupedEntries.entrySet()) {
-            Consumer consumer = entriesByConsumer.getKey();
-            List<Entry> entriesForConsumer = entriesByConsumer.getValue();
+            final Consumer consumer = entriesByConsumer.getKey();
+            final List<Entry> entriesForConsumer = entriesByConsumer.getValue();
+            final List<Integer> stickyKeysForConsumer = consumerStickyKeyHashesMap.get(consumer);
 
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, false, consumer);
 
             if (consumer.getAvailablePermits() > 0 && consumer.isWritable()) {
-                consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
+                consumer.sendMessages(entriesForConsumer, stickyKeysForConsumer, batchSizes,
+                        null, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker());
+                        getRedeliveryTracker(), Commands.DEFAULT_CONSUMER_EPOCH);
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
             } else {
                 entriesForConsumer.forEach(e -> {

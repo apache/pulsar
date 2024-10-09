@@ -20,18 +20,20 @@ package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -82,8 +84,8 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
         persistentTopic.triggerCompaction();
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl lastConfirmPos = (PositionImpl) persistentTopic.getManagedLedger().getLastConfirmedEntry();
-            PositionImpl markDeletePos = (PositionImpl) persistentTopic
+            Position lastConfirmPos = persistentTopic.getManagedLedger().getLastConfirmedEntry();
+            Position markDeletePos = persistentTopic
                     .getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor().getMarkDeletedPosition();
             assertEquals(markDeletePos.getLedgerId(), lastConfirmPos.getLedgerId());
             assertEquals(markDeletePos.getEntryId(), lastConfirmPos.getEntryId());
@@ -414,5 +416,29 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         admin.topics().delete(topicName, false);
+    }
+
+    @Test(dataProvider = "enabledBatch")
+    public void testReaderStuckWithCompaction(boolean enabledBatch) throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String subName = "sub";
+        Producer<String> producer = createProducer(enabledBatch, topicName);
+        producer.newMessage().key("k0").value("v0").sendAsync();
+        producer.newMessage().key("k0").value("v1").sendAsync();
+        producer.flush();
+
+        triggerCompactionAndWait(topicName);
+        triggerLedgerSwitch(topicName);
+        clearAllTheLedgersOutdated(topicName);
+
+        var reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .startMessageId(MessageId.earliest)
+                .create();
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
+            assertNotEquals(message, null);
+        }
     }
 }

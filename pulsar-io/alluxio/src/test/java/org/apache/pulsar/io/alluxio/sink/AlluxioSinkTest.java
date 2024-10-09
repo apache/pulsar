@@ -22,8 +22,8 @@ import alluxio.AlluxioURI;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileSystem;
 import alluxio.client.file.URIStatus;
+import alluxio.conf.Configuration;
 import alluxio.conf.PropertyKey;
-import alluxio.conf.ServerConfiguration;
 import alluxio.master.LocalAlluxioCluster;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -237,8 +237,8 @@ public class AlluxioSinkTest {
     private LocalAlluxioCluster setupSingleMasterCluster() throws Exception {
         // Setup and start the local alluxio cluster
         LocalAlluxioCluster cluster = new LocalAlluxioCluster();
-        cluster.initConfiguration(getTestName(getClass().getSimpleName(), LocalAlluxioCluster.DEFAULT_TEST_NAME));
-        ServerConfiguration.set(PropertyKey.USER_FILE_WRITE_TYPE_DEFAULT, WriteType.MUST_CACHE);
+        cluster.initConfiguration(getTestName(getClass().getSimpleName(), "test"));
+        Configuration.set(PropertyKey.USER_FILE_WRITE_TYPE_DEFAULT, WriteType.MUST_CACHE);
         cluster.start();
         return cluster;
     }

@@ -35,6 +35,8 @@ import java.util.Date;
 import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import software.amazon.awssdk.regions.Region;
 
@@ -77,6 +79,7 @@ public class DynamoDBSourceConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "",
+            sensitive = true,
             help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
     private String awsCredentialPluginParam = "";
 
@@ -170,9 +173,8 @@ public class DynamoDBSourceConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), DynamoDBSourceConfig.class);
     }
 
-    public static DynamoDBSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(mapper.writeValueAsString(map), DynamoDBSourceConfig.class);
+    public static DynamoDBSourceConfig load(Map<String, Object> map, SourceContext sourceContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, DynamoDBSourceConfig.class, sourceContext);
     }
 
     protected Region regionAsV2Region() {

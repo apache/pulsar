@@ -48,7 +48,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarStats;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

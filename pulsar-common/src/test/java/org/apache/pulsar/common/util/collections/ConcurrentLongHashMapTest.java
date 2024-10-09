@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongFunction;
 
 import lombok.Cleanup;
@@ -214,6 +215,67 @@ public class ConcurrentLongHashMapTest {
     }
 
     @Test
+    public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        assertEquals(map.capacity(), 4);
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+        final int readThreads = 16;
+        final int writeThreads = 1;
+        final int n = 1_000;
+        CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
+        Future<?> future = null;
+        AtomicReference<Exception> ex = new AtomicReference<>();
+
+        for (int i = 0; i < readThreads; i++) {
+            executor.submit(() -> {
+                try {
+                    barrier.await();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    map.get(1);
+                } catch (Exception e) {
+                    ex.set(e);
+                }
+            });
+        }
+
+        assertNull(map.put(1,"v1"));
+        future = executor.submit(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            for (int i = 0; i < n; i++) {
+                // expand hashmap
+                assertNull(map.put(2, "v2"));
+                assertNull(map.put(3, "v3"));
+                assertEquals(map.capacity(), 8);
+
+                // shrink hashmap
+                assertTrue(map.remove(2, "v2"));
+                assertTrue(map.remove(3, "v3"));
+                assertEquals(map.capacity(), 4);
+            }
+        });
+
+        future.get();
+        assertTrue(ex.get() == null);
+        // shut down pool
+        executor.shutdown();
+    }
+
+    @Test
     public void testRemove() {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .build();
@@ -361,7 +423,6 @@ public class ConcurrentLongHashMapTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
     public void stressConcurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .expectedItems(4)

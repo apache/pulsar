@@ -195,7 +195,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
-
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationEnabled(true);
         Set<String> providersClassNames = Sets.newHashSet(MutualAuthenticationProvider.class.getName());

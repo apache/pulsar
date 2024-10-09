@@ -342,7 +342,6 @@ services:
       # Requires PF_ prefix for some reason in the code
       PF_pulsarFunctionsCluster: test
       PF_workerId: fnc1
-      PF_pulsarFunctionsCluster: test
       # This setting does not appear to accept more than one host
       PF_configurationStoreServers: zk1:2181
       PF_pulsarServiceUrl: pulsar://proxy1:6650
@@ -368,8 +367,7 @@ services:
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
     command: >
-      bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ trino/conf/catalog/pulsar.properties && \
-               bin/apply-config-from-env.py conf/pulsar_env.sh && \
+      bash -c "bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
                exec bin/pulsar sql-worker run"
     environment:

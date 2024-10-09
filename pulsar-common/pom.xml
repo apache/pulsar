@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-common</artifactId>
@@ -50,6 +49,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -100,8 +100,13 @@
 
     <dependency>
       <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <classifier>linux-aarch_64</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-unix-common</artifactId>
-      <classifier>linux-x86_64</classifier>
     </dependency>
 
     <dependency>
@@ -194,10 +199,20 @@
       <scope>provided</scope>
       <optional>true</optional>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
 	  <artifactId>protobuf-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.re2j</groupId>
+      <artifactId>re2j</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.spotify</groupId>
+      <artifactId>completable-futures</artifactId>
     </dependency>
 
     <!-- test -->
@@ -226,14 +241,15 @@
       <artifactId>snappy-java</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>com.google.re2j</groupId>
+      <artifactId>re2j</artifactId>
     </dependency>
 
     <dependency>
@@ -296,6 +312,7 @@
           </execution>
         </executions>
         <configuration>
+          <skip>false</skip>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <verbose>false</verbose>

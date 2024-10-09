@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
@@ -33,20 +34,24 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.SnapshotSystemTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -170,9 +175,10 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative,
-                                                                                          boolean lowWaterMarks) {
+                                                                                          boolean lowWaterMarks,
+                                                                                          boolean segmentStats) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks));
+                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks, segmentStats));
     }
 
     protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
@@ -431,16 +437,78 @@ public abstract class TransactionsBase extends AdminResource {
                 );
     }
 
+    protected CompletableFuture<TransactionBufferInternalStats> internalGetTransactionBufferInternalStats(
+            boolean authoritative, boolean metadata) {
+        TransactionBufferInternalStats transactionBufferInternalStats = new TransactionBufferInternalStats();
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenCompose(topic -> {
+                    AbortedTxnProcessor.SnapshotType snapshotType = topic.getTransactionBuffer().getSnapshotType();
+                    if (snapshotType == null) {
+                        return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                                "Transaction buffer Snapshot for the topic does not exist"));
+                    } else if (snapshotType == AbortedTxnProcessor.SnapshotType.Segment) {
+                        transactionBufferInternalStats.snapshotType = snapshotType.toString();
+                        TopicName segmentTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+                        CompletableFuture<SnapshotSystemTopicInternalStats> segmentInternalStatsFuture =
+                                getTxnSnapshotInternalStats(segmentTopic, metadata);
+                        TopicName indexTopic = TopicName.get(TopicDomain.persistent.toString(),
+                                namespaceName,
+                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+                        CompletableFuture<SnapshotSystemTopicInternalStats> segmentIndexInternalStatsFuture =
+                                getTxnSnapshotInternalStats(indexTopic, metadata);
+                        return segmentIndexInternalStatsFuture
+                                .thenCombine(segmentInternalStatsFuture, (indexStats, segmentStats) -> {
+                                    transactionBufferInternalStats.segmentIndexInternalStats = indexStats;
+                                    transactionBufferInternalStats.segmentInternalStats = segmentStats;
+                                    return transactionBufferInternalStats;
+                                });
+                    } else if (snapshotType == AbortedTxnProcessor.SnapshotType.Single) {
+                        transactionBufferInternalStats.snapshotType = snapshotType.toString();
+                        TopicName singleSnapshotTopic = TopicName.get(TopicDomain.persistent.toString(), namespaceName,
+                                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                        return getTxnSnapshotInternalStats(singleSnapshotTopic, metadata)
+                                .thenApply(snapshotSystemTopicInternalStats -> {
+                                   transactionBufferInternalStats.singleSnapshotSystemTopicInternalStats =
+                                           snapshotSystemTopicInternalStats;
+                                   return transactionBufferInternalStats;
+                                });
+                    }
+                    return FutureUtil.failedFuture(new RestException(INTERNAL_SERVER_ERROR, "Unknown SnapshotType "
+                            + snapshotType));
+                });
+    }
+
+    private CompletableFuture<SnapshotSystemTopicInternalStats> getTxnSnapshotInternalStats(TopicName topicName,
+                                                                                            boolean metadata) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return FutureUtil.failedFuture(new RestException(e));
+        }
+        return admin.topics().getInternalStatsAsync(topicName.toString(), metadata)
+                        .thenApply(persistentTopicInternalStats -> {
+                            SnapshotSystemTopicInternalStats
+                                    snapshotSystemTopicInternalStats = new SnapshotSystemTopicInternalStats();
+                            snapshotSystemTopicInternalStats.managedLedgerInternalStats = persistentTopicInternalStats;
+                            snapshotSystemTopicInternalStats.managedLedgerName = topicName.getEncodedLocalName();
+                            return snapshotSystemTopicInternalStats;
+                        });
+    }
+
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
         return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
                     .getTopics().get(topicName.toString());
             if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                        String.format("Topic not found %s", topicName.toString())));
             }
             return topicFuture.thenCompose(optionalTopic -> {
                 if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                    return FutureUtil.failedFuture(new RestException(NOT_FOUND,
+                            String.format("Topic not found %s", topicName.toString())));
                 }
                 return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());
             });
@@ -480,7 +548,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
+            boolean authoritative, String subName, Position position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
@@ -492,5 +560,21 @@ public abstract class TransactionsBase extends AdminResource {
                     return null;
         });
         return completableFuture;
+    }
+
+    protected CompletableFuture<Void> internalAbortTransaction(boolean authoritative, long mostSigBits,
+                                                               long leastSigBits) {
+
+        if (mostSigBits < 0 || mostSigBits > Integer.MAX_VALUE) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("mostSigBits out of bounds"));
+        }
+
+        int partitionIdx = (int) mostSigBits;
+
+        return validateTopicOwnershipAsync(
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
+                .thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
+                        .endTransaction(new TxnID(mostSigBits, leastSigBits), TxnAction.ABORT_VALUE, false));
     }
 }

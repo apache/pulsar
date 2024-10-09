@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
@@ -50,6 +52,11 @@ public class AuthenticationService implements Closeable {
     private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
+        this(conf, OpenTelemetry.noop());
+    }
+
+    public AuthenticationService(ServiceConfiguration conf, OpenTelemetry openTelemetry)
+            throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
@@ -69,6 +76,10 @@ public class AuthenticationService implements Closeable {
                     providerList.add(provider);
                 }
 
+                var authenticationProviderContext = AuthenticationProvider.Context.builder()
+                        .config(conf)
+                        .openTelemetry(openTelemetry)
+                        .build();
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
                     AuthenticationProvider provider;
                     if (entry.getValue().size() == 1) {
@@ -76,7 +87,7 @@ public class AuthenticationService implements Closeable {
                     } else {
                         provider = new AuthenticationProviderList(entry.getValue());
                     }
-                    provider.initialize(conf);
+                    provider.initialize(authenticationProviderContext);
                     providers.put(provider.getAuthMethodName(), provider);
                     LOG.info("[{}] has been loaded.",
                         entry.getValue().stream().map(
@@ -171,20 +182,26 @@ public class AuthenticationService implements Closeable {
                     authData = authenticationState.getAuthDataSource();
                 }
                 // Backward compatible, the authData value was null in the previous implementation
-                return providerToUse.authenticate(authData);
+                return providerToUse.authenticateAsync(authData).get();
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
                 }
                 throw e;
+            } catch (ExecutionException | InterruptedException e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                            + e.getMessage(), e);
+                }
+                throw new RuntimeException(e);
             }
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
-                    return provider.authenticate(authenticationState.getAuthDataSource());
-                } catch (AuthenticationException e) {
+                    return provider.authenticateAsync(authenticationState.getAuthDataSource()).get();
+                } catch (ExecutionException | InterruptedException | AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
                                 + e.getMessage(), e);

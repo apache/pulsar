@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import picocli.CommandLine.Command;
 
 @Slf4j
-@Parameters(commandDescription = "Operations to collect function-worker statistics")
+@Command(description = "Operations to collect function-worker statistics")
 public class CmdFunctionWorker extends CmdBase {
 
     /**
@@ -46,7 +46,7 @@ public class CmdFunctionWorker extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Dump all functions stats running on this broker")
+    @Command(description = "Dump all functions stats running on this broker")
     class FunctionsStats extends BaseCommand {
 
         @Override
@@ -55,7 +55,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Dump metrics for Monitoring")
+    @Command(description = "Dump metrics for Monitoring")
     class CmdMonitoringMetrics extends BaseCommand {
 
         @Override
@@ -64,7 +64,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get all workers belonging to this cluster")
+    @Command(description = "Get all workers belonging to this cluster")
     class GetCluster extends BaseCommand {
 
         @Override
@@ -73,7 +73,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the leader of the worker cluster")
+    @Command(description = "Get the leader of the worker cluster")
     class GetClusterLeader extends BaseCommand {
 
         @Override
@@ -82,7 +82,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the assignments of the functions across the worker cluster")
+    @Command(description = "Get the assignments of the functions across the worker cluster")
     class GetFunctionAssignments extends BaseCommand {
 
 
@@ -92,7 +92,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Triggers a rebalance of functions to workers")
+    @Command(description = "Triggers a rebalance of functions to workers")
     class Rebalance extends BaseCommand {
 
         @Override
@@ -104,12 +104,12 @@ public class CmdFunctionWorker extends CmdBase {
 
     public CmdFunctionWorker(Supplier<PulsarAdmin> admin) throws PulsarClientException {
         super("functions-worker", admin);
-        jcommander.addCommand("function-stats", new FunctionsStats());
-        jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
-        jcommander.addCommand("get-cluster", new GetCluster());
-        jcommander.addCommand("get-cluster-leader", new GetClusterLeader());
-        jcommander.addCommand("get-function-assignments", new GetFunctionAssignments());
-        jcommander.addCommand("rebalance", new Rebalance());
+        addCommand("function-stats", new FunctionsStats());
+        addCommand("monitoring-metrics", new CmdMonitoringMetrics());
+        addCommand("get-cluster", new GetCluster());
+        addCommand("get-cluster-leader", new GetClusterLeader());
+        addCommand("get-function-assignments", new GetFunctionAssignments());
+        addCommand("rebalance", new Rebalance());
     }
 
 }

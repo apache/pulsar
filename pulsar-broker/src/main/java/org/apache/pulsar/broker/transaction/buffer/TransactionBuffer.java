@@ -23,7 +23,8 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.transaction.exception.TransactionException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -56,8 +57,7 @@ public interface TransactionBuffer {
      *
      * @param txnID the transaction id
      * @return a future represents the result of the operation
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID);
 
@@ -70,8 +70,7 @@ public interface TransactionBuffer {
      * @param sequenceId the sequence id of the entry in this transaction buffer.
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
-     *         has been sealed.
+     * @throws TransactionException.TransactionSealedException if the transaction has been sealed.
      */
     CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
 
@@ -82,8 +81,7 @@ public interface TransactionBuffer {
      * @param txnID transaction id
      * @param startSequenceId the sequence id to start read
      * @return a future represents the result of open operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
@@ -95,8 +93,7 @@ public interface TransactionBuffer {
      * @param txnID the transaction id
      * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of commit operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark);
 
@@ -107,8 +104,7 @@ public interface TransactionBuffer {
      * @param txnID the transaction id
      * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of abort operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark);
 
@@ -139,24 +135,38 @@ public interface TransactionBuffer {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Close the buffer asynchronously.
+     * Check if the txn is aborted.
+     * TODO: To avoid broker oom, we will load the aborted txn from snapshot on demand.
+     *       So we need the readPosition to check if the txn is loaded.
      * @param txnID {@link TxnID} txnId.
-     * @param readPosition the persitent position of the txn message.
-     * @return the txnId is aborted.
+     * @param readPosition the persistent position of the txn message.
+     * @return whether the txn is aborted.
      */
-    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
+    boolean isTxnAborted(TxnID txnID, Position readPosition);
 
     /**
      * Sync max read position for normal publish.
-     * @param position {@link PositionImpl} the position to sync.
+     * @param position {@link Position} the position to sync.
+     * @param isMarkerMessage whether the message is marker message.
      */
-    void syncMaxReadPositionForNormalPublish(PositionImpl position);
+    void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage);
 
     /**
      * Get the can read max position.
      * @return the stable position.
      */
-    PositionImpl getMaxReadPosition();
+    Position getMaxReadPosition();
+
+    /**
+     * Get the snapshot type.
+     *
+     * The snapshot type can be either "Single" or "Segment". In "Single" mode, a single snapshot log is used
+     * to record the transaction buffer stats. In "Segment" mode, a snapshot segment topic is used to record
+     * the stats, and a separate snapshot segment index topic is used to index these stats.
+     *
+     * @return the snapshot type
+     */
+    AbortedTxnProcessor.SnapshotType getSnapshotType();
 
     /**
      * Get transaction in buffer stats.
@@ -168,17 +178,20 @@ public interface TransactionBuffer {
      * Get transaction stats in buffer.
      * @return the transaction stats in buffer.
      */
+    TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats);
+
+    /**
+     * Get transaction stats in buffer.
+     * @return the transaction stats in buffer.
+     */
     TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxn
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
-
-
+    CompletableFuture<Void> checkIfTBRecoverCompletely();
 
     long getOngoingTxnCount();
 

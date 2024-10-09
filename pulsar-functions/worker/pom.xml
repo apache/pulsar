@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-functions-worker</artifactId>
@@ -43,6 +42,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-runtime</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-opentelemetry</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -130,8 +135,21 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-docs-tools</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.swagger</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
@@ -204,7 +222,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>

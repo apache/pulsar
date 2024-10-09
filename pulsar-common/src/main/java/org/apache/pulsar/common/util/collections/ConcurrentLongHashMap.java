@@ -36,6 +36,19 @@ import java.util.function.LongFunction;
  * <li>Open hash map with linear probing, no node allocations to store the values
  * </ol>
  *
+ * <b>WARN: method forEach do not guarantee thread safety, nor do the keys and values method.</b>
+ * <br>
+ * The forEach method is specifically designed for single-threaded usage. When iterating over a map
+ * with concurrent writes, it becomes possible for new values to be either observed or not observed.
+ * There is no guarantee that if we write value1 and value2, and are able to see value2, then we will also see value1.
+ * In some cases, it is even possible to encounter two mappings with the same key,
+ * leading the keys method to return a List containing two identical keys.
+ *
+ * <br>
+ * It is crucial to understand that the results obtained from aggregate status methods such as keys and values
+ * are typically reliable only when the map is not undergoing concurrent updates from other threads.
+ * When concurrent updates are involved, the results of these methods reflect transient states
+ * that may be suitable for monitoring or estimation purposes, but not for program control.
  * @param <V>
  */
 @SuppressWarnings("unchecked")
@@ -237,6 +250,12 @@ public class ConcurrentLongHashMap<V> {
         }
     }
 
+    /**
+     * Iterate over all the entries in the map and apply the processor function to each of them.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor the processor to apply to each entry
+     */
     public void forEach(EntryProcessor<V> processor) {
         for (int i = 0; i < sections.length; i++) {
             sections[i].forEach(processor);
@@ -306,16 +325,17 @@ public class ConcurrentLongHashMap<V> {
         }
 
         V get(long key, int keyHash) {
-            int bucket = keyHash;
-
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
 
+            // add local variable here, so OutOfBound won't happen
+            long[] keys = this.keys;
+            V[] values = this.values;
+            // calculate table.length as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(keyHash, values.length);
+
             try {
                 while (true) {
-                    int capacity = this.capacity;
-                    bucket = signSafeMod(bucket, capacity);
-
                     // First try optimistic locking
                     long storedKey = keys[bucket];
                     V storedValue = values[bucket];
@@ -333,14 +353,13 @@ public class ConcurrentLongHashMap<V> {
                         if (!acquiredLock) {
                             stamp = readLock();
                             acquiredLock = true;
+
+                            // update local variable
+                            keys = this.keys;
+                            values = this.values;
+                            bucket = signSafeMod(keyHash, values.length);
                             storedKey = keys[bucket];
                             storedValue = values[bucket];
-                        }
-
-                        if (capacity != this.capacity) {
-                            // There has been a rehashing. We need to restart the search
-                            bucket = keyHash;
-                            continue;
                         }
 
                         if (storedKey == key) {
@@ -350,8 +369,7 @@ public class ConcurrentLongHashMap<V> {
                             return null;
                         }
                     }
-
-                    ++bucket;
+                    bucket = (bucket + 1) & (values.length - 1);
                 }
             } finally {
                 if (acquiredLock) {

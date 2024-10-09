@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -31,13 +31,16 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * Provider of a new BookKeeper client instance.
  */
 public interface BookKeeperClientFactory {
-    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
-                      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                      Map<String, Object> ensemblePlacementPolicyProperties) throws IOException;
+    CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                         EventLoopGroup eventLoopGroup,
+                                         Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
+                                         Map<String, Object> ensemblePlacementPolicyProperties);
 
-    BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store, EventLoopGroup eventLoopGroup,
-                      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                      Map<String, Object> ensemblePlacementPolicyProperties,
-                      StatsLogger statsLogger) throws IOException;
+    CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                         EventLoopGroup eventLoopGroup,
+                                         Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
+                                         Map<String, Object> ensemblePlacementPolicyProperties,
+                                         StatsLogger statsLogger);
+
     void close();
 }

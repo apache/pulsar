@@ -42,6 +42,8 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+
 
 @Getter
 @Setter
@@ -173,35 +175,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
+        doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                + " discovery service provider."
+                + " URL must have the pulsar:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls service url points to the broker cluster. URL must have the pulsar+ssl:// prefix."
+            doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                    + " discovery service provider."
+                + " URL must have the pulsar+ssl:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURLTLS;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the broker cluster"
+        doc = "The web service url points to the discovery service provider of the broker cluster, and does not support"
+                + " multi url yet."
     )
     private String brokerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the broker cluster"
+        doc = "The tls web service url points to the discovery service provider of the broker cluster, and does not"
+                + " support multi url yet."
     )
     private String brokerWebServiceURLTLS;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the function worker cluster."
+        doc = "The web service url points to the discovery service provider of the function worker cluster, and does"
+                + " not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the function worker cluster."
+        doc = "The tls web service url points to the discovery service provider of the function worker cluster, and"
+                + " does not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;
@@ -259,6 +269,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
+
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
@@ -372,12 +398,24 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int authenticationRefreshCheckSeconds = 60;
 
     @FieldContext(
+        category = CATEGORY_HTTP,
+        doc = "Whether to enable the proxy's /metrics and /proxy-stats http endpoints"
+    )
+    private boolean enableProxyStatsEndpoints = true;
+
+    @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
             + "'authenticationEnabled' must also be set for this to take effect."
     )
     private boolean authenticateMetricsEndpoint = true;
 
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "Time in milliseconds that metrics endpoint would time out. Default is 30s.\n"
+                    + " Set it to 0 to disable timeout."
+    )
+    private long metricsServletTimeoutMs = 30000;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -578,6 +616,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String tlsTrustStorePassword = null;
 
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
+
     /**
      * KeyStore TLS config variables used for proxy to auth with broker.
      */
@@ -646,6 +694,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
+                    + "The default class used is DefaultSslFactory.")
+    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters used by internal client.")
+    private String brokerClientSslFactoryPluginParams = "";
 
     // HTTP
 

@@ -24,8 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-tools</artifactId>
@@ -34,8 +33,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli-shell-jline3</artifactId>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -54,6 +58,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
     </dependency>
@@ -65,6 +74,11 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+   <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -107,6 +121,7 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->

@@ -18,20 +18,23 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -41,6 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 @Slf4j
 public class BacklogQuotaManager {
+    @Getter
     private final BacklogQuotaImpl defaultQuota;
     private final NamespaceResources namespaceResources;
 
@@ -53,10 +57,6 @@ public class BacklogQuotaManager {
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
         this.namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
-    }
-
-    public BacklogQuotaImpl getDefaultQuota() {
-        return this.defaultQuota;
     }
 
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
@@ -86,27 +86,34 @@ public class BacklogQuotaManager {
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
                                            boolean preciseTimeBasedBacklogQuotaCheck) {
         BacklogQuota quota = persistentTopic.getBacklogQuota(backlogQuotaType);
+        BacklogQuotaMetrics topicBacklogQuotaMetrics =
+                persistentTopic.getPersistentTopicMetrics().getBacklogQuotaMetrics();
         log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
                 persistentTopic.getName(), quota.getPolicy());
         switch (quota.getPolicy()) {
-        case consumer_backlog_eviction:
-            switch (backlogQuotaType) {
-                case destination_storage:
+            case consumer_backlog_eviction:
+                switch (backlogQuotaType) {
+                    case destination_storage:
                         dropBacklogForSizeLimit(persistentTopic, quota);
+                        topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
                         break;
-                case message_age:
+                    case message_age:
                         dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
+                        topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
                         break;
-                default:
-                    break;
-            }
-            break;
-        case producer_exception:
-        case producer_request_hold:
-            disconnectProducers(persistentTopic);
-            break;
-        default:
-            break;
+                    default:
+                        break;
+                }
+                break;
+            case producer_exception:
+            case producer_request_hold:
+                if (!advanceSlowestSystemCursor(persistentTopic)) {
+                    // The slowest is not a system cursor. Disconnecting producers to put backpressure.
+                    disconnectProducers(persistentTopic);
+                }
+                break;
+            default:
+                break;
         }
     }
 
@@ -125,7 +132,7 @@ public class BacklogQuotaManager {
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.
-        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger mLedger = persistentTopic.getManagedLedger();
         long backlogSize = mLedger.getEstimatedBacklogSize();
 
         if (log.isDebugEnabled()) {
@@ -207,29 +214,30 @@ public class BacklogQuotaManager {
             );
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
-            Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
-            ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            long currentMillis = persistentTopic.getManagedLedger().getConfig().getClock().millis();
+            ManagedLedger mLedger = persistentTopic.getManagedLedger();
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
-                                slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
+                            slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
                     }
-                    ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo =
+                        mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
-                        PositionImpl nextPosition =
-                                PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                        long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
+                        Position nextPosition = PositionFactory.create(ledgerId, -1);
                         slowestConsumer.markDelete(nextPosition);
                         continue;
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
-                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
+                        && currentMillis - ledgerInfo.getTimestamp() > SECONDS.toMillis(quota.getLimitTime())) {
                         // skip whole ledger for the slowest cursor
-                        PositionImpl nextPosition =
-                                PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
+                        long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
+                        Position nextPosition = PositionFactory.create(ledgerId, -1);
                         if (!nextPosition.equals(oldestPosition)) {
                             slowestConsumer.markDelete(nextPosition);
                             continue;
@@ -239,7 +247,7 @@ public class BacklogQuotaManager {
                 }
             } catch (Exception e) {
                 log.error("[{}] Error resetting cursor for slowest consumer [{}]", persistentTopic.getName(),
-                        mLedger.getSlowestConsumer().getName(), e);
+                    mLedger.getSlowestConsumer().getName(), e);
             }
         }
     }
@@ -260,12 +268,36 @@ public class BacklogQuotaManager {
             futures.add(producer.disconnect());
         });
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
-            log.info("All producers on topic [{}] are disconnected", persistentTopic.getName());
-        }).exceptionally(exception -> {
-            log.error("Error in disconnecting producers on topic [{}] [{}]", persistentTopic.getName(), exception);
-            return null;
-
+        FutureUtil.waitForAll(futures)
+                .thenRun(() ->
+                        log.info("All producers on topic [{}] are disconnected", persistentTopic.getName()))
+                .exceptionally(exception -> {
+                    log.error("Error in disconnecting producers on topic [{}] [{}]", persistentTopic.getName(),
+                            exception);
+                    return null;
         });
+    }
+
+    /**
+     * Advances the slowest cursor if that is a system cursor.
+     *
+     * @param persistentTopic Persistent topic
+     * @return true if the slowest cursor is a system cursor
+     */
+    private boolean advanceSlowestSystemCursor(PersistentTopic persistentTopic) {
+
+        ManagedLedger mLedger = persistentTopic.getManagedLedger();
+        ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+        if (slowestConsumer == null) {
+            return false;
+        }
+
+        if (PersistentTopic.isDedupCursorName(slowestConsumer.getName())) {
+            persistentTopic.getMessageDeduplication().takeSnapshot();
+            return true;
+        }
+
+        // We may need to check other system cursors here : replicator, compaction
+        return false;
     }
 }

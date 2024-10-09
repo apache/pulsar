@@ -19,8 +19,12 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
@@ -110,7 +114,13 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
          * before proceeding with nuking existing cluster, make sure there
          * are no unexpected nodes under ledgersRootPath
          */
-        List<String> ledgersRootPathChildrenList = store.getChildren(ledgerRootPath).join();
+        final List<String> ledgersRootPathChildrenList;
+        try {
+            ledgersRootPathChildrenList = store.getChildren(ledgerRootPath)
+                    .get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new IOException(e);
+        }
         for (String ledgersRootPathChildren : ledgersRootPathChildrenList) {
             if ((!AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChildren))
                     && (!ledgerManager.isLedgerParentNode(ledgersRootPathChildren))) {
@@ -124,18 +134,34 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
         format(conf, layoutManager);
 
         // now delete all the special nodes recursively
-        for (String ledgersRootPathChildren : store.getChildren(ledgerRootPath).join()) {
-            if (AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChildren)) {
-                store.deleteRecursive(ledgerRootPath + "/" + ledgersRootPathChildren).join();
+        final List<String> ledgersRootPathChildren;
+        try {
+            ledgersRootPathChildren = store.getChildren(ledgerRootPath)
+                    .get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new IOException(e);
+        }
+        for (String ledgersRootPathChild :ledgersRootPathChildren) {
+            if (AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChild)) {
+                try {
+                    store.deleteRecursive(ledgerRootPath + "/" + ledgersRootPathChild)
+                            .get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+                } catch (ExecutionException | TimeoutException e) {
+                    throw new IOException(e);
+                }
             } else {
                 log.error("Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
-                        ledgersRootPathChildren, ledgerRootPath);
+                        ledgersRootPathChild, ledgerRootPath);
                 return false;
             }
         }
 
         // finally deleting the ledgers rootpath
-        store.deleteRecursive(ledgerRootPath).join();
+        try {
+            store.deleteRecursive(ledgerRootPath).get(BLOCKING_CALL_TIMEOUT, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new IOException(e);
+        }
 
         log.info("Successfully nuked existing cluster");
         return true;

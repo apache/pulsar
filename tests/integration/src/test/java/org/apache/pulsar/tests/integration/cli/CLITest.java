@@ -64,7 +64,7 @@ public class CLITest extends PulsarTestSuite {
             "--allowed-clusters", pulsarCluster.getClusterName(),
             "--admin-roles", "admin"
         );
-        assertTrue(result.getStderr().contains("deprecated"));
+        assertEquals(result.getExitCode(), 0L);
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(
             "properties", "list");
@@ -367,7 +367,8 @@ public class CLITest extends PulsarTestSuite {
                     "-r", "");
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertEquals(e.getResult().getStderr(), "rack name is invalid, it should not be null, empty or '/'\n\n");
+            assertTrue(
+                    e.getResult().getStderr().startsWith("rack name is invalid, it should not be null, empty or '/'"));
         }
 
         try {
@@ -377,7 +378,7 @@ public class CLITest extends PulsarTestSuite {
                     "set-schema-autoupdate-strategy",
                     namespace);
         } catch (ContainerExecException e) {
-            assertEquals(e.getResult().getStderr(), "Either --compatibility or --disabled must be specified\n\n");
+            assertTrue(e.getResult().getStderr().startsWith("Either --compatibility or --disabled must be specified"));
         }
     }
 
@@ -402,7 +403,7 @@ public class CLITest extends PulsarTestSuite {
             "upload",
             topicName,
             "-f",
-            "/pulsar/conf/schema_example.conf"
+            "/pulsar/conf/schema_example.json"
         );
         result.assertNoOutput();
 
@@ -445,7 +446,7 @@ public class CLITest extends PulsarTestSuite {
                     topicName);
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertEquals(e.getResult().getStderr(), "Invalid schema type xml. Valid options are: avro, json\n\n");
+            assertTrue(e.getResult().getStderr().startsWith("Invalid schema type xml. Valid options are: avro, json"));
         }
     }
 

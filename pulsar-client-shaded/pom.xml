@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client</artifactId>
@@ -145,6 +144,8 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.google.re2j:re2j</include>
+                  <include>com.spotify:completable-futures</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
                   <include>io.netty.incubator:*</include>
@@ -203,6 +204,10 @@
                   <excludes>
                     <exclude>com.google.protobuf.*</exclude>
                   </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.spotify.futures</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
@@ -300,6 +305,12 @@
                   <pattern>org.apache.bookkeeper</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
+                <!-- Rename Netty native libraries to include the shaded prefix -->
+                <relocation>
+                  <pattern>(META-INF/native/(lib)?)(netty.+\.(so|jnilib|dll))$</pattern>
+                  <shadedPattern>$1org_apache_pulsar_shade_$3</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
@@ -320,31 +331,6 @@
             <goals>
               <goal>check</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <!-- This plugin is used to run a script after the package phase in order to rename
-            libnetty_transport_native_epoll_x86_64.so from Netty into
-            liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
-            to reflect the shade that is being applied.
-         -->
-        <artifactId>exec-maven-plugin</artifactId>
-        <groupId>org.codehaus.mojo</groupId>
-        <executions>
-          <execution>
-            <id>rename-epoll-library</id>
-            <phase>package</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <configuration>
-              <executable>${project.parent.basedir}/src/${rename.netty.native.libs}</executable>
-              <arguments>
-                <argument>${project.artifactId}</argument>
-              </arguments>
-            </configuration>
           </execution>
         </executions>
       </plugin>

@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.containers;
 /**
  * A pulsar container that runs configuration store.
  */
-public class CSContainer extends ZKContainer<CSContainer> {
+public class CSContainer extends PulsarContainer<CSContainer> {
 
     public static final String NAME = "configuration-store";
 
@@ -33,5 +33,10 @@ public class CSContainer extends ZKContainer<CSContainer> {
             "bin/run-global-zk.sh",
             CS_PORT,
             INVALID_PORT);
+    }
+
+    @Override
+    protected boolean isCodeCoverageEnabled() {
+        return false;
     }
 }

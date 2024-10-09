@@ -19,22 +19,18 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -47,62 +43,70 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * pulsar-client read command implementation.
- *
  */
-@Parameters(commandDescription = "Read messages from a specified topic")
+@Command(description = "Read messages from a specified topic")
 public class CmdRead extends AbstractCmdConsume {
 
     private static final Pattern MSG_ID_PATTERN = Pattern.compile("^(-?[1-9][0-9]*|0):(-?[1-9][0-9]*|0)$");
 
-    @Parameter(description = "TopicName", required = true)
-    private List<String> mainOptions = new ArrayList<String>();
+    @Parameters(description = "TopicName", arity = "1")
+    private String topic;
 
-    @Parameter(names = { "-m", "--start-message-id" },
+    @Option(names = { "-m", "--start-message-id" },
             description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>'")
     private String startMessageId = "latest";
 
-    @Parameter(names = { "-i", "--start-message-id-inclusive" },
+    @Option(names = { "-i", "--start-message-id-inclusive" },
             description = "Whether to include the position specified by -m option.")
     private boolean startMessageIdInclusive = false;
 
-    @Parameter(names = { "-n",
+    @Option(names = { "-n",
             "--num-messages" }, description = "Number of messages to read, 0 means to read forever.")
     private int numMessagesToRead = 1;
 
-    @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
+    @Option(names = { "--hex" }, description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
-    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    @Option(names = { "--hide-content" }, description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
+    @Option(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
             + "value 0 means to read messages as fast as possible.")
     private double readRate = 0;
 
-    @Parameter(names = {"-q", "--queue-size"}, description = "Reader receiver queue size.")
+    @Option(names = { "-q", "--queue-size" }, description = "Reader receiver queue size.")
     private int receiverQueueSize = 0;
 
-    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
     private int maxPendingChunkedMessage = 0;
 
-    @Parameter(names = { "-ac",
+    @Option(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    @Parameter(names = { "-ekv",
+    @Option(names = { "-ekv",
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
-                    + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
+            + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"},
+    @Option(names = { "-st", "--schema-type" },
             description = "Set a schema type on the reader, it can be 'bytes' or 'auto_consume'")
     private String schemaType = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
     private boolean poolMessages = true;
+
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
+    private boolean printMetadata = false;
 
     public CmdRead() {
         // Do nothing
@@ -115,14 +119,10 @@ public class CmdRead extends AbstractCmdConsume {
      * @return 0 for success, < 0 otherwise
      */
     public int run() throws PulsarClientException, IOException {
-        if (mainOptions.size() != 1) {
-            throw (new ParameterException("Please provide one and only one topic name."));
-        }
         if (this.numMessagesToRead < 0) {
-            throw (new ParameterException("Number of messages should be zero or positive."));
+            throw (new IllegalArgumentException("Number of messages should be zero or positive."));
         }
 
-        String topic = this.mainOptions.get(0);
 
         if (this.serviceURL.startsWith("ws")) {
             return readFromWebSocket(topic);
@@ -160,6 +160,7 @@ public class CmdRead extends AbstractCmdConsume {
             }
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+            builder.cryptoFailureAction(cryptoFailureAction);
 
             if (isNotBlank(this.encKeyValue)) {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
@@ -180,7 +181,7 @@ public class CmdRead extends AbstractCmdConsume {
                             numMessagesRead += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
-                                String output = this.interpretMessage(msg, displayHex);
+                                String output = this.interpretMessage(msg, displayHex, printMetadata);
                                 System.out.println(output);
                             } else if (numMessagesRead % 1000 == 0) {
                                 System.out.println("Received " + numMessagesRead + " messages");

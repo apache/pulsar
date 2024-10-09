@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -53,7 +54,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public double messageAckRate;
 
     /** Chunked message dispatch rate. */
-    public int chunkedMessageRate;
+    public double chunkedMessageRate;
 
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
@@ -72,6 +73,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Number of delayed messages currently being tracked. */
     public long msgDelayed;
+
+    /** Number of messages registered for replay. */
+    public long msgInReplay;
 
     /**
      * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
@@ -131,9 +135,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
-    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    /** The size of DelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
@@ -165,6 +170,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         msgBacklog = 0;
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
+        msgDelayed = 0;
+        msgInReplay = 0;
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
@@ -175,6 +182,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        earliestMsgPublishTimeInBacklog = 0L;
         delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
@@ -199,6 +207,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
+        this.msgInReplay += stats.msgInReplay;
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
@@ -219,6 +228,17 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {
+            this.earliestMsgPublishTimeInBacklog = Math.min(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
+        } else {
+            this.earliestMsgPublishTimeInBacklog = Math.max(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
+        }
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;

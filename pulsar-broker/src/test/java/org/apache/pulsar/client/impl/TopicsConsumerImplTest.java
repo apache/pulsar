@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.Timeout;
+import java.time.Duration;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -34,6 +35,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -57,22 +59,27 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -1315,7 +1322,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 2);
 
         admin.topics().updatePartitionedTopic(topicName0, 5);
-        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 5);
@@ -1327,6 +1333,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
 
         consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
+        Assert.assertTrue(consumer.getRecheckPatternTimeout().isCancelled());
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
@@ -1334,9 +1341,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         });
 
         admin.topics().updatePartitionedTopic(topicName1, 5);
-        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
         });
@@ -1393,4 +1399,76 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
+    @DataProvider
+    public static Object[][] seekByFunction() {
+        return new Object[][] {
+                { true }, { false }
+        };
+    }
+
+    @Test(timeOut = 30000, dataProvider = "seekByFunction")
+    public void testSeekToNewerPosition(boolean seekByFunction) throws Exception {
+        final var topic1 = TopicName.get(newTopicName()).toString()
+                .replace("my-property", "public").replace("my-ns", "default");
+        final var topic2 = TopicName.get(newTopicName()).toString()
+                .replace("my-property", "public").replace("my-ns", "default");
+        @Cleanup final var producer1 = pulsarClient.newProducer(Schema.STRING).topic(topic1).create();
+        @Cleanup final var producer2 = pulsarClient.newProducer(Schema.STRING).topic(topic2).create();
+        producer1.send("1-0");
+        producer2.send("2-0");
+        producer1.send("1-1");
+        producer2.send("2-1");
+        final var consumer1 = pulsarClient.newConsumer(Schema.STRING)
+                .topics(Arrays.asList(topic1, topic2)).subscriptionName("sub")
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        final var timestamps = new ArrayList<Long>();
+        for (int i = 0; i < 4; i++) {
+            timestamps.add(consumer1.receive().getPublishTime());
+        }
+        timestamps.sort(Comparator.naturalOrder());
+        final var timestamp = timestamps.get(2);
+        consumer1.close();
+
+        final Function<Consumer<String>, CompletableFuture<Void>> seekAsync = consumer -> {
+            final var future = seekByFunction ? consumer.seekAsync(__ -> timestamp) : consumer.seekAsync(timestamp);
+            assertEquals(((ConsumerBase<String>) consumer).getIncomingMessageSize(), 0L);
+            assertEquals(((ConsumerBase<String>) consumer).getTotalIncomingMessages(), 0);
+            assertTrue(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().isEmpty());
+            return future;
+        };
+
+        @Cleanup final var consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topics(Arrays.asList(topic1, topic2)).subscriptionName("sub-2")
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        seekAsync.apply(consumer2).get();
+        final var values = new TreeSet<String>();
+        for (int i = 0; i < 2; i++) {
+            values.add(consumer2.receive().getValue());
+        }
+        assertEquals(values, new TreeSet<>(Arrays.asList("1-1", "2-1")));
+
+        final var valuesInListener = new CopyOnWriteArrayList<String>();
+        @Cleanup final var consumer3 = pulsarClient.newConsumer(Schema.STRING)
+                .topics(Arrays.asList(topic1, topic2)).subscriptionName("sub-3")
+                .messageListener((MessageListener<String>) (__, msg) -> valuesInListener.add(msg.getValue()))
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        seekAsync.apply(consumer3).get();
+        if (valuesInListener.isEmpty()) {
+            Awaitility.await().untilAsserted(() -> assertEquals(valuesInListener.size(), 2));
+            assertEquals(valuesInListener.stream().sorted().toList(), Arrays.asList("1-1", "2-1"));
+        } // else: consumer3 has passed messages to the listener before seek, in this case we cannot assume anything
+
+        @Cleanup final var consumer4 = pulsarClient.newConsumer(Schema.STRING)
+                .topics(Arrays.asList(topic1, topic2)).subscriptionName("sub-4")
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        seekAsync.apply(consumer4).get();
+        final var valuesInReceiveAsync = new ArrayList<String>();
+        valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
+        valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
+        assertEquals(valuesInReceiveAsync.stream().sorted().toList(), Arrays.asList("1-1", "2-1"));
+    }
 }

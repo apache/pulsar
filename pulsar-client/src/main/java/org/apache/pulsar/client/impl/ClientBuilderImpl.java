@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.opentelemetry.api.OpenTelemetry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +38,8 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.tls.InetAddressUtils;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -116,6 +120,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder openTelemetry(OpenTelemetry openTelemetry) {
+        conf.setOpenTelemetry(openTelemetry);
         return this;
     }
 
@@ -394,6 +404,17 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses) {
+        for (InetSocketAddress address : addresses) {
+            String ip = address.getHostString();
+            checkArgument(InetAddressUtils.isIPv4Address(ip) || InetAddressUtils.isIPv6Address(ip),
+                    "DnsServerAddresses need to be valid IPv4 or IPv6 addresses");
+        }
+        conf.setDnsServerAddresses(addresses);
+        return this;
+    }
+
+    @Override
     public ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
         conf.setSocks5ProxyAddress(socks5ProxyAddress);
         return this;
@@ -408,6 +429,28 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(DefaultPulsarSslFactory.class.getName());
+        } else {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds) {
+        conf.setAutoCertRefreshSeconds(autoCertRefreshSeconds);
         return this;
     }
 
@@ -431,6 +474,12 @@ public class ClientBuilderImpl implements ClientBuilder {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder lookupProperties(Map<String, String> properties) {
+        conf.setLookupProperties(properties);
         return this;
     }
 }

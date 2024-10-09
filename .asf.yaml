@@ -35,11 +35,8 @@ github:
     # Enable projects for project management boards
     projects: true
   enabled_merge_buttons:
-    # enable squash button:
     squash:  true
-    # disable merge button:
     merge:   false
-    # disable rebase button:
     rebase:  false
   protected_branches:
     master:
@@ -60,6 +57,9 @@ github:
       required_linear_history: true
 
       required_signatures: false
+
+      # Requires all conversations on code to be resolved before a pull request can be merged.
+      required_conversation_resolution: true
 
     # The following branch protections only ensure that force pushes are not allowed
     branch-1.15: {}
@@ -83,6 +83,7 @@ github:
     branch-2.10: {}
     branch-2.11: {}
     branch-3.0: {}
+    branch-3.1: {}
 
 notifications:
   commits:      commits@pulsar.apache.org

@@ -49,7 +49,7 @@ public interface EntryFilter {
          */
         REJECT,
         /**
-         * postpone message, it should not go to this conmumer.
+         * postpone message, it should not go to this consumer.
          */
         RESCHEDULE
     }

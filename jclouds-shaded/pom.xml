@@ -26,15 +26,23 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>jclouds-shaded</artifactId>
   <name>Apache Pulsar :: Jclouds shaded</name>
 
+  <properties>
+    <!-- for compatibility, use versions from jclouds-project
+         https://repo1.maven.org/maven2/org/apache/jclouds/jclouds-project/2.6.0/jclouds-project-2.6.0.pom -->
+    <gson.version>2.10.1</gson.version>
+    <guava.version>32.0.0-jre</guava.version>
+    <guice.version>7.0.0</guice.version>
+    <jakarta.inject.api.version>2.0.1</jakarta.inject.api.version>
+    <jakarta.ws.rs-api.version>3.0.0</jakarta.ws.rs-api.version>
+    <jakarta.annotation-api.version>2.0.0</jakarta.annotation-api.version>
+  </properties>
   <dependencies>
-
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-allblobstore</artifactId>
@@ -61,11 +69,47 @@
       <artifactId>jclouds-slf4j</artifactId>
       <version>${jclouds.version}</version>
     </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
-    </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>${gson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.inject</groupId>
+        <artifactId>guice</artifactId>
+        <version>${guice.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.inject.extensions</groupId>
+        <artifactId>guice-assistedinject</artifactId>
+        <version>${guice.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.inject</groupId>
+        <artifactId>jakarta.inject-api</artifactId>
+        <version>${jakarta.inject.api.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>${jakarta.annotation-api.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
@@ -97,13 +141,13 @@
                   <include>com.google.inject.extensions:guice-multibindings</include>
                   <include>com.google.code.gson:gson</include>
                   <include>org.apache.httpcomponents:*</include>
-                  <include>javax.ws.rs:*</include>
                   <include>com.jamesmurty.utils:*</include>
                   <include>net.iharder:*</include>
                   <include>aopalliance:*</include>
-                  <include>javax.inject:*</include>
-                  <include>javax.annotation:*</include>
                   <include>com.google.errorprone:*</include>
+                  <include>jakarta.inject:jakarta.inject-api</include>
+                  <include>jakarta.annotation:jakarta.annotation-api</include>
+                  <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                 </includes>
               </artifactSet>
 
@@ -111,10 +155,6 @@
                 <relocation>
                   <pattern>com.google</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.ws</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.ws</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.jamesmurty.utils</pattern>
@@ -129,18 +169,17 @@
                   <shadedPattern>org.apache.pulsar.jcloud.shade.net.iharder</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>javax.inject</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.inject</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.annotation</pattern>
-                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.annotation</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>com.google.errorprone</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
                 </relocation>
-
+                <relocation>
+                  <pattern>jakarta</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.jakarta</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.aopalliance</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.org.aopalliance</shadedPattern>
+                </relocation>
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

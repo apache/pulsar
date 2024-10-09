@@ -35,7 +35,8 @@ public class EntryFilterSupport {
 
     public EntryFilterSupport(Subscription subscription) {
         this.subscription = subscription;
-        if (subscription != null && subscription.getTopic() != null) {
+        if (subscription != null && subscription.getTopic() != null
+                && !subscription.getTopic().isSystemTopic()) {
             final BrokerService brokerService = subscription.getTopic().getBrokerService();
             final boolean allowOverrideEntryFilters = brokerService
                     .pulsar().getConfiguration().isAllowOverrideEntryFilters();

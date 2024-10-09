@@ -33,6 +33,8 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_COMPLETE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_NEGOTIATE;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -41,7 +43,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import javax.naming.AuthenticationException;
@@ -72,9 +74,16 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     private JAASCredentialsContainer jaasCredentialsContainer;
     private String loginContextName;
+    private Cache<Long, AuthenticationState> authStates;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        var config = context.getConfig();
         this.configuration = new HashMap<>();
         final String allowedIdsPatternRegExp = config.getSaslJaasClientAllowedIds();
         configuration.put(JAAS_CLIENT_ALLOWED_IDS, allowedIdsPatternRegExp);
@@ -110,6 +119,9 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             throw new IllegalArgumentException(msg);
         }
         this.signer = new SaslRoleTokenSigner(secret);
+        this.authStates = Caffeine.newBuilder()
+                .maximumSize(config.getMaxInflightSaslContext())
+                .expireAfterWrite(config.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS).build();
     }
 
     @Override
@@ -119,6 +131,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
+        if (jaasCredentialsContainer != null) {
+            jaasCredentialsContainer.close();
+            jaasCredentialsContainer = null;
+        }
     }
 
     @Override
@@ -198,8 +214,6 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
     }
 
-    private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();
-
     // return authState if it is in cache.
     private AuthenticationState getAuthState(HttpServletRequest request) {
         String id = request.getHeader(SASL_STATE_SERVER);
@@ -208,7 +222,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
 
         try {
-            return authStates.get(Long.parseLong(id));
+            return authStates.getIfPresent(Long.parseLong(id));
         } catch (NumberFormatException e) {
             log.error("[{}] Wrong Id String in Token {}. e:", request.getRequestURI(),
                 id, e);
@@ -295,7 +309,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 response.setStatus(HttpServletResponse.SC_OK);
 
                 // auth completed, no need to keep authState
-                authStates.remove(state.getStateId());
+                authStates.invalidate(state.getStateId());
                 return false;
             } else {
                 // auth not complete

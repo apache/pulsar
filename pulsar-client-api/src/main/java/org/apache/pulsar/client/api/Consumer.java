@@ -73,6 +73,31 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      */
     CompletableFuture<Void> unsubscribeAsync();
 
+
+    /**
+     * Unsubscribe the consumer.
+     *
+     * <p>This call blocks until the consumer is unsubscribed.
+     *
+     * <p>Unsubscribing will the subscription to be deleted and all the
+     * data retained can potentially be deleted as well.
+     *
+     * <p>The operation will fail when performed on a shared subscription
+     * where multiple consumers are currently connected.
+     *
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @throws PulsarClientException if the operation fails
+     */
+    void unsubscribe(boolean force) throws PulsarClientException;
+
+    /**
+     * Asynchronously unsubscribe the consumer.
+     *
+     * @see Consumer#unsubscribe()
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @return {@link CompletableFuture} to track the operation
+     */
+    CompletableFuture<Void> unsubscribeAsync(boolean force);
     /**
      * Receives a single message.
      *
@@ -465,12 +490,18 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
+     * <p>
+     * This effectively resets the acknowledgement state of the subscription: all messages up to and
+     * <b>including</b> <code>messageId</code> will be marked as acknowledged and the rest unacknowledged.
      *
      * <p>Note: For multi-topics consumer, if `messageId` is a {@link TopicMessageId}, the seek operation will happen
      * on the owner topic of the message, which is returned by {@link TopicMessageId#getOwnerTopic()}. Otherwise, you
@@ -483,6 +514,9 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
@@ -492,6 +526,10 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
+     *
      * <p>
      * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
@@ -523,11 +561,17 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * The asynchronous version of {@link Consumer#seek(MessageId)}.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription

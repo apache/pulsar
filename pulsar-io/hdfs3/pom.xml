@@ -23,18 +23,18 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-io-hdfs3</artifactId>
   <name>Pulsar IO :: Hdfs3</name>
-  
+
   <dependencies>
      <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -49,7 +49,7 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-collections4</artifactId>
     </dependency>
-    
+
   	<dependency>
   		<groupId>org.apache.hadoop</groupId>
   		<artifactId>hadoop-client</artifactId>
@@ -65,7 +65,11 @@
           </exclusion>
           <exclusion>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
           </exclusion>
         </exclusions>
   	</dependency>
@@ -76,7 +80,7 @@
     </dependency>
 
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -115,7 +119,6 @@
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <executions>
               <execution>
                 <goals>

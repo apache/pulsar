@@ -27,9 +27,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -56,7 +56,7 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void invalidateEntries(PositionImpl lastPosition) {
+    public void invalidateEntries(Position lastPosition) {
     }
 
     @Override
@@ -79,7 +79,7 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
                 ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
@@ -93,7 +93,7 @@ public class EntryCacheDisabled implements EntryCache {
                     } finally {
                         ledgerEntries.close();
                     }
-                    ml.getMbean().recordReadEntriesOpsCacheMisses();
+                    ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
                     ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
@@ -105,9 +105,9 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, PositionImpl position, AsyncCallbacks.ReadEntryCallback callback,
+    public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
-        lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
+        ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                 (ledgerEntries, exception) -> {
                     if (exception != null) {
                         ml.invalidateLedgerHandle(lh);
@@ -121,7 +121,7 @@ public class EntryCacheDisabled implements EntryCache {
                             LedgerEntry ledgerEntry = iterator.next();
                             EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
 
-                            ml.getMbean().recordReadEntriesOpsCacheMisses();
+                            ml.getMbean().recordReadEntriesOpsCacheMisses(1, returnEntry.getLength());
                             ml.getFactory().getMbean().recordCacheMiss(1, returnEntry.getLength());
                             ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
                             callback.readEntryComplete(returnEntry, ctx);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -25,16 +26,25 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
 @Slf4j
-public class FunctionsManager {
-
+public class FunctionsManager implements AutoCloseable {
     private TreeMap<String, FunctionArchive> functions;
 
+    @VisibleForTesting
+    public FunctionsManager() {
+        this.functions = new TreeMap<>();
+    }
+
     public FunctionsManager(WorkerConfig workerConfig) throws IOException {
-        this.functions = FunctionUtils.searchForFunctions(workerConfig.getFunctionsDirectory());
+        this.functions = createFunctions(workerConfig);
+    }
+
+    public void addFunction(String functionType, FunctionArchive functionArchive) {
+        functions.put(functionType, functionArchive);
     }
 
     public FunctionArchive getFunction(String functionType) {
@@ -51,6 +61,32 @@ public class FunctionsManager {
     }
 
     public void reloadFunctions(WorkerConfig workerConfig) throws IOException {
-        this.functions = FunctionUtils.searchForFunctions(workerConfig.getFunctionsDirectory());
+        TreeMap<String, FunctionArchive> oldFunctions = functions;
+        this.functions = createFunctions(workerConfig);
+        closeFunctions(oldFunctions);
+    }
+
+    private static TreeMap<String, FunctionArchive> createFunctions(WorkerConfig workerConfig) throws IOException {
+        boolean enableClassloading = workerConfig.getEnableClassloadingOfBuiltinFiles()
+                || ThreadRuntimeFactory.class.getName().equals(workerConfig.getFunctionRuntimeFactoryClassName());
+        return FunctionUtils.searchForFunctions(workerConfig.getFunctionsDirectory(),
+                workerConfig.getNarExtractionDirectory(),
+                enableClassloading);
+    }
+
+    @Override
+    public void close() {
+        closeFunctions(functions);
+    }
+
+    private void closeFunctions(TreeMap<String, FunctionArchive> functionMap) {
+        functionMap.values().forEach(functionArchive -> {
+            try {
+                functionArchive.close();
+            } catch (Exception e) {
+                log.warn("Failed to close function archive", e);
+            }
+        });
+        functionMap.clear();
     }
 }

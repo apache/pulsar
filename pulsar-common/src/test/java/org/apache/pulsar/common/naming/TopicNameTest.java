@@ -236,6 +236,46 @@ public class TopicNameTest {
         assertEquals(name.getPersistenceNamingEncoding(), "prop/colo/ns/persistent/" + encodedName);
     }
 
+    @Test
+    public void testFromPersistenceNamingEncoding() {
+        // case1: V2
+        String mlName1 = "public_tenant/default_namespace/persistent/test_topic";
+        String expectedTopicName1 = "persistent://public_tenant/default_namespace/test_topic";
+
+        TopicName name1 = TopicName.get(expectedTopicName1);
+        assertEquals(name1.getPersistenceNamingEncoding(), mlName1);
+        assertEquals(TopicName.fromPersistenceNamingEncoding(mlName1), expectedTopicName1);
+
+        // case2: V1
+        String mlName2 = "public_tenant/my_cluster/default_namespace/persistent/test_topic";
+        String expectedTopicName2 = "persistent://public_tenant/my_cluster/default_namespace/test_topic";
+
+        TopicName name2 = TopicName.get(expectedTopicName2);
+        assertEquals(name2.getPersistenceNamingEncoding(), mlName2);
+        assertEquals(TopicName.fromPersistenceNamingEncoding(mlName2), expectedTopicName2);
+
+        // case3: null
+        String mlName3 = "";
+        String expectedTopicName3 = "";
+        assertEquals(expectedTopicName3, TopicName.fromPersistenceNamingEncoding(mlName3));
+
+        // case4: Invalid name
+        try {
+            String mlName4 = "public_tenant/my_cluster/default_namespace/persistent/test_topic/sub_topic";
+            TopicName.fromPersistenceNamingEncoding(mlName4);
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Exception is expected.
+        }
+
+        // case5: local name with special characters e.g. a:b:c
+        String topicName = "persistent://tenant/namespace/a:b:c";
+        String persistentNamingEncoding = "tenant/namespace/persistent/a%3Ab%3Ac";
+        assertEquals(TopicName.get(topicName).getPersistenceNamingEncoding(), persistentNamingEncoding);
+        assertEquals(TopicName.fromPersistenceNamingEncoding(persistentNamingEncoding), topicName);
+    }
+
+
     @SuppressWarnings("deprecation")
     @Test
     public void testTopicNameWithoutCluster() throws Exception {

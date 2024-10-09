@@ -126,7 +126,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> topics(List<String> topicNames);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -134,13 +134,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            a regular expression to select a list of topics to subscribe to
+     *            a regular expression to select a list of topics(not contains the partition suffix) to subscribe to
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(Pattern topicsPattern);
 
     /**
-     * Specify a pattern for topics that this consumer subscribes to.
+     * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
      * "persistent://public/default/pattern-topic-.*"
@@ -151,7 +151,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer automatically subscribes to topics created after itself.
      *
      * @param topicsPattern
-     *            given regular expression for topics pattern
+     *            given regular expression for topics(not contains the partition suffix) pattern
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> topicsPattern(String topicsPattern);
@@ -184,8 +184,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>By default, the acknowledgment timeout is disabled (set to `0`, which means infinite).
      * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
      * messages that it receives are re-delivered to another consumer.
-     * <p>Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
-     * the acknowledgment timeout is set to 30 seconds.
      *
      * <p>When enabling acknowledgment timeout, if a message is not acknowledged within the specified timeout,
      * it is re-delivered to the consumer (possibly to a different consumer, in the case of
@@ -249,6 +247,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *  <li>{@link SubscriptionType#Exclusive} (Default)</li>
      *  <li>{@link SubscriptionType#Failover}</li>
      *  <li>{@link SubscriptionType#Shared}</li>
+     *  <li>{@link SubscriptionType#Key_Shared}</li>
      * </ul>
      *
      * @param subscriptionType
@@ -283,6 +282,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
+
+    /**
+     * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
+     * <i>(default: use executor from PulsarClient,
+     * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
+     *
+     * <p>The listener thread pool is exclusively owned by current consumer
+     * that are using a "listener" model to get messages. For a given internal consumer,
+     * the listener will always be invoked from the same thread, to ensure ordering.
+     *
+     * <p> The caller need to shut down the thread pool after closing the consumer to avoid leaks.
+     * @param messageListenerExecutor the executor of the consumer message listener
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor);
 
     /**
      * Sets a {@link CryptoKeyReader}.
@@ -345,6 +359,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
      * application calls {@link Consumer#receive()}. Using a higher value can potentially increase consumer
      * throughput at the expense of bigger memory utilization.
+     *
+     * <p>For the consumer that subscribes to the partitioned topic, the parameter
+     * {@link ConsumerBuilder#maxTotalReceiverQueueSizeAcrossPartitions} also affects
+     * the number of messages accumulated in the consumer.
      *
      * <p><b>Setting the consumer queue size as zero</b>
      * <ul>
@@ -410,8 +428,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * of messages that a consumer can be pushed at once from a broker, across all
      * the partitions.
      *
-     * @param maxTotalReceiverQueueSizeAcrossPartitions
-     *            max pending messages across all the partitions
+     * <p>This setting is applicable only to consumers subscribing to partitioned topics. In such cases, there will
+     * be multiple queues for each partition and a single queue for the parent consumer. This setting controls the
+     * queues of all partitions, not the parent queue. For instance, if a consumer subscribes to a single partitioned
+     * topic, the total number of messages accumulated in this consumer will be the sum of
+     * {@link #receiverQueueSize(int)} and maxTotalReceiverQueueSizeAcrossPartitions.
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions max pending messages across all the partitions
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
@@ -456,7 +479,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> readCompacted(boolean readCompacted);
 
     /**
-     * Sets topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topic's consumer.
      * The period is in minutes, and the default and minimum values are 1 minute.
      *
      * @param periodInMinutes
@@ -468,7 +491,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
 
     /**
-     * Sets topic's auto-discovery period when using a pattern for topics consumer.
+     * Sets topic's auto-discovery period when using a pattern for topic's consumer.
+     * The default value of period is 1 minute, with a minimum of 1 second.
      *
      * @param interval
      *            the amount of delay between checks for
@@ -503,9 +527,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
      *
-     * <p><b>Failover subscription</b>
-     * The broker selects the active consumer for a failover subscription based on consumer's priority-level and
-     * lexicographical sorting of consumer name.
+     * <p><b>Failover subscription for partitioned topic</b>
+     * The broker selects the active consumer for a failover subscription for a partitioned topic
+     * based on consumer's priority-level and lexicographical sorting of consumer name.
      * eg:
      * <pre>
      * 1. Active consumer = C1 : Same priority-level and lexicographical sorting
@@ -521,6 +545,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Partitioned-topics:
      * Broker evenly assigns partitioned topics to highest priority consumers.
      * </pre>
+     *
+     * <p>Priority level has no effect on failover subscriptions for non-partitioned topics.
      *
      * @param priorityLevel the priority of this consumer
      * @return the consumer builder instance
@@ -780,31 +806,66 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
 
     /**
-     * negativeAckRedeliveryBackoff doesn't work with `consumer.negativeAcknowledge(MessageId messageId)`
-     * because we are unable to get the redelivery count from the message ID.
+     * negativeAckRedeliveryBackoff sets the redelivery backoff policy for messages that are negatively acknowledged
+     * using
+     * `consumer.negativeAcknowledge(Message<?> message)` but not with `consumer.negativeAcknowledge(MessageId
+     * messageId)`.
+     * This setting allows specifying a backoff policy for messages that are negatively acknowledged,
+     * enabling more flexible control over the delay before such messages are redelivered.
      *
-     * <p>Example:
-     * <pre>
-     * client.newConsumer().negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
-     *              .minNackTimeMs(1000)
-     *              .maxNackTimeMs(60 * 1000)
-     *              .build()).subscribe();
-     * </pre>
+     * <p>This configuration accepts a {@link RedeliveryBackoff} object that defines the backoff policy.
+     * The policy can be either a fixed delay or an exponential backoff. An exponential backoff policy
+     * is beneficial in scenarios where increasing the delay between consecutive redeliveries can help
+     * mitigate issues like temporary resource constraints or processing bottlenecks.
+     *
+     * <p>Note: This backoff policy does not apply when using `consumer.negativeAcknowledge(MessageId messageId)`
+     * because the redelivery count cannot be determined from just the message ID. It is recommended to use
+     * `consumer.negativeAcknowledge(Message<?> message)` if you want to leverage the redelivery backoff policy.
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * client.newConsumer()
+     *       .negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *           .minDelayMs(1000)   // Set minimum delay to 1 second
+     *           .maxDelayMs(60000)  // Set maximum delay to 60 seconds
+     *           .build())
+     *       .subscribe();
+     * }</pre>
+     *
+     * @param negativeAckRedeliveryBackoff the backoff policy to use for negatively acknowledged messages
+     * @return the consumer builder instance
      */
     ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff);
 
+
     /**
-     * redeliveryBackoff doesn't work with `consumer.negativeAcknowledge(MessageId messageId)`
-     * because we are unable to get the redelivery count from the message ID.
+     * Sets the redelivery backoff policy for messages that are redelivered due to acknowledgement timeout.
+     * This setting allows you to specify a backoff policy for messages that are not acknowledged within
+     * the specified ack timeout. By using a backoff policy, you can control the delay before a message
+     * is redelivered, potentially improving consumer performance by avoiding immediate redelivery of
+     * messages that might still be processing.
      *
-     * <p>Example:
-     * <pre>
-     * client.newConsumer().ackTimeout(10, TimeUnit.SECOND)
-     *              .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
-     *              .minNackTimeMs(1000)
-     *              .maxNackTimeMs(60 * 1000)
-     *              .build()).subscribe();
-     * </pre>
+     * <p>This method accepts a {@link RedeliveryBackoff} object that defines the backoff policy to be used.
+     * You can use either a fixed backoff policy or an exponential backoff policy. The exponential backoff
+     * policy is particularly useful for scenarios where it may be beneficial to progressively increase the
+     * delay between redeliveries, reducing the load on the consumer and giving more time to process messages.
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * client.newConsumer()
+     *       .ackTimeout(10, TimeUnit.SECONDS)
+     *       .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *           .minDelayMs(1000)   // Set minimum delay to 1 second
+     *           .maxDelayMs(60000)  // Set maximum delay to 60 seconds
+     *           .build())
+     *       .subscribe();
+     * }</pre>
+     *
+     * <p>Note: This configuration is effective only if the ack timeout is triggered. It does not apply to
+     * messages negatively acknowledged using the negative acknowledgment API.
+     *
+     * @param ackTimeoutRedeliveryBackoff the backoff policy to use for messages that exceed their ack timeout
+     * @return the consumer builder instance
      */
     ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff);
 

@@ -46,7 +46,7 @@ public interface SubscriptionStats {
     double getMessageAckRate();
 
     /** Chunked message dispatch rate. */
-    int getChunkedMessageRate();
+    double getChunkedMessageRate();
 
     /** Number of entries in the subscription backlog. */
     long getMsgBacklog();
@@ -65,6 +65,9 @@ public interface SubscriptionStats {
 
     /** Number of delayed messages currently being tracked. */
     long getMsgDelayed();
+
+    /** Number of messages registered for replay. */
+    long getMsgInReplay();
 
     /**
      * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been

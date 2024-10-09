@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-all-docker-image</artifactId>
@@ -66,6 +66,17 @@
   </dependencies>
 
   <profiles>
+    <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git</missing>
+        </file>
+      </activation>
+      <properties>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
+      </properties>
+    </profile>
     <profile>
       <id>docker</id>
       <!-- include the docker image only when docker profile is active -->
@@ -134,21 +145,22 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                  <goal>tag</goal>
+                  <goal>push</goal>
                 </goals>
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/pulsar-all</name>
+                      <name>${docker.organization}/${docker.image}-all</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${docker.tag}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <args>
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
                           <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
+                          <PULSAR_IMAGE>${docker.organization}/${docker.image}:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
                         </args>
                         <buildx>
                           <platforms>
@@ -165,29 +177,12 @@
         </plugins>
       </build>
     </profile>
-
     <profile>
       <id>docker-push</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>default</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>build</goal>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
+      <properties>
+        <docker.skip.push>false</docker.skip.push>
+        <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
+      </properties>
     </profile>
-
   </profiles>
 </project>

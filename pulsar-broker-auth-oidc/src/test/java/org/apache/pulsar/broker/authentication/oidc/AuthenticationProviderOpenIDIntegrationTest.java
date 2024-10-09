@@ -29,6 +29,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import com.google.common.io.Resources;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.io.Decoders;
@@ -58,6 +60,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -67,14 +70,17 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     AuthenticationProviderOpenID provider;
     PrivateKey privateKey;
+    String caCert = Resources.getResource("certificate-authority/jks/broker.truststore.pem").getPath();
 
     // These are the kid values for JWKs in the /keys endpoint
     String validJwk = "valid";
     String invalidJwk = "invalid";
+    String validJwkWithoutAlg = "valid_without_alg";
 
     // The valid issuer
     String issuer;
     String issuerWithTrailingSlash;
+    String issuerWithMissingKid;
     // This issuer is configured to return an issuer in the openid-configuration
     // that does not match the issuer on the token
     String issuerThatFails;
@@ -86,10 +92,15 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         // Port matches the port supplied in the fakeKubeConfig.yaml resource, which makes the k8s integration
         // tests work correctly.
-        server = new WireMockServer(wireMockConfig().port(0));
+        server = new WireMockServer(wireMockConfig().dynamicHttpsPort()
+                .keystorePath(Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath())
+                .keystoreType("JKS")
+                .keyManagerPassword("111111")
+                .keystorePassword("111111"));
         server.start();
         issuer = server.baseUrl();
         issuerWithTrailingSlash = issuer + "/trailing-slash/";
+        issuerWithMissingKid = issuer + "/missing-kid";
         issuerThatFails = issuer + "/fail";
         issuerK8s = issuer + "/k8s";
 
@@ -178,16 +189,66 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                                 "kty":"RSA",
                                                 "n":"invalid-key",
                                                 "e":"AQAB"
+                                                },
+                                                {
+                                                "kid":"%s",
+                                                "kty":"RSA",
+                                                "n":"%s",
+                                                "e":"%s"
                                                 }
                                             ]
                                         }
-                                        """.formatted(validJwk, n, e, invalidJwk))));
+                                        """.formatted(validJwk, n, e, invalidJwk, validJwkWithoutAlg, n, e))));
+
+        server.stubFor(
+                get(urlEqualTo("/missing-kid/.well-known/openid-configuration"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("""
+                                        {
+                                          "issuer": "%s",
+                                          "jwks_uri": "%s/keys"
+                                        }
+                                        """.formatted(issuerWithMissingKid, issuerWithMissingKid))));
+
+        // Set up JWKS endpoint where it first responds without the KID, then with the KID. This is a stateful stub.
+        // Note that the state machine is circular to make it easier to verify the two code paths that rely on
+        // this logic.
+        server.stubFor(
+                get(urlMatching( "/missing-kid/keys"))
+                        .inScenario("Changing KIDs")
+                        .whenScenarioStateIs(Scenario.STARTED)
+                        .willSetStateTo("serve-kid")
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"keys\":[]}")));
+        server.stubFor(
+                get(urlMatching( "/missing-kid/keys"))
+                        .inScenario("Changing KIDs")
+                        .whenScenarioStateIs("serve-kid")
+                        .willSetStateTo(Scenario.STARTED)
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody(
+                                        """
+                                        {
+                                            "keys" : [
+                                                {
+                                                "kid":"%s",
+                                                "kty":"RSA",
+                                                "alg":"RS256",
+                                                "n":"%s",
+                                                "e":"%s"
+                                                }
+                                            ]
+                                        }
+                                        """.formatted(validJwk, n, e))));
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash
                 + "," + issuerThatFails);
@@ -199,18 +260,33 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Files.write(Path.of(System.getenv("KUBECONFIG")), kubeConfig.getBytes());
 
         provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @AfterClass
-    void afterClass() {
+    void afterClass() throws IOException {
+        provider.close();
         server.stop();
+    }
+
+    @BeforeMethod
+    public void beforeMethod() {
+        // Scenarios are stateful. Start each test with the correct state.
+        server.resetScenarios();
     }
 
     @Test
     public void testTokenWithValidJWK() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testTokenWithValidJWKWithoutAlg() throws Exception {
+        String role = "superuser";
+        // test with a key in JWK that does not have an "alg" field. "alg" is optional in the JWK spec
+        String token = generateToken(validJwkWithoutAlg, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
     }
 
@@ -268,6 +344,54 @@ public class AuthenticationProviderOpenIDIntegrationTest {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
     }
+    @Test
+    public void testKidCacheMissWhenRefreshConfigZero() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
+        // Allows us to retrieve the JWK immediately after the cache miss of the KID
+        props.setProperty(AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS, "0");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuerWithMissingKid);
+
+        @Cleanup
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        String role = "superuser";
+        String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testKidCacheMissWhenRefreshConfigLongerThanDelta() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
+        // This value is high enough that the provider will not refresh the JWK
+        props.setProperty(AuthenticationProviderOpenID.KEY_ID_CACHE_MISS_REFRESH_SECONDS, "100");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuerWithMissingKid);
+
+        @Cleanup
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        String role = "superuser";
+        String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException, "Found exception: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("No JWK found for Key ID valid"),
+                    "Found exception: " + e.getCause());
+        }
+    }
 
     @Test
     public void testKubernetesApiServerAsDiscoverTrustedIssuerSuccess() throws Exception {
@@ -275,14 +399,15 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         // We use the normal issuer on the token because the /k8s endpoint is configured via the kube config file
@@ -309,13 +434,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -334,14 +460,15 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
@@ -365,13 +492,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -427,13 +555,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         // Use the leeway to allow the token to pass validation and then fail expiration
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 0L);
@@ -457,7 +586,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName(),
                 AuthenticationProviderToken.class.getName()));
         Properties props = conf.getProperties();
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
 
@@ -497,15 +626,16 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     @Test
     void ensureRoleClaimForNonSubClaimReturnsRole() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT with a custom claim
         HashMap<String, Object> claims = new HashMap();
@@ -517,15 +647,16 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     @Test
     void ensureRoleClaimForNonSubClaimFailsWhenClaimIsMissing() throws Exception {
+        @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
-        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT without the "test" claim, which should cause the authentication to fail
         String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,

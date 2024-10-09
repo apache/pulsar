@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -49,8 +47,6 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         setUpBase(1, 16, null, 0);
         Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
                 .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
     }
 
     @AfterMethod(alwaysRun = true)

@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.testng.Assert.assertEquals;
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionRateLimitOperationName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -43,6 +49,12 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
+    }
+
     @Test
     public void testMessagePublishBufferThrottleDisabled() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(-1);
@@ -52,7 +64,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
-         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
 
         pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
 
@@ -63,7 +76,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         }
         producer.flush();
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
     }
 
     @Test
@@ -71,14 +85,14 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         conf.setMaxMessagePublishBufferSizeInMB(1);
         super.baseSetup();
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
         final String topic = "persistent://prop/ns-abc/testMessagePublishBufferThrottleEnable";
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
 
         pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
 
@@ -87,23 +101,27 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        Awaitility.await().untilAsserted(
-                () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 1L));
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 1);
+        Awaitility.await().untilAsserted(() -> {
+            assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+            assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
+        });
 
         producer.flush();
 
-        Awaitility.await().untilAsserted(
-            () -> Assert.assertEquals(pulsar.getBrokerService().getPausedConnections(), 0L));
-
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+            assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
+        });
     }
 
     @Test
     public void testBlockByPublishRateLimiting() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(1);
         super.baseSetup();
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
+
         final String topic = "persistent://prop/ns-abc/testBlockByPublishRateLimiting";
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
@@ -111,7 +129,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
                 .create();
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
 
         pulsarTestContext.getMockBookKeeper().addEntryDelay(5, TimeUnit.SECONDS);
 
@@ -121,13 +140,15 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 1));
+        Awaitility.await().untilAsserted(() -> assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 1));
 
         CompletableFuture<Void> flushFuture = producer.flushAsync();
 
         // Block by publish rate.
         // After 1 second, the message buffer throttling will be lifted, but the rate limiting will still be in place.
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 1);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 1);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 0);
+
         try {
             flushFuture.get(2, TimeUnit.SECONDS);
             fail("Should have timed out");
@@ -137,14 +158,52 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         flushFuture.join();
 
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
+        Awaitility.await().untilAsserted(() -> {
+            assertRateLimitCounter(ConnectionRateLimitOperationName.PAUSED, 10);
+            assertRateLimitCounter(ConnectionRateLimitOperationName.RESUMED, 10);
+        });
+    }
 
-        // Resume message publish.
-        ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
+    @Test
+    public void testConnectionThrottled() throws Exception {
+        super.baseSetup();
 
-        flushFuture.get();
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
+        var topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testSendThrottled");
+
+        assertRateLimitCounter(ConnectionRateLimitOperationName.THROTTLED, 0);
+        assertRateLimitCounter(ConnectionRateLimitOperationName.UNTHROTTLED, 0);
+
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
+        final int messages = 2000;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync("Message - " + i);
+        }
+        producer.flush();
+
+        // Wait for the connection to be throttled and unthrottled.
+        Awaitility.await().untilAsserted(() -> {
+            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+            assertMetricLongSumValue(metrics, BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME,
+                    ConnectionRateLimitOperationName.THROTTLED.attributes, value -> assertThat(value).isPositive());
+            assertMetricLongSumValue(metrics, BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME,
+                    ConnectionRateLimitOperationName.UNTHROTTLED.attributes, value -> assertThat(value).isPositive());
+        });
+    }
+
+    private void assertRateLimitCounter(ConnectionRateLimitOperationName connectionRateLimitState, int expectedCount) {
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        if (expectedCount == 0) {
+            assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
+                    .hasName(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
+                    .hasLongSumSatisfying(sum -> sum.hasPointsSatisfying(
+                            points -> points.hasAttributes(connectionRateLimitState.attributes))));
+        } else {
+            assertMetricLongSumValue(metrics, BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME,
+                    connectionRateLimitState.attributes, expectedCount);
+        }
     }
 }

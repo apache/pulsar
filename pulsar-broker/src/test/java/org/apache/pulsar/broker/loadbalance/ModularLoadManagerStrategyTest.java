@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.AvgShedder;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
@@ -46,6 +48,47 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ModularLoadManagerStrategyTest {
+
+    public void testAvgShedderWithPreassignedBroker() throws Exception {
+        ModularLoadManagerStrategy strategy = new AvgShedder();
+        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
+        field.setAccessible(true);
+        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
+        BundleData bundleData = new BundleData();
+        // assign bundle to broker1 in bundleBrokerMap.
+        bundleBrokerMap.put(bundleData, "1");
+        assertEquals(strategy.selectBroker(Set.of("1", "2", "3"), bundleData, null, null), Optional.of("1"));
+        assertEquals(bundleBrokerMap.get(bundleData), "1");
+
+        // remove broker1 in candidates, only broker2 is candidate.
+        assertEquals(strategy.selectBroker(Set.of("2"), bundleData, null, null), Optional.of("2"));
+        assertEquals(bundleBrokerMap.get(bundleData), "2");
+    }
+
+    public void testAvgShedderWithoutPreassignedBroker() throws Exception {
+        ModularLoadManagerStrategy strategy = new AvgShedder();
+        Field field = AvgShedder.class.getDeclaredField("bundleBrokerMap");
+        field.setAccessible(true);
+        Map<BundleData, String> bundleBrokerMap = (Map<BundleData, String>) field.get(strategy);
+        BundleData bundleData = new BundleData();
+        Set<String> candidates = new HashSet<>();
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
+
+        // select broker from candidates randomly.
+        Optional<String> selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
+        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
+
+        // remove original broker in candidates
+        candidates.remove(selectedBroker.get());
+        selectedBroker = strategy.selectBroker(candidates, bundleData, null, null);
+        assertTrue(selectedBroker.isPresent());
+        assertTrue(candidates.contains(selectedBroker.get()));
+        assertEquals(bundleBrokerMap.get(bundleData), selectedBroker.get());
+    }
 
     // Test that least long term message rate works correctly.
     public void testLeastLongTermMessageRate() {
@@ -68,6 +111,9 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+        // disable considering cpu usage to avoid broker2 being overloaded.
+        conf.setLoadBalancerCPUResourceWeight(0);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
     }
 
     // Test that least resource usage with weight works correctly.
@@ -88,8 +134,8 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 
@@ -167,8 +213,8 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 

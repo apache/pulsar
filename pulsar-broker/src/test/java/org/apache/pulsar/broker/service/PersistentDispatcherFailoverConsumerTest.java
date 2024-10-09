@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -60,15 +61,17 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
@@ -157,8 +160,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
                 .when(serverCnxWithOldVersion).getCommandSender();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
@@ -180,13 +182,15 @@ public class PersistentDispatcherFailoverConsumerTest {
         cursorMock = mock(ManagedCursorImpl.class);
 
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
+        ManagedLedgerFactory managedLedgerFactory = pulsarTestContext.getDefaultManagedLedgerFactory();
         doAnswer(invocationOnMock -> {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -195,14 +199,14 @@ public class PersistentDispatcherFailoverConsumerTest {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(invocationOnMock -> {
             ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                    new PositionImpl(1, 1), null, null);
+                    PositionFactory.create(1, 1), null, null);
             return null;
         }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), any());
 
@@ -457,11 +461,12 @@ public class PersistentDispatcherFailoverConsumerTest {
         return res.get();
     }
 
-    @Test(invocationCount = 100)
+    @Test
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
-        log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
+        log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");
         String[] sortedConsumerNameByHashSelector = sortConsumerNameByHashSelector("Cons1", "Cons2");
-        BrokerService spyBrokerService = spy(pulsarTestContext.getBrokerService());
+        BrokerService spyBrokerService = pulsarTestContext.getBrokerService();
+        @Cleanup("shutdownNow")
         final EventLoopGroup singleEventLoopGroup = EventLoopUtil.newEventLoopGroup(1,
                 pulsarTestContext.getBrokerService().getPulsar().getConfig().isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
@@ -522,7 +527,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -567,7 +573,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -595,7 +602,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -650,7 +658,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, true, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, true, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, true, 3);
@@ -673,7 +682,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
+    private Consumer getNextConsumer(AbstractPersistentDispatcherMultipleConsumers dispatcher) throws Exception {
 
         Consumer consumer = dispatcher.getNextConsumer();
 

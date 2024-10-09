@@ -26,6 +26,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class UniformLoadShedderTest {
@@ -117,6 +118,83 @@ public class UniformLoadShedderTest {
 
         Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
+    }
+
+    @Test
+    public void testOverloadBrokerSelect() {
+        conf.setMaxUnloadBundleNumPerShedding(1);
+        conf.setMaxUnloadPercentage(0.5);
+        int numBrokers = 5;
+        int numBundles = 5;
+        LoadData loadData = new LoadData();
+
+        LocalBrokerData[] localBrokerDatas = new LocalBrokerData[]{
+                new LocalBrokerData(),
+                new LocalBrokerData(),
+                new LocalBrokerData(),
+                new LocalBrokerData(),
+                new LocalBrokerData()};
+
+        String[] brokerNames = new String[]{"broker0", "broker1", "broker2", "broker3", "broker4"};
+
+        double[] brokerMsgRates = new double[]{
+                50000, // broker0
+                60000, // broker1
+                70000, // broker2
+                10000, // broker3
+                20000};// broker4
+
+        double[] brokerMsgThroughputs = new double[]{
+                50 * 1024 * 1024, // broker0
+                60 * 1024 * 1024, // broker1
+                70 * 1024 * 1024, // broker2
+                80 * 1024 * 1024, // broker3
+                10 * 1024 * 1024};// broker4
+
+
+        for (int brokerId = 0; brokerId < numBrokers; brokerId++) {
+            double msgRate = brokerMsgRates[brokerId] / numBundles;
+            double throughput = brokerMsgThroughputs[brokerId] / numBundles;
+            for (int i = 0; i < numBundles; ++i) {
+                String bundleName = "broker-" + brokerId + "-bundle-" + i;
+                localBrokerDatas[brokerId].getBundles().add(bundleName);
+                localBrokerDatas[brokerId].setMsgRateIn(brokerMsgRates[brokerId]);
+                localBrokerDatas[brokerId].setMsgThroughputIn(brokerMsgThroughputs[brokerId]);
+                BundleData bundle = new BundleData();
+
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgRateIn(msgRate);
+                timeAverageMessageData.setMsgThroughputIn(throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                loadData.getBundleData().put(bundleName, bundle);
+            }
+           loadData.getBrokerData().put(brokerNames[brokerId], new BrokerData(localBrokerDatas[brokerId]));
+        }
+
+        // disable throughput based load shedding, enable rate based load shedding only
+        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
+        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(0);
+
+        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker2"));
+
+
+        // disable rate based load shedding, enable throughput based load shedding only
+        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(0);
+        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
+
+        bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker3"));
+
+        // enable both rate and throughput based load shedding, but rate based load shedding has higher priority
+        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
+        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
+
+        bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker2"));
     }
 
 }

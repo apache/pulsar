@@ -53,7 +53,6 @@ public class OffloaderUtils {
             throws IOException {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
-        // as is the case for the pulsar presto plugin
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(new File(narPath))
                 .parentClassLoader(LedgerOffloaderFactory.class.getClassLoader())

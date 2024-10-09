@@ -46,17 +46,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -140,7 +143,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    componentPackageFile = getPackageFile(sourcePkgUrl);
+                    componentPackageFile = getPackageFile(componentType, sourcePkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             sourceConfig, componentPackageFile);
                 } else {
@@ -288,7 +291,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null) {
+        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null
+            && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sourceName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
@@ -300,6 +304,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 componentPackageFile = getPackageFile(
+                        componentType,
                         sourcePkgUrl,
                         existingComponent.getPackageLocation().getPackagePath(),
                         uploadedInputStream);
@@ -372,8 +377,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sourcePkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sourcePkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
@@ -659,7 +666,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         sourceConfig.setName(sourceName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
 
-        ClassLoader classLoader = null;
+        ValidatableFunctionPackage connectorFunctionPackage = null;
         // check if source is builtin and extract classloader
         if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
             String archive = sourceConfig.getArchive();
@@ -671,30 +678,37 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 if (connector == null) {
                     throw new IllegalArgumentException("Built-in source is not available");
                 }
-                classLoader = connector.getClassLoader();
+                connectorFunctionPackage = connector.getConnectorFunctionPackage();
             }
         }
 
-        boolean shouldCloseClassLoader = false;
+        boolean shouldCloseFunctionPackage = false;
         try {
             // if source is not builtin, attempt to extract classloader from package file if it exists
-            if (classLoader == null && sourcePackageFile != null) {
-                classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
-                        sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-                shouldCloseClassLoader = true;
+            WorkerConfig workerConfig = worker().getWorkerConfig();
+            if (connectorFunctionPackage == null && sourcePackageFile != null) {
+                connectorFunctionPackage =
+                        new FunctionFilePackage(sourcePackageFile, workerConfig.getNarExtractionDirectory(),
+                                workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);
+                shouldCloseFunctionPackage = true;
             }
 
-            if (classLoader == null) {
+            if (connectorFunctionPackage == null) {
                 throw new IllegalArgumentException("Source package is not provided");
             }
 
             SourceConfigUtils.ExtractedSourceDetails sourceDetails =
                     SourceConfigUtils.validateAndExtractDetails(
-                            sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+                            sourceConfig, connectorFunctionPackage,
+                            workerConfig.getValidateConnectorConfig());
             return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         } finally {
-            if (shouldCloseClassLoader) {
-                ClassLoaderUtils.closeClassLoader(classLoader);
+            if (shouldCloseFunctionPackage && connectorFunctionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) connectorFunctionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to connector function file", e);
+                }
             }
         }
     }

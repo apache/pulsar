@@ -38,7 +38,7 @@
     <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
 
     <!-- suppress most all checks expect below-->
-    <suppress checks="^(?!.*UnusedImports).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
+    <suppress checks="^(?!.*(UnusedImports|IllegalImport)).*$" files=".*[\\/]src[\\/]test[\\/].*"/>
 
     <suppress checks="IllegalImport" files="ProxyServiceStarter.java"/>
 

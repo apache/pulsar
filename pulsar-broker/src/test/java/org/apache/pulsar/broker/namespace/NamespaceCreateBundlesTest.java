@@ -20,15 +20,21 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
+import lombok.Cleanup;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -80,5 +86,32 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
         assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));
         producer.close();
+    }
+
+    @Test
+    public void testBundleSplitListener() throws Exception {
+        String namespaceName = "prop/" + UUID.randomUUID().toString();
+        String topicName = "persistent://" + namespaceName + "/my-topic5";
+        admin.namespaces().createNamespace(namespaceName);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
+            TimeUnit.SECONDS).create();
+        producer.send(new byte[1]);
+        String bundleRange = admin.lookups().getBundleRange(topicName);
+        AtomicBoolean isTriggered = new AtomicBoolean(false);
+        pulsar.getNamespaceService().addNamespaceBundleSplitListener(new NamespaceBundleSplitListener() {
+            @Override
+            public void onSplit(NamespaceBundle bundle) {
+                assertEquals(bundleRange, bundle.getBundleRange());
+                isTriggered.set(true);
+            }
+
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return true;
+            }
+        });
+        admin.namespaces().splitNamespaceBundle(namespaceName, bundleRange, false, null);
+        Awaitility.await().untilAsserted(() -> assertTrue(isTriggered.get()));
     }
 }

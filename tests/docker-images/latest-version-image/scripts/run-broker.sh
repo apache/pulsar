@@ -25,6 +25,5 @@ if [ -z "$NO_AUTOSTART" ]; then
     sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/broker.conf
 fi
 
-bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w
 exec /usr/bin/supervisord -c /etc/supervisord.conf
 

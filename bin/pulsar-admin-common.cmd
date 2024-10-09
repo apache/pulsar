@@ -19,7 +19,7 @@
 
 @echo off
 
-if "%JAVA_HOME%" == "" (
+if not defined JAVA_HOME (
   for %%i in (java.exe) do set "JAVACMD=%%~$PATH:i"
 ) else (
   set "JAVACMD=%JAVA_HOME%\bin\java.exe"
@@ -28,15 +28,27 @@ if "%JAVA_HOME%" == "" (
 if not exist "%JAVACMD%" (
   echo The JAVA_HOME environment variable is not defined correctly, so Pulsar CLI cannot be started. >&2
   echo JAVA_HOME is set to "%JAVA_HOME%", but "%JAVACMD%" does not exist. >&2
-  goto error
+  exit /b 1
 )
 
+set JAVA_MAJOR_VERSION=0
+REM Requires "setlocal enabledelayedexpansion" to work
+for /f tokens^=3 %%g in ('"!JAVACMD!" -version 2^>^&1 ^| findstr /i version') do (
+  set JAVA_MAJOR_VERSION=%%g
+)
+set JAVA_MAJOR_VERSION=%JAVA_MAJOR_VERSION:"=%
+for /f "delims=.-_ tokens=1-2" %%v in ("%JAVA_MAJOR_VERSION%") do (
+  if /I "%%v" EQU "1" (
+    set JAVA_MAJOR_VERSION=%%w
+  ) else (
+    set JAVA_MAJOR_VERSION=%%v
+  )
+)
 
 for %%i in ("%~dp0.") do SET "SCRIPT_PATH=%%~fi"
 set "PULSAR_HOME_DIR=%SCRIPT_PATH%\..\"
 for %%i in ("%PULSAR_HOME_DIR%.") do SET "PULSAR_HOME=%%~fi"
 set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_HOME%\lib\*"
-
 
 if "%PULSAR_CLIENT_CONF%" == "" set "PULSAR_CLIENT_CONF=%PULSAR_HOME%\conf\client.conf"
 if "%PULSAR_LOG_CONF%" == "" set "PULSAR_LOG_CONF=%PULSAR_HOME%\conf\log4j2.yaml"
@@ -50,18 +62,21 @@ set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
 set "OPTS=%OPTS% -Djava.net.preferIPv4Stack=true"
 
-set "isjava8=false"
-FOR /F "tokens=*" %%g IN ('"java -version 2>&1"') do (
-  echo %%g|find "version" >nul
-  if errorlevel 0 (
-    echo %%g|find "1.8" >nul
-    if errorlevel 0 (
-     set "isjava8=true"
-    )
-  )
+REM Allow Netty to use reflection access
+set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
+set "OPTS=%OPTS% -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+
+if %JAVA_MAJOR_VERSION% GTR 8 (
+  set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+  REM Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms
+  REM reflection access to java.util.zip.CRC32C
+  set "OPTS=%OPTS% --add-opens java.base/java.util.zip=ALL-UNNAMED"
 )
 
-if "%isjava8%" == "false" set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED"
+if %JAVA_MAJOR_VERSION% GEQ 11 (
+  REM Required by Netty for optimized direct byte buffer access
+  set "OPTS=%OPTS% --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+)
 
 set "OPTS=-cp "%PULSAR_CLASSPATH%" %OPTS%"
 set "OPTS=%OPTS% %PULSAR_EXTRA_OPTS%"
@@ -79,6 +94,3 @@ set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.log.immediateFlush=%PULSAR_LOG_IMMEDIATE_FLUSH%"
 set "OPTS=%OPTS% -Dpulsar.routing.appender.default=%PULSAR_ROUTING_APPENDER_DEFAULT%"
-
-:error
-exit /b 1

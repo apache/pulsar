@@ -48,10 +48,14 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.net.ssl.HostnameVerifier;
@@ -79,6 +83,10 @@ public class SecurityUtility {
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
     public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
+    private static final List<KeyFactory> KEY_FACTORIES = Arrays.asList(
+            createKeyFactory("RSA"),
+            createKeyFactory("EC")
+    );
 
     // Security.getProvider("BC") / Security.getProvider("BCFIPS").
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
@@ -124,11 +132,14 @@ public class SecurityUtility {
             conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
             conscryptClazz.getMethod("checkAvailability").invoke(null);
         } catch (Throwable e) {
-            if (e.getCause() instanceof UnsatisfiedLinkError) {
-                log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
+            if (e instanceof ClassNotFoundException) {
+                log.debug("Conscrypt isn't available in the classpath. Using JDK default security provider.");
+            } else if (e.getCause() instanceof UnsatisfiedLinkError) {
+                log.debug("Conscrypt isn't available for {} {}. Using JDK default security provider.",
                         System.getProperty("os.name"), System.getProperty("os.arch"));
             } else {
-                log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
+                log.debug("Conscrypt isn't available. Using JDK default security provider."
+                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
             }
             return null;
         }
@@ -137,7 +148,7 @@ public class SecurityUtility {
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            log.debug("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
         }
 
@@ -509,15 +520,21 @@ public class SecurityUtility {
             while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----END")) {
                 sb.append(currentLine);
             }
-
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
-            privateKey = kf.generatePrivate(keySpec);
-        } catch (GeneralSecurityException | IOException e) {
+            final KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
+            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORIES.size());
+            for (KeyFactory kf : KEY_FACTORIES) {
+                try {
+                    return kf.generatePrivate(keySpec);
+                } catch (InvalidKeySpecException ex) {
+                    failedAlgorithm.add(kf.getAlgorithm());
+                }
+            }
+            throw new KeyManagementException("The private key algorithm is not supported. attempted: "
+                    + StringUtils.join(failedAlgorithm, ","));
+        } catch (IOException e) {
             throw new KeyManagementException("Private key loading error", e);
         }
 
-        return privateKey;
     }
 
     private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
@@ -577,5 +594,13 @@ public class SecurityUtility {
         }
 
         return provider;
+    }
+
+    private static KeyFactory createKeyFactory(String algorithm) {
+        try {
+            return KeyFactory.getInstance(algorithm);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(String.format("Illegal key factory algorithm " + algorithm), e);
+        }
     }
 }

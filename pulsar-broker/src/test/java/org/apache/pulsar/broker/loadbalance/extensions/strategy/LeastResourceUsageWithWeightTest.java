@@ -196,8 +196,8 @@ public class LeastResourceUsageWithWeightTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
@@ -253,7 +253,22 @@ public class LeastResourceUsageWithWeightTest {
             }
 
             @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
             public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
 
             }
         };

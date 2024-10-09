@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.awaitility.Awaitility.waitAtMost;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.AfterMethod;
@@ -66,18 +69,46 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
+    }
+
     /**
-     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
-     *
-     * @throws Exception
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore, as well
+     * as the related limit metric value.
      */
     @Test
     public void testThrottlingLookupRequestSemaphore() throws Exception {
-        BrokerService service = pulsar.getBrokerService();
-        assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0));
-        Thread.sleep(1000);
-        assertEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
+        var lookupRequestSemaphore = pulsar.getBrokerService().lookupRequestSemaphore;
+        var configName = "maxConcurrentLookupRequest";
+        var metricName = BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME;
+        // Validate that the configuration has not been overridden.
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertOtelMetricLongSumValue(metricName, 50_000);
+        assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
+        assertOtelMetricLongSumValue(metricName, 0);
+    }
+
+    /**
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentTopicLoadRequest and updates semaphore, as
+     * well as the related limit metric value.
+     */
+    @Test
+    public void testThrottlingTopicLoadRequestSemaphore() throws Exception {
+        var topicLoadRequestSemaphore = pulsar.getBrokerService().topicLoadRequestSemaphore;
+        var configName = "maxConcurrentTopicLoadRequest";
+        var metricName = BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME;
+        // Validate that the configuration has not been overridden.
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
+        assertOtelMetricLongSumValue(metricName, 5_000);
+        assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
+        admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
+        waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
+        assertOtelMetricLongSumValue(metricName, 0);
     }
 
     /**
@@ -159,7 +190,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null)) {
             final int totalConsumers = 20;
             List<Future<?>> futures = new ArrayList<>();
 
@@ -167,7 +198,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             for (int i = 0; i < totalConsumers; i++) {
                 long reqId = 0xdeadbeef + i;
                 Future<?> f = executor.submit(() -> {
-                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId);
+                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId, true);
                         pool.getConnection(resolver.resolveHost())
                             .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
                             .get();

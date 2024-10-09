@@ -210,7 +210,7 @@ public final class SchemaUtils {
     }
 
     /**
-     * Jsonify the schema info with verison.
+     * Jsonify the schema info with version.
      *
      * @param schemaInfoWithVersion the schema info
      * @return the jsonified schema info with version
@@ -359,8 +359,7 @@ public final class SchemaUtils {
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(
-            byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) {
         JsonObject jsonObject = (JsonObject) toJsonElement(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
         byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
         byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));

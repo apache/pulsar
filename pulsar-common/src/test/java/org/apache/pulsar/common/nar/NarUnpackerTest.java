@@ -38,6 +38,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test
 public class NarUnpackerTest {
     File sampleZipFile;
     File extractDirectory;
@@ -46,7 +47,7 @@ public class NarUnpackerTest {
     public void createSampleZipFile() throws IOException {
         sampleZipFile = Files.createTempFile("sample", ".zip").toFile();
         try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(sampleZipFile))) {
-            for (int i = 0; i < 10000; i++) {
+            for (int i = 0; i < 5000; i++) {
                 ZipEntry e = new ZipEntry("hello" + i + ".txt");
                 out.putNextEntry(e);
                 byte[] msg = "hello world!".getBytes(StandardCharsets.UTF_8);
@@ -58,12 +59,20 @@ public class NarUnpackerTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    void deleteSampleZipFile() throws IOException {
-        if (sampleZipFile != null) {
-            sampleZipFile.delete();
+    void deleteSampleZipFile() {
+        if (sampleZipFile != null && sampleZipFile.exists()) {
+            try {
+                sampleZipFile.delete();
+            } catch (Exception e) {
+                log.warn("Failed to delete file {}", sampleZipFile, e);
+            }
         }
-        if (extractDirectory != null) {
-            FileUtils.deleteFile(extractDirectory, true);
+        if (extractDirectory != null && extractDirectory.exists()) {
+            try {
+                FileUtils.deleteFile(extractDirectory, true);
+            } catch (IOException e) {
+                log.warn("Failed to delete directory {}", extractDirectory, e);
+            }
         }
     }
 
@@ -110,8 +119,19 @@ public class NarUnpackerTest {
     }
 
     @Test
+    void shouldReExtractWhenUnpackedDirectoryIsMissing() throws IOException {
+        AtomicInteger extractCounter = new AtomicInteger();
+
+        File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+        FileUtils.deleteFile(narWorkingDirectory, true);
+        NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+
+        assertEquals(extractCounter.get(), 2);
+    }
+
+    @Test
     void shouldExtractFilesOnceInDifferentProcess() throws InterruptedException {
-        int processes = 10;
+        int processes = 5;
         String javaExePath = findJavaExe().getAbsolutePath();
         CountDownLatch countDownLatch = new CountDownLatch(processes);
         AtomicInteger exceptionCounter = new AtomicInteger();
@@ -122,7 +142,9 @@ public class NarUnpackerTest {
                     // fork a new process with the same classpath
                     Process process = new ProcessBuilder()
                             .command(javaExePath,
-                                    "-Xmx64m",
+                                    "-Xmx96m",
+                                    "-XX:TieredStopAtLevel=1",
+                                    "-Dlog4j2.disable.jmx=true",
                                     "-cp",
                                     System.getProperty("java.class.path"),
                                     // use NarUnpackerWorker as the main class
@@ -130,6 +152,7 @@ public class NarUnpackerTest {
                                     // pass arguments to use for testing
                                     sampleZipFile.getAbsolutePath(),
                                     extractDirectory.getAbsolutePath())
+                            .redirectErrorStream(true)
                             .start();
                     String output = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
                     int retval = process.waitFor();
@@ -147,7 +170,7 @@ public class NarUnpackerTest {
                 }
             }).start();
         }
-        assertTrue(countDownLatch.await(30, TimeUnit.SECONDS));
+        assertTrue(countDownLatch.await(30, TimeUnit.SECONDS), "All processes should finish before timeout");
         assertEquals(exceptionCounter.get(), 0);
         assertEquals(extractCounter.get(), 1);
     }

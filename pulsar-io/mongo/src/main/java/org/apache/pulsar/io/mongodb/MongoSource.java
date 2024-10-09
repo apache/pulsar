@@ -79,7 +79,7 @@ public class MongoSource extends PushSource<byte[]> {
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         log.info("Open MongoDB Source");
 
-        mongoSourceConfig = MongoSourceConfig.load(config);
+        mongoSourceConfig = MongoSourceConfig.load(config, sourceContext);
         mongoSourceConfig.validate();
 
         if (clientProvider != null) {

@@ -50,7 +50,7 @@ public class LoadReport implements LoadManagerReport {
     private long timestamp;
     private double msgRateIn;
     private double msgRateOut;
-    private int numTopics;
+    private long numTopics;
     private int numConsumers;
     private int numProducers;
     private int numBundles;
@@ -205,7 +205,7 @@ public class LoadReport implements LoadManagerReport {
     }
 
     @Override
-    public int getNumTopics() {
+    public long getNumTopics() {
         numTopics = 0;
         if (this.bundleStats != null) {
             this.bundleStats.forEach((bundle, stats) -> {

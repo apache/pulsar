@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.Sets;
@@ -28,11 +31,13 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -74,8 +79,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         LoadDataStore<MyClass> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, MyClass.class);
-        loadDataStore.startTableView();
+                LoadDataStoreFactory.create(pulsar, topic, MyClass.class);
         MyClass myClass1 = new MyClass("1", 1);
         loadDataStore.pushAsync("key1", myClass1).get();
 
@@ -107,8 +111,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
-        loadDataStore.startTableView();
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
 
         Map<String, Integer> map = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -131,24 +134,79 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     public void testTableViewRestart() throws Exception {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
         LoadDataStore<Integer> loadDataStore =
-                LoadDataStoreFactory.create(pulsar.getClient(), topic, Integer.class);
-
-        loadDataStore.startTableView();
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
         loadDataStore.pushAsync("1", 1).get();
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.size(), 1));
         assertEquals(loadDataStore.get("1").get(), 1);
         loadDataStore.closeTableView();
 
         loadDataStore.pushAsync("1", 2).get();
-        Exception ex = null;
-        try {
-            loadDataStore.get("1");
-        } catch (IllegalStateException e) {
-            ex = e;
-        }
-        assertNotNull(ex);
-        loadDataStore.startTableView();
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+
+        loadDataStore.pushAsync("1", 3).get();
+        FieldUtils.writeField(loadDataStore, "tableViewLastUpdateTimestamp", 0 , true);
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 3));
+    }
+
+    @Test
+    public void testProducerRestart() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        var loadDataStore =
+                (TableViewLoadDataStoreImpl) spy(LoadDataStoreFactory.create(pulsar, topic, Integer.class));
+
+        // happy case
+        loadDataStore.pushAsync("1", 1).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.size(), 1));
+        assertEquals(loadDataStore.get("1").get(), 1);
+        verify(loadDataStore, times(1)).startProducer();
+
+        // loadDataStore will restart producer if null.
+        FieldUtils.writeField(loadDataStore, "producer", null, true);
+        loadDataStore.pushAsync("1", 2).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+        verify(loadDataStore, times(2)).startProducer();
+
+        // loadDataStore will restart producer if too slow.
+        FieldUtils.writeField(loadDataStore, "producerLastPublishTimestamp", 0 , true);
+        loadDataStore.pushAsync("1", 3).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 3));
+        verify(loadDataStore, times(3)).startProducer();
+    }
+
+    @Test
+    public void testProducerStop() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.startProducer();
+        loadDataStore.pushAsync("1", 1).get();
+        loadDataStore.removeAsync("1").get();
+
+        loadDataStore.close();
+
+        loadDataStore.pushAsync("2", 2).get();
+        loadDataStore.removeAsync("2").get();
+    }
+
+    @Test
+    public void testShutdown() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.start();
+        loadDataStore.shutdown();
+
+        Assert.assertTrue(loadDataStore.pushAsync("2", 2).isCompletedExceptionally());
+        Assert.assertTrue(loadDataStore.removeAsync("2").isCompletedExceptionally());
+        assertTrue(loadDataStore.get("2").isEmpty());
+        assertThrows(IllegalStateException.class, loadDataStore::size);
+        assertThrows(IllegalStateException.class, loadDataStore::entrySet);
+        assertThrows(IllegalStateException.class, () -> loadDataStore.forEach((k, v) -> {}));
+        assertThrows(IllegalStateException.class, loadDataStore::init);
+        assertThrows(IllegalStateException.class, loadDataStore::start);
+        assertThrows(IllegalStateException.class, loadDataStore::startProducer);
+        assertThrows(IllegalStateException.class, loadDataStore::startTableView);
+        assertThrows(IllegalStateException.class, loadDataStore::closeTableView);
     }
 
 }

@@ -34,4 +34,9 @@ public abstract class PulsarFunctionsGoTest extends PulsarFunctionsTest {
         testFunctionLocalRun(Runtime.GO);
     }
 
+    @Test(groups = {"go_function", "function"})
+    public void testGoExclamationMultiInputsFunction() throws Exception {
+        testExclamationFunction(Runtime.GO, false, false, true, false);
+    }
+
 }
