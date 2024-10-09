@@ -176,7 +176,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is enabled, WebServcie is available both on HTTP and HTTPS.
+     * Test that if enableTls option is enabled, WebService is available both on HTTP and HTTPS.
      *
      * @throws Exception
      */
@@ -198,7 +198,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is disabled, WebServcie is available only on HTTP.
+     * Test that if enableTls option is disabled, WebService is available only on HTTP.
      *
      * @throws Exception
      */
@@ -221,7 +221,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option and allowInsecure option are enabled, WebServcie requires trusted/untrusted client
+     * Test that if enableAuth option and allowInsecure option are enabled, WebService requires trusted/untrusted client
      * certificate.
      *
      * @throws Exception
@@ -245,7 +245,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option is enabled, WebServcie requires trusted client certificate.
+     * Test that if enableAuth option is enabled, WebService requires trusted client certificate.
      *
      * @throws Exception
      */
