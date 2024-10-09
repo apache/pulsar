@@ -55,7 +55,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class KeySharedSubscriptionTest extends ProducerConsumerBase {
+public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsumerBase {
 
     @Override
     @BeforeMethod
