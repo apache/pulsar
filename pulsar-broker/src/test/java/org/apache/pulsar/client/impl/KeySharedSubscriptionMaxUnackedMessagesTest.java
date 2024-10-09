@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -57,25 +58,28 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsumerBase {
-    private final boolean useClassicImplementation;
+    private final KeySharedImplementationType implementationType;
 
+    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
     @Factory
-    public static Object[] createInstances() {
-        return new Object[] {
-                new KeySharedSubscriptionMaxUnackedMessagesTest(true),
-                new KeySharedSubscriptionMaxUnackedMessagesTest(false)
-        };
+    public static Object[] createTestInstances() {
+        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionMaxUnackedMessagesTest::new);
     }
 
-    public KeySharedSubscriptionMaxUnackedMessagesTest(boolean useClassicImplementation) {
-        this.useClassicImplementation = useClassicImplementation;
+    public KeySharedSubscriptionMaxUnackedMessagesTest() {
+        // set the default implementation type for manual running in IntelliJ
+        this(KeySharedImplementationType.DEFAULT);
+    }
+
+    public KeySharedSubscriptionMaxUnackedMessagesTest(KeySharedImplementationType implementationType) {
+        this.implementationType = implementationType;
     }
 
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(useClassicImplementation);
-        conf.setSubscriptionSharedUseClassicPersistentImplementation(useClassicImplementation);
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(implementationType.classic);
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(implementationType.classic);
         conf.setMaxUnackedMessagesPerConsumer(10);
         super.internalSetup();
         super.producerBaseSetup();
@@ -85,10 +89,6 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    enum ImplementationType {
-        PIP379, Classic
     }
 
     enum KeySharedSelectorType {
@@ -102,18 +102,16 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
 
     @DataProvider
     public Object[][] subType() {
-        ImplementationType implementationType =
-                useClassicImplementation ? ImplementationType.Classic : ImplementationType.PIP379;
-        return new Object[][] {
-                { implementationType, SubscriptionType.Shared, null },
-                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
-                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
-                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
-        };
+        return implementationType.prependImplementationTypeToData(new Object[][]{
+                {SubscriptionType.Shared, null},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky}
+        });
     }
 
     @Test(dataProvider = "subType", timeOut = 30000)
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(ImplementationType implementationType,
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(KeySharedImplementationType impl,
                                                                                SubscriptionType subscriptionType,
                                                                                KeySharedSelectorType selectorType)
             throws PulsarClientException {

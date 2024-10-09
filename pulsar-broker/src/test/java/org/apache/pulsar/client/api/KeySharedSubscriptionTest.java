@@ -81,13 +81,13 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -100,54 +100,25 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
     private static final String SUBSCRIPTION_NAME = "key_shared";
-    private final ImplementationType implementationType;
+    private final KeySharedImplementationType implementationType;
 
-    enum ImplementationType {
-        // default implementation, PIP-379
-        PIP379(false),
-        // classic implementation before PIP-282 and PIP-379
-        Classic(true);
-
-        final boolean classic;
-
-        ImplementationType(boolean classic) {
-            this.classic = classic;
-        }
-
-        public void skipIfClassic() {
-            if (classic) {
-                throw new SkipException("Test is not applicable for classic implementation");
-            }
-        }
-    }
-
-    // Comment out the next line, the Factory annotation to run tests manually in IntelliJ, one-by-one
+    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
     @Factory
-    public static Object[] createInstances() {
-        return new Object[] {
-                new KeySharedSubscriptionTest(ImplementationType.Classic),
-                new KeySharedSubscriptionTest(ImplementationType.PIP379)
-        };
+    public static Object[] createTestInstances() {
+        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionTest::new);
     }
 
     public KeySharedSubscriptionTest() {
         // set the default implementation type for manual running in IntelliJ
-        this(ImplementationType.PIP379);
+        this(KeySharedImplementationType.DEFAULT);
     }
 
-    public KeySharedSubscriptionTest(ImplementationType implementationType) {
+    public KeySharedSubscriptionTest(KeySharedImplementationType implementationType) {
         this.implementationType = implementationType;
     }
 
     private Object[][] prependImplementationTypeToData(Object[][] data) {
-        return Arrays.stream(data)
-                .map(array -> {
-                    Object[] newArray = new Object[array.length + 1];
-                    newArray[0] = implementationType;
-                    System.arraycopy(array, 0, newArray, 1, array.length);
-                    return newArray;
-                })
-                .toArray(Object[][]::new);
+        return implementationType.prependImplementationTypeToData(data);
     }
 
     @DataProvider(name = "currentImplementationType")
@@ -229,7 +200,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final int NUMBER_OF_KEYS = 300;
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(ImplementationType impl,
+    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(KeySharedImplementationType impl,
                                                                                   String topicType, boolean enableBatch)
             throws PulsarClientException {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
@@ -257,7 +228,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(ImplementationType impl, String topicType, boolean enableBatch) throws Exception {
+    public void testSendAndReceiveWithBatching(KeySharedImplementationType impl, String topicType, boolean enableBatch) throws Exception {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -302,7 +273,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(ImplementationType impl,
+    public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
                                                                                   boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_exclusive-" + UUID.randomUUID();
@@ -356,7 +327,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "data")
     public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
-            ImplementationType impl,
+            KeySharedImplementationType impl,
             String topicType,
             boolean enableBatch
     ) throws PulsarClientException, InterruptedException {
@@ -401,7 +372,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "data")
     public void testNoKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
-            ImplementationType impl,
+            KeySharedImplementationType impl,
             String topicType,
             boolean enableBatch
     ) throws PulsarClientException {
@@ -429,7 +400,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testNoKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(ImplementationType impl,
+    public void testNoKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
                                                                                        boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_no_key_exclusive-" + UUID.randomUUID();
@@ -480,7 +451,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(ImplementationType impl,
+    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(KeySharedImplementationType impl,
                                                                                boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
@@ -509,7 +480,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(ImplementationType impl,
+    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
                                                                                boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_exclusive_ordering_key-" + UUID.randomUUID();
@@ -580,7 +551,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testCannotUseAcknowledgeCumulative(ImplementationType impl) throws PulsarClientException {
+    public void testCannotUseAcknowledgeCumulative(KeySharedImplementationType impl) throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
 
         @Cleanup
@@ -605,7 +576,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testMakingProgressWithSlowerConsumer(ImplementationType impl, boolean enableBatch) throws Exception {
+    public void testMakingProgressWithSlowerConsumer(KeySharedImplementationType impl, boolean enableBatch) throws Exception {
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
         String slowKey = "slowKey";
 
@@ -688,7 +659,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testOrderingWhenAddingConsumers(ImplementationType impl) throws Exception {
+    public void testOrderingWhenAddingConsumers(KeySharedImplementationType impl) throws Exception {
         String topic = "testOrderingWhenAddingConsumers-" + UUID.randomUUID();
         int numberOfKeys = 10;
 
@@ -741,7 +712,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testReadAheadWithConfiguredLookAheadLimit(ImplementationType impl) throws Exception {
+    public void testReadAheadWithConfiguredLookAheadLimit(KeySharedImplementationType impl) throws Exception {
         String topic = "testReadAheadWithConfiguredLookAheadLimit-" + UUID.randomUUID();
 
         // Set the look ahead limit to 50 for subscriptions
@@ -798,7 +769,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testRemoveFirstConsumer(ImplementationType impl) throws Exception {
+    public void testRemoveFirstConsumer(KeySharedImplementationType impl) throws Exception {
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
         int numberOfKeys = 10;
 
@@ -856,7 +827,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testHashRangeConflict(ImplementationType impl) throws PulsarClientException {
+    public void testHashRangeConflict(KeySharedImplementationType impl) throws PulsarClientException {
         final String topic = "persistent://public/default/testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
@@ -917,7 +888,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testWithMessageCompression(ImplementationType impl) throws Exception {
+    public void testWithMessageCompression(KeySharedImplementationType impl) throws Exception {
         final String topic = "testWithMessageCompression" + UUID.randomUUID().toString();
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
@@ -944,7 +915,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testAttachKeyToMessageMetadata(ImplementationType impl) throws PulsarClientException {
+    public void testAttachKeyToMessageMetadata(KeySharedImplementationType impl) throws PulsarClientException {
         String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -972,7 +943,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testContinueDispatchMessagesWhenMessageTTL(ImplementationType impl) throws Exception {
+    public void testContinueDispatchMessagesWhenMessageTTL(KeySharedImplementationType impl) throws Exception {
         int defaultTTLSec = 3;
         int totalMessages = 1000;
         int numberOfKeys = 50;
@@ -1090,7 +1061,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "partitioned")
-    public void testOrderingWithConsumerListener(ImplementationType impl, boolean partitioned) throws Exception {
+    public void testOrderingWithConsumerListener(KeySharedImplementationType impl, boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
@@ -1147,7 +1118,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testKeySharedConsumerWithEncrypted(ImplementationType impl) throws Exception {
+    public void testKeySharedConsumerWithEncrypted(KeySharedImplementationType impl) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         final int totalMessages = 100;
 
@@ -1213,7 +1184,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topicDomain")
-    public void testSelectorChangedAfterAllConsumerDisconnected(ImplementationType impl, String topicDomain) throws PulsarClientException,
+    public void testSelectorChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl, String topicDomain) throws PulsarClientException,
             ExecutionException, InterruptedException {
         final String topicName = TopicName.get(topicDomain, "public", "default",
                 "testSelectorChangedAfterAllConsumerDisconnected" + UUID.randomUUID()).toString();
@@ -1259,7 +1230,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected(ImplementationType impl) throws Exception {
+    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl) throws Exception {
         final String topicName = "persistent://public/default/change-allow-ooo-delivery-" + UUID.randomUUID();
         final String subName = "my-sub";
 
@@ -1297,7 +1268,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30_000, dataProvider = "currentImplementationType")
-    public void testCheckConsumersWithSameName(ImplementationType impl) throws Exception {
+    public void testCheckConsumersWithSameName(KeySharedImplementationType impl) throws Exception {
         final String topicName = "persistent://public/default/same-name-" + UUID.randomUUID();
         final String subName = "my-sub";
         final String consumerName = "name";
@@ -1615,7 +1586,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testStickyKeyRangesRestartConsumers(ImplementationType impl) throws Exception {
+    public void testStickyKeyRangesRestartConsumers(KeySharedImplementationType impl) throws Exception {
         final String topic = TopicName.get("persistent", "public", "default",
                 "testStickyKeyRangesRestartConsumers" + UUID.randomUUID()).toString();
 
@@ -1747,7 +1718,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testContinueDispatchMessagesWhenMessageDelayed(ImplementationType impl) throws Exception {
+    public void testContinueDispatchMessagesWhenMessageDelayed(KeySharedImplementationType impl) throws Exception {
         int delayedMessages = 40;
         int messages = 40;
         int sum = 0;
@@ -1849,7 +1820,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testNoRepeatedReadAndDiscard(ImplementationType impl) throws Exception {
+    public void testNoRepeatedReadAndDiscard(KeySharedImplementationType impl) throws Exception {
         int delayedMessages = 100;
         int numberOfKeys = delayedMessages;
         final String topic = newUniqueName("persistent://public/default/tp");
@@ -1943,7 +1914,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      *   - at last, all messages will be received.
      */
     @Test(timeOut = 180 * 1000, dataProvider = "allowKeySharedOutOfOrder") // the test will be finished in 60s.
-    public void testRecentJoinedPosWillNotStuckOtherConsumer(ImplementationType impl, boolean allowKeySharedOutOfOrder) throws Exception {
+    public void testRecentJoinedPosWillNotStuckOtherConsumer(KeySharedImplementationType impl, boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
         final String topic = newUniqueName("persistent://public/default/tp");
@@ -2104,7 +2075,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "currentImplementationType")
-    public void testReadAheadLimit(ImplementationType impl) throws Exception {
+    public void testReadAheadLimit(KeySharedImplementationType impl) throws Exception {
         // skip for classic implementation since the feature is not implemented
         impl.skipIfClassic();
         String topic = "testReadAheadLimit-" + UUID.randomUUID();
@@ -2238,7 +2209,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     // In earlier versions of Pulsar, this issue occurred in about 25% of cases.
     // To increase the probability of reproducing the issue, use the invocationCount parameter.
     @Test(dataProvider = "currentImplementationType")//(invocationCount = 50)
-    public void testOrderingAfterReconnects(ImplementationType impl) throws Exception {
+    public void testOrderingAfterReconnects(KeySharedImplementationType impl) throws Exception {
         // skip for classic implementation since this fails
         impl.skipIfClassic();
 
