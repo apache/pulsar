@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.AssertJUnit.assertEquals;
@@ -31,22 +33,29 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.PendingAcksMap;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -67,10 +76,14 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.DrainingHash;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.assertj.core.groups.Tuple;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -481,4 +494,155 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         assertEquals(0, consumers.get(0).getUnackedMessages());
     }
 
+    @Test
+    public void testKeySharedDrainingHashesConsumerStats() throws Exception {
+        conf.setSubscriptionKeySharedUseConsistentHashing(true);
+        conf.setSubscriptionKeySharedConsistentHashingReplicaPoints(100);
+        String topic = newUniqueName("testKeySharedDrainingHashesConsumerStats");
+        String subscriptionName = "sub";
+        int numberOfKeys = 10;
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c1")
+                .receiverQueueSize(100)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, subscriptionName);
+        StickyKeyConsumerSelector selector = dispatcher.getSelector();
+
+        for (int i = 0; i < 20; i++) {
+            String key = String.valueOf(i % numberOfKeys);
+            int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8));
+            log.info("Sending message with value {} key {} hash {}", key, i, stickyKeyHash);
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .send();
+        }
+
+        PendingAcksMap c1PendingAcks = dispatcher.getConsumers().get(0).getPendingAcks();
+        // Wait until all the already published messages have been pre-fetched by C1.
+        Awaitility.await().ignoreExceptions().until(() -> c1PendingAcks.size() == 20);
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .consumerName("c2")
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        //BrokerTestUtil.logTopicStats(log, pulsar.getWebServiceAddress(), topic);
+
+        SubscriptionStats subscriptionStats =
+                admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+        ConsumerStats c1Stats = subscriptionStats.getConsumers().get(0);
+        ConsumerStats c2Stats = subscriptionStats.getConsumers().get(1);
+
+        Set<Integer> c2HashesByStats = new HashSet<>();
+        Set<Integer> c2HashesByDispatcher = new HashSet<>();
+
+        Map<Integer, Integer> c1DrainingHashesExpected = new HashMap<>();
+        for (int i = 0; i < 20; i++) {
+            String key = String.valueOf(i % numberOfKeys);
+            int hash = selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8));
+            if ("c2".equals(findConsumerNameForHash(subscriptionStats, hash))) {
+                c2HashesByStats.add(hash);
+            }
+            org.apache.pulsar.broker.service.Consumer selected = selector.select(hash);
+            if ("c2".equals(selected.consumerName())) {
+                c2HashesByDispatcher.add(hash);
+                c1DrainingHashesExpected.compute(hash, (k, v) -> v == null ? 1 : v + 1);
+            }
+        }
+        assertThat(c2HashesByStats).containsExactlyInAnyOrderElementsOf(c2HashesByDispatcher);
+
+        assertThat(c1Stats.getDrainingHashes()).extracting(DrainingHash::getHash)
+                .containsExactlyInAnyOrderElementsOf(c2HashesByStats);
+        assertThat(c1Stats.getDrainingHashes()).extracting(DrainingHash::getHash, DrainingHash::getUnackMsgs)
+                .containsExactlyInAnyOrderElementsOf(c1DrainingHashesExpected.entrySet().stream()
+                        .map(e -> Tuple.tuple(e.getKey(), e.getValue())).toList());
+
+        assertThat(c2Stats.getDrainingHashes()).isNullOrEmpty();
+
+        for (int i = 0; i < 20; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(i % numberOfKeys))
+                    .value(i)
+                    .send();
+        }
+
+        // validate blocked attempts
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            SubscriptionStats stats =
+                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            assertThat(stats.getConsumers().get(0).getDrainingHashes()).isNotEmpty().allSatisfy(dh -> {
+                assertThat(dh).extracting(DrainingHash::getBlockedAttempts).matches(attempts -> attempts > 0);
+            });
+        });
+
+        // acknowledging messages that were sent before c2 joined should clear all draining hashes
+
+        // ack 19 messages
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> message = c1.receive(1, TimeUnit.SECONDS);
+            log.info("Acking message with value {} key {}", message.getValue(), message.getKey());
+            c1.acknowledge(message);
+            if (i == 18) {
+                // now there should be one draining hash left
+                Awaitility.await().pollInterval(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
+                        .untilAsserted(() -> {
+                            SubscriptionStats stats =
+                                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+                            assertThat(stats.getConsumers().get(0)).satisfies(consumerStats -> {
+                                assertThat(consumerStats)
+                                        .describedAs("Consumer stats should have one draining hash %s", consumerStats)
+                                        .extracting(ConsumerStats::getDrainingHashes)
+                                        .asList().hasSize(1);
+                            });
+                        });
+            }
+            if (i == 19) {
+                // now there should be no draining hashes left
+                Awaitility.await().pollInterval(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
+                        .untilAsserted(() -> {
+                            SubscriptionStats stats =
+                                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+                            assertThat(stats.getConsumers().get(0)).satisfies(consumerStats -> {
+                                assertThat(consumerStats).extracting(ConsumerStats::getDrainingHashes)
+                                        .asList().isEmpty();
+                            });
+                        });
+            }
+        }
+
+    }
+
+    private String findConsumerNameForHash(SubscriptionStats subscriptionStats, int hash) {
+        return findConsumerForHash(subscriptionStats, hash).map(ConsumerStats::getConsumerName).orElse(null);
+    }
+
+    private Optional<? extends ConsumerStats> findConsumerForHash(SubscriptionStats subscriptionStats, int hash) {
+        return subscriptionStats.getConsumers().stream()
+                .filter(consumerStats -> consumerStats.getKeyHashRangeArrays().stream()
+                        .anyMatch(hashRanges -> hashRanges[0] <= hash && hashRanges[1] >= hash))
+                .findFirst();
+    }
+
+    @SneakyThrows
+    private StickyKeyDispatcher getDispatcher(String topic, String subscription) {
+        return (StickyKeyDispatcher) pulsar.getBrokerService().getTopicIfExists(topic).get()
+                .get().getSubscription(subscription).getDispatcher();
+    }
 }
