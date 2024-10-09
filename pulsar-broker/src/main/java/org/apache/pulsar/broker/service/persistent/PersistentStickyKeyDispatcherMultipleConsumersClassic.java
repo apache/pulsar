@@ -94,7 +94,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
                 selector = new ConsistentHashingStickyKeyConsumerSelector(
-                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints(),
+                        false,
+                        // Classic implementation uses Integer.MAX_VALUE - 1 as the range end value
+                        Integer.MAX_VALUE - 1);
             } else {
                 selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
             }
