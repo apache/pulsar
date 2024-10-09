@@ -1258,6 +1258,9 @@ public class PersistentSubscription extends AbstractSubscription {
                             .map(Range::toString)
                             .collect(Collectors.toList());
                 }
+                subStats.drainingHashesCount += consumerStats.drainingHashesCount;
+                subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
+                subStats.drainingHashesUnackedMessages += consumerStats.drainingHashesUnackedMessages;
             });
 
             subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();

@@ -19,9 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import java.util.Map;
+import java.util.PrimitiveIterator;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.roaringbitmap.RoaringBitmap;
 
 /**
  * A thread-safe map to store draining hashes in the consumer.
@@ -34,6 +41,8 @@ public class DrainingHashesTracker {
     private final Int2ObjectOpenHashMap<DrainingHashEntry> drainingHashes = new Int2ObjectOpenHashMap<>();
     int batchLevel;
     boolean unblockedWhileBatching;
+    private final Map<ConsumerIdentityWrapper, ConsumerDrainingHashesStats> consumerDrainingHashesStatsMap =
+            new ConcurrentHashMap<>();
 
     /**
      * Represents an entry in the draining hashes tracker.
@@ -98,6 +107,45 @@ public class DrainingHashesTracker {
         }
     }
 
+    private class ConsumerDrainingHashesStats {
+        private final RoaringBitmap drainingHashes = new RoaringBitmap();
+        long drainingHashesClearedTotal;
+
+        public synchronized void addHash(int stickyHash) {
+            drainingHashes.add(stickyHash);
+        }
+
+        public synchronized boolean clearHash(int hash) {
+            drainingHashes.remove(hash);
+            drainingHashesClearedTotal++;
+            return drainingHashes.isEmpty();
+        }
+
+        public synchronized void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
+            int drainingHashesCount = 0;
+            int drainingHashesUnackedMessages = 0;
+            Int2IntMap drainingHashesUnackedMessagesByHash = new Int2IntOpenHashMap();
+            PrimitiveIterator.OfInt hashIterator = drainingHashes.stream().iterator();
+            while (hashIterator.hasNext()) {
+                int hash = hashIterator.nextInt();
+                DrainingHashEntry entry = getEntry(hash);
+                if (entry == null) {
+                    log.warn("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName, hash,
+                            consumer);
+                    continue;
+                }
+                int unackedMessage = entry.refCount;
+                drainingHashesUnackedMessagesByHash.put(hash, unackedMessage);
+                drainingHashesUnackedMessages += unackedMessage;
+                drainingHashesCount++;
+            }
+            consumerStats.drainingHashesCount = drainingHashesCount;
+            consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
+            consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
+            consumerStats.drainingHashesUnackedMessagesByHash = drainingHashesUnackedMessagesByHash;
+        }
+    }
+
     /**
      * Interface for handling the unblocking of sticky key hashes.
      */
@@ -129,6 +177,9 @@ public class DrainingHashesTracker {
         if (entry == null) {
             entry = new DrainingHashEntry(consumer);
             drainingHashes.put(stickyHash, entry);
+            // update the consumer specific stats
+            consumerDrainingHashesStatsMap.computeIfAbsent(new ConsumerIdentityWrapper(consumer),
+                    k -> new ConsumerDrainingHashesStats()).addHash(stickyHash);
         } else if (entry.getConsumer() != consumer) {
             throw new IllegalStateException(
                     "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
@@ -179,6 +230,15 @@ public class DrainingHashesTracker {
         }
         if (entry.decrementRefCount()) {
             DrainingHashEntry removed = drainingHashes.remove(stickyHash);
+            // update the consumer specific stats
+            consumerDrainingHashesStatsMap.compute(new ConsumerIdentityWrapper(consumer),
+                    (key, consumerDrainingHashesStats) -> {
+                        if (consumerDrainingHashesStats != null && consumerDrainingHashesStats.clearHash(stickyHash)) {
+                            // remove the consumer specific stats if all hashes are cleared
+                            return null;
+                        }
+                        return consumerDrainingHashesStats;
+                    });
             if (!closing && removed.isBlocking()) {
                 if (batchLevel > 0) {
                     unblockedWhileBatching = true;
@@ -237,5 +297,28 @@ public class DrainingHashesTracker {
      */
     public synchronized void clear() {
         drainingHashes.clear();
+        consumerDrainingHashesStatsMap.clear();
+    }
+
+    /**
+     * Update the consumer specific stats to the target {@link ConsumerStatsImpl}.
+     *
+     * @param consumer the consumer
+     * @param consumerStats the consumer stats to update the values to
+     */
+    public void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
+        ConsumerDrainingHashesStats consumerDrainingHashesStats =
+                consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
+        if (consumerDrainingHashesStats != null) {
+            consumerDrainingHashesStats.updateConsumerStats(consumer, consumerStats);
+        }
+    }
+
+    /**
+     * Remove the consumer specific stats from the draining hashes tracker.
+     * @param consumer the consumer
+     */
+    public void consumerRemoved(Consumer consumer) {
+        consumerDrainingHashesStatsMap.remove(new ConsumerIdentityWrapper(consumer));
     }
 }

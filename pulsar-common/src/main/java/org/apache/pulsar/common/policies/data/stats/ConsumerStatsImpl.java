@@ -80,6 +80,28 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** The read position of the cursor when the consumer joining. */
     public String readPositionWhenJoining;
 
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
+     */
+    public int drainingHashesCount;
+
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of hashes cleared from the draining state for
+     * the consumer.
+     */
+    public long drainingHashesClearedTotal;
+
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of unacked messages for all draining hashes.
+     */
+    public int drainingHashesUnackedMessages;
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * a map where the key is the hash value and the value is the number of unacked messages for that hash.
+     */
+    public Map<Integer, Integer> drainingHashesUnackedMessagesByHash;
+
     /** Address of this consumer. */
     private String address;
     /** Timestamp of connection. */
@@ -114,6 +136,10 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
         this.readPositionWhenJoining = stats.readPositionWhenJoining;
+        this.drainingHashesCount = stats.drainingHashesCount;
+        this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
+        this.drainingHashesUnackedMessages = stats.drainingHashesUnackedMessages;
+        this.drainingHashesUnackedMessagesByHash = stats.drainingHashesUnackedMessagesByHash;
         return this;
     }
 

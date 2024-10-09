@@ -157,6 +157,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         drainingHashesTracker.endBatch();
                     }
                 });
+                consumer.setDrainingHashesConsumerStatsUpdater(drainingHashesTracker::updateConsumerStats);
                 registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
             }
         }).exceptionally(ex -> {
@@ -193,6 +194,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // consumer to another. This will handle the case where a hash gets switched from an existing
             // consumer to another existing consumer during removal.
             registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
+            drainingHashesTracker.consumerRemoved(consumer);
         }
     }
 
