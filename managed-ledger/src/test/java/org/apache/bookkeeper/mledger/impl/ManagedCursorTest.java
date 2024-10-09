@@ -75,8 +75,8 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -4776,7 +4776,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Position lacPosition = ledger.getLastConfirmedEntry();
         long ledgerId = lacPosition.getLedgerId();
-        assertEquals(PositionImpl.get(ledgerId, -1), cursor.getMarkDeletedPosition());
+        assertEquals(PositionFactory.create(ledgerId, -1), cursor.getMarkDeletedPosition());
 
         // Mock add 10 entry
         for (int i = 0; i < 10; i++) {
@@ -4788,31 +4788,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (Entry entry : entries) {
             cursor.delete(entry.getPosition());
         }
-        assertEquals(PositionImpl.get(ledgerId, 1), cursor.getMarkDeletedPosition());
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
 
         // read the next 6 entry and not delete, MarkDeletedPosition not move forward
         entries = cursor.readEntries(6);
-        assertEquals(PositionImpl.get(ledgerId, 1), cursor.getMarkDeletedPosition());
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
 
         // delete last read entry, MarkDeletedPosition not move forward
         Entry lastEntry = entries.get(entries.size() - 1);
         cursor.delete(lastEntry.getPosition());
-        assertEquals(PositionImpl.get(ledgerId, 1), cursor.getMarkDeletedPosition());
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
 
         // call skip entries, MarkDeletedPosition move forward
         cursor.skipNonRecoverableEntries(cursor.getMarkDeletedPosition(),
-                PositionImpl.get(ledgerId, lastEntry.getEntryId()));
-        assertEquals(PositionImpl.get(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
+                PositionFactory.create(ledgerId, lastEntry.getEntryId()));
+        assertEquals(PositionFactory.create(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
 
         // repeat call skip entries, MarkDeletedPosition not change
         cursor.skipNonRecoverableEntries(cursor.getMarkDeletedPosition(),
-                PositionImpl.get(ledgerId, lastEntry.getEntryId()));
-        assertEquals(PositionImpl.get(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
+                PositionFactory.create(ledgerId, lastEntry.getEntryId()));
+        assertEquals(PositionFactory.create(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
 
         cursor.close();
         ledger.close();
     }
-    
+
     @Test
     public void testRecoverCursorWithTerminateManagedLedger() throws Exception {
         String mlName = "my_test_ledger";

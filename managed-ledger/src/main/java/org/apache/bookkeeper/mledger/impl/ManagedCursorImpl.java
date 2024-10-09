@@ -2918,7 +2918,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         try {
             for (long i = startEntryId; i < endEntryId; i++) {
                 if (!individualDeletedMessages.contains(ledgerId, i)) {
-                    asyncDelete(PositionImpl.get(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
+                    asyncDelete(PositionFactory.create(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
                         @Override
                         public void deleteComplete(Object ctx) {
                             // ignore.
