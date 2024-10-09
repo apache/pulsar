@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data.stats;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -125,8 +126,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     public String keySharedMode;
 
-    /** The last sent position of the cursor. This is for Key_Shared subscription. */
-    public String lastSentPosition;
+    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
+    public Map<String, String> consumersAfterMarkDeletePosition;
 
     /** The number of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRanges;
@@ -153,6 +154,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
+        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
         this.subscriptionProperties = new HashMap<>();
         this.bucketDelayedIndexStats = new HashMap<>();
     }
@@ -177,6 +179,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
+        consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         earliestMsgPublishTimeInBacklog = 0L;
@@ -222,6 +225,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
             }
         }
         this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
+        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {

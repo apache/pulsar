@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -37,4 +39,8 @@ public interface StickyKeyDispatcher extends Dispatcher {
     StickyKeyConsumerSelector getSelector();
 
     long getNumberOfMessagesInReplay();
+
+    default LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
+        return null;
+    }
 }
