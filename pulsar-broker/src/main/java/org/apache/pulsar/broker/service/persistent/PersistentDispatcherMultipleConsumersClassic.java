@@ -79,8 +79,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The Shared subscription implementation that matches the Pulsar 3.3.x version as much as possible.
- * TODO: explain PIP-379 feature-toggle
+ * This is the "classic" dispatcher implementation for the Shared subscription that was used before
+ * Pulsar 4.0.0 and PIP-379. When `subscriptionSharedUseClassicPersistentImplementation=true`,
+ * this dispatcher will be used. The main purpose is to provide a way to rollback to the old behavior
+ * in case of issues with the preferred implementation.
  */
 public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersistentDispatcherMultipleConsumers {
     protected final PersistentTopic topic;

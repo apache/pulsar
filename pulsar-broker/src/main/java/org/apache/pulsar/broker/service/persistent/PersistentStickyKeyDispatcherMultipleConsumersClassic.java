@@ -60,6 +60,12 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This is the "classic" dispatcher implementation for the Key_Shared subscription that was used before
+ * Pulsar 4.0.0 and PIP-379. When `subscriptionKeySharedUseClassicPersistentImplementation=true`,
+ * this dispatcher will be used. The main purpose is to provide a way to rollback to the old behavior
+ * in case of issues with the preferred implementation.
+ */
 public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         extends PersistentDispatcherMultipleConsumersClassic implements StickyKeyDispatcher {
 

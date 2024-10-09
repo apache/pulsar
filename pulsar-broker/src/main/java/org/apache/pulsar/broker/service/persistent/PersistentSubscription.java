@@ -252,8 +252,12 @@ public class PersistentSubscription extends AbstractSubscription {
                         case Shared:
                             if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                                 previousDispatcher = dispatcher;
-                                // TODO: PIP-379 feature-toggle
-                                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                                ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+                                if (config.isSubscriptionSharedUseClassicPersistentImplementation()) {
+                                    dispatcher = new PersistentDispatcherMultipleConsumersClassic(topic, cursor, this);
+                                } else {
+                                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                                }
                             }
                             break;
                         case Failover:
@@ -277,9 +281,16 @@ public class PersistentSubscription extends AbstractSubscription {
                                     || !((StickyKeyDispatcher) dispatcher)
                                     .hasSameKeySharedPolicy(ksm)) {
                                 previousDispatcher = dispatcher;
-                                // TODO: PIP-379 feature-toggle
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                                ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+                                if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
+                                    dispatcher =
+                                            new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
+                                                    this,
+                                                    topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                                } else {
+                                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
+                                }
                             }
                             break;
                         default:
