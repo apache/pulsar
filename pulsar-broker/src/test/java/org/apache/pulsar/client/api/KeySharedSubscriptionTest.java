@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -86,6 +87,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -101,10 +103,21 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private final ImplementationType implementationType;
 
     enum ImplementationType {
-        PIP379(false), Classic(true);
+        // default implementation, PIP-379
+        PIP379(false),
+        // classic implementation before PIP-282 and PIP-379
+        Classic(true);
+
         final boolean classic;
+
         ImplementationType(boolean classic) {
             this.classic = classic;
+        }
+
+        public void skipIfClassic() {
+            if (classic) {
+                throw new SkipException("Test is not applicable for classic implementation");
+            }
         }
     }
 
@@ -119,7 +132,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     public KeySharedSubscriptionTest() {
         // set the default implementation type for manual running in IntelliJ
-        this(ImplementationType.Classic);
+        this(ImplementationType.PIP379);
     }
 
     public KeySharedSubscriptionTest(ImplementationType implementationType) {
@@ -244,7 +257,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch) throws Exception {
+    public void testSendAndReceiveWithBatching(ImplementationType impl, String topicType, boolean enableBatch) throws Exception {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -976,8 +989,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) getDispatcher(topic, subName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, subName);
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
         @Cleanup
@@ -1019,7 +1031,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         if (received != null) {
             int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
             DrainingHashesTracker.DrainingHashEntry entry =
-                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+                    !impl.classic ? getDrainingHashesTracker(dispatcher).getEntry(stickyKeyHash) : null;
             Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
                             + "included in blockedHashes=%s",
                     received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
@@ -1037,10 +1049,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             received = consumer3.receive(1, TimeUnit.SECONDS);
         } catch (PulsarClientException ignore) {
         }
-        if (received != null) {
+        if (received != null && !impl.classic) {
             int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
             DrainingHashesTracker.DrainingHashEntry entry =
-                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+                    !impl.classic ? getDrainingHashesTracker(dispatcher).getEntry(stickyKeyHash) : null;
             Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
                             + "included in blockedHashes=%s",
                     received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
@@ -1071,6 +1083,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .sum()).isGreaterThanOrEqualTo(totalMessages);
         assertThat(receivedMessagesCountByConsumer.values()).allSatisfy(
                 count -> assertThat(count.get()).isGreaterThan(0));
+    }
+
+    private DrainingHashesTracker getDrainingHashesTracker(Dispatcher dispatcher) {
+        return ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getDrainingHashesTracker();
     }
 
     @Test(dataProvider = "partitioned")
@@ -1370,7 +1386,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
-            return ((PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
+            return ((StickyKeyDispatcher) topic.getSubscription(subscription)
                     .getDispatcher()).getKeySharedMode();
         } else if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.non_persistent)) {
             return ((NonPersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
@@ -1906,10 +1922,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @DataProvider(name = "allowKeySharedOutOfOrder")
     public Object[][] allowKeySharedOutOfOrder() {
-        return new Object[][]{
+        return prependImplementationTypeToData(new Object[][]{
                 {true},
                 {false}
-        };
+        });
     }
 
     /**
@@ -2089,6 +2105,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "currentImplementationType")
     public void testReadAheadLimit(ImplementationType impl) throws Exception {
+        // skip for classic implementation since the feature is not implemented
+        impl.skipIfClassic();
         String topic = "testReadAheadLimit-" + UUID.randomUUID();
         int numberOfKeys = 1000;
         long pauseTime = 100L;
@@ -2221,6 +2239,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     // To increase the probability of reproducing the issue, use the invocationCount parameter.
     @Test(dataProvider = "currentImplementationType")//(invocationCount = 50)
     public void testOrderingAfterReconnects(ImplementationType impl) throws Exception {
+        // skip for classic implementation since this fails
+        impl.skipIfClassic();
+
         String topic = newUniqueName("testOrderingAfterReconnects");
         int numberOfKeys = 1000;
         long pauseTime = 100L;
