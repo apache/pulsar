@@ -1,6 +1,6 @@
 
 Apache Pulsar
-Copyright 2017-2022 The Apache Software Foundation
+Copyright 2017-2024 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -16,6 +16,9 @@ Copyright (c) 2005 Brian Goetz and Tim Peierls
 
 JCommander
 Copyright 2010 Cedric Beust cedric@beust.com
+
+picocli (http://picocli.info)
+Copyright 2017 Remko Popma
 
 EA Agent Loader
 Copyright (C) 2015 Electronic Arts Inc.  All rights reserved.

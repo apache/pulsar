@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -61,7 +62,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
 
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
-            return ((ExtensibleLoadManagerImpl) loadManager).assign(Optional.empty(), serviceUnit).get()
+            return ((ExtensibleLoadManagerImpl) loadManager)
+                    .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build()).get()
                     .get().getPulsarServiceUrl();
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -109,6 +111,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
         admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
         admin.namespaces().setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(
@@ -130,8 +133,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         doReturn(namespace + "/" + bundle).when(namespaceBundle).toString();
 
         var expected = new HashMap<>(brokers);
-        var actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+        var actual = antiAffinityGroupPolicyFilter.filterAsync(
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
 
         doReturn(antiAffinityEnabledNameSpace + "/" + bundle).when(namespaceBundle).toString();
@@ -141,8 +144,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle.toString())
                 .get(5, TimeUnit.SECONDS).get();
         expected.remove(srcBroker);
-        actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+        actual = antiAffinityGroupPolicyFilter.filterAsync(
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
     }
 }

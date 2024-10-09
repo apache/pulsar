@@ -64,12 +64,12 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaConnectData;
 import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
@@ -303,8 +303,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(status.get(), 1);
 
         final TopicPartition tp = new TopicPartition("fake-topic", 0);
-        assertNotEquals(MessageIdUtils.getOffset(msgId), 0);
-        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), MessageIdUtils.getOffset(msgId));
+        assertNotEquals(FunctionCommon.getSequenceId(msgId), 0);
+        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), FunctionCommon.getSequenceId(msgId));
 
         sink.taskContext.offset(tp, 0);
         verify(context, times(1)).seek(Mockito.anyString(), Mockito.anyInt(), any());
@@ -347,12 +347,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(status.get(), 1);
 
         final TopicPartition tp = new TopicPartition(sink.sanitizeNameIfNeeded(pulsarTopicName, true), 0);
-        assertNotEquals(MessageIdUtils.getOffset(msgId), 0);
-        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), MessageIdUtils.getOffset(msgId));
+        assertNotEquals(FunctionCommon.getSequenceId(msgId), 0);
+        assertEquals(sink.currentOffset(tp.topic(), tp.partition()), FunctionCommon.getSequenceId(msgId));
 
         sink.taskContext.offset(tp, 0);
         verify(context, times(1)).seek(pulsarTopicName,
-                tp.partition(), MessageIdUtils.getMessageId(0));
+                tp.partition(), FunctionCommon.getMessageId(0));
         assertEquals(sink.currentOffset(tp.topic(), tp.partition()), 0);
 
         sink.taskContext.pause(tp);

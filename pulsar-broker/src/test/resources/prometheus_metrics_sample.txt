@@ -284,8 +284,6 @@ caffeine_cache_load_duration_seconds_count{cluster="use",cache="bookies-racks-da
 caffeine_cache_load_duration_seconds_sum{cluster="use",cache="bookies-racks-data"} 0.0
 caffeine_cache_load_duration_seconds_count{cluster="use",cache="global-zk-exists"} 0.0
 caffeine_cache_load_duration_seconds_sum{cluster="use",cache="global-zk-exists"} 0.0
-# TYPE pulsar_broker_throttled_connections_global_limit gauge
-pulsar_broker_throttled_connections_global_limit{cluster="use"} 0.0
 # TYPE process_cpu_seconds_total counter
 process_cpu_seconds_total{cluster="use"} 101.68
 # TYPE process_start_time_seconds gauge

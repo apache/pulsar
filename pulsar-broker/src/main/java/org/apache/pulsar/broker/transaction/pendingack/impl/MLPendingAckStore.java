@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
@@ -42,8 +43,8 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -80,20 +81,20 @@ public class MLPendingAckStore implements PendingAckStore {
     private final SpscArrayQueue<Entry> entryQueue;
 
     //this is for replay
-    private final PositionImpl lastConfirmedEntry;
+    private final Position lastConfirmedEntry;
 
-    private PositionImpl currentLoadPosition;
+    private Position currentLoadPosition;
 
     private final AtomicLong currentIndexLag = new AtomicLong(0);
     private volatile long maxIndexLag;
 
-    protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
+    protected Position maxAckPosition = PositionFactory.EARLIEST;
     private final LogIndexLagBackoff logIndexBackoff;
 
     /**
-     * If the Batch feature is enabled by {@link #bufferedWriter}, {@link #handleMetadataEntry(PositionImpl, List)} is
+     * If the Batch feature is enabled by {@link #bufferedWriter}, {@link #handleMetadataEntry(Position, List)} is
      * executed after all data in the batch is written, instead of
-     * {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is written. This is because
+     * {@link #handleMetadataEntry(Position, PendingAckMetadataEntry)} after each data is written. This is because
      * method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
      */
     private final ArrayList<PendingAckMetadataEntry> batchedPendingAckLogsWaitingForHandle;
@@ -111,7 +112,7 @@ public class MLPendingAckStore implements PendingAckStore {
      *         If the max position (key) is smaller than the subCursor mark delete position,
      *         the log cursor will mark delete the position before log position (value).
      */
-    final ConcurrentSkipListMap<PositionImpl, PositionImpl> pendingAckLogIndex;
+    final ConcurrentSkipListMap<Position, Position> pendingAckLogIndex;
 
     private final ManagedCursor subManagedCursor;
 
@@ -120,17 +121,17 @@ public class MLPendingAckStore implements PendingAckStore {
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
                              ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
                              TxnLogBufferedWriterConfig bufferedWriterConfig,
-                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
+                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics, Executor executor) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
-        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
+        this.currentLoadPosition = this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
-        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        this.lastConfirmedEntry = managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
-        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
+        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, executor,
                 timer, PendingAckLogSerializer.INSTANCE,
                 bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
                 bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled(),
@@ -147,7 +148,7 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionFactory.LATEST);
     }
 
     @Override
@@ -186,17 +187,18 @@ public class MLPendingAckStore implements PendingAckStore {
 
     @Override
     public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+                                                       List<MutablePair<Position, Integer>> positions) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Individual);
         List<PendingAckMetadata> pendingAckMetadataList = new ArrayList<>();
         positions.forEach(positionIntegerMutablePair -> {
             PendingAckMetadata pendingAckMetadata = new PendingAckMetadata();
-            PositionImpl position = positionIntegerMutablePair.getLeft();
+            Position position = positionIntegerMutablePair.getLeft();
             int batchSize = positionIntegerMutablePair.getRight();
-            if (positionIntegerMutablePair.getLeft().getAckSet() != null) {
-                for (long l : position.getAckSet()) {
+            long[] positionAckSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
+                for (long l : positionAckSet) {
                     pendingAckMetadata.addAckSet(l);
                 }
             }
@@ -210,13 +212,14 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Cumulative);
         PendingAckMetadata pendingAckMetadata = new PendingAckMetadata();
-        if (position.getAckSet() != null) {
-            for (long l : position.getAckSet()) {
+        long[] positionAckSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+        if (positionAckSet != null) {
+            for (long l : positionAckSet) {
                 pendingAckMetadata.addAckSet(l);
             }
         }
@@ -257,8 +260,8 @@ public class MLPendingAckStore implements PendingAckStore {
                 currentIndexLag.incrementAndGet();
                 /**
                  * If the Batch feature is enabled by {@link #bufferedWriter},
-                 * {@link #handleMetadataEntry(PositionImpl, List)} is executed after all data in the batch is written,
-                 * instead of {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is
+                 * {@link #handleMetadataEntry(Position, List)} is executed after all data in the batch is written,
+                 * instead of {@link #handleMetadataEntry(Position, PendingAckMetadataEntry)} after each data is
                  * written. This is because method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
                  * {@link TxnLogBufferedWriter.AddDataCallback#addComplete} for elements in a batch is executed
                  * simultaneously and in strict order, so when the last element in a batch is complete, the whole
@@ -267,11 +270,11 @@ public class MLPendingAckStore implements PendingAckStore {
                 if (position instanceof TxnBatchedPositionImpl batchedPosition){
                     batchedPendingAckLogsWaitingForHandle.add(pendingAckMetadataEntry);
                     if (batchedPosition.getBatchIndex() == batchedPosition.getBatchSize() - 1){
-                        handleMetadataEntry((PositionImpl) position, batchedPendingAckLogsWaitingForHandle);
+                        handleMetadataEntry(position, batchedPendingAckLogsWaitingForHandle);
                         batchedPendingAckLogsWaitingForHandle.clear();
                     }
                 } else {
-                    handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
+                    handleMetadataEntry(position, pendingAckMetadataEntry);
                 }
                 completableFuture.complete(null);
                 clearUselessLogData();
@@ -301,7 +304,7 @@ public class MLPendingAckStore implements PendingAckStore {
      * @param logPosition The position of batch log Entry.
      * @param logList Pending ack log records in a batch log Entry.
      */
-    private void handleMetadataEntry(PositionImpl logPosition,
+    private void handleMetadataEntry(Position logPosition,
                                      List<PendingAckMetadataEntry> logList) {
         Stream<PendingAckMetadata> pendingAckMetaStream = logList.stream()
                 .filter(log -> bothNotAbortAndCommitPredicate.test(log))
@@ -313,7 +316,7 @@ public class MLPendingAckStore implements PendingAckStore {
             pendingAckLog.getPendingAckOp() != PendingAckOp.ABORT
             && pendingAckLog.getPendingAckOp() != PendingAckOp.COMMIT;
 
-    private void handleMetadataEntry(PositionImpl logPosition,
+    private void handleMetadataEntry(Position logPosition,
                                      PendingAckMetadataEntry pendingAckMetadataEntry) {
         // store the persistent position in to memory
         // store the max position of this entry retain
@@ -322,14 +325,14 @@ public class MLPendingAckStore implements PendingAckStore {
         }
     }
 
-    private void handleMetadataEntry(PositionImpl logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
+    private void handleMetadataEntry(Position logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
         // store the persistent position in to memory
         // store the max position of this entry retain
         Optional<PendingAckMetadata> optional = pendingAckListStream
                 .max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
                         o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
         optional.ifPresent(pendingAckMetadata -> {
-            PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
+            Position nowPosition = PositionFactory.create(pendingAckMetadata.getLedgerId(),
                     pendingAckMetadata.getEntryId());
             if (nowPosition.compareTo(maxAckPosition) > 0) {
                 maxAckPosition = nowPosition;
@@ -346,18 +349,18 @@ public class MLPendingAckStore implements PendingAckStore {
     @VisibleForTesting
     void clearUselessLogData() {
         if (!pendingAckLogIndex.isEmpty()) {
-            PositionImpl deletePosition = null;
+            Position deletePosition = null;
             while (!pendingAckLogIndex.isEmpty()
                     && pendingAckLogIndex.firstKey() != null
                     && subManagedCursor.getPersistentMarkDeletedPosition() != null
                     && pendingAckLogIndex.firstEntry().getKey()
-                    .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
+                    .compareTo(subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
                 deletePosition = pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
 
             if (deletePosition != null) {
                 maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
-                PositionImpl finalDeletePosition = deletePosition;
+                Position finalDeletePosition = deletePosition;
                 cursor.asyncMarkDelete(deletePosition,
                         new AsyncCallbacks.MarkDeleteCallback() {
                             @Override
@@ -403,14 +406,14 @@ public class MLPendingAckStore implements PendingAckStore {
                 while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                        currentLoadPosition = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                         List<PendingAckMetadataEntry> logs = deserializeEntry(entry);
                         if (logs.isEmpty()){
                             continue;
                         } else if (logs.size() == 1){
                             currentIndexLag.incrementAndGet();
                             PendingAckMetadataEntry log = logs.get(0);
-                            handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), log);
+                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), log);
                             pendingAckReplyCallBack.handleMetadataEntry(log);
                         } else {
                             int batchSize = logs.size();
@@ -419,7 +422,7 @@ public class MLPendingAckStore implements PendingAckStore {
                                 pendingAckReplyCallBack.handleMetadataEntry(log);
                             }
                             currentIndexLag.addAndGet(batchSize);
-                            handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), logs);
+                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), logs);
                         }
                         entry.release();
                         clearUselessLogData();

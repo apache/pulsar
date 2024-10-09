@@ -59,11 +59,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
      * @return the collection of broker event interceptor
      */
     public static BrokerInterceptor load(ServiceConfiguration conf) throws IOException {
-        if (conf.isDisableBrokerInterceptors()) {
-            log.info("Skip loading the broker interceptors when disableBrokerInterceptors is true");
+        if (conf.getBrokerInterceptors().isEmpty()) {
             return null;
         }
-
         BrokerInterceptorDefinitions definitions =
                 BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
                         conf.getNarExtractionDirectory());
@@ -92,7 +90,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
         });
 
         Map<String, BrokerInterceptorWithClassLoader> interceptors = builder.build();
-        if (interceptors != null && !interceptors.isEmpty()) {
+        if (!interceptors.isEmpty()) {
             return new BrokerInterceptors(interceptors);
         } else {
             return null;

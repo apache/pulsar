@@ -49,7 +49,12 @@
     <Bug pattern="MS_PKGPROTECT"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.functions.sink.PulsarSink$Crypto$CryptoBuilder"/>
+    <Class name="org.apache.pulsar.functions.instance.ProducerBuilderFactory$Crypto$CryptoBuilder"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.ProducerBuilderFactory"/>
+    <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>

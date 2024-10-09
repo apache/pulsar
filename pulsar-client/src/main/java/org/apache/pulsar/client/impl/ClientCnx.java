@@ -30,9 +30,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
+import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
@@ -58,6 +61,9 @@ import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
@@ -166,8 +172,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
 
     @Getter
-    private static int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
-
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     protected final int protocolVersion;
@@ -186,6 +191,8 @@ public class ClientCnx extends PulsarHandler {
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
+    @Getter
+    private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
 
     /** Idle stat. **/
     @Getter
@@ -199,6 +206,9 @@ public class ClientCnx extends PulsarHandler {
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
+
+    private final Counter connectionsOpenedCounter;
+    private final Counter connectionsClosedCounter;
 
     private static class RequestTime {
         private final long creationTimeNanos;
@@ -235,12 +245,13 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-
-    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        this(conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
+    public ClientCnx(InstrumentProvider instrumentProvider,
+                     ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+        this(instrumentProvider, conf, eventLoopGroup, Commands.getCurrentProtocolVersion());
     }
 
-    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, int protocolVersion) {
+    public ClientCnx(InstrumentProvider instrumentProvider, ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                     int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
@@ -256,11 +267,19 @@ public class ClientCnx extends PulsarHandler {
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
                 + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
+        this.connectionsOpenedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.opened", Unit.Connections,
+                        "The number of connections opened", null, Attributes.empty());
+        this.connectionsClosedCounter =
+                instrumentProvider.newCounter("pulsar.client.connection.closed", Unit.Connections,
+                        "The number of connections closed", null, Attributes.empty());
+
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        connectionsOpenedCounter.increment();
         this.localAddress = ctx.channel().localAddress();
         this.remoteAddress = ctx.channel().remoteAddress();
 
@@ -303,6 +322,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        connectionsClosedCounter.increment();
         lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
@@ -321,8 +341,8 @@ public class ClientCnx extends PulsarHandler {
         waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
-        producers.forEach((id, producer) -> producer.connectionClosed(this));
-        consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
+        producers.forEach((id, producer) -> producer.connectionClosed(this, Optional.empty(), Optional.empty()));
+        consumers.forEach((id, consumer) -> consumer.connectionClosed(this, Optional.empty(), Optional.empty()));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
         topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
 
@@ -382,6 +402,9 @@ public class ClientCnx extends PulsarHandler {
 
         supportsTopicWatchers =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers();
+        supportsGetPartitionedMetadataWithoutAutoCreation =
+            connected.hasFeatureFlags()
+                    && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -760,11 +783,9 @@ public class ClientCnx extends PulsarHandler {
         case NotAllowedError:
             producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
-
         default:
-            // By default, for transient error, let the reconnection logic
-            // to take place and re-establish the produce again
-            ctx.close();
+            // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
+            producers.get(producerId).connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }
 
@@ -800,26 +821,73 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-        log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
+        log.info("[{}] Broker notification of closed producer: {}, assignedBrokerUrl: {}, assignedBrokerUrlTls: {}",
+                remoteAddress, producerId,
+                closeProducer.hasAssignedBrokerServiceUrl() ? closeProducer.getAssignedBrokerServiceUrl() : null,
+                closeProducer.hasAssignedBrokerServiceUrlTls() ? closeProducer.getAssignedBrokerServiceUrlTls() : null);
         ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
-            producer.connectionClosed(this);
+            String brokerServiceUrl = getBrokerServiceUrl(closeProducer, producer);
+            Optional<URI> hostUri = parseUri(brokerServiceUrl,
+                                             closeProducer.hasRequestId() ? closeProducer.getRequestId() : null);
+            Optional<Long> initialConnectionDelayMs = hostUri.map(__ -> 0L);
+            producer.connectionClosed(this, initialConnectionDelayMs, hostUri);
         } else {
-            log.warn("Producer with id {} not found while closing producer ", producerId);
+            log.warn("[{}] Producer with id {} not found while closing producer", remoteAddress, producerId);
         }
+    }
+
+    private static String getBrokerServiceUrl(CommandCloseProducer closeProducer, ProducerImpl<?> producer) {
+        if (producer.getClient().getConfiguration().isUseTls()) {
+            if (closeProducer.hasAssignedBrokerServiceUrlTls()) {
+                return closeProducer.getAssignedBrokerServiceUrlTls();
+            }
+        } else if (closeProducer.hasAssignedBrokerServiceUrl()) {
+            return closeProducer.getAssignedBrokerServiceUrl();
+        }
+        return null;
     }
 
     @Override
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
-        log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
+        log.info("[{}] Broker notification of closed consumer: {}, assignedBrokerUrl: {}, assignedBrokerUrlTls: {}",
+                remoteAddress, consumerId,
+                closeConsumer.hasAssignedBrokerServiceUrl() ? closeConsumer.getAssignedBrokerServiceUrl() : null,
+                closeConsumer.hasAssignedBrokerServiceUrlTls() ? closeConsumer.getAssignedBrokerServiceUrlTls() : null);
         ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
-            consumer.connectionClosed(this);
+            String brokerServiceUrl = getBrokerServiceUrl(closeConsumer, consumer);
+            Optional<URI> hostUri = parseUri(brokerServiceUrl,
+                                             closeConsumer.hasRequestId() ? closeConsumer.getRequestId() : null);
+            Optional<Long> initialConnectionDelayMs = hostUri.map(__ -> 0L);
+            consumer.connectionClosed(this, initialConnectionDelayMs, hostUri);
         } else {
-            log.warn("Consumer with id {} not found while closing consumer ", consumerId);
+            log.warn("[{}] Consumer with id {} not found while closing consumer", remoteAddress, consumerId);
         }
+    }
+
+    private static String getBrokerServiceUrl(CommandCloseConsumer closeConsumer, ConsumerImpl<?> consumer) {
+        if (consumer.getClient().getConfiguration().isUseTls()) {
+            if (closeConsumer.hasAssignedBrokerServiceUrlTls()) {
+                return closeConsumer.getAssignedBrokerServiceUrlTls();
+            }
+        } else if (closeConsumer.hasAssignedBrokerServiceUrl()) {
+            return closeConsumer.getAssignedBrokerServiceUrl();
+        }
+        return null;
+    }
+
+    private Optional<URI> parseUri(String url, Long requestId) {
+        try {
+            if (url != null) {
+                return Optional.of(new URI(url));
+            }
+        } catch (URISyntaxException e) {
+            log.warn("[{}] Invalid redirect URL {}, requestId {}: ", remoteAddress, url, requestId, e);
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -946,10 +1014,6 @@ public class ClientCnx extends PulsarHandler {
 
     Channel channel() {
         return ctx.channel();
-    }
-
-    SocketAddress serverAddrees() {
-        return remoteAddress;
     }
 
     CompletableFuture<Void> connectionFuture() {
@@ -1291,6 +1355,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case TopicNotFound:
             return new PulsarClientException.TopicDoesNotExistException(errorMsg);
+        case SubscriptionNotFound:
+            return new PulsarClientException.SubscriptionNotFoundException(errorMsg);
         case ConsumerAssignError:
             return new PulsarClientException.ConsumerAssignException(errorMsg);
         case NotAllowedError:
@@ -1309,6 +1375,18 @@ public class ClientCnx extends PulsarHandler {
        if (ctx != null) {
            ctx.close();
        }
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof SslHandshakeCompletionEvent) {
+            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
+            if (sslHandshakeCompletionEvent.cause() != null) {
+                log.warn("{} Got ssl handshake exception {}", ctx.channel(),
+                        sslHandshakeCompletionEvent);
+            }
+        }
+        ctx.fireUserEventTriggered(evt);
     }
 
     protected void closeWithException(Throwable e) {

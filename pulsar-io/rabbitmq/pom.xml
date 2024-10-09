@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-rabbitmq</artifactId>
@@ -32,6 +32,11 @@
 
   <dependencies>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
@@ -44,7 +49,7 @@
       <exclusions>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-slf4j-impl</artifactId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -78,8 +83,22 @@
     <dependency>
       <groupId>org.apache.qpid</groupId>
       <artifactId>qpid-broker</artifactId>
-      <version>6.1.6</version>
+      <version>9.2.0</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-bdbstore</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-broker-plugins-amqp-1-0-protocol-bdb-link-store</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.qpid</groupId>
+          <artifactId>qpid-broker-plugins-derby-store</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>

@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +41,12 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -120,7 +124,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache2.getSize(), 3);
 
         // Should remove 1 entry
-        cache2.invalidateEntries(new PositionImpl(2, 1));
+        cache2.invalidateEntries(PositionFactory.create(2, 1));
         assertEquals(cacheManager.getSize(), 2);
         assertEquals(cache2.getSize(), 2);
 
@@ -193,9 +197,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         }
 
         cacheManager.removeEntryCache(ml1.getName());
-        assertTrue(cacheManager.getSize() > 0);
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 20);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 0);
+        assertEquals(0, cacheManager.getSize());
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 20);
     }
 
@@ -330,7 +334,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheHitsThroughput(), 70.0);
         assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 0);
 
-        PositionImpl pos = (PositionImpl) entries.get(entries.size() - 1).getPosition();
+        Position pos = entries.get(entries.size() - 1).getPosition();
         c2.setReadPosition(pos);
         entries.forEach(Entry::release);
 
@@ -390,7 +394,10 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         EntryCache entryCache = cacheManager.getEntryCache(ml1);
 
         final CountDownLatch counter = new CountDownLatch(1);
-        entryCache.asyncReadEntry(lh, new PositionImpl(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
+        when(ml1.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
+        when(ml1.getOptionalLedgerInfo(lh.getId())).thenReturn(Optional.of(mock(
+                MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
+        entryCache.asyncReadEntry(lh, PositionFactory.create(1L,1L), new AsyncCallbacks.ReadEntryCallback() {
             public void readEntryComplete(Entry entry, Object ctx) {
                 Assert.assertNotEquals(entry, null);
                 entry.release();
@@ -404,7 +411,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         }, null);
         counter.await();
 
-        verify(lh).readAsync(anyLong(), anyLong());
+        verify(lh).readUnconfirmedAsync(anyLong(), anyLong());
     }
 
 }

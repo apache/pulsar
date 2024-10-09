@@ -146,6 +146,10 @@ public class BrokerServiceException extends Exception {
         public TopicBusyException(String msg) {
             super(msg);
         }
+
+        public TopicBusyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicNotFoundException extends BrokerServiceException {
@@ -214,12 +218,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
-        public TopicPoliciesCacheNotInitException() {
-            super("Topic policies cache have not init.");
-        }
-    }
-
     public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;
@@ -258,6 +256,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.ServiceNotReady;
         } else if (t instanceof TopicNotFoundException) {
             return ServerError.TopicNotFound;
+        } else if (t instanceof SubscriptionNotFoundException) {
+            return ServerError.SubscriptionNotFound;
         } else if (t instanceof IncompatibleSchemaException
             || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data

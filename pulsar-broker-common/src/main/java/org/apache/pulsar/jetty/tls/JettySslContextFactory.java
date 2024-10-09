@@ -21,10 +21,8 @@ package org.apache.pulsar.jetty.tls;
 import java.util.Set;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.DefaultSslContextBuilder;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NetSslContextBuilder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 @Slf4j
@@ -35,57 +33,21 @@ public class JettySslContextFactory {
         }
     }
 
-    public static SslContextFactory.Server createServerSslContextWithKeystore(String sslProviderString,
-                                                                              String keyStoreTypeString,
-                                                                              String keyStore,
-                                                                              String keyStorePassword,
-                                                                              boolean allowInsecureConnection,
-                                                                              String trustStoreTypeString,
-                                                                              String trustStore,
-                                                                              String trustStorePassword,
-                                                                              boolean requireTrustedClientCertOnConnect,
-                                                                              Set<String> ciphers,
-                                                                              Set<String> protocols,
-                                                                              long certRefreshInSec) {
-        NetSslContextBuilder sslCtxRefresher = new NetSslContextBuilder(
-                sslProviderString,
-                keyStoreTypeString,
-                keyStore,
-                keyStorePassword,
-                allowInsecureConnection,
-                trustStoreTypeString,
-                trustStore,
-                trustStorePassword,
-                requireTrustedClientCertOnConnect,
-                certRefreshInSec);
-
-        return new JettySslContextFactory.Server(sslProviderString, sslCtxRefresher,
+    public static SslContextFactory.Server createSslContextFactory(String sslProviderString,
+                                                                   PulsarSslFactory pulsarSslFactory,
+                                                                   boolean requireTrustedClientCertOnConnect,
+                                                                   Set<String> ciphers, Set<String> protocols) {
+        return new JettySslContextFactory.Server(sslProviderString, pulsarSslFactory,
                 requireTrustedClientCertOnConnect, ciphers, protocols);
     }
 
-    public static SslContextFactory createServerSslContext(String sslProviderString, boolean tlsAllowInsecureConnection,
-                                                           String tlsTrustCertsFilePath,
-                                                           String tlsCertificateFilePath,
-                                                           String tlsKeyFilePath,
-                                                           boolean tlsRequireTrustedClientCertOnConnect,
-                                                           Set<String> ciphers,
-                                                           Set<String> protocols,
-                                                           long certRefreshInSec) {
-        DefaultSslContextBuilder sslCtxRefresher =
-                new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath, tlsCertificateFilePath,
-                        tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec, sslProviderString);
-
-        return new JettySslContextFactory.Server(sslProviderString, sslCtxRefresher,
-                tlsRequireTrustedClientCertOnConnect, ciphers, protocols);
-    }
-
     private static class Server extends SslContextFactory.Server {
-        private final SslContextAutoRefreshBuilder<SSLContext> sslCtxRefresher;
+        private final PulsarSslFactory pulsarSslFactory;
 
-        public Server(String sslProviderString, SslContextAutoRefreshBuilder<SSLContext> sslCtxRefresher,
+        public Server(String sslProviderString, PulsarSslFactory pulsarSslFactory,
                       boolean requireTrustedClientCertOnConnect, Set<String> ciphers, Set<String> protocols) {
             super();
-            this.sslCtxRefresher = sslCtxRefresher;
+            this.pulsarSslFactory = pulsarSslFactory;
 
             if (ciphers != null && ciphers.size() > 0) {
                 this.setIncludeCipherSuites(ciphers.toArray(new String[0]));
@@ -110,7 +72,7 @@ public class JettySslContextFactory {
 
         @Override
         public SSLContext getSslContext() {
-            return sslCtxRefresher.get();
+            return this.pulsarSslFactory.getInternalSslContext();
         }
     }
 }

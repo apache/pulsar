@@ -19,16 +19,11 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -36,9 +31,9 @@ import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -47,93 +42,103 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 /**
  * pulsar-client consume command implementation.
- *
  */
-@Parameters(commandDescription = "Consume messages from a specified topic")
+@Command(description = "Consume messages from a specified topic")
 public class CmdConsume extends AbstractCmdConsume {
 
-    @Parameter(description = "TopicName", required = true)
-    private List<String> mainOptions = new ArrayList<String>();
+    @Parameters(description = "TopicName", arity = "1")
+    private String topic;
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
+    @Option(names = { "-t", "--subscription-type" }, description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-    @Parameter(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
+    @Option(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
-    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    @Option(names = { "-p", "--subscription-position" }, description = "Subscription position.")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
+    @Option(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
     private String subscriptionName;
 
-    @Parameter(names = { "-n",
+    @Option(names = { "-n",
             "--num-messages" }, description = "Number of messages to consume, 0 means to consume forever.")
     private int numMessagesToConsume = 1;
 
-    @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
+    @Option(names = { "--hex" }, description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
-    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    @Option(names = { "--hide-content" }, description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
+    @Option(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
-    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
+    @Option(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
 
-    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
+    @Option(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
     private int receiverQueueSize = 0;
 
-    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
     private int maxPendingChunkedMessage = 0;
 
-    @Parameter(names = { "-ac",
+    @Option(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    @Parameter(names = { "-ekv",
+    @Option(names = { "-ekv",
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
 
-    @Parameter(names = { "-st", "--schema-type"},
+    @Option(names = { "-st", "--schema-type"},
             description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schemaType = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
     private boolean poolMessages = true;
 
-    @Parameter(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+    @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
     private boolean replicateSubscriptionState = false;
+
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
+    private boolean printMetadata = false;
 
     public CmdConsume() {
         // Do nothing
         super();
     }
 
+    @Spec
+    private CommandSpec commandSpec;
+
     /**
      * Run the consume command.
      *
      * @return 0 for success, < 0 otherwise
      */
-    public int run() throws PulsarClientException, IOException {
-        if (mainOptions.size() != 1) {
-            throw (new ParameterException("Please provide one and only one topic name."));
-        }
+    public int run() throws IOException {
         if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
-            throw (new ParameterException("Subscription name is not provided."));
+            throw new CommandLine.ParameterException(commandSpec.commandLine(), "Subscription name is not provided.");
         }
         if (this.numMessagesToConsume < 0) {
-            throw (new ParameterException("Number of messages should be zero or positive."));
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "Number of messages should be zero or positive.");
         }
-
-        String topic = this.mainOptions.get(0);
 
         if (this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
@@ -146,7 +151,7 @@ public class CmdConsume extends AbstractCmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.build()){
+        try (PulsarClient client = clientBuilder.build()) {
             ConsumerBuilder<?> builder;
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schemaType)) {
@@ -176,6 +181,7 @@ public class CmdConsume extends AbstractCmdConsume {
             }
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+            builder.cryptoFailureAction(cryptoFailureAction);
 
             if (isNotBlank(this.encKeyValue)) {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
@@ -196,7 +202,7 @@ public class CmdConsume extends AbstractCmdConsume {
                             numMessagesConsumed += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
-                                String output = this.interpretMessage(msg, displayHex);
+                                String output = this.interpretMessage(msg, displayHex, printMetadata);
                                 System.out.println(output);
                             } else if (numMessagesConsumed % 1000 == 0) {
                                 System.out.println("Received " + numMessagesConsumed + " messages");

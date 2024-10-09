@@ -21,10 +21,8 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,18 +34,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
-
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -67,6 +63,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -164,8 +161,9 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testEntryLookup() throws Exception {
+        @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
             = buildCompactedLedger(bk, 500);
@@ -183,18 +181,18 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Pair<MessageIdData, Long> lastPosition = positions.get(positions.size() - 1);
 
         // check ids before and after ids in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(0, 0), lastEntryId, cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(0, 0), lastEntryId, cache).get(),
                             Long.valueOf(0));
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(Long.MAX_VALUE, 0),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(Long.MAX_VALUE, 0),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // entry 0 is never in compacted ledger due to how we generate dummy
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(firstPositionId.getLedgerId(), 0),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(firstPositionId.getLedgerId(), 0),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(0));
         // check next id after last id in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(lastPosition.getLeft().getLedgerId(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(PositionFactory.create(lastPosition.getLeft().getLedgerId(),
                                                                                lastPosition.getLeft().getEntryId() + 1),
                                                               lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
@@ -205,22 +203,23 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
-            PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
+            Position pos = PositionFactory.create(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
             Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
             Assert.assertEquals(got, p.getRight());
         }
 
         // Check ids we know are in the gaps of the compacted ledger
         for (Pair<MessageIdData, Long> gap : idsInGaps) {
-            PositionImpl pos = new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
+            Position pos = PositionFactory.create(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
             Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(), gap.getRight());
         }
     }
 
     @Test
     public void testCleanupOldCompactedTopicLedger() throws Exception {
+        @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null).get();
 
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -233,7 +232,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // set the compacted topic ledger
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        compactedTopic.newCompactedLedger(new PositionImpl(1,2), oldCompactedLedger.getId()).get();
+        compactedTopic.newCompactedLedger(PositionFactory.create(1,2), oldCompactedLedger.getId()).get();
 
         // ensure both ledgers still exist, can be opened
         bk.openLedger(oldCompactedLedger.getId(),
@@ -244,7 +243,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                       Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
 
         // update the compacted topic ledger
-        PositionImpl newHorizon = new PositionImpl(1,3);
+        Position newHorizon = PositionFactory.create(1,3);
         compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId()).get();
 
         // Make sure the old compacted ledger still exist after the new compacted ledger created.
@@ -665,7 +664,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         producer.newMessage().key("k").value(("value").getBytes()).send();
         producer.newMessage().key("k").value(null).send();
-        pulsar.getCompactor().compact(topic).get();
+        ((PulsarCompactionServiceFactory)pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)
@@ -844,5 +843,68 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(reader.hasMessageAvailable());
         Assert.assertEquals(reader.readNext().getMessageId(), lastMessage.get());
+    }
+
+    @Test
+    public void testCompactWithConcurrentGetCompactionHorizonAndCompactedTopicContext() throws Exception {
+        @Cleanup
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null, null, Optional.empty(), null).get();
+
+        Mockito.doAnswer(invocation -> {
+            Thread.sleep(1500);
+            invocation.callRealMethod();
+            return null;
+        }).when(bk).asyncOpenLedger(Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
+        LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        oldCompactedLedger.close();
+        LedgerHandle newCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        newCompactedLedger.close();
+
+        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
+
+        Position oldHorizon = PositionFactory.create(1, 2);
+        var future = CompletableFuture.supplyAsync(() -> {
+            // set the compacted topic ledger
+            return compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId());
+        });
+        Thread.sleep(500);
+
+        Optional<Position> compactionHorizon = compactedTopic.getCompactionHorizon();
+        CompletableFuture<CompactedTopicContext> compactedTopicContext =
+                compactedTopic.getCompactedTopicContextFuture();
+
+        if (compactedTopicContext != null) {
+            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
+            Assert.assertNotNull(compactedTopicContext);
+            Assert.assertEquals(compactedTopicContext.join().ledger.getId(), oldCompactedLedger.getId());
+        } else {
+            Assert.assertTrue(compactionHorizon.isEmpty());
+        }
+
+        future.join();
+
+        Position newHorizon = PositionFactory.create(1, 3);
+        var future2 = CompletableFuture.supplyAsync(() -> {
+            // update the compacted topic ledger
+            return compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId());
+        });
+        Thread.sleep(500);
+
+        compactionHorizon = compactedTopic.getCompactionHorizon();
+        compactedTopicContext = compactedTopic.getCompactedTopicContextFuture();
+
+        if (compactedTopicContext.join().ledger.getId() == newCompactedLedger.getId()) {
+            Assert.assertEquals(compactionHorizon.get(), newHorizon);
+        } else {
+            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
+        }
+
+        future2.join();
     }
 }

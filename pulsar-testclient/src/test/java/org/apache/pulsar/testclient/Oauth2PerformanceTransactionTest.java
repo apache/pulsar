@@ -127,7 +127,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path);
-
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authenticationPlugin, authenticationParameters)
                 .build());
@@ -186,7 +186,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
         Thread thread = new Thread(() -> {
             try {
-                PerformanceTransaction.main(args.split(" "));
+                new PerformanceTransaction().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }

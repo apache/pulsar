@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authorization;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import java.net.SocketAddress;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -814,5 +815,21 @@ public class AuthorizationService {
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
         }
+    }
+
+    public CompletableFuture<Void> removePermissionsAsync(TopicName topicName) {
+        return provider.removePermissionsAsync(topicName);
+    }
+
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
+        return provider.getPermissionsAsync(topicName);
+    }
+
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(NamespaceName namespaceName) {
+        return provider.getPermissionsAsync(namespaceName);
+    }
+
+    public CompletableFuture<Map<String, Set<String>>> getSubscriptionPermissionsAsync(NamespaceName namespaceName) {
+        return provider.getSubscriptionPermissionsAsync(namespaceName);
     }
 }

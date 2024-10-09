@@ -37,6 +37,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.text.Normalizer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -137,6 +138,12 @@ public class RuntimeUtils {
                                                 boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
+
+        // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails`
+        // manually in Go instance
+        String functionDetails =
+                JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails());
+        goInstanceConfig.setFunctionDetails(functionDetails);
 
         if (instanceConfig.getClusterName() != null) {
             goInstanceConfig.setClusterName(instanceConfig.getClusterName());
@@ -360,12 +367,26 @@ public class RuntimeUtils {
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
 
+            // Needed for optimized Netty direct byte buffer support
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
+            // Handle possible shaded Netty versions
+            args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
+            args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
-            // Needed for netty.DnsResolverUtil on JDK9+
-            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
+                // Needed for optimized Netty direct byte buffer support
                 args.add("--add-opens");
-                args.add("java.base/sun.net=ALL-UNNAMED");
+                args.add("java.base/java.nio=ALL-UNNAMED");
+                args.add("--add-opens");
+                args.add("java.base/jdk.internal.misc=ALL-UNNAMED");
+            }
+
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+                // Needed for optimized checksum calculation when com.scurrilous.circe.checksum.Java9IntHash
+                // is used. That gets used when the native library libcirce-checksum is not available or cannot
+                // be loaded.
+                args.add("--add-opens");
+                args.add("java.base/java.util.zip=ALL-UNNAMED");
             }
 
             if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
@@ -558,5 +579,16 @@ public class RuntimeUtils {
         new ThreadExports().register(registry);
         new ClassLoadingExports().register(registry);
         new VersionInfoExports().register(registry);
+    }
+
+    public static String sanitizeFileName(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        // converts a unicode string to plain ascii
+        String asciiFileName = Normalizer.normalize(fileName, Normalizer.Form.NFD)
+                .replaceAll("[^\\p{ASCII}]", "");
+        // replaces all non-alphanumeric characters (excluding -_.) with _
+        return asciiFileName.replaceAll("[^a-zA-Z0-9-_.]", "_");
     }
 }

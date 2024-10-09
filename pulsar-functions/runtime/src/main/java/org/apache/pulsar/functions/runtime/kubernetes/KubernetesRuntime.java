@@ -205,9 +205,9 @@ public class KubernetesRuntime implements Runtime {
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory =
                 isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
-        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalCodeFileName = this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalCodeFileName);
         this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
-                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                ? this.downloadDirectory + "/" + RuntimeUtils.sanitizeFileName(originalTransformFunctionFileName)
                 : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;

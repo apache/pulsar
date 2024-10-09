@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -49,6 +50,7 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
                 "Test relies on this address");
+        @Cleanup
         PulsarAdmin adminClientTls = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
@@ -75,6 +77,7 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         Assert.assertTrue(pulsar.getWebServiceAddressTls().startsWith("https://127.0.0.2:"),
                 "Test relies on this address");
+        @Cleanup
         PulsarAdmin adminClient = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)

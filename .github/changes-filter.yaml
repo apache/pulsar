@@ -11,6 +11,9 @@ docs:
   - '.idea/**'
   - 'deployment/**'
   - 'wiki/**'
+  - 'pip/**'
+java_non_tests:
+  - '**/src/main/java/**/*.java'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
 need_owasp:

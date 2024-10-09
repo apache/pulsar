@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -93,6 +96,40 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
 
         Assert.assertEquals(receivedMessages, sentMessages);
         consumer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailedSubscribe() throws Exception {
+        final String topicName1 = BrokerTestUtil.newUniqueName("persistent://public/default/tp_test");
+        final String topicName2 = BrokerTestUtil.newUniqueName("persistent://public/default/tp_test");
+        final String topicName3 = BrokerTestUtil.newUniqueName("persistent://public/default/tp_test");
+        final String subName = "s1";
+        admin.topics().createPartitionedTopic(topicName1, 2);
+        admin.topics().createPartitionedTopic(topicName2, 3);
+        admin.topics().createNonPartitionedTopic(topicName3);
+
+        // Register a exclusive consumer to makes the pattern consumer failed to subscribe.
+        Consumer c1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName3).subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subName).subscribe();
+
+        try {
+            PatternMultiTopicsConsumerImpl<String> consumer =
+                (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                    .topicsPattern("persistent://public/default/tp_test.*")
+                    .subscriptionType(SubscriptionType.Failover)
+                    .subscriptionName(subName)
+                    .subscribe();
+            fail("Expected a consumer busy error.");
+        } catch (Exception ex) {
+            log.info("consumer busy", ex);
+        }
+
+        c1.close();
+        // Verify all internal consumer will be closed.
+        // If delete topic without "-f" work, it means the internal consumers were closed.
+        admin.topics().delete(topicName3);
+        admin.topics().deletePartitionedTopic(topicName2);
+        admin.topics().deletePartitionedTopic(topicName1);
     }
 
 }

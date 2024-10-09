@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-transaction-parent</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-transaction-coordinator</artifactId>
@@ -38,6 +38,12 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-opentelemetry</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -78,30 +84,6 @@
                         <goals>
                             <goal>modernizer</goal>
                         </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>properties-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>set-system-properties</goal>
-                        </goals>
-                        <configuration>
-                            <properties>
-                                <property>
-                                    <name>proto_path</name>
-                                    <value>${project.parent.parent.basedir}</value>
-                                </property>
-                                <property>
-                                    <name>proto_search_strategy</name>
-                                    <value>2</value>
-                                </property>
-                            </properties>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

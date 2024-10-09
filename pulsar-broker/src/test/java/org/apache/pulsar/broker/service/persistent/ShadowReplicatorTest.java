@@ -142,8 +142,8 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Assert.assertEquals(shadowMessage.getBrokerPublishTime(), sourceMessage.getBrokerPublishTime());
         Assert.assertEquals(shadowMessage.getIndex(), sourceMessage.getIndex());
 
-        //`replicatedFrom` is set as localClusterName in shadow topic.
-        Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
+        Assert.assertEquals(replicator.stats.getBytesOutCount(), 0);
+
         Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
     }
 

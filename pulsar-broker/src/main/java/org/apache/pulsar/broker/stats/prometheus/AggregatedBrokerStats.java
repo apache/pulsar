@@ -33,7 +33,14 @@ public class AggregatedBrokerStats {
     public double storageReadRate;
     public double storageReadCacheMissesRate;
     public long msgBacklog;
+    public long sizeBasedBacklogQuotaExceededEvictionCount;
+    public long timeBasedBacklogQuotaExceededEvictionCount;
+    public long bytesInCounter;
+    public long bytesOutCounter;
+    public long systemTopicBytesInCounter;
+    public long bytesOutInternalCounter;
 
+    @SuppressWarnings("DuplicatedCode")
     void updateStats(TopicStats stats) {
         topicsCount++;
         subscriptionsCount += stats.subscriptionsCount;
@@ -49,8 +56,15 @@ public class AggregatedBrokerStats {
         storageReadRate += stats.managedLedgerStats.storageReadRate;
         storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
         msgBacklog += stats.msgBacklog;
+        timeBasedBacklogQuotaExceededEvictionCount += stats.timeBasedBacklogQuotaExceededEvictionCount;
+        sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
+        bytesInCounter += stats.bytesInCounter;
+        bytesOutCounter += stats.bytesOutCounter;
+        systemTopicBytesInCounter += stats.systemTopicBytesInCounter;
+        bytesOutInternalCounter += stats.bytesOutInternalCounter;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     public void reset() {
         topicsCount = 0;
         subscriptionsCount = 0;
@@ -66,5 +80,11 @@ public class AggregatedBrokerStats {
         storageReadRate = 0;
         storageReadCacheMissesRate = 0;
         msgBacklog = 0;
+        sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        timeBasedBacklogQuotaExceededEvictionCount = 0;
+        bytesInCounter = 0;
+        bytesOutCounter = 0;
+        systemTopicBytesInCounter = 0;
+        bytesOutInternalCounter = 0;
     }
 }

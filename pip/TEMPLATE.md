@@ -6,9 +6,14 @@ RULES
 PROPOSAL HEALTH CHECK
 I can read the design document and understand the problem statement and what you plan to change *without* resorting to a couple of hours of code reading just to start having a high level understanding of the change.
 
+IMAGES
+If you need diagrams, avoid attaching large files. You can use [MermaidJS]([url](https://mermaid.js.org/)) as a simple language to describe many types of diagrams.
+
 THIS COMMENTS
 Please remove them when done.
 -->
+
+# PIP-XXX: Proposal title
 
 # Background knowledge
 
@@ -134,16 +139,22 @@ If there is uncertainty for this section, please submit the PIP and request for 
 
 # Backward & Forward Compatibility
 
-## Revert
-
-<!--
-Describe a cookbook detailing the steps required to revert pulsar to previous version *without* this feature.
--->
-
 ## Upgrade
 
 <!--
 Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature.
+-->
+
+## Downgrade / Rollback
+
+<!--
+Describe a cookbook detailing the steps required to rollback Pulsar to previous version *without* this feature.
+-->
+
+## Pulsar Geo-Replication Upgrade & Downgrade/Rollback Considerations
+
+<!--
+Describe what needs to be considered in Pulsar Geo-Replication in the upgrade and possible downgrade/rollback of this feature.
 -->
 
 # Alternatives

@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,8 +31,9 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,12 +41,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -58,11 +59,15 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -150,6 +155,58 @@ public class FilterEntryTest extends BrokerTestBase {
         consumer.close();
     }
 
+    @Test
+    public void testEntryFilterWithCompactor() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+
+        List<String> messages = new ArrayList<>();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+        producer.newMessage().key("K1").value("V1").send();
+        producer.newMessage().key("K2").value("V2").send();
+        producer.newMessage().key("K3").value("V3").send();
+        producer.newMessage().key("K4").value("V4").send();
+        messages.add("V2");
+        messages.add("V4");
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+
+        // set topic level entry filters
+        EntryFilter mockFilter = mock(EntryFilter.class);
+        doAnswer(invocationOnMock -> {
+            FilterContext filterContext = invocationOnMock.getArgument(1);
+            String partitionKey = filterContext.getMsgMetadata().getPartitionKey();
+            if (partitionKey.equals("K1") || partitionKey.equals("K3")) {
+                return EntryFilter.FilterResult.REJECT;
+            } else {
+                return EntryFilter.FilterResult.ACCEPT;
+            }
+        }).when(mockFilter).filterEntry(any(Entry.class), any(FilterContext.class));
+        setMockFilterToTopic(topicRef, List.of(mockFilter));
+
+        List<String> results = new ArrayList<>();
+        RawReader rawReader = RawReader.create(pulsarClient, topic, Compactor.COMPACTION_SUBSCRIPTION).get();
+        while (true) {
+            boolean hasMsg = rawReader.hasMessageAvailableAsync().get();
+            if (hasMsg) {
+                try (RawMessage m = rawReader.readNextAsync().get()) {
+                    ByteBuf headersAndPayload = m.getHeadersAndPayload();
+                    Commands.skipMessageMetadata(headersAndPayload);
+                    byte[] bytes = new byte[headersAndPayload.readableBytes()];
+                    headersAndPayload.readBytes(bytes);
+
+                    results.add(new String(bytes));
+                }
+            } else {
+                break;
+            }
+        }
+        rawReader.closeAsync().get();
+
+        Assert.assertEquals(messages, results);
+    }
+
     @SneakyThrows
     private void setMockFilterToTopic(PersistentTopic topicRef, List<EntryFilter> mockFilter) {
         FieldUtils.writeField(topicRef, "entryFilters", Pair.of(null, mockFilter), true);
@@ -182,9 +239,9 @@ public class FilterEntryTest extends BrokerTestBase {
         hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
         field.set(dispatcher, List.of(loader1, loader2));
         hasFilterField.set(dispatcher, true);
 
@@ -198,7 +255,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         int counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -232,7 +289,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -251,7 +308,7 @@ public class FilterEntryTest extends BrokerTestBase {
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl position = (PositionImpl) subscription.getCursor().getMarkDeletedPosition();
+            Position position = subscription.getCursor().getMarkDeletedPosition();
             assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
             assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
         });
@@ -264,7 +321,7 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -314,9 +371,9 @@ public class FilterEntryTest extends BrokerTestBase {
             hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilter2Test();
-            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -406,10 +463,10 @@ public class FilterEntryTest extends BrokerTestBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 

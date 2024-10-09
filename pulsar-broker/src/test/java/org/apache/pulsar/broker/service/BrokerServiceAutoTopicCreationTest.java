@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -25,17 +26,24 @@ import static org.testng.Assert.fail;
 
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -524,6 +532,59 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         for (String t : topics) {
             admin.topics().delete(t);
         }
+    }
+
+    @Test
+    public void testExtensibleLoadManagerImplInternalTopicAutoCreations()
+            throws PulsarAdminException, PulsarClientException {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(5);
+        final String namespaceName = NamespaceName.SYSTEM_NAMESPACE.toString();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl();
+        tenantInfo.setAllowedClusters(Set.of(configClusterName));
+        admin.tenants().createTenant("pulsar", tenantInfo);
+        admin.namespaces().createNamespace(namespaceName);
+        admin.topics().createNonPartitionedTopic(TOPIC);
+        admin.topics().createNonPartitionedTopic(ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC);
+        admin.topics().createNonPartitionedTopic(ExtensibleLoadManagerImpl.TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+
+        // clear the topics to test the auto creation of non-persistent topics.
+        final var topics = pulsar.getBrokerService().getTopics();
+        final var oldTopics = topics.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
+                Map.Entry::getValue));
+        topics.clear();
+
+        // The created persistent topic correctly can be found by
+        // pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+        Producer producer = pulsarClient.newProducer().topic(TOPIC).create();
+
+        // The created non-persistent topics cannot be found, as we did topics.clear()
+        try {
+            pulsarClient.newProducer().topic(ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC).create();
+            Assert.fail("Create should have failed.");
+        } catch (PulsarClientException.TopicDoesNotExistException | PulsarClientException.NotFoundException e) {
+            // expected
+        }
+        try {
+            pulsarClient.newProducer().topic(ExtensibleLoadManagerImpl.TOP_BUNDLES_LOAD_DATA_STORE_TOPIC).create();
+            Assert.fail("Create should have failed.");
+        } catch (PulsarClientException.TopicDoesNotExistException | PulsarClientException.NotFoundException e) {
+            // expected
+        }
+
+        oldTopics.forEach((key, val) -> topics.put(key, val));
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName);
+            assertEquals(partitionedTopicList.size(), 0);
+        });
+
+        producer.close();
+        admin.namespaces().deleteNamespace(namespaceName);
+        admin.tenants().deleteTenant("pulsar");
+
     }
 
 }

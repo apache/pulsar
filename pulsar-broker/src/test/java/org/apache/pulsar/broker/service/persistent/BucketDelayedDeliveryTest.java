@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,14 +37,14 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -47,6 +52,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -96,8 +102,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
         List<String> bucketKeys =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet()
+                        .stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         c1.close();
 
@@ -111,8 +117,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         Dispatcher dispatcher2 = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
         List<String> bucketKeys2 =
-                ((PersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet()
+                        .stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
@@ -146,7 +152,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
 
         Map<String, String> cursorProperties =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
         List<Long> bucketIds = cursorProperties.entrySet().stream()
                 .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
                         x -> Long.valueOf(x.getValue())).toList();
@@ -211,11 +217,11 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Thread.sleep(2000);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, true, true, output);
+        PrometheusMetricsTestUtil.generate(pulsar, true, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        List<PrometheusMetricsTest.Metric> bucketsMetrics =
+        List<Metric> bucketsMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_total").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt bucketsSum = new MutableInt();
@@ -224,12 +230,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
             bucketsSum.add(metric.value);
         });
         assertEquals(6, bucketsSum.intValue());
-        Optional<PrometheusMetricsTest.Metric> bucketsTopicMetric =
+        Optional<Metric> bucketsTopicMetric =
                 bucketsMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(bucketsTopicMetric.isPresent());
         assertEquals(bucketsSum.intValue(), bucketsTopicMetric.get().value);
 
-        List<PrometheusMetricsTest.Metric> loadedIndexMetrics =
+        List<Metric> loadedIndexMetrics =
                 metricsMap.get("pulsar_delayed_message_index_loaded").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt loadedIndexSum = new MutableInt();
@@ -238,12 +244,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
             loadedIndexSum.add(metric.value);
         }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> loadedIndexTopicMetrics =
+        Optional<Metric> loadedIndexTopicMetrics =
                 bucketsMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(loadedIndexTopicMetrics.isPresent());
         assertEquals(loadedIndexSum.intValue(), loadedIndexTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> snapshotSizeBytesMetrics =
+        List<Metric> snapshotSizeBytesMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_snapshot_size_bytes").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt snapshotSizeBytesSum = new MutableInt();
@@ -253,12 +259,12 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     snapshotSizeBytesSum.add(metric.value);
                 }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> snapshotSizeBytesTopicMetrics =
+        Optional<Metric> snapshotSizeBytesTopicMetrics =
                 snapshotSizeBytesMetrics.stream().filter(metric -> !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(snapshotSizeBytesTopicMetrics.isPresent());
         assertEquals(snapshotSizeBytesSum.intValue(), snapshotSizeBytesTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> opCountMetrics =
+        List<Metric> opCountMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_op_count").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt opCountMetricsSum = new MutableInt();
@@ -270,14 +276,14 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     opCountMetricsSum.add(metric.value);
                 }).count();
         assertEquals(2, count);
-        Optional<PrometheusMetricsTest.Metric> opCountTopicMetrics =
+        Optional<Metric> opCountTopicMetrics =
                 opCountMetrics.stream()
                         .filter(metric -> metric.tags.get("state").equals("succeed") && metric.tags.get("type")
                                 .equals("create") && !metric.tags.containsKey("subscription")).findFirst();
         assertTrue(opCountTopicMetrics.isPresent());
         assertEquals(opCountMetricsSum.intValue(), opCountTopicMetrics.get().value);
 
-        List<PrometheusMetricsTest.Metric> opLatencyMetrics =
+        List<Metric> opLatencyMetrics =
                 metricsMap.get("pulsar_delayed_message_index_bucket_op_latency_ms").stream()
                         .filter(metric -> metric.tags.get("topic").equals(topic)).toList();
         MutableInt opLatencyMetricsSum = new MutableInt();
@@ -289,7 +295,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                     opLatencyMetricsSum.add(metric.value);
                 }).count();
         assertTrue(count >= 2);
-        Optional<PrometheusMetricsTest.Metric> opLatencyTopicMetrics =
+        Optional<Metric> opLatencyTopicMetrics =
                 opCountMetrics.stream()
                         .filter(metric -> metric.tags.get("type").equals("create")
                                 && !metric.tags.containsKey("subscription")).findFirst();
@@ -297,10 +303,10 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         assertEquals(opLatencyMetricsSum.intValue(), opLatencyTopicMetrics.get().value);
 
         ByteArrayOutputStream namespaceOutput = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, true, true, namespaceOutput);
-        Multimap<String, PrometheusMetricsTest.Metric> namespaceMetricsMap = PrometheusMetricsTest.parseMetrics(namespaceOutput.toString(StandardCharsets.UTF_8));
+        PrometheusMetricsTestUtil.generate(pulsar, false, true, true, namespaceOutput);
+        Multimap<String, Metric> namespaceMetricsMap = parseMetrics(namespaceOutput.toString(StandardCharsets.UTF_8));
 
-        Optional<PrometheusMetricsTest.Metric> namespaceMetric =
+        Optional<Metric> namespaceMetric =
                 namespaceMetricsMap.get("pulsar_delayed_message_index_bucket_total").stream().findFirst();
         assertTrue(namespaceMetric.isPresent());
         assertEquals(6, namespaceMetric.get().value);
@@ -333,7 +339,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
 
         Map<String, String> cursorProperties =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
         List<Long> bucketIds = cursorProperties.entrySet().stream()
                 .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
                         x -> Long.valueOf(x.getValue())).toList();
@@ -352,5 +358,122 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 // ignore it
             }
         }
+    }
+
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared},
+                {SubscriptionType.Failover},
+                {SubscriptionType.Exclusive},
+        };
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeleteTopicIfCursorPropsEmpty(SubscriptionType subscriptionType) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createNonPartitionedTopic(topic);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
+        ManagedCursor cursor = findCursor(topic, subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().delete(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeletePartitionedTopicIfCursorPropsEmpty(SubscriptionType subscriptionType) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createPartitionedTopic(topic, 2);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
+        ManagedCursor cursor = findCursor(topic + "-partition-0", subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeleteTopicIfCursorPropsNotEmpty(SubscriptionType subscriptionType) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createNonPartitionedTopic(topic);
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
+        ManagedCursor cursor = findCursor(topic, subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Put a subscription prop.
+        Map<String,String> properties = new HashMap<>();
+        properties.put("ignore", "ignore");
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, properties);
+        assertTrue(cursor.getCursorProperties() != null && !cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().delete(topic);
+    }
+
+    /**
+     * see: https://github.com/apache/pulsar/pull/21595.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testDeletePartitionedTopicIfCursorPropsNotEmpty(SubscriptionType subscriptionType) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String subscriptionName = "s1";
+        // create a topic.
+        admin.topics().createPartitionedTopic(topic, 2);
+        pulsarClient.newProducer().topic(topic).create().close();
+        // create a subscription without props.
+        admin.topics().createSubscription(topic, subscriptionName, MessageId.earliest);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType).subscribe().close();
+
+        ManagedCursor cursor = findCursor(topic + "-partition-0", subscriptionName);
+        assertNotNull(cursor);
+        assertTrue(cursor.getCursorProperties() == null || cursor.getCursorProperties().isEmpty());
+        // Put a subscription prop.
+        Map<String,String> properties = new HashMap<>();
+        properties.put("ignore", "ignore");
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, properties);
+        assertTrue(cursor.getCursorProperties() != null && !cursor.getCursorProperties().isEmpty());
+        // Test topic deletion is successful.
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
+
+    private ManagedCursor findCursor(String topic, String subscriptionName) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        Iterator<ManagedCursor> cursorIterator = persistentTopic.getManagedLedger().getCursors().iterator();
+        while (cursorIterator.hasNext()) {
+            ManagedCursor managedCursor = cursorIterator.next();
+            if (managedCursor == null || !managedCursor.getName().equals(subscriptionName)) {
+                continue;
+            }
+            return managedCursor;
+        }
+        return null;
     }
 }

@@ -295,11 +295,13 @@ message CommandConnect {
     optional string proxy_version = 11; // Version of the proxy. Should only be forwarded by a proxy.
 }
 
+// Please also add a new enum for the class "PulsarClientException.FailedFeatureCheck" when adding a new feature flag.
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
   optional bool supports_partial_producer = 3 [default = false];
   optional bool supports_topic_watchers = 4 [default = false];
+  optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
 }
 
 message CommandConnected {
@@ -413,6 +415,7 @@ message CommandPartitionedTopicMetadata {
     // to the proxy.
     optional string original_auth_data = 4;
     optional string original_auth_method = 5;
+    optional bool metadata_auto_creation_enabled = 6 [default = true];
 }
 
 message CommandPartitionedTopicMetadataResponse {
@@ -443,6 +446,8 @@ message CommandLookupTopic {
     optional string original_auth_method = 6;
     //
     optional string advertised_listener_name = 7;
+    // The properties used for topic lookup
+    repeated KeyValue properties = 8;
 }
 
 message CommandLookupTopicResponse {
@@ -607,6 +612,7 @@ message CommandFlow {
 message CommandUnsubscribe {
     required uint64 consumer_id = 1;
     required uint64 request_id  = 2;
+    optional bool force         = 3 [default = false];
 }
 
 // Reset an existing consumer to a particular message id
@@ -641,11 +647,15 @@ message CommandTopicMigrated {
 message CommandCloseProducer {
     required uint64 producer_id = 1;
     required uint64 request_id = 2;
+    optional string assignedBrokerServiceUrl = 3;
+    optional string assignedBrokerServiceUrlTls = 4;
 }
 
 message CommandCloseConsumer {
     required uint64 consumer_id = 1;
     required uint64 request_id = 2;
+    optional string assignedBrokerServiceUrl = 3;
+    optional string assignedBrokerServiceUrlTls = 4;
 }
 
 message CommandRedeliverUnacknowledgedMessages {

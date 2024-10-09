@@ -18,28 +18,55 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.naming.TopicName;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * The tests in this class should be denied in a production pulsar cluster. they are very dangerous, which leads to
+ * a lot of topic deletion and makes namespace policies being incorrect.
+ */
+@Slf4j
 @Test(groups = "broker-impl")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
+    @DataProvider(name = "loadManagerClassName")
+    public static Object[][] loadManagerClassName() {
+        return new Object[][]{
+                {ModularLoadManagerImpl.class.getName()},
+                {ExtensibleLoadManagerImpl.class.getName()}
+        };
+    }
+
+    @Factory(dataProvider = "loadManagerClassName")
+    public ReplicatorGlobalNSTest(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
 
     @BeforeMethod
     public void beforeMethod(Method m) {
@@ -64,7 +91,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(priority = Integer.MAX_VALUE)
     public void testRemoveLocalClusterOnGlobalNamespace() throws Exception {
         log.info("--- Starting ReplicatorTest::testRemoveLocalClusterOnGlobalNamespace ---");
 
@@ -90,42 +117,96 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r3"));
 
-        MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
-
-        Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
-        Assert.assertFalse(producer1.isConnected());
-        Assert.assertFalse(consumer1.isConnected());
-        Assert.assertTrue(consumer2.isConnected());
-
+        Awaitility.await().atMost(1, TimeUnit.MINUTES).untilAsserted(() -> {
+            Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
+            Assert.assertFalse(producer1.isConnected());
+            Assert.assertFalse(consumer1.isConnected());
+            Assert.assertTrue(consumer2.isConnected());
+        });
     }
 
-    @Test
-    public void testForcefullyTopicDeletion() throws Exception {
-        log.info("--- Starting ReplicatorTest::testForcefullyTopicDeletion ---");
+    /**
+     * This is not a formal operation and can cause serious problems if call it in a production environment.
+     */
+    @Test(priority = Integer.MAX_VALUE - 1)
+    public void testConfigChange() throws Exception {
+        log.info("--- Starting ReplicatorTest::testConfigChange ---");
+        // This test is to verify that the config change on global namespace is successfully applied in broker during
+        // runtime.
+        // Run a set of producer tasks to create the topics
+        List<Future<Void>> results = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i));
 
-        final String namespace = "pulsar/removeClusterTest";
-        admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+            results.add(executor.submit(new Callable<Void>() {
+                @Override
+                public Void call() throws Exception {
 
-        final String topicName = "persistent://" + namespace + "/topic";
+                    @Cleanup
+                    MessageProducer producer = new MessageProducer(url1, dest);
+                    log.info("--- Starting producer --- " + url1);
 
-        @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
-                .build();
+                    @Cleanup
+                    MessageConsumer consumer = new MessageConsumer(url1, dest);
+                    log.info("--- Starting Consumer --- " + url1);
 
-        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName)
-                .enableBatching(false).messageRoutingMode(MessageRoutingMode.SinglePartition).create();
-        producer1.close();
+                    producer.produce(2);
+                    consumer.receive(2);
+                    return null;
+                }
+            }));
+        }
 
-        admin1.topics().delete(topicName, true);
+        for (Future<Void> result : results) {
+            try {
+                result.get();
+            } catch (Exception e) {
+                log.error("exception in getting future result ", e);
+                fail(String.format("replication test failed with %s exception", e.getMessage()));
+            }
+        }
 
-        MockedPulsarServiceBaseTest
-                .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
+        Thread.sleep(1000L);
+        // Make sure that the internal replicators map contains remote cluster info
+        final var replicationClients1 = ns1.getReplicationClients();
+        final var replicationClients2 = ns2.getReplicationClients();
+        final var replicationClients3 = ns3.getReplicationClients();
 
-        Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
+        Assert.assertNotNull(replicationClients1.get("r2"));
+        Assert.assertNotNull(replicationClients1.get("r3"));
+        Assert.assertNotNull(replicationClients2.get("r1"));
+        Assert.assertNotNull(replicationClients2.get("r3"));
+        Assert.assertNotNull(replicationClients3.get("r1"));
+        Assert.assertNotNull(replicationClients3.get("r2"));
+
+        // Case 1: Update the global namespace replication configuration to only contains the local cluster itself
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1"));
+
+        // Wait for config changes to be updated.
+        Thread.sleep(1000L);
+
+        // Make sure that the internal replicators map still contains remote cluster info
+        Assert.assertNotNull(replicationClients1.get("r2"));
+        Assert.assertNotNull(replicationClients1.get("r3"));
+        Assert.assertNotNull(replicationClients2.get("r1"));
+        Assert.assertNotNull(replicationClients2.get("r3"));
+        Assert.assertNotNull(replicationClients3.get("r1"));
+        Assert.assertNotNull(replicationClients3.get("r2"));
+
+        // Case 2: Update the configuration back
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
+
+        // Wait for config changes to be updated.
+        Thread.sleep(1000L);
+
+        // Make sure that the internal replicators map still contains remote cluster info
+        Assert.assertNotNull(replicationClients1.get("r2"));
+        Assert.assertNotNull(replicationClients1.get("r3"));
+        Assert.assertNotNull(replicationClients2.get("r1"));
+        Assert.assertNotNull(replicationClients2.get("r3"));
+        Assert.assertNotNull(replicationClients3.get("r1"));
+        Assert.assertNotNull(replicationClients3.get("r2"));
+
+        // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorGlobalNSTest.class);
-
 }

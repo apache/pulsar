@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -70,7 +71,8 @@ public abstract class MockedBookKeeperTestCase {
     public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build()));
+                MetadataStoreExtended.create("memory:local",
+                        MetadataStoreConfig.builder().metadataStoreName("metastore-" + method.getName()).build()));
 
         try {
             // start bookkeeper service
@@ -81,11 +83,15 @@ public abstract class MockedBookKeeperTestCase {
         }
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
-        // increase default cache eviction interval so that caching could be tested with less flakyness
-        managedLedgerFactoryConfig.setCacheEvictionIntervalMs(200);
+        initManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         setUpTestCase();
+    }
+
+    protected void initManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
+        // increase default cache eviction interval so that caching could be tested with less flakyness
+        config.setCacheEvictionIntervalMs(200);
     }
 
     protected void setUpTestCase() throws Exception {
@@ -102,7 +108,11 @@ public abstract class MockedBookKeeperTestCase {
         }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
-            factory.shutdownAsync().get(10, TimeUnit.SECONDS);
+            try {
+                factory.shutdownAsync().get(10, TimeUnit.SECONDS);
+            } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException e) {
+                // ignore
+            }
             factory = null;
             stopBookKeeper();
             metadataStore.close();

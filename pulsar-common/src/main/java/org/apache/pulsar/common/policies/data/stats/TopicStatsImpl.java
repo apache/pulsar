@@ -66,11 +66,17 @@ public class TopicStatsImpl implements TopicStats {
     /** Total messages published to the topic (msg). */
     public long msgInCounter;
 
+    /** Total bytes published to the system topic (bytes). */
+    public long systemTopicBytesInCounter;
+
     /** Total bytes delivered to consumer (bytes). */
     public long bytesOutCounter;
 
     /** Total messages delivered to consumer (msg). */
     public long msgOutCounter;
+
+    /** Total bytes delivered to internal cursors. */
+    public long bytesOutInternalCounter;
 
     /** Average size of published messages (bytes). */
     public double averageMsgSize;
@@ -83,6 +89,31 @@ public class TopicStatsImpl implements TopicStats {
 
     /** Get estimated total unconsumed or backlog size in bytes. */
     public long backlogSize;
+
+    /** the size in bytes of the topic backlog quota. */
+    public long backlogQuotaLimitSize;
+
+    /** the topic backlog age quota, in seconds. */
+    public long backlogQuotaLimitTime;
+
+    /**
+     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * <p>
+     * The age of the oldest unacknowledged (i.e. backlog) message, measured by the time elapsed from its published
+     * time, in seconds. This value is recorded every backlog quota check interval, hence it represents the value
+     * seen in the last check.
+     * </p>
+     */
+    public long oldestBacklogMessageAgeSeconds;
+
+    /**
+     * The subscription name containing oldest unacknowledged message as recorded in last backlog quota check.
+     * <p>
+     * The name of the subscription containing the oldest unacknowledged message. This value is recorded every backlog
+     * quota check interval, hence it represents the value seen in the last check.
+     * </p>
+     */
+    public String oldestBacklogMessageSubscriptionName;
 
     /** The number of times the publishing rate limit was triggered. */
     public long publishRateLimitedTimes;
@@ -221,6 +252,10 @@ public class TopicStatsImpl implements TopicStats {
         this.compaction.reset();
         this.ownerBroker = null;
         this.bucketDelayedIndexStats.clear();
+        this.backlogQuotaLimitSize = 0;
+        this.backlogQuotaLimitTime = 0;
+        this.oldestBacklogMessageAgeSeconds = -1;
+        this.oldestBacklogMessageSubscriptionName = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -250,6 +285,12 @@ public class TopicStatsImpl implements TopicStats {
         this.ongoingTxnCount = stats.ongoingTxnCount;
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
+        this.backlogQuotaLimitTime = stats.backlogQuotaLimitTime;
+        this.backlogQuotaLimitSize = stats.backlogQuotaLimitSize;
+        if (stats.oldestBacklogMessageAgeSeconds > this.oldestBacklogMessageAgeSeconds) {
+            this.oldestBacklogMessageAgeSeconds = stats.oldestBacklogMessageAgeSeconds;
+            this.oldestBacklogMessageSubscriptionName = stats.oldestBacklogMessageSubscriptionName;
+        }
 
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
@@ -259,8 +300,9 @@ public class TopicStatsImpl implements TopicStats {
             topicMetricBean.value += v.value;
         });
 
-        for (int index = 0; index < stats.getPublishers().size(); index++) {
-           PublisherStats s = stats.getPublishers().get(index);
+        List<? extends PublisherStats> publisherStats = stats.getPublishers();
+        for (int index = 0; index < publisherStats.size(); index++) {
+           PublisherStats s = publisherStats.get(index);
            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
@@ -284,38 +326,22 @@ public class TopicStatsImpl implements TopicStats {
            }
         }
 
-        if (this.subscriptions.size() != stats.subscriptions.size()) {
-            for (String subscription : stats.subscriptions.keySet()) {
-                SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-            }
-        } else {
-            for (String subscription : stats.subscriptions.keySet()) {
-                if (this.subscriptions.get(subscription) != null) {
-                    this.subscriptions.get(subscription).add(stats.subscriptions.get(subscription));
-                } else {
-                    SubscriptionStatsImpl subscriptionStats = new SubscriptionStatsImpl();
-                    this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
-                }
-            }
+        for (Map.Entry<String, SubscriptionStatsImpl> entry : stats.subscriptions.entrySet()) {
+            SubscriptionStatsImpl subscriptionStats =
+                    this.subscriptions.computeIfAbsent(entry.getKey(), k -> new SubscriptionStatsImpl());
+            subscriptionStats.add(entry.getValue());
         }
-        if (this.replication.size() != stats.replication.size()) {
-            for (String repl : stats.replication.keySet()) {
-                ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                replStats.setConnected(true);
-                this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-            }
-        } else {
-            for (String repl : stats.replication.keySet()) {
-                if (this.replication.get(repl) != null) {
-                    this.replication.get(repl).add(stats.replication.get(repl));
-                } else {
-                    ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
-                    replStats.setConnected(true);
-                    this.replication.put(repl, replStats.add(stats.replication.get(repl)));
-                }
-            }
+
+        for (Map.Entry<String, ReplicatorStatsImpl> entry : stats.replication.entrySet()) {
+            ReplicatorStatsImpl replStats =
+                    this.replication.computeIfAbsent(entry.getKey(), k -> {
+                        ReplicatorStatsImpl r = new ReplicatorStatsImpl();
+                        r.setConnected(true);
+                        return r;
+                    });
+            replStats.add(entry.getValue());
         }
+
         if (earliestMsgPublishTimeInBacklogs != 0 && ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs != 0) {
             earliestMsgPublishTimeInBacklogs = Math.min(
                     earliestMsgPublishTimeInBacklogs,

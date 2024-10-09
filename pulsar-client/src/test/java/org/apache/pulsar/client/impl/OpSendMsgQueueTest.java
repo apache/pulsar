@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -39,7 +40,7 @@ public class OpSendMsgQueueTest {
     }
 
     private ProducerImpl.OpSendMsg createDummyOpSendMsg() {
-        return ProducerImpl.OpSendMsg.create(message, null, 0L, null);
+        return ProducerImpl.OpSendMsg.create(LatencyHistogram.NOOP, message, null, 0L, null);
     }
 
     @Test

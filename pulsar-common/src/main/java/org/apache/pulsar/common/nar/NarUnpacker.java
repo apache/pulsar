@@ -32,13 +32,16 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -85,19 +88,32 @@ public class NarUnpacker {
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
                  FileLock lock = channel.lock()) {
                 File narWorkingDirectory = new File(parentDirectory, md5Sum);
-                if (narWorkingDirectory.mkdir()) {
+                if (!narWorkingDirectory.exists()) {
+                    File narExtractionTempDirectory = new File(parentDirectory, md5Sum + ".tmp");
+                    if (narExtractionTempDirectory.exists()) {
+                        FileUtils.deleteFile(narExtractionTempDirectory, true);
+                    }
+                    if (!narExtractionTempDirectory.mkdir()) {
+                        throw new IOException("Cannot create " + narExtractionTempDirectory);
+                    }
                     try {
-                        log.info("Extracting {} to {}", nar, narWorkingDirectory);
+                        log.info("Extracting {} to {}", nar, narExtractionTempDirectory);
                         if (extractCallback != null) {
                             extractCallback.run();
                         }
-                        unpack(nar, narWorkingDirectory);
+                        unpack(nar, narExtractionTempDirectory);
                     } catch (IOException e) {
                         log.error("There was a problem extracting the nar file. Deleting {} to clean up state.",
-                                narWorkingDirectory, e);
-                        FileUtils.deleteFile(narWorkingDirectory, true);
+                                narExtractionTempDirectory, e);
+                        try {
+                            FileUtils.deleteFile(narExtractionTempDirectory, true);
+                        } catch (IOException e2) {
+                            log.error("Failed to delete temporary directory {}", narExtractionTempDirectory, e2);
+                        }
                         throw e;
                     }
+                    Files.move(narExtractionTempDirectory.toPath(), narWorkingDirectory.toPath(),
+                            StandardCopyOption.ATOMIC_MOVE);
                 }
                 return narWorkingDirectory;
             }
@@ -113,18 +129,24 @@ public class NarUnpacker {
      *             if the NAR could not be unpacked.
      */
     private static void unpack(final File nar, final File workingDirectory) throws IOException {
-        try (JarFile jarFile = new JarFile(nar)) {
-            Enumeration<JarEntry> jarEntries = jarFile.entries();
-            while (jarEntries.hasMoreElements()) {
-                JarEntry jarEntry = jarEntries.nextElement();
-                String name = jarEntry.getName();
-                File f = new File(workingDirectory, name);
-                if (jarEntry.isDirectory()) {
+        Path workingDirectoryPath = workingDirectory.toPath().normalize();
+        try (ZipFile zipFile = new ZipFile(nar)) {
+            Enumeration<? extends ZipEntry> zipEntries = zipFile.entries();
+            while (zipEntries.hasMoreElements()) {
+                ZipEntry zipEntry = zipEntries.nextElement();
+                String name = zipEntry.getName();
+                Path targetFilePath = workingDirectoryPath.resolve(name).normalize();
+                if (!targetFilePath.startsWith(workingDirectoryPath)) {
+                    log.error("Invalid zip file with entry '{}'", name);
+                    throw new IOException("Invalid zip file. Aborting unpacking.");
+                }
+                File f = targetFilePath.toFile();
+                if (zipEntry.isDirectory()) {
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f);
                 } else {
                     // The directory entry might appear after the file entry
                     FileUtils.ensureDirectoryExistAndCanReadAndWrite(f.getParentFile());
-                    makeFile(jarFile.getInputStream(jarEntry), f);
+                    makeFile(zipFile.getInputStream(zipEntry), f);
                 }
             }
         }
@@ -159,8 +181,9 @@ public class NarUnpacker {
      * @throws IOException
      *             if cannot read file
      */
-    private static byte[] calculateMd5sum(final File file) throws IOException {
+    protected static byte[] calculateMd5sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
             final MessageDigest md5 = MessageDigest.getInstance("md5");
 
             final byte[] buffer = new byte[1024];

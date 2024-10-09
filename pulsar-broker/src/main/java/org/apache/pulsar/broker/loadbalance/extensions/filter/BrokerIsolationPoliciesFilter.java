@@ -19,9 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
@@ -45,13 +44,13 @@ public class BrokerIsolationPoliciesFilter implements BrokerFilter {
     }
 
     @Override
-    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> availableBrokers,
-                                                ServiceUnitId serviceUnit,
-                                                LoadManagerContext context)
-            throws BrokerFilterException {
-        Set<String> brokerCandidateCache =
-                isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, serviceUnit);
-        availableBrokers.keySet().retainAll(brokerCandidateCache);
-        return availableBrokers;
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                        ServiceUnitId serviceUnit,
+                                                                        LoadManagerContext context) {
+        return isolationPoliciesHelper.applyIsolationPoliciesAsync(availableBrokers, serviceUnit)
+                .thenApply(brokerCandidateCache -> {
+                    availableBrokers.keySet().retainAll(brokerCandidateCache);
+                    return availableBrokers;
+                });
     }
 }

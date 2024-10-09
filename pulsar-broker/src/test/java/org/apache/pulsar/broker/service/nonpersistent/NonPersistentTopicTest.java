@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -35,9 +37,7 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -126,7 +126,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         } catch (PulsarClientException.TopicDoesNotExistException ignored) {
 
         }
-        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 
 
@@ -211,44 +211,64 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 .subscriptionMode(SubscriptionMode.Durable)
                 .subscribe();
 
-        ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptionMap = mockTopic.getSubscriptions();
-        Assert.assertEquals(subscriptionMap.size(), 4);
+        final var subscriptionMap = mockTopic.getSubscriptions();
+        assertEquals(subscriptionMap.size(), 4);
 
         // Check exclusive subscription
         NonPersistentSubscription exclusiveSub = subscriptionMap.get(exclusiveSubName);
-        Assert.assertNotNull(exclusiveSub);
+        assertNotNull(exclusiveSub);
         exclusiveConsumer.close();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(exclusiveSubName) == null);
 
         // Check failover subscription
         NonPersistentSubscription failoverSub = subscriptionMap.get(failoverSubName);
-        Assert.assertNotNull(failoverSub);
+        assertNotNull(failoverSub);
         failoverConsumer1.close();
         failoverSub = subscriptionMap.get(failoverSubName);
-        Assert.assertNotNull(failoverSub);
+        assertNotNull(failoverSub);
         failoverConsumer2.close();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(failoverSubName) == null);
 
         // Check shared subscription
         NonPersistentSubscription sharedSub = subscriptionMap.get(sharedSubName);
-        Assert.assertNotNull(sharedSub);
+        assertNotNull(sharedSub);
         sharedConsumer1.close();
         sharedSub = subscriptionMap.get(sharedSubName);
-        Assert.assertNotNull(sharedSub);
+        assertNotNull(sharedSub);
         sharedConsumer2.close();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(sharedSubName) == null);
 
         // Check KeyShared subscription
         NonPersistentSubscription keySharedSub = subscriptionMap.get(keySharedSubName);
-        Assert.assertNotNull(keySharedSub);
+        assertNotNull(keySharedSub);
         keySharedConsumer1.close();
         keySharedSub = subscriptionMap.get(keySharedSubName);
-        Assert.assertNotNull(keySharedSub);
+        assertNotNull(keySharedSub);
         keySharedConsumer2.close();
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
                 .until(() -> subscriptionMap.get(keySharedSubName) == null);
+    }
+
+
+    @Test
+    public void testRemoveProducerOnNonPersistentTopic() throws Exception {
+        final String topicName = "non-persistent://prop/ns-abc/topic_" + UUID.randomUUID();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        Field field = AbstractTopic.class.getDeclaredField("userCreatedProducerCount");
+        field.setAccessible(true);
+        int userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 1);
+
+        producer.close();
+        userCreatedProducerCount = (int) field.get(topic);
+        assertEquals(userCreatedProducerCount, 0);
     }
 }

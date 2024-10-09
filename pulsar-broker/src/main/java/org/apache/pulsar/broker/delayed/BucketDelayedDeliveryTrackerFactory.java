@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -27,15 +28,21 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerException;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+    private static final Logger log = LoggerFactory.getLogger(BucketDelayedDeliveryTrackerFactory.class);
 
     BucketSnapshotStorage bucketSnapshotStorage;
 
@@ -71,9 +78,29 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
-                bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+    public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        String topicName = dispatcher.getTopic().getName();
+        String subscriptionName = dispatcher.getSubscription().getName();
+        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
+        DelayedDeliveryTracker tracker;
+
+        try {
+            tracker = newTracker0(dispatcher);
+        } catch (RecoverDelayedDeliveryTrackerException ex) {
+            log.warn("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker."
+                    + " topic {}, subscription {}", topicName, subscriptionName, ex);
+            // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
+            brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
+            tracker = brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);
+        }
+        return tracker;
+    }
+
+    @VisibleForTesting
+    BucketDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher)
+            throws RecoverDelayedDeliveryTrackerException {
+        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
                 delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
     }
@@ -85,6 +112,9 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
      */
     public CompletableFuture<Void> cleanResidualSnapshots(ManagedCursor cursor) {
         Map<String, String> cursorProperties = cursor.getCursorProperties();
+        if (MapUtils.isEmpty(cursorProperties)) {
+            return CompletableFuture.completedFuture(null);
+        }
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
         cursorProperties.forEach((k, v) -> {
@@ -104,6 +134,9 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     public void close() throws Exception {
         if (bucketSnapshotStorage != null) {
             bucketSnapshotStorage.close();
+        }
+        if (timer != null) {
+            timer.stop();
         }
     }
 }

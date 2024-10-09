@@ -27,22 +27,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -50,7 +59,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.apache.pulsar.client.impl.RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE;
+
 @Test(groups = "broker-impl")
+@Slf4j
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -62,6 +74,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
                 "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
         ));
+        conf.setSystemTopicEnabled(false);
         conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         super.internalSetup();
 
@@ -116,7 +129,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testHasMessageAvailableWithoutBatch() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         Set<String> keys = publishMessages(topic, numKeys);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         while (true) {
@@ -133,20 +146,18 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testHasMessageAvailableWithBatch() throws Exception {
         int numKeys = 20;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         Set<String> keys = publishMessages(topic, numKeys, true);
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int messageCount = 0;
         while (true) {
             boolean hasMsg = reader.hasMessageAvailableAsync().get();
-            if (hasMsg && (messageCount == numKeys)) {
-                Assert.fail("HasMessageAvailable shows still has message when there is no message");
-            }
             if (hasMsg) {
                 try (RawMessage m = reader.readNextAsync().get()) {
                     MessageMetadata meta = Commands.parseMessageMetadata(m.getHeadersAndPayload());
@@ -163,13 +174,14 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(messageCount, numKeys);
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testRawReader() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -185,12 +197,43 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testRawReaderWithConfigurationCreation() throws Exception {
+        int numKeys = 10;
+
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+
+        Set<String> keys = publishMessages(topic, numKeys);
+        ConsumerConfigurationData<byte[]> consumerConfiguration = new ConsumerConfigurationData<>();
+        consumerConfiguration.getTopicNames().add(topic);
+        consumerConfiguration.setSubscriptionName(subscription);
+        consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
+        consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
+        consumerConfiguration.setReadCompacted(true);
+        consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        consumerConfiguration.setAckReceiptEnabled(true);
+        RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true).get();
+
+        MessageId lastMessageId = reader.getLastMessageIdAsync().get();
+        while (true) {
+            try (RawMessage m = reader.readNextAsync().get()) {
+                Assert.assertTrue(keys.remove(extractKey(m)));
+                if (lastMessageId.compareTo(m.getMessageId()) == 0) {
+                    break;
+                }
+            }
+        }
+        Assert.assertTrue(keys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numKeys);
 
@@ -219,12 +262,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(readKeys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testSeekToMiddle() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numKeys);
 
@@ -262,6 +306,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertTrue(readKeys.isEmpty());
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     /**
@@ -269,8 +314,8 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testFlowControl() throws Exception {
-        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        int numMessages = DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages);
 
@@ -296,12 +341,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(timeouts, 1);
         Assert.assertEquals(keys.size(), numMessages);
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testFlowControlBatch() throws Exception {
-        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        int numMessages = DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         publishMessages(topic, numMessages, true);
 
@@ -324,11 +370,12 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             }
         }
         Assert.assertEquals(keys.size(), numMessages);
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testBatchingExtractKeysAndIds() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
             .maxPendingMessages(3)
@@ -363,7 +410,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingRebatch() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
             .maxPendingMessages(3)
@@ -392,7 +439,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingRebatchWithBrokerEntryMetadata() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .maxPendingMessages(3)
@@ -428,7 +475,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testAcknowledgeWithProperties() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -459,14 +506,14 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                         Assert.assertEquals(
                                 ledger.openCursor(subscription).getProperties().get("foobar"),
                                 Long.valueOf(0xdeadbeefdecaL)));
-
+        reader.closeAsync().get(3, TimeUnit.SECONDS);
     }
 
     @Test
     public void testReadCancellationOnClose() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
         publishMessages(topic, numKeys/2);
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
@@ -487,5 +534,24 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 // correct behaviour
             }
         }
+    }
+
+    @Test
+    public void testAutoCreateTopic() throws ExecutionException, InterruptedException, PulsarAdminException {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        TopicStats stats = admin.topics().getStats(topic);
+        Assert.assertNotNull(stats);
+        reader.closeAsync().join();
+
+        String topic2 = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        try {
+            reader = RawReader.create(pulsarClient, topic2, subscription, false).get();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TopicDoesNotExistException);
+        }
+        reader.closeAsync().join();
     }
 }

@@ -52,6 +52,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import okhttp3.OkHttpClient;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -85,8 +87,6 @@ import org.slf4j.LoggerFactory;
  */
 public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
-
-    private static final String SIMPLE_NAME = AuthenticationProviderOpenID.class.getSimpleName();
 
     // Must match the value used by the OAuth2 Client Plugin.
     private static final String AUTH_METHOD_NAME = "token";
@@ -144,9 +144,20 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
     private String[] allowedAudiences;
+    private ApiClient k8sApiClient;
+
+    private AuthenticationMetrics authenticationMetrics;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+        var config = context.getConfig();
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
         this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);
@@ -163,7 +174,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
-        if (trustCertsFilePath != null) {
+        // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
+        // should be ignored.
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
             // Use default settings for everything but the trust store.
             sslContext = SslContextBuilder.forClient()
                     .trustManager(new File(trustCertsFilePath))
@@ -175,15 +188,19 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
-        ApiClient k8sApiClient =
-                fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
-        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
-        this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
+        k8sApiClient = fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
+        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(this, config, httpClient, k8sApiClient);
+        this.jwksCache = new JwksCache(this, config, httpClient, k8sApiClient);
     }
 
     @Override
     public String getAuthMethodName() {
         return AUTH_METHOD_NAME;
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     /**
@@ -215,7 +232,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return authenticateToken(token)
                 .whenComplete((jwt, e) -> {
                     if (jwt != null) {
-                        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                        authenticationMetrics.recordSuccess();
                     }
                     // Failure metrics are incremented within methods above
                 });
@@ -300,7 +317,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return verifyIssuerAndGetJwk(jwt)
                 .thenCompose(jwk -> {
                     try {
-                        if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
+                        // verify the algorithm, if it is set ("alg" is optional in the JWK spec)
+                        if (jwk.getAlgorithm() != null && !jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
                             incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
                             return CompletableFuture.failedFuture(
                                     new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
@@ -358,7 +376,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
-        httpClient.close();
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        if (k8sApiClient != null) {
+            OkHttpClient okHttpClient = k8sApiClient.getHttpClient();
+            okHttpClient.dispatcher().executorService().shutdown();
+            okHttpClient.connectionPool().evictAll();
+            if (okHttpClient.cache() != null) {
+                okHttpClient.cache().close();
+            }
+        }
     }
 
     /**
@@ -446,10 +474,6 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_VERIFYING_JWT);
             throw new AuthenticationException("JWT verification failed: " + e.getMessage());
         }
-    }
-
-    static void incrementFailureMetric(AuthenticationExceptionCode code) {
-        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, AUTH_METHOD_NAME, code);
     }
 
     /**

@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.receiveMessagesInThreads;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
-
+import java.util.function.BiFunction;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -69,4 +74,49 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
     }
 
+    protected <T> ReceivedMessages<T> receiveAndAckMessages(
+            BiFunction<MessageId, T, Boolean> ackPredicate,
+            Consumer<T>...consumers) throws Exception {
+        ReceivedMessages receivedMessages = new ReceivedMessages();
+        receiveMessagesInThreads((consumer, msg) -> {
+            T v = msg.getValue();
+            MessageId messageId = msg.getMessageId();
+            receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
+            if (ackPredicate.apply(messageId, v)) {
+                consumer.acknowledgeAsync(msg);
+                receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
+            }
+            return true;
+        }, Duration.ofSeconds(2), consumers);
+        return receivedMessages;
+    }
+
+    protected <T> ReceivedMessages<T> ackAllMessages(Consumer<T>...consumers) throws Exception {
+        return receiveAndAckMessages((msgId, msgV) -> true, consumers);
+    }
+
+    protected static class ReceivedMessages<T> {
+
+        List<Pair<MessageId, T>> messagesReceived = Collections.synchronizedList(new ArrayList<>());
+
+        List<Pair<MessageId, T>> messagesAcked = Collections.synchronizedList(new ArrayList<>());
+
+        public boolean hasReceivedMessage(T v) {
+            for (Pair<MessageId, T> pair : messagesReceived) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean hasAckedMessage(T v) {
+            for (Pair<MessageId, T> pair : messagesAcked) {
+                if (pair.getRight().equals(v)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 }

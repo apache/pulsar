@@ -27,14 +27,16 @@ import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -60,10 +62,12 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -132,7 +136,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges, and the name cannot contain the '/' characters."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been created."),
+            @ApiResponse(code = 200, message = "Cluster has been created."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
             @ApiResponse(code = 409, message = "Cluster already exists."),
@@ -198,7 +202,7 @@ public class ClustersBase extends AdminResource {
         value = "Update the configuration for a cluster.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -247,13 +251,51 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+    @GET
+    @Path("/{cluster}/migrate")
+    @ApiOperation(
+        value = "Get the cluster migration configuration for the specified cluster.",
+        response = ClusterDataImpl.class,
+        notes = "This operation requires Pulsar superuser privileges."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
+            @ApiResponse(code = 403, message = "Don't have admin permission."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public void getClusterMigration(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(
+            value = "The cluster name",
+            required = true
+        )
+        @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().getClusterPoliciesAsync(cluster))
+                .thenAccept(policies -> {
+                    asyncResponse.resume(
+                            policies.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {} migration", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     @POST
     @Path("/{cluster}/migrate")
     @ApiOperation(
         value = "Update the configuration for a cluster migration.",
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 200, message = "Cluster has been updated."),
             @ApiResponse(code = 400, message = "Cluster url must not be empty."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
@@ -286,8 +328,9 @@ public class ClustersBase extends AdminResource {
         }
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> {
-                    ClusterDataImpl data = (ClusterDataImpl) old;
+                .thenCompose(__ -> clusterResources().getClusterPoliciesResources().setPoliciesWithCreateAsync(cluster,
+                        old -> {
+                    ClusterPoliciesImpl data = old.orElse(new ClusterPoliciesImpl());
                     data.setMigrated(isMigrated);
                     data.setMigratedClusterUrl(clusterUrl);
                     return data;
@@ -652,6 +695,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set namespace isolation policy successfully."),
         @ApiResponse(code = 400, message = "Namespace isolation policy data is invalid."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
@@ -680,10 +724,13 @@ public class ClustersBase extends AdminResource {
                                         .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
                 ).thenCompose(nsIsolationPolicies -> {
+                    NamespaceIsolationDataImpl oldPolicy = nsIsolationPolicies
+                            .getPolicies().getOrDefault(policyName, null);
                     nsIsolationPolicies.setPolicy(policyName, policyData);
                     return namespaceIsolationPolicies()
-                                    .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
-                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
+                            .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
+                            .thenApply(__ -> oldPolicy);
+                }).thenCompose(oldPolicy -> filterAndUnloadMatchedNamespaceAsync(cluster, policyData, oldPolicy))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
@@ -717,42 +764,94 @@ public class ClustersBase extends AdminResource {
     /**
      * Get matched namespaces; call unload for each namespaces.
      */
-    private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(NamespaceIsolationDataImpl policyData) {
+    private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(String cluster,
+                                                                         NamespaceIsolationDataImpl policyData,
+                                                                         NamespaceIsolationDataImpl oldPolicy) {
+        // exit early if none of the namespaces need to be unloaded
+        if (NamespaceIsolationPolicyUnloadScope.none.equals(policyData.getUnloadScope())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         PulsarAdmin adminClient;
         try {
             adminClient = pulsar().getAdminClient();
         } catch (PulsarServerException e) {
             return FutureUtil.failedFuture(e);
         }
-        return adminClient.tenants().getTenantsAsync()
-                .thenCompose(tenants -> {
-                    Stream<CompletableFuture<List<String>>> completableFutureStream = tenants.stream()
-                            .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant));
-                    return FutureUtil.waitForAll(completableFutureStream)
-                            .thenApply(namespaces -> {
-                                // if namespace match any policy regex, add it to ns list to be unload.
-                                return namespaces.stream()
-                                        .filter(namespaceName ->
-                                                policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
-                                        .collect(Collectors.toList());
-                            });
-                }).thenCompose(shouldUnloadNamespaces -> {
-                    if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
-                            .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
-                            .collect(Collectors.toList());
-                    return FutureUtil.waitForAll(futures)
-                            .thenAccept(__ -> {
-                                try {
-                                    // write load info to load manager to make the load happens fast
-                                    pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
-                                } catch (Exception e) {
-                                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
-                                }
-                            });
-                });
+        Set<String> combinedNamespaces = new HashSet<>(policyData.getNamespaces());
+        final List<String> oldNamespaces = new ArrayList<>();
+        if (oldPolicy != null) {
+            oldNamespaces.addAll(oldPolicy.getNamespaces());
+            combinedNamespaces.addAll(oldNamespaces);
+        }
+        return adminClient.tenants().getTenantsAsync().thenCompose(tenants -> {
+            List<CompletableFuture<List<String>>> filteredNamespacesForEachTenant = tenants.stream()
+                    .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant).thenCompose(namespaces -> {
+                        List<CompletableFuture<String>> namespaceNamesInCluster = namespaces.stream()
+                                .map(namespaceName -> adminClient.namespaces().getPoliciesAsync(namespaceName)
+                                        .thenApply(policies -> policies.replication_clusters.contains(cluster)
+                                                ? namespaceName : null))
+                                .collect(Collectors.toList());
+                        return FutureUtil.waitForAll(namespaceNamesInCluster).thenApply(
+                                __ -> namespaceNamesInCluster.stream()
+                                        .map(CompletableFuture::join)
+                                        .filter(Objects::nonNull)
+                                        .collect(Collectors.toList()));
+                    })).toList();
+            return FutureUtil.waitForAll(filteredNamespacesForEachTenant)
+                    .thenApply(__ -> filteredNamespacesForEachTenant.stream()
+                            .map(CompletableFuture::join)
+                            .flatMap(List::stream)
+                            .collect(Collectors.toList()));
+        }).thenCompose(clusterLocalNamespaces -> {
+            if (CollectionUtils.isEmpty(clusterLocalNamespaces)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
+            // actually have been changed.
+
+            log.debug("Old policy: {} ; new policy: {}", oldPolicy, policyData);
+
+            boolean unloadAllNamespaces = false;
+            // We also compare that the previous primary broker list is same as current, in case all namespaces need
+            // to be placed again anyway.
+            if (NamespaceIsolationPolicyUnloadScope.all_matching.equals(policyData.getUnloadScope())
+                    || (oldPolicy != null
+                    && !CollectionUtils.isEqualCollection(oldPolicy.getPrimary(), policyData.getPrimary()))) {
+                unloadAllNamespaces = true;
+            }
+            // list is same, so we continue finding the changed namespaces.
+
+            // We create a intersection of the old and new regexes. These won't need to be unloaded.
+            Set<String> commonNamespaces = new HashSet<>(policyData.getNamespaces());
+            commonNamespaces.retainAll(oldNamespaces);
+
+            log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, commonNamespaces);
+
+            if (!unloadAllNamespaces) {
+                // Find the changed regexes ((new U old) - (new ∩ old)).
+                combinedNamespaces.removeAll(commonNamespaces);
+                log.debug("changed regexes: {}", commonNamespaces);
+            }
+
+            // Now we further filter the filtered namespaces based on this combinedNamespaces set
+            List<Pattern> namespacePatterns = combinedNamespaces.stream().map(Pattern::compile).toList();
+            clusterLocalNamespaces = clusterLocalNamespaces.stream()
+                    .filter(name -> namespacePatterns.stream().anyMatch(pattern -> pattern.matcher(name).matches()))
+                    .toList();
+
+            List<CompletableFuture<Void>> futures = clusterLocalNamespaces.stream()
+                    .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
+                    .collect(Collectors.toList());
+            return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+                try {
+                    // write load info to load manager to make the load happens fast
+                    pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
+                }
+            });
+        });
     }
 
     @DELETE
@@ -762,6 +861,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Delete namespace isolation policy successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission or policies are read only."),
         @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
@@ -809,6 +909,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Set the failure domain of the cluster successfully."),
         @ApiResponse(code = 403, message = "Don't have admin permission."),
         @ApiResponse(code = 404, message = "Failure domain doesn't exist."),
         @ApiResponse(code = 409, message = "Broker already exists in another domain."),
@@ -944,6 +1045,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
+        @ApiResponse(code = 200, message = "Delete the failure domain of the cluster successfully"),
         @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
         @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),

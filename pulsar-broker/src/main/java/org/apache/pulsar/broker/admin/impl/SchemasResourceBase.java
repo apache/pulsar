@@ -31,12 +31,15 @@ import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -104,6 +107,13 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(boolean authoritative) {
+        String schemaId = getSchemaId();
+        BookkeeperSchemaStorage storage = (BookkeeperSchemaStorage) pulsar().getSchemaStorage();
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> storage.getSchemaMetadata(schemaId));
+    }
+
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
         return validateDestinationAndAdminOperationAsync(authoritative)
                 .thenCompose(__ -> {
@@ -146,8 +156,13 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
+                            SchemaData.builder().data(data)
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
@@ -161,10 +176,14 @@ public class SchemasResourceBase extends AdminResource {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(StandardCharsets.UTF_8))
-                                            .isDeleted(false).timestamp(clock.millis())
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties()).build());
@@ -228,7 +247,7 @@ public class SchemasResourceBase extends AdminResource {
 
 
     protected boolean shouldPrintErrorLog(Throwable ex) {
-        return !isRedirectException(ex) && !isNotFoundException(ex);
+        return isNot307And404Exception(ex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);

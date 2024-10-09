@@ -81,9 +81,32 @@ public interface LoadDataStore<T> extends Closeable {
      */
     void closeTableView() throws IOException;
 
+
+    /**
+     * Starts the data store (both producer and table view).
+     */
+    void start() throws LoadDataStoreException;
+
+    /**
+     * Inits the data store (close and start the data store).
+     */
+    void init() throws IOException;
+
     /**
      * Starts the table view.
      */
     void startTableView() throws LoadDataStoreException;
 
+
+    /**
+     * Starts the producer.
+     */
+    void startProducer() throws LoadDataStoreException;
+
+    /**
+     * Shutdowns the data store.
+     */
+    default void shutdown() throws IOException {
+        close();
+    }
 }

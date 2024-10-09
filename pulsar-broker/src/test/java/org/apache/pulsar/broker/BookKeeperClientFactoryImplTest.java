@@ -41,6 +41,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.testng.annotations.Test;
 
 /**
@@ -150,6 +151,24 @@ public class BookKeeperClientFactoryImplTest {
             CachedDNSToSwitchMapping.class.getName());
         assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
         assertEquals(20, bkConf.getMinNumRacksPerWriteQuorum());
+    }
+
+    @Test
+    public void testSetEnsemblePlacementPolicys() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBookkeeperClientMinNumRacksPerWriteQuorum(3);
+        conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
+
+        MetadataStore store = mock(MetadataStore.class);
+
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(
+                bkConf,
+                conf,
+                store,
+                ZkIsolatedBookieEnsemblePlacementPolicy.class);
+        assertEquals(bkConf.getMinNumRacksPerWriteQuorum(), 3);
+        assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
     }
 
     @Test

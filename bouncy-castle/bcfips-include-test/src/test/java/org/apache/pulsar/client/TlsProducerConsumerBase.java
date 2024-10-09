@@ -92,9 +92,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
-        if (admin != null) {
-            admin.close();
-        }
+        closeAdmin();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)

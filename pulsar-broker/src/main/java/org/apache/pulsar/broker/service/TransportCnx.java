@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 
 public interface TransportCnx {
 
@@ -57,20 +59,13 @@ public interface TransportCnx {
     void removedProducer(Producer producer);
 
     void closeProducer(Producer producer);
-
-    void cancelPublishRateLimiting();
-
-    void cancelPublishBufferLimiting();
-
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
+    void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
 
-    void closeConsumer(Consumer consumer);
+    void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     boolean isPreciseDispatcherFlowControl();
 
@@ -87,7 +82,25 @@ public interface TransportCnx {
      * by actively sending a Ping message to the client.
      *
      * @return a completable future where the result is true if the connection is alive, false otherwise. The result
-     * is null if the connection liveness check is disabled.
+     * is empty if the connection liveness check is disabled.
      */
-    CompletableFuture<Boolean> checkConnectionLiveness();
+    CompletableFuture<Optional<Boolean>> checkConnectionLiveness();
+
+    /**
+     * Increments the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
+     * connection should no longer be throttled.
+     */
+    void incrementThrottleCount();
+
+    /**
+     * Decrements the counter that controls the throttling of the connection by pausing reads.
+     * The connection will be throttled while the counter is greater than 0.
+     * <p>
+     * This method should be called when the connection should no longer be throttled. However, the caller should have
+     * previously called {@link #incrementThrottleCount()}.
+     */
+    void decrementThrottleCount();
 }

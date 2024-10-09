@@ -26,8 +26,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-functions</artifactId>
-        <version>3.1.0-SNAPSHOT</version>
-        <relativePath>..</relativePath>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-functions-local-runner</artifactId>
@@ -133,7 +132,7 @@
                                     <include>org.rocksdb:*</include>
                                     <include>org.eclipse.jetty*:*</include>
                                     <include>org.apache.avro:avro</include>
-                                    <include>com.beust:*</include>
+                                    <include>info.picocli:*</include>
                                     <include>net.jodah:*</include>
                                     <include>io.airlift:*</include>
                                     <include>com.yahoo.datasketches:*</include>
@@ -385,8 +384,8 @@
                                     <shadedPattern>org.apache.pulsar.shaded.com.yahoo.sketches</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>com.beust</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.beust</shadedPattern>
+                                    <pattern>info.picocli</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.info.picocli</shadedPattern>
                                 </relocation>
                                 <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
                                 <relocation>

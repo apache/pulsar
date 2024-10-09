@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import org.apache.pulsar.io.core.SinkContext;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
@@ -26,6 +27,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.time.Duration;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -183,7 +185,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     }
 
     private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
-        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+        try (ElasticSearchClient client = new ElasticSearchClient(config, mock(SinkContext.class));) {
             testIndexExists(client);
         }
     }

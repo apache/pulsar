@@ -44,6 +44,7 @@ import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -137,24 +138,24 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         conf.setMaxLookupRedirects(10);
 
         @Cleanup
-        LookupService lookupService = useHttp ? new HttpLookupService(conf, eventExecutors) :
+        LookupService lookupService = useHttp ? new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors) :
                 new BinaryProtoLookupService((PulsarClientImpl) this.pulsarClient,
                 lookupUrl.toString(), "internal", false, this.executorService);
+        TopicName topicName = TopicName.get("persistent://public/default/test");
+
         // test request 1
         {
-            CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future =
-                    lookupService.getBroker(TopicName.get("persistent://public/default/test"));
-            Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-            Assert.assertEquals(result.getKey(), brokerAddress);
-            Assert.assertEquals(result.getValue(), brokerAddress);
+            var result = lookupService.getBroker(topicName).get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(result.getLogicalAddress(), brokerAddress);
+            Assert.assertEquals(result.getPhysicalAddress(), brokerAddress);
+            Assert.assertEquals(result.isUseProxy(), false);
         }
         // test request 2
         {
-            CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future =
-                    lookupService.getBroker(TopicName.get("persistent://public/default/test"));
-            Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-            Assert.assertEquals(result.getKey(), brokerAddress);
-            Assert.assertEquals(result.getValue(), brokerAddress);
+            var result = lookupService.getBroker(topicName).get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(result.getLogicalAddress(), brokerAddress);
+            Assert.assertEquals(result.getPhysicalAddress(), brokerAddress);
+            Assert.assertEquals(result.isUseProxy(), false);
         }
     }
 
@@ -172,7 +173,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         conf.setMaxLookupRedirects(10);
 
         @Cleanup
-        HttpLookupService lookupService = new HttpLookupService(conf, eventExecutors);
+        HttpLookupService lookupService = new HttpLookupService(InstrumentProvider.NOOP, conf, eventExecutors);
         NamespaceService namespaceService = pulsar.getNamespaceService();
 
         LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,
@@ -187,12 +188,11 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         doReturn(CompletableFuture.completedFuture(optional), CompletableFuture.completedFuture(optional2))
                 .when(namespaceService).getBrokerServiceUrlAsync(any(), any());
 
-        CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future =
-                lookupService.getBroker(TopicName.get("persistent://public/default/test"));
-
-        Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-        Assert.assertEquals(result.getKey(), address);
-        Assert.assertEquals(result.getValue(), address);
+        var result =
+                lookupService.getBroker(TopicName.get("persistent://public/default/test")).get(10, TimeUnit.SECONDS);
+        Assert.assertEquals(result.getLogicalAddress(), address);
+        Assert.assertEquals(result.getPhysicalAddress(), address);
+        Assert.assertEquals(result.isUseProxy(), false);
     }
 
     @AfterMethod(alwaysRun = true)

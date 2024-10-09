@@ -40,7 +40,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.MessageIdUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 
 @Slf4j
@@ -150,7 +150,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         try {
             ctx.seek(desanitizeTopicName.apply(topicPartition.topic()),
                     topicPartition.partition(),
-                    MessageIdUtils.getMessageId(offset));
+                    FunctionCommon.getMessageId(offset));
         } catch (PulsarClientException e) {
             log.error("Failed to seek topic {} partition {} offset {}",
                     topicPartition.topic(), topicPartition.partition(), offset, e);

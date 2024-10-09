@@ -339,6 +339,11 @@
     </Match>
     <Match>
         <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getProperties"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
         <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
@@ -388,6 +393,11 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setProperties"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
         <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
         <Method name="getPrivateKeys"/>
         <Bug pattern="EI_EXPOSE_REP"/>
@@ -429,6 +439,11 @@
     </Match>
     <Match>
         <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="getProperties"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
         <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
@@ -445,6 +460,11 @@
     <Match>
         <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
         <Method name="setMessageCrypto"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="setProperties"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
@@ -812,9 +832,10 @@
         <Method name="kvBytes"/>
         <Bug pattern="MS_EXPOSE_REP"/>
     </Match>
+    <!--  org.apache.avro.Schema is logically immutable  -->
     <Match>
         <Class name="org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema"/>
-        <Method name="setSchema"/>
+        <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
@@ -1010,6 +1031,16 @@
     <Match>
         <Class name="org.apache.pulsar.client.impl.BatchMessageIdImpl"/>
         <Method name="getAckSet"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Method name="getStats"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"/>
+        <Method name="getStats"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
 </FindBugsFilter>

@@ -125,6 +125,9 @@ public class BrokerStatsBase extends AdminResource {
     @GET
     @Path("/bookieops")
     @ApiOperation(value = "Get pending bookie client op stats by namespace",
+            notes = "Returns a nested map structure which Swagger does not fully support for display. "
+                    + "Structure: Map<String, Map<String, PendingBookieOpsStats>>."
+                    + " Please refer to this structure for details.",
             response = PendingBookieOpsStats.class,
             // https://github.com/swagger-api/swagger-core/issues/449
             // nested containers are not supported

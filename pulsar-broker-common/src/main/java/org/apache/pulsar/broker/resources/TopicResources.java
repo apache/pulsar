@@ -50,6 +50,9 @@ public class TopicResources {
         store.registerListener(this::handleNotification);
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
@@ -72,11 +75,6 @@ public class TopicResources {
         );
     }
 
-    public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.delete(path, Optional.of(-1L));
-    }
-
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
         String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
         return store.put(path, new byte[0], Optional.of(-1L))
@@ -90,38 +88,20 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing namespace persistence for namespace: {}, path {}", ns, path);
+        return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing domain persistence for namespace: {}, path {}", ns, path);
+        return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing tenant persistence for tenant: {}, path {}", tenant, path);
+        return store.deleteRecursive(path);
     }
 
     void handleNotification(Notification notification) {

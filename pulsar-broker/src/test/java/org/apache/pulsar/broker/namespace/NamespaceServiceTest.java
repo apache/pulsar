@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -32,6 +33,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -40,16 +42,19 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -63,6 +68,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -72,12 +78,15 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
@@ -94,6 +103,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
@@ -188,6 +198,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -288,8 +299,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
 
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
-                .getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
@@ -319,7 +329,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService().getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
@@ -349,14 +359,14 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testLoadReportDeserialize() throws Exception {
 
-        final String candidateBroker1 = "http://localhost:8000";
-        final String candidateBroker2 = "http://localhost:3000";
-        LoadReport lr = new LoadReport(null, null, candidateBroker1, null);
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker2, null);
-        URI uri1 = new URI(candidateBroker1);
-        URI uri2 = new URI(candidateBroker2);
-        String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
-        String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
+        final String candidateBroker1 = "localhost:8000";
+        String broker1Url = "pulsar://localhost:6650";
+        final String candidateBroker2 = "localhost:3000";
+        String broker2Url = "pulsar://localhost:6660";
+        LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
+        String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
         pulsar.getLocalMetadataStore().put(path1,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(lr),
@@ -375,23 +385,23 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();
         LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false, null).get();
-        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
-        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
+        Assert.assertEquals(result1.getLookupData().getBrokerUrl(), broker1Url);
+        Assert.assertEquals(result2.getLookupData().getBrokerUrl(), broker2Url);
         System.out.println(result2);
     }
 
     @Test
     public void testCreateLookupResult() throws Exception {
 
-        final String candidateBroker = "pulsar://localhost:6650";
+        final String candidateBroker = "localhost:8080";
+        final String brokerUrl = "pulsar://localhost:6650";
         final String listenerUrl = "pulsar://localhost:7000";
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
-        URI uri = new URI(candidateBroker);
-        String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
+        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker, null, brokerUrl, null, advertisedListeners);
+        String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
         pulsar.getLocalMetadataStore().put(path,
                 ObjectMapperFactory.getMapper().writer().writeValueAsBytes(ld),
@@ -401,7 +411,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
 
-        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), candidateBroker);
+        Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrlTls(), listenerUrlTls);
         System.out.println(withListener);
@@ -649,7 +659,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceBundle targetNamespaceBundle =  bundles.findBundle(TopicName.get(topic + "0"));
         String bundle = targetNamespaceBundle.getBundleRange();
-        String path = ModularLoadManagerImpl.getBundleDataPath(namespace + "/" + bundle);
+        String path = BUNDLE_DATA_BASE_PATH + "/" + namespace + "/" + bundle;
         NamespaceBundleStats defaultStats = new NamespaceBundleStats();
         defaultStats.msgThroughputIn = 100000;
         defaultStats.msgThroughputOut = 100000;
@@ -683,7 +693,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceMatch() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
@@ -691,7 +701,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @Test
     public void testModularLoadManagerRemoveInactiveBundleFromLoadData() throws Exception {
-        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "pulsar/test/ns1";
         final String topic1 = "persistent://" + namespace + "/topic1";
         final String topic2 = "persistent://" + namespace + "/topic2";
@@ -704,7 +713,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
         doReturn(true).when(loadManager).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getBrokerId(), null);
         Optional<ResourceUnit> res = Optional.of(resourceUnit);
         doReturn(res).when(loadManager).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
@@ -742,13 +751,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         Awaitility.await().untilAsserted(() -> {
             assertNull(loadData.getBundleData().get(oldBundle.toString()));
-            assertFalse(bundlesCache.exists(BUNDLE_DATA_PATH + "/" + oldBundle.toString()).get());
+            assertFalse(bundlesCache.exists(BUNDLE_DATA_BASE_PATH + "/" + oldBundle.toString()).get());
         });
     }
 
     @Test
     public void testModularLoadManagerRemoveBundleAndLoad() throws Exception {
-        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "prop/ns-abc";
         final String bundleName = namespace + "/0x00000000_0xffffffff";
         final String topic1 = "persistent://" + namespace + "/topic1";
@@ -783,7 +791,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         pulsar.getBrokerService().updateRates();
 
         waitResourceDataUpdateToZK(loadManager);
-        String path = BUNDLE_DATA_PATH + "/" + bundleName;
+        String path = BUNDLE_DATA_BASE_PATH + "/" + bundleName;
 
         Optional<GetResult> getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertTrue(getResult.isPresent());
@@ -798,6 +806,152 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
+    }
+
+    @DataProvider(name = "topicDomain")
+    public Object[] topicDomain() {
+        return new Object[]{
+                TopicDomain.persistent.value(),
+                TopicDomain.non_persistent.value()
+        };
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testCheckTopicExists(String topicDomain) throws Exception {
+        String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get().isExists());
+        });
+
+        String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(partitionedTopic, 5);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get().isExists());
+            assertTrue(pulsar.getNamespaceService()
+                    .checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get().isExists());
+        });
+    }
+
+    @Test
+    public void testAllowedClustersAtNamespaceLevelShouldBeIncludedInAllowedClustersAtTenantLevel() throws Exception {
+        // 1. Setup
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        Set<String> tenantAllowedClusters = Set.of("test", "r1", "r2");
+        Set<String> allowedClusters1 = Set.of("test", "r1", "r2", "r3");
+        Set<String> allowedClusters2 = Set.of("test", "r1", "r2");
+        Set<String> clusters = Set.of("r1", "r2", "r3", "r4");
+        final String tenant = "my-tenant";
+        final String namespace = tenant + "/testAllowedCluster";
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespace);
+        pulsar.getPulsarResources().getTenantResources().updateTenantAsync(tenant, tenantInfo ->
+                TenantInfo.builder().allowedClusters(tenantAllowedClusters).build());
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+        }
+        // 2. Verify
+        admin.namespaces().setNamespaceAllowedClusters(namespace, allowedClusters2);
+
+        try {
+            admin.namespaces().setNamespaceAllowedClusters(namespace, allowedClusters1);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 403);
+            assertEquals(e.getMessage(),
+                    "Cluster [r3] is not in the list of allowed clusters list for tenant [my-tenant]");
+        }
+        // 3. Clean up
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.tenants().deleteTenant(tenant, true);
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().deleteCluster(cluster);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+    }
+
+    /**
+     * Test case:
+     *      1. Replication clusters should be included in the allowed clusters. For compatibility, the replication
+     *      clusters could be set before the allowed clusters are set.
+     *      2. Peer cluster can not be a part of the allowed clusters.
+     */
+    @Test
+    public void testNewAllowedClusterAdminAPIAndItsImpactOnReplicationClusterAPI() throws Exception {
+        // 1. Setup
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        // Setup: Prepare cluster resource, tenant and namespace
+        Set<String> replicationClusters = Set.of("test", "r1", "r2");
+        Set<String> tenantAllowedClusters = Set.of("test", "r1", "r2", "r3");
+        Set<String> allowedClusters = Set.of("test", "r1", "r2", "r3");
+        Set<String> clusters = Set.of("r1", "r2", "r3", "r4");
+        final String tenant = "my-tenant";
+        final String namespace = tenant + "/testAllowedCluster";
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespace);
+        pulsar.getPulsarResources().getTenantResources().updateTenantAsync(tenant, tenantInfo ->
+                TenantInfo.builder().allowedClusters(tenantAllowedClusters).build());
+
+        Namespaces namespaces = admin.namespaces();
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().createCluster(cluster, ClusterData.builder().build());
+        }
+        // 2. Verify
+        // 2.1 Replication clusters should be included in the allowed clusters.
+
+        // SUCCESS
+        // 2.1.1. Set replication clusters without allowed clusters at namespace level.
+        namespaces.setNamespaceReplicationClusters(namespace, replicationClusters);
+        // 2..1.2 Set allowed clusters.
+        namespaces.setNamespaceAllowedClusters(namespace, allowedClusters);
+        // 2.1.3. Get allowed clusters and replication clusters.
+        List<String> allowedClustersResponse = namespaces.getNamespaceAllowedClusters(namespace);
+
+        List<String> replicationClustersResponse = namespaces.getNamespaceReplicationClusters(namespace);
+
+        assertEquals(replicationClustersResponse.size(), replicationClusters.size());
+        assertEquals(allowedClustersResponse.size(), allowedClusters.size());
+
+        // FAIL
+        // 2.1.4. Fail: Set allowed clusters whose scope is smaller than replication clusters.
+        Set<String> allowedClustersSmallScope = Set.of("r1", "r3");
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, allowedClustersSmallScope);
+            fail();
+        } catch (PulsarAdminException ignore) {}
+        // 2.1.5. Fail: Set replication clusters whose scope is excel the allowed clusters.
+        Set<String> replicationClustersExcel = Set.of("r1", "r4");
+        try {
+            namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel);
+            fail();
+            //Todo: The status code in the old implementation is confused.
+        } catch (PulsarAdminException.NotAuthorizedException ignore) {}
+
+        // 2.2 Peer cluster can not be a part of the allowed clusters.
+        LinkedHashSet<String> peerCluster = new LinkedHashSet<>();
+        peerCluster.add("r2");
+        pulsar.getPulsarResources().getClusterResources().deleteCluster("r1");
+        pulsar.getPulsarResources().getClusterResources().createCluster("r1",
+                ClusterData.builder().peerClusterNames(peerCluster).build());
+        try {
+            namespaces.setNamespaceAllowedClusters(namespace, Set.of("test", "r1", "r2", "r3"));
+            fail();
+        } catch (PulsarAdminException.ConflictException ignore) {}
+
+        // CleanUp: Namespace with replication clusters can not be deleted by force.
+        namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()));
+        admin.namespaces().deleteNamespace(namespace, true);
+        admin.tenants().deleteTenant(tenant, true);
+        for (String cluster : clusters) {
+            pulsar.getPulsarResources().getClusterResources().deleteCluster(cluster);
+        }
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
     }
 
     /**
@@ -834,10 +988,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     public CompletableFuture<Void> registryBrokerDataChangeNotice() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
-                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
-                : conf.getWebServicePortTls().get());
-        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getBrokerId();
         pulsar.getLocalMetadataStore().registerListener(notice -> {
             if (brokerDataPath.equals(notice.getPath())){
                 if (!completableFuture.isDone()) {

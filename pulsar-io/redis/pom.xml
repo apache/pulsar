@@ -25,13 +25,18 @@
     <parent>
         <artifactId>pulsar-io</artifactId>
         <groupId>org.apache.pulsar</groupId>
-        <version>3.1.0-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-io-redis</artifactId>
     <name>Pulsar IO :: Redis</name>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-io-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-io-core</artifactId>

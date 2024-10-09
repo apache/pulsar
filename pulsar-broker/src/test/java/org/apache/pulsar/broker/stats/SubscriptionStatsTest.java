@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.Mockito.mock;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
@@ -29,19 +31,17 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -79,48 +79,6 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @Test
-    public void testConsumersAfterMarkDelete() throws PulsarClientException, PulsarAdminException {
-        final String topicName = "persistent://my-property/my-ns/testConsumersAfterMarkDelete-"
-                + UUID.randomUUID().toString();
-        final String subName = "my-sub";
-
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topicName)
-                .receiverQueueSize(10)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscribe();
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-
-        final int messages = 100;
-        for (int i = 0; i < messages; i++) {
-            producer.send(String.valueOf(i).getBytes());
-        }
-
-        // Receive by do not ack the message, so that the next consumer can added to the recentJoinedConsumer of the dispatcher.
-        consumer1.receive();
-
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                .topic(topicName)
-                .receiverQueueSize(10)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscribe();
-
-        TopicStats stats = admin.topics().getStats(topicName);
-        Assert.assertEquals(stats.getSubscriptions().size(), 1);
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue()
-                .getConsumersAfterMarkDeletePosition().size(), 1);
-
-        consumer1.close();
-        consumer2.close();
-        producer.close();
     }
 
     @Test
@@ -206,7 +164,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             field.set(dispatcher, List.of(loader1));
             hasFilterField.set(dispatcher, true);
         }
@@ -231,17 +189,17 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, enableTopicStats, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, enableTopicStats, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> throughFilterMetrics =
+        Collection<Metric> throughFilterMetrics =
                 metrics.get("pulsar_subscription_filter_processed_msg_count");
-        Collection<PrometheusMetricsTest.Metric> acceptedMetrics =
+        Collection<Metric> acceptedMetrics =
                 metrics.get("pulsar_subscription_filter_accepted_msg_count");
-        Collection<PrometheusMetricsTest.Metric> rejectedMetrics =
+        Collection<Metric> rejectedMetrics =
                 metrics.get("pulsar_subscription_filter_rejected_msg_count");
-        Collection<PrometheusMetricsTest.Metric> rescheduledMetrics =
+        Collection<Metric> rescheduledMetrics =
                 metrics.get("pulsar_subscription_filter_rescheduled_msg_count");
 
         if (enableTopicStats) {

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import static org.apache.pulsar.client.impl.schema.generic.MultiVersionGenericProtobufNativeReader.parseProtobufSchema;
 import com.google.protobuf.Descriptors;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
@@ -66,6 +67,11 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
 
     public Descriptors.Descriptor getProtobufNativeSchema() {
         return descriptor;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(descriptor);
     }
 
     @Override

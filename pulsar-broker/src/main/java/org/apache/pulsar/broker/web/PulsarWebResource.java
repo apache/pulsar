@@ -56,12 +56,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LoadBalanceResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
@@ -92,6 +95,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -309,7 +313,7 @@ public abstract class PulsarWebResource {
         }
         return pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenCompose(tenantInfoOptional -> {
-                    if (!tenantInfoOptional.isPresent()) {
+                    if (tenantInfoOptional.isEmpty()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
                     TenantInfo tenantInfo = tenantInfoOptional.get();
@@ -380,9 +384,11 @@ public abstract class PulsarWebResource {
     /**
      * It validates that peer-clusters can't coexist in replication-clusters.
      *
-     * @clusterName: given cluster whose peer-clusters can't be present into replication-cluster list
-     * @replicationClusters: replication-cluster list
+     * @param clusterName given cluster whose peer-clusters can't be present into replication-cluster list
+     * @param replicationClusters replication-cluster list
+     * @deprecated use {@link #validatePeerClusterConflictAsync(String, Set)} instead
      */
+    @Deprecated
     protected void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
             ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
@@ -453,7 +459,7 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateClusterForTenantAsync(String tenant, String cluster) {
         return pulsar().getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenAccept(tenantInfo -> {
-                    if (!tenantInfo.isPresent()) {
+                    if (tenantInfo.isEmpty()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
                     if (!tenantInfo.get().getAllowedClusters().contains(cluster)) {
@@ -488,7 +494,7 @@ public abstract class PulsarWebResource {
      * Check if the cluster exists and redirect the call to the owning cluster.
      *
      * @param cluster Cluster name
-     * @throws Exception In case the redirect happens
+     * @throws WebApplicationException In case the redirect happens
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         sync(()-> validateClusterOwnershipAsync(cluster));
@@ -528,6 +534,7 @@ public abstract class PulsarWebResource {
         pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                 .whenComplete((clusterDataResult, ex) -> {
                     if (ex != null) {
+                        log.warn("[{}] Load cluster data failed: requested={}", clientAppId, cluster);
                         clusterDataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                         return;
                     }
@@ -550,11 +557,8 @@ public abstract class PulsarWebResource {
             return true;
         }
 
-        if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
-            // Without authorization, any cluster name should be valid and accepted by the broker
-            return true;
-        }
-        return false;
+        // Without authorization, any cluster name should be valid and accepted by the broker
+        return !pulsarService.getConfiguration().isAuthorizationEnabled();
     }
 
     protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
@@ -606,12 +610,17 @@ public abstract class PulsarWebResource {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
 
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return nsService.checkOwnershipPresentAsync(nsBundle);
+        }
+
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
+
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
     }
 
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
@@ -664,7 +673,7 @@ public abstract class PulsarWebResource {
                     .loadTopicsInBundle(false).build();
             Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
             // Ensure we get a url
-            if (webUrl == null || !webUrl.isPresent()) {
+            if (webUrl.isEmpty()) {
                 log.warn("Unable to get web service url");
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Failed to find ownership for ServiceUnit:" + bundle.toString());
@@ -697,8 +706,6 @@ public abstract class PulsarWebResource {
         } catch (NullPointerException e) {
             log.warn("Unable to get web service url");
             throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + bundle);
-        } catch (WebApplicationException wae) {
-            throw wae;
         }
     }
 
@@ -712,24 +719,24 @@ public abstract class PulsarWebResource {
                 .loadTopicsInBundle(false).build();
         return nsService.getWebServiceUrlAsync(bundle, options)
                 .thenCompose(webUrl -> {
-                    if (webUrl == null || !webUrl.isPresent()) {
+                    if (webUrl.isEmpty()) {
                         log.warn("Unable to get web service url");
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
-                    }
-                    // If the load manager is extensible load manager, we don't need check the authoritative.
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-                        return CompletableFuture.completedFuture(null);
                     }
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
                                     // Replace the host and port of the current request and redirect
-                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).replaceQueryParam("destinationBroker",
-                                                    null).build();
+                                    UriBuilder uriBuilder = UriBuilder.fromUri(uri.getRequestUri())
+                                            .host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort())
+                                            .replaceQueryParam("authoritative", newAuthoritative);
+                                    if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+                                        uriBuilder.replaceQueryParam("destinationBroker", null);
+                                    }
+                                    URI redirect = uriBuilder.build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
@@ -762,15 +769,13 @@ public abstract class PulsarWebResource {
                 .build();
 
         return nsService.getWebServiceUrlAsync(topicName, options)
-                .thenApply(webUrl -> {
-                    // Ensure we get a url
-                    if (webUrl == null || !webUrl.isPresent()) {
-                        log.info("Unable to get web service url");
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Failed to find ownership for topic:" + topicName);
-                    }
-                    return webUrl.get();
-                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                .thenApply(webUrl ->
+                        webUrl.orElseThrow(() -> {
+                            log.info("Unable to get web service url");
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for topic:" + topicName);
+                        })
+                ).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
                         .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
                 ).thenAccept(pair -> {
                     URL webUrl = pair.getLeft();
@@ -896,14 +901,16 @@ public abstract class PulsarWebResource {
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                             "Namespace is deleted"));
-                } else if (policies.replication_clusters.isEmpty()) {
+                } else if (policies.replication_clusters.isEmpty() && policies.allowed_clusters.isEmpty()) {
                     String msg = String.format(
                             "Namespace does not have any clusters configured : local_cluster=%s ns=%s",
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (!policies.replication_clusters.contains(localCluster)) {
-                    getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters)
+                } else if (!policies.replication_clusters.contains(localCluster) && !policies.allowed_clusters
+                        .contains(localCluster)) {
+                    getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters,
+                            policies.allowed_clusters)
                             .thenAccept(ownerPeerCluster -> {
                                 if (ownerPeerCluster != null) {
                                     // found a peer that own this namespace
@@ -943,9 +950,9 @@ public abstract class PulsarWebResource {
     }
 
     private static CompletableFuture<ClusterDataImpl> getOwnerFromPeerClusterListAsync(PulsarService pulsar,
-            Set<String> replicationClusters) {
+            Set<String> replicationClusters, Set<String> allowedClusters) {
         String currentCluster = pulsar.getConfiguration().getClusterName();
-        if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
+        if (replicationClusters.isEmpty() && allowedClusters.isEmpty() || isBlank(currentCluster)) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -955,7 +962,8 @@ public abstract class PulsarWebResource {
                         return CompletableFuture.completedFuture(null);
                     }
                     for (String peerCluster : cluster.get().getPeerClusterNames()) {
-                        if (replicationClusters.contains(peerCluster)) {
+                        if (replicationClusters.contains(peerCluster)
+                                || allowedClusters.contains(peerCluster)) {
                             return pulsar.getPulsarResources().getClusterResources().getClusterAsync(peerCluster)
                                     .thenApply(ret -> {
                                         if (!ret.isPresent()) {
@@ -1001,7 +1009,7 @@ public abstract class PulsarWebResource {
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
         // For extensible load manager, it doesn't have leader election service on pulsar broker.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return true;
         }
         return  pulsar.getLeaderElectionService().isLeader();
@@ -1116,6 +1124,10 @@ public abstract class PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources();
     }
 
+    protected LoadBalanceResources loadBalanceResources() {
+        return pulsar().getPulsarResources().getLoadBalanceResources();
+    }
+
     protected ResourceGroupResources resourceGroupResources() {
         return pulsar().getPulsarResources().getResourcegroupResources();
     }
@@ -1198,24 +1210,43 @@ public abstract class PulsarWebResource {
     /**
      * Redirect the call to the specified broker.
      *
-     * @param broker
-     *            Broker name
+     * @param brokerId broker's id (lookup service address)
      */
-    protected void validateBrokerName(String broker) {
-        String brokerUrl = String.format("http://%s", broker);
-        String brokerUrlTls = String.format("https://%s", broker);
-        if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
-                && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
-            String[] parts = broker.split(":");
-            checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
-            String host = parts[0];
-            int port = Integer.parseInt(parts[1]);
-
-            URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
-            log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-
+    protected CompletableFuture<Void> maybeRedirectToBroker(String brokerId) {
+        // backwards compatibility
+        String cleanedBrokerId = brokerId.replaceFirst("http[s]?://", "");
+        if (pulsar.getBrokerId().equals(cleanedBrokerId)
+                // backwards compatibility
+                || ("http://" + cleanedBrokerId).equals(pulsar().getWebServiceAddress())
+                || ("https://" + cleanedBrokerId).equals(pulsar().getWebServiceAddressTls())) {
+            // no need to redirect, the current broker matches the given broker id
+            return CompletableFuture.completedFuture(null);
         }
+        LockManager<BrokerLookupData> brokerLookupDataLockManager =
+                pulsar().getCoordinationService().getLockManager(BrokerLookupData.class);
+        return brokerLookupDataLockManager.readLock(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + cleanedBrokerId)
+                .thenAccept(brokerLookupDataOptional -> {
+                    if (brokerLookupDataOptional.isEmpty()) {
+                        throw new RestException(Status.NOT_FOUND,
+                                "Broker id '" + brokerId + "' not found in available brokers.");
+                    }
+                    brokerLookupDataOptional.ifPresent(brokerLookupData -> {
+                        URI targetBrokerUri;
+                        if ((isRequestHttps() || StringUtils.isBlank(brokerLookupData.getWebServiceUrl()))
+                                && StringUtils.isNotBlank(brokerLookupData.getWebServiceUrlTls())) {
+                            targetBrokerUri = URI.create(brokerLookupData.getWebServiceUrlTls());
+                        } else {
+                            targetBrokerUri = URI.create(brokerLookupData.getWebServiceUrl());
+                        }
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                .scheme(targetBrokerUri.getScheme())
+                                .host(targetBrokerUri.getHost())
+                                .port(targetBrokerUri.getPort()).build();
+                        log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect,
+                                cleanedBrokerId);
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    });
+                });
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {

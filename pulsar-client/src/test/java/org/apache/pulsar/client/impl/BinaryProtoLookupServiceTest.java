@@ -27,19 +27,16 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.buffer.ByteBuf;
-
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -69,9 +66,12 @@ public class BinaryProtoLookupServiceTest {
         doReturn(0).when(clientConfig).getMaxLookupRedirects();
 
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        doReturn(InstrumentProvider.NOOP).when(client).instrumentProvider();
         doReturn(cnxPool).when(client).getCnxPool();
         doReturn(clientConfig).when(client).getConfiguration();
         doReturn(1L).when(client).newRequestId();
+        ClientConfigurationData data = new ClientConfigurationData();
+        doReturn(data).when(client).getConfiguration();
 
         lookup = spy(
                 new BinaryProtoLookupService(client, "pulsar://localhost:6650", false, mock(ExecutorService.class)));
@@ -80,11 +80,12 @@ public class BinaryProtoLookupServiceTest {
 
     @Test(invocationTimeOut = 3000)
     public void maxLookupRedirectsTest1() throws Exception {
-        Pair<InetSocketAddress, InetSocketAddress> addressPair = lookup.getBroker(topicName).get();
-        assertEquals(addressPair.getLeft(), InetSocketAddress
+        LookupTopicResult lookupResult = lookup.getBroker(topicName).get();
+        assertEquals(lookupResult.getLogicalAddress(), InetSocketAddress
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
-        assertEquals(addressPair.getRight(), InetSocketAddress
+        assertEquals(lookupResult.getPhysicalAddress(), InetSocketAddress
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
+        assertEquals(lookupResult.isUseProxy(), false);
     }
 
     @Test(invocationTimeOut = 3000)
@@ -93,11 +94,12 @@ public class BinaryProtoLookupServiceTest {
         field.setAccessible(true);
         field.set(lookup, 2);
 
-        Pair<InetSocketAddress, InetSocketAddress> addressPair = lookup.getBroker(topicName).get();
-        assertEquals(addressPair.getLeft(), InetSocketAddress
+        LookupTopicResult lookupResult = lookup.getBroker(topicName).get();
+        assertEquals(lookupResult.getLogicalAddress(), InetSocketAddress
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
-        assertEquals(addressPair.getRight(), InetSocketAddress
+        assertEquals(lookupResult.getPhysicalAddress(), InetSocketAddress
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
+        assertEquals(lookupResult.isUseProxy(), false);
     }
 
     @Test(invocationTimeOut = 3000)

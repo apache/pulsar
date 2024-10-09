@@ -28,12 +28,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import io.netty.util.concurrent.Promise;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -64,7 +72,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testSingleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("test-pulsar-client-scheduled"));
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
+                        scheduledExecutorService);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -81,10 +94,44 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSelectConnectionForSameProducer() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://sample/standalone/ns/tp_");
+        admin.topics().createNonPartitionedTopic(topicName);
+        final CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
+        // 10 connection per broker.
+        final PulsarClient clientWith10ConPerBroker = PulsarClient.builder().connectionsPerBroker(10)
+                        .serviceUrl(lookupUrl.toString()).build();
+        ProducerImpl producer = (ProducerImpl) clientWith10ConPerBroker.newProducer().topic(topicName).create();
+        commandCloseProducer.setProducerId(producer.producerId);
+        // An error will be reported when the Producer reconnects using a different connection.
+        // If no error is reported, the same connection was used when reconnecting.
+        for (int i = 0; i < 20; i++) {
+            // Trigger reconnect
+            ClientCnx cnx = producer.getClientCnx();
+            if (cnx != null) {
+                cnx.handleCloseProducer(commandCloseProducer);
+                Awaitility.await().untilAsserted(() ->
+                        Assert.assertEquals(producer.getState().toString(), HandlerState.State.Ready.toString(),
+                                "The producer uses a different connection when reconnecting")
+                );
+            }
+        }
+
+        // cleanup.
+        producer.close();
+        clientWith10ConPerBroker.close();
+        admin.topics().delete(topicName);
+    }
+
+    @Test
     public void testDoubleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("test-pulsar-client-scheduled"));
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf,
+                eventLoop, scheduledExecutorService);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -109,7 +156,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(0);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("test-pulsar-client-scheduled"));
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
+                        scheduledExecutorService);
 
         InetSocketAddress brokerAddress =
                 InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
@@ -132,7 +184,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(5);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("test-pulsar-client-scheduled"));
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
+                        scheduledExecutorService);
 
         InetSocketAddress brokerAddress =
                 InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
@@ -155,8 +212,9 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testSetProxyToTargetBrokerAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(1);
-
-
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("test-pulsar-client-scheduled"));
         EventLoopGroup eventLoop =
                 EventLoopUtil.newEventLoopGroup(8, false,
                         new DefaultThreadFactory("test"));
@@ -199,26 +257,31 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
             }
         };
 
-        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop,
-                (Supplier<ClientCnx>) () -> new ClientCnx(conf, eventLoop), Optional.of(resolver));
+        ConnectionPool pool =
+                spyWithClassAndConstructorArgs(ConnectionPool.class, InstrumentProvider.NOOP, conf, eventLoop,
+                        (Supplier<ClientCnx>) () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop),
+                        Optional.of(resolver), scheduledExecutorService);
 
 
         ClientCnx cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("proxy", 9999),
-                InetSocketAddress.createUnresolved("proxy", 9999)).get();
+                InetSocketAddress.createUnresolved("proxy", 9999),
+                pool.genRandomKeyToSelectCon()).get();
         Assert.assertEquals(cnx.remoteHostName, "proxy");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
 
         cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("broker1", 9999),
-                InetSocketAddress.createUnresolved("proxy", 9999)).get();
+                InetSocketAddress.createUnresolved("proxy", 9999),
+                pool.genRandomKeyToSelectCon()).get();
         Assert.assertEquals(cnx.remoteHostName, "proxy");
         Assert.assertEquals(cnx.proxyToTargetBrokerAddress, "broker1:9999");
 
 
         cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("broker2", 9999),
-                InetSocketAddress.createUnresolved("broker2", 9999)).get();
+                InetSocketAddress.createUnresolved("broker2", 9999),
+                pool.genRandomKeyToSelectCon()).get();
         Assert.assertEquals(cnx.remoteHostName, "broker2");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
 

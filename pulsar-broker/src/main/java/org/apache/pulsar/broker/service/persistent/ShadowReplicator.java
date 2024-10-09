@@ -67,24 +67,12 @@ public class ShadowReplicator extends PersistentReplicator {
                 ByteBuf headersAndPayload = entry.getDataBuffer();
                 MessageImpl msg;
                 try {
-                    msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
+                    msg = MessageImpl.deserializeMetadataWithEmptyPayload(headersAndPayload);
                 } catch (Throwable t) {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
-                    continue;
-                }
-
-                if (msg.isExpired(messageTTLInSeconds)) {
-                    msgExpired.recordEvent(0 /* no value stat */);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
-                                replicatorId, entry.getPosition(), msg.getReplicateTo());
-                    }
-                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    entry.release();
-                    msg.recycle();
                     continue;
                 }
 
@@ -101,9 +89,11 @@ public class ShadowReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
 
-                msgOut.recordEvent(headersAndPayload.readableBytes());
+                msgOut.recordEvent(msg.getDataBuffer().readableBytes());
+                stats.incrementMsgOutCounter();
+                stats.incrementBytesOutCounter(msg.getDataBuffer().readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
 

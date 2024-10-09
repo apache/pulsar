@@ -28,10 +28,11 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
 public class ExtensibleLoadManagerWrapper implements LoadManager {
@@ -49,6 +50,10 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
         loadManager.start();
     }
 
+    public boolean started() {
+        return loadManager.running() && loadManager.getServiceUnitStateChannel().started();
+    }
+
     @Override
     public void initialize(PulsarService pulsar) {
         loadManager.initialize(pulsar);
@@ -62,9 +67,15 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        return loadManager.assign(topic, bundle)
-                .thenApply(lookupData -> lookupData.map(BrokerLookupData::toLookupResult));
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
+        return loadManager.assign(topic, bundle, options)
+                .thenApply(lookupData -> lookupData.map(data -> {
+                    try {
+                        return data.toLookupResult(options);
+                    } catch (PulsarServerException ex) {
+                        throw FutureUtil.wrapToCompletionException(ex);
+                    }
+                }));
     }
 
     @Override
@@ -118,13 +129,11 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     @Override
     public void writeLoadReportOnZookeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
-        throw new UnsupportedOperationException();
     }
 
     @Override
     public void writeResourceQuotasToZooKeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
-        throw new UnsupportedOperationException();
     }
 
     @Override

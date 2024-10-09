@@ -28,6 +28,8 @@ body:
         For suggestions or help, please consider:
         1. [User Mail List](mailto:users@pulsar.apache.org) ([subscribe](mailto:users-subscribe@pulsar.apache.org));
         2. [Github Discussion](https://github.com/apache/pulsar/discussions).
+
+        If you are reporting a security vulnerability, please instead follow the [security policy](https://pulsar.apache.org/en/security/).
   - type: checkboxes
     attributes:
       label: Search before asking
@@ -37,11 +39,20 @@ body:
         - label: >
             I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
+  - type: checkboxes
+    attributes:
+      label: Read release policy
+      description: >
+        Please check the [supported Pulsar versions in the release policy](https://pulsar.apache.org/contribute/release-policy/#supported-versions). 
+      options:
+        - label: >
+            I understand that unsupported versions don't get bug fixes. I will attempt to reproduce the issue on a supported version of Pulsar client and Pulsar broker.
+          required: true
   - type: textarea
     attributes:
       label: Version
       description: >
-        Please provide the OS and Pulsar version you are using. If you are using the master branch, please provide the commit id.
+        Please provide the OS, Java version and Pulsar versions (client + broker) you are using.
     validations:
       required: true
   - type: textarea
