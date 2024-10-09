@@ -52,14 +52,30 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsumerBase {
+    private final boolean useClassicImplementation;
+
+    @Factory
+    public static Object[] createInstances() {
+        return new Object[] {
+                new KeySharedSubscriptionMaxUnackedMessagesTest(true),
+                new KeySharedSubscriptionMaxUnackedMessagesTest(false)
+        };
+    }
+
+    public KeySharedSubscriptionMaxUnackedMessagesTest(boolean useClassicImplementation) {
+        this.useClassicImplementation = useClassicImplementation;
+    }
 
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(useClassicImplementation);
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(useClassicImplementation);
         conf.setMaxUnackedMessagesPerConsumer(10);
         super.internalSetup();
         super.producerBaseSetup();
@@ -69,6 +85,10 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    enum ImplementationType {
+        PIP379, Classic
     }
 
     enum KeySharedSelectorType {
@@ -82,16 +102,19 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
 
     @DataProvider
     public Object[][] subType() {
+        ImplementationType implementationType =
+                useClassicImplementation ? ImplementationType.Classic : ImplementationType.PIP379;
         return new Object[][] {
-                { SubscriptionType.Shared, null },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
+                { implementationType, SubscriptionType.Shared, null },
+                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
+                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
+                { implementationType, SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
         };
     }
 
     @Test(dataProvider = "subType", timeOut = 30000)
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType,
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(ImplementationType implementationType,
+                                                                               SubscriptionType subscriptionType,
                                                                                KeySharedSelectorType selectorType)
             throws PulsarClientException {
         if (selectorType == KeySharedSelectorType.AutoSplit_Classic) {
