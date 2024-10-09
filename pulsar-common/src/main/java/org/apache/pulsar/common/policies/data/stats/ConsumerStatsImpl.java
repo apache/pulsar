@@ -118,7 +118,17 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public long lastConsumedFlowTimestamp;
 
-    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    /**
+     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
+     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `false`
+     * (default).
+     */
+    public List<int[]> keyHashRangeArrays;
+
+    /**
+     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
+     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `true`.
+     */
     public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
@@ -140,6 +150,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
         this.drainingHashesUnackedMessages = stats.drainingHashesUnackedMessages;
         this.drainingHashesUnackedMessagesByHash = stats.drainingHashesUnackedMessagesByHash;
+        this.keyHashRanges = stats.keyHashRanges;
+        this.keyHashRangeArrays = stats.keyHashRangeArrays;
         return this;
     }
 

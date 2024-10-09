@@ -120,7 +120,18 @@ public interface ConsumerStats {
     long getLastConsumedTimestamp();
     long getLastConsumedFlowTimestamp();
 
-    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
+    /**
+     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
+     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `false`
+     * (default).
+     */
+    List<int[]> getKeyHashRangeArrays();
+
+    /**
+     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
+     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `true`.
+     */
+    @Deprecated
     List<String> getKeyHashRanges();
 
     /** Metadata (key/value strings) associated with this consumer. */
