@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
+import org.apache.pulsar.common.policies.data.ExtBookieInfo;
 
 /**
  * Admin interface for bookies rack placement management.
@@ -69,6 +71,26 @@ public interface Bookies {
     CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress);
 
     /**
+     * Remove rack placement information for a batch of bookies in the cluster.
+     */
+    void batchDeleteBookiesRackInfo(List<String> bookieAddresses) throws PulsarAdminException;
+
+    /**
+     * Remove rack placement information for a batch of bookies in the cluster asynchronously.
+     */
+    CompletableFuture<Void> batchDeleteBookiesRackInfoAsync(List<String> bookieAddresses);
+
+    /**
+     * Clears the rack placement information for all bookies int the cluster.
+     */
+    void clearAllBookiesRackInfo() throws PulsarAdminException;
+
+    /**
+     * Clears the rack placement information for all bookies int the cluster asynchronously.
+     */
+    CompletableFuture<Void> clearAllBookiesRackInfoAsync();
+
+    /**
      * Updates the rack placement information for a specific bookie in the cluster.
      */
     void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo) throws PulsarAdminException;
@@ -77,4 +99,14 @@ public interface Bookies {
      * Updates the rack placement information for a specific bookie in the cluster asynchronously.
      */
     CompletableFuture<Void> updateBookieRackInfoAsync(String bookieAddress, String group, BookieInfo bookieInfo);
+
+    /**
+     * Updates the rack placement information for a batch of bookies in the cluster.
+     */
+    void batchUpdateBookiesRackInfo(List<ExtBookieInfo> extBookieInfos) throws PulsarAdminException;
+
+    /**
+     * Updates the rack placement information for a batch of bookies in the cluster asynchronously.
+     */
+    CompletableFuture<Void> batchUpdateBookiesRackInfoAsync(List<ExtBookieInfo> extBookieInfos);
 }

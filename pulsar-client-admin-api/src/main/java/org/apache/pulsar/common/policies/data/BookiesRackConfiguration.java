@@ -61,4 +61,13 @@ public class BookiesRackConfiguration extends TreeMap<String, Map<String, Bookie
         removeBookie(address);
         computeIfAbsent(group, key -> new TreeMap<>()).put(address, bookieInfo);
     }
+
+    public synchronized boolean bookieExists(String address) {
+        for (Map.Entry<String, Map<String, BookieInfo>> entry : entrySet()) {
+            if (entry.getValue().containsKey(address)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
