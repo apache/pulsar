@@ -62,4 +62,6 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
     public abstract long getDelayedTrackerMemoryUsage();
 
     public abstract Map<String, TopicMetricBean> getBucketDelayedIndexStats();
+
+    public abstract boolean isClassic();
 }

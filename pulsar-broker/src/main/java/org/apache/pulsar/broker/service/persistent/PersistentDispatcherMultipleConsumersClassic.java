@@ -1337,6 +1337,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return Collections.emptyMap();
     }
 
+    @Override
+    public boolean isClassic() {
+        return true;
+    }
+
     public ManagedCursor getCursor() {
         return cursor;
     }

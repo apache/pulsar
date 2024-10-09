@@ -43,4 +43,6 @@ public interface StickyKeyDispatcher extends Dispatcher {
     default LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
         return null;
     }
+
+    boolean isClassic();
 }
