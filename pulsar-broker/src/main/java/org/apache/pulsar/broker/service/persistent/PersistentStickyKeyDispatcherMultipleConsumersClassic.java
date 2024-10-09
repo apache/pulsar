@@ -56,7 +56,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -246,18 +245,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         groupedEntries.clear();
         final Map<Consumer, Set<Integer>> consumerStickyKeyHashesMap = new HashMap<>();
 
-        for (int i = 0; i < entriesCount; i++) {
-            Entry inputEntry = entries.get(i);
-            EntryAndMetadata entry;
-            if (inputEntry instanceof EntryAndMetadata entryAndMetadataInstance) {
-                entry = entryAndMetadataInstance;
-            } else {
-                // replace the input entry with EntryAndMetadata instance. In addition to the entry and metadata,
-                // it will also carry the pre-calculated sticky key hash
-                entry = EntryAndMetadata.create(inputEntry,
-                        Commands.peekAndCopyMessageMetadata(inputEntry.getDataBuffer(), getSubscriptionName(), -1));
-                entries.set(i, entry);
-            }
+        for (Entry entry : entries) {
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer c = selector.select(stickyKeyHash);
             if (c != null) {
