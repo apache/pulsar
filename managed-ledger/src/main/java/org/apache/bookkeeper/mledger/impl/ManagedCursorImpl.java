@@ -549,10 +549,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isInfoEnabled()) {
                 log.info("[{}] Opened ledger {} for cursor {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
-            if (isBkErrorNotRecoverable(rc) || ledgerForceRecovery) {
+            if (isBkErrorNotRecoverable(rc) || (rc != BKException.Code.OK && ledgerForceRecovery)) {
                 log.error("[{}] Error opening metadata ledger {} for cursor {}: {}", ledger.getName(), ledgerId, name,
                         BKException.getMessage(rc));
-                // Rewind to oldest entry available
+                // Rewind to the oldest entry available
                 initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
                 return;
             } else if (rc != BKException.Code.OK) {
@@ -577,10 +577,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
                 }
-                if (isBkErrorNotRecoverable(rc1) || ledgerForceRecovery) {
+                if (isBkErrorNotRecoverable(rc1) || (rc1 != BKException.Code.OK && ledgerForceRecovery)) {
                     log.error("[{}] Error reading from metadata ledger {} for cursor {}: {}", ledger.getName(),
                             ledgerId, name, BKException.getMessage(rc1));
-                    // Rewind to oldest entry available
+                    // Rewind to the oldest entry available
                     initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
                     return;
                 } else if (rc1 != BKException.Code.OK) {
