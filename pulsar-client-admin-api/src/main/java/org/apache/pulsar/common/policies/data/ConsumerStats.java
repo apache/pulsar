@@ -73,6 +73,7 @@ public interface ConsumerStats {
     boolean isBlockedConsumerOnUnackedMsgs();
 
     /** The read position of the cursor when the consumer joining. */
+    @Deprecated
     String getReadPositionWhenJoining();
 
     /**
